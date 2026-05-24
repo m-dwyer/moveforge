@@ -158,22 +158,31 @@ function drawDeviceScreen() {
   drawHeader("Westfold", `${state.selectedPreset}  T${state.selectedTrack + 1}  Pg ${state.page + 1}/${pageCount()}`);
   const visible = visibleParams();
   visible.forEach((param, i) => {
-    const col = i < 4 ? 0 : 1;
-    const row = i % 4;
-    const x = col === 0 ? 10 : 132;
-    const y = 58 + row * 16;
-    const fill = Math.round(norm(param) * 42);
+    const col = i % 4;
+    const row = Math.floor(i / 4);
+    const cellX = 8 + col * 60;
+    const cellY = 50 + row * 35;
+    const cellW = 56;
+    const value = format(param);
+    const fill = Math.round(norm(param) * (cellW - 6));
     if (touched?.key === param.key) {
       ctx.fillStyle = "#151713";
-      ctx.fillRect(x - 3, y - 11, 112, 13);
+      ctx.fillRect(cellX - 2, cellY - 2, cellW + 4, 29);
       ctx.fillStyle = "#d8ddd0";
     }
-    ctx.fillText(param.label.padEnd(7).slice(0, 7), x, y);
-    ctx.strokeRect(x + 52, y - 9, 46, 7);
-    ctx.fillRect(x + 54, y - 7, fill, 3);
-    ctx.fillText(format(param).padStart(4), x + 78, y + 10);
+
+    ctx.font = "8px Menlo, monospace";
+    ctx.fillText(param.label.slice(0, 6), cellX, cellY + 8);
+    ctx.textAlign = "right";
+    ctx.fillText(value.slice(0, 5), cellX + cellW, cellY + 8);
+    ctx.textAlign = "left";
+    ctx.strokeStyle = ctx.fillStyle;
+    ctx.strokeRect(cellX, cellY + 14, cellW, 8);
+    ctx.fillRect(cellX + 3, cellY + 17, fill, 3);
     ctx.fillStyle = "#151713";
+    ctx.strokeStyle = "#151713";
   });
+  ctx.font = "10px Menlo, monospace";
 }
 
 function drawChainScreen() {
