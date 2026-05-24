@@ -39,6 +39,14 @@ description = "Build WASM and serve the browser UI"
 depends = ["wasm"]
 run = "make serve"
 
+[tasks.dev]
+description = "Build WASM, serve the browser UI, and rebuild WASM when DSP or metadata changes"
+run = "make dev"
+
+[tasks.deploy]
+description = "Run checked local build steps, then install to Ableton Move"
+run = "make deploy"
+
 [tasks.check]
 description = "Run the main non-device checks"
 depends = ["test", "suite", "plot", "host"]
