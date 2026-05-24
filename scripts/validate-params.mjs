@@ -1,11 +1,11 @@
 import { readFile } from "node:fs/promises";
 
 const [manifest, moduleJson, presetsJson, header, core, worklet] = await Promise.all([
-  readJson("src/params.json"),
-  readJson("src/module.json"),
-  readJson("src/presets.json"),
-  readFile("src/dsp/westfold_core.h", "utf8"),
-  readFile("src/dsp/westfold_core.c", "utf8"),
+  readJson("src/modules/westfold/params.json"),
+  readJson("src/modules/westfold/module.json"),
+  readJson("src/modules/westfold/presets.json"),
+  readFile("src/modules/westfold/dsp/westfold_core.h", "utf8"),
+  readFile("src/modules/westfold/dsp/westfold_core.c", "utf8"),
   readFile("web/westfold-worklet.js", "utf8")
 ]);
 

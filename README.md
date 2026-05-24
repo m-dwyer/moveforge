@@ -58,7 +58,7 @@ Then open:
 http://localhost:8765/web/
 ```
 
-The mock shows the Move screen, track and mode buttons, 8 device encoders, wheel controls, transport keys, step buttons, pad layouts, a documented Schwung-style chain (`MIDI FX -> Sound -> Audio FX 1 -> Audio FX 2 -> Settings`), parameter sliders, rendered clip players, and a WASM-backed live synth running in an AudioWorklet. It reads parameter metadata from `src/module.json` and presets/render clips from `src/presets.json`.
+The mock shows the Move screen, track and mode buttons, 8 device encoders, wheel controls, transport keys, step buttons, pad layouts, a documented Schwung-style chain (`MIDI FX -> Sound -> Audio FX 1 -> Audio FX 2 -> Settings`), parameter sliders, rendered clip players, and a WASM-backed live synth running in an AudioWorklet. It reads Westfold metadata from `src/modules/westfold/module.json` and presets/render clips from `src/modules/westfold/presets.json`.
 
 Click `Enable WASM Audio`, then play the pads or use the computer keyboard row `a w s d r f t g h u j i k o l`. If your browser supports Web MIDI, connected MIDI keyboards are also routed to the synth. MIDI CC 20-27 map to the first eight parameters.
 
@@ -119,15 +119,15 @@ This runs DSP tests, renders the preset suite, builds the host library, then bui
 
 ## Development Loop
 
-1. Edit DSP in `src/dsp/westfold.c`.
+1. Edit DSP in `src/modules/westfold/dsp/westfold_core.c`.
 2. Run `./scripts/render-demo.sh --suite`.
 3. Listen through `renders/westfold-demo.wav` and `renders/westfold-suite/*.wav`.
-4. Adjust `src/module.json` parameter metadata when adding controls.
+4. Adjust `src/modules/westfold/module.json` and `src/modules/westfold/params.json` parameter metadata when adding controls.
 5. Run `./scripts/build.sh` before packaging or device install.
 
-For AI-assisted iteration, ask for small changes against `src/dsp/westfold.c` and always render before judging the sound. Audio bugs are much easier to catch from short deterministic WAV fixtures than from code review alone.
+For AI-assisted iteration, ask for small changes against `src/modules/westfold/dsp/westfold_core.c` and always render before judging the sound. Audio bugs are much easier to catch from short deterministic WAV fixtures than from code review alone.
 
-The actual synth engine lives in `src/dsp/westfold_core.c`; `src/dsp/westfold.c` is the Schwung plugin wrapper and `src/dsp/westfold_wasm.c` is the browser wrapper. Keep musical DSP changes in the core so Move builds, WAV renders, and browser audio stay aligned.
+The actual synth engine lives in `src/modules/westfold/dsp/westfold_core.c`; `src/modules/westfold/dsp/westfold.c` is the Schwung plugin wrapper and `src/modules/westfold/dsp/westfold_wasm.c` is the browser wrapper. Keep musical DSP changes in the core so Move builds, WAV renders, and browser audio stay aligned.
 
 ## Dev Checks
 

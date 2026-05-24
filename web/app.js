@@ -197,8 +197,8 @@ function paramIdsFromParams(items) {
 async function loadMetadata() {
   try {
     const [moduleJson, presetJson] = await Promise.all([
-      loadJson("../src/module.json"),
-      loadJson("../src/presets.json")
+      loadJson("../src/modules/westfold/module.json"),
+      loadJson("../src/modules/westfold/presets.json")
     ]);
     params = paramDefaultsFromModule(moduleJson);
     paramIds = paramIdsFromParams(params);
