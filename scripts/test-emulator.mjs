@@ -34,6 +34,20 @@ async function main() {
   await expectText(page.locator("#moduleSelect"), moduleId === "dustline" ? "Dustline" : "Westfold");
   await expectText(page.locator("#moduleSelect"), "Dustline");
   await expectText(page.locator("#panelTitle"), moduleId === "dustline" ? "Dustline" : "Westfold");
+  if (moduleId === "dustline") {
+    await expectText(page.locator("#controls"), "Wave");
+    await expectText(page.locator("#controls"), "Noise");
+    await expectText(page.locator("#controls"), "Cutoff");
+  } else {
+    await expectText(page.locator("#controls"), "Ratio");
+    await page.locator("#moduleSelect").selectOption("dustline");
+    await page.waitForURL(/module=dustline/);
+    await page.waitForSelector(".chain-slot");
+    await expectText(page.locator("#panelTitle"), "Dustline");
+    await expectText(page.locator("#controls"), "Wave");
+    await expectText(page.locator("#controls"), "Noise");
+    await expectText(page.locator("#controls"), "Cutoff");
+  }
 
   const slots = page.locator(".chain-slot");
   if (await slots.count() !== 5) throw new Error("slot chain should expose 5 positions");
