@@ -63,6 +63,7 @@ const octaveBaseEl = document.getElementById("octaveBase");
 const stepInspectorEl = document.getElementById("stepInspector");
 
 let params = [];
+let paramIds = {};
 let presets = [];
 let audio = null;
 let node = null;
@@ -189,6 +190,10 @@ function paramDefaultsFromModule(moduleJson) {
     .map((item) => ({ ...item, value: item.default }));
 }
 
+function paramIdsFromParams(items) {
+  return Object.fromEntries(items.map((param, index) => [param.key, param.id ?? index]));
+}
+
 async function loadMetadata() {
   try {
     const [moduleJson, presetJson] = await Promise.all([
@@ -196,6 +201,7 @@ async function loadMetadata() {
       loadJson("../src/presets.json")
     ]);
     params = paramDefaultsFromModule(moduleJson);
+    paramIds = paramIdsFromParams(params);
     presets = presetJson.presets || fallbackPresets;
     state.selectedPreset = presets[0]?.name || "Init";
     state.browserIndex = 0;
@@ -203,6 +209,7 @@ async function loadMetadata() {
     renderPreviewList();
   } catch (error) {
     params = fallbackParams.map((p) => ({ ...p, value: p.default }));
+    paramIds = paramIdsFromParams(params);
     presets = fallbackPresets;
     showError(`Metadata fallback: ${error.message}`);
   }
@@ -734,7 +741,7 @@ function send(message) {
 function sendParam(param) {
   if (param.scope) return;
   if (!selectedSlot()?.enabled && state.mode === "chain") return;
-  send({ type: "param", key: param.key, value: param.value });
+  send({ type: "param", key: param.key, id: paramIds[param.key], value: param.value });
 }
 
 function midiFxSlot() {

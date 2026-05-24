@@ -6,6 +6,10 @@ run = "make dev-deps"
 description = "Run DSP core smoke tests"
 run = "make test"
 
+[tasks.validate]
+description = "Validate module-scoped parameter metadata and mappings"
+run = "make validate"
+
 [tasks.emulator-test]
 description = "Run browser emulator smoke tests"
 run = "make emulator-test"
@@ -53,4 +57,4 @@ run = "make deploy"
 
 [tasks.check]
 description = "Run the main non-device checks"
-depends = ["test", "suite", "plot", "host"]
+depends = ["validate", "test", "suite", "plot", "host"]

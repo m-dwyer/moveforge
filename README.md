@@ -143,6 +143,12 @@ Run the core DSP smoke tests:
 make test
 ```
 
+Validate that module-scoped parameter metadata matches the C core, presets, and browser worklet:
+
+```bash
+make validate
+```
+
 Render the suite and generate waveform/spectrum PNGs:
 
 ```bash
@@ -160,6 +166,7 @@ Other useful targets:
 ```bash
 make render
 make suite
+make validate
 make host
 make wasm
 make move
@@ -172,6 +179,7 @@ If you use `mise`, the same entry points are available as tasks:
 ```bash
 mise run setup
 mise run test
+mise run validate
 mise run plot
 mise run wasm
 mise run web

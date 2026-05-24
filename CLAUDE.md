@@ -22,7 +22,8 @@ The main rule: keep musical DSP behavior in the shared core.
 - `src/dsp/westfold.c` is the Schwung plugin adapter. It translates Schwung lifecycle calls, string parameters, MIDI bytes, and `int16_t` block output into calls on the core.
 - `src/dsp/westfold_wasm.c` is the browser/WASM adapter. It exports a minimal C ABI for the AudioWorklet.
 - `tools/render_wav.c` is the offline host harness. It loads the Schwung wrapper directly, sends deterministic MIDI/parameter sequences, and writes WAV fixtures.
-- `src/module.json` is Schwung metadata and UI/parameter schema.
+- `src/module.json` is Schwung metadata and Move-facing module parameter schema.
+- `src/params.json` is the local source of truth for Westfold parameter IDs, labels, ranges, defaults, and ordering.
 - `src/presets.json` drives local preset buttons and render-suite clips.
 - `src/ui.js` is the on-device Schwung UI entry point.
 - `web/` contains the local browser UI. It reads `src/module.json`, `src/presets.json`, and `web/wasm/westfold.wasm`.
@@ -33,8 +34,9 @@ When adding a parameter, update all of these surfaces together:
 2. `src/dsp/westfold_core.c` lookup, clamp, defaults, and render behavior
 3. `src/module.json`
 4. `src/presets.json`
-5. `web/westfold-worklet.js` `PARAM_IDS`
+5. `src/params.json`
 6. focused tests in `tests/test_westfold_core.c`
+7. run `mise run validate`
 
 ## Common Commands
 
@@ -43,6 +45,7 @@ Use `mise` tasks when available; they wrap the `Makefile`.
 ```bash
 mise run setup   # create .venv and install plotting dependencies
 mise run test    # compile and run DSP core smoke tests
+mise run validate # validate module-scoped parameter metadata and mappings
 mise run render  # render renders/westfold-demo.wav
 mise run suite   # render all preset WAVs under renders/westfold-suite/
 mise run plot    # render suite and generate waveform/spectrum PNGs
@@ -52,10 +55,10 @@ mise run serve   # serve repo at http://localhost:8765/
 mise run web     # build WASM then serve the web UI
 mise run emulator-test # run browser emulator smoke tests
 mise run move    # build aarch64 Move-target module package
-mise run check   # run non-device checks: test, suite, plot, host
+mise run check   # run non-device checks: validate, test, suite, plot, host
 ```
 
-Equivalent `make` targets exist: `make test`, `make emulator-test`, `make render`, `make suite`, `make plot`, `make host`, `make wasm`, `make serve`, `make move`, and `make clean`.
+Equivalent `make` targets exist: `make test`, `make validate`, `make emulator-test`, `make render`, `make suite`, `make plot`, `make host`, `make wasm`, `make serve`, `make move`, and `make clean`.
 
 The web UI is served at:
 
