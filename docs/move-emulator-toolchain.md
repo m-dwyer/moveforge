@@ -6,6 +6,8 @@ This branch turns the browser mock into a broader Move/Schwung iteration harness
 
 - Move-style hardware shell: track buttons, mode buttons, 8 device encoders, wheel controls, transport keys, 16 step buttons, and 32 pads.
 - Schwung chain view: simple MIDI FX, sound generator, and audio FX slots with selected-slot and bypass state.
+- Functional local MIDI FX: `Scale Gate` can transpose, scale-lock, probability-gate, and velocity-scale notes before they reach the synth.
+- Functional local Audio FX: `Drive Tone` applies post-synth drive, tone smoothing, and wet/dry mix in the AudioWorklet.
 - Device view: 8 parameters per page, encoder touch/highlight behavior, page navigation, and parameter value feedback on the OLED canvas.
 - Preset browser view: wheel-driven preset selection and loading.
 - Step harness: 16-step local sequencer, selected step state, play/stop, step clearing, and basic parameter locks while recording in step mode.
@@ -53,7 +55,7 @@ The toolchain is now credible for deciding whether Schwung can support fast loca
 1. Generate parameter IDs for C/WASM/JS from one manifest.
 2. Validate `module.json`, `presets.json`, and step/render fixtures before build.
 3. Add golden render metrics: peak, RMS, DC offset, silence, clipping, and tolerance comparison.
-4. Add FX mode with fixture WAV input, WASM processing, and output comparison.
+4. Add full FX-module mode with fixture WAV input, WASM processing, and output comparison.
 5. Add a module scaffolder for new synths, MIDI FX, and audio FX.
 6. Add real Move log tailing and install health checks once hardware is available.
 7. Add browser recording/export so current WASM sessions can be captured as WAV fixtures.

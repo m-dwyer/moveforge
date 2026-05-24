@@ -32,6 +32,7 @@ const audioToggle = document.getElementById("audioToggle");
 const errorEl = document.getElementById("errors");
 const previewEl = document.getElementById("previewList");
 const chainEl = document.getElementById("chain");
+const chainInspectorEl = document.getElementById("chainInspector");
 const tracksEl = document.getElementById("tracks");
 const layoutModeEl = document.getElementById("layoutMode");
 const rootNoteEl = document.getElementById("rootNote");
@@ -67,12 +68,24 @@ const state = {
   scale: "major",
   octave: 3,
   chain: [
-    { id: "midi-pre", type: "MIDI FX", name: "Empty", enabled: false },
+    { id: "midi-pre", type: "MIDI FX", name: "Scale Gate", enabled: false },
     { id: "westfold", type: "Sound", name: "Westfold", enabled: true },
-    { id: "audio-post", type: "Audio FX", name: "Empty", enabled: false }
+    { id: "audio-post", type: "Audio FX", name: "Drive Tone", enabled: false }
   ],
+  midiFx: {
+    transpose: 0,
+    chance: 1,
+    velocity: 1,
+    scaleLock: true
+  },
+  audioFx: {
+    drive: 0.35,
+    tone: 0.72,
+    wet: 0.55
+  },
   steps: Array.from({ length: 16 }, () => ({ enabled: false, note: 60, velocity: 0.9, locks: {} })),
-  activePads: new Map()
+  activePads: new Map(),
+  activeNotes: new Map()
 };
 
 function showError(message) {
@@ -264,14 +277,76 @@ function renderChain() {
     button.addEventListener("click", () => {
       state.selectedSlot = i;
       state.mode = "chain";
+      syncAudioFx();
       update();
     });
     button.addEventListener("dblclick", () => {
       slot.enabled = !slot.enabled;
+      syncAudioFx();
       update();
     });
     chainEl.appendChild(button);
   });
+}
+
+function renderChainInspector() {
+  const slot = state.chain[state.selectedSlot];
+  if (!slot) {
+    chainInspectorEl.innerHTML = "";
+    return;
+  }
+
+  if (slot.id === "midi-pre") {
+    chainInspectorEl.innerHTML = `
+      <div class="chain-inspector-head">
+        <b>Scale Gate</b>
+        <span>${slot.enabled ? "in MIDI path" : "bypassed"}</span>
+      </div>
+      <div class="mini-controls">
+        <label>Transpose <input data-midi-fx="transpose" type="range" min="-24" max="24" step="1" value="${state.midiFx.transpose}"><span>${state.midiFx.transpose}</span></label>
+        <label>Chance <input data-midi-fx="chance" type="range" min="0" max="1" step="0.01" value="${state.midiFx.chance}"><span>${state.midiFx.chance.toFixed(2)}</span></label>
+        <label>Velocity <input data-midi-fx="velocity" type="range" min="0.1" max="1.5" step="0.01" value="${state.midiFx.velocity}"><span>${state.midiFx.velocity.toFixed(2)}</span></label>
+        <label class="check-row"><input data-midi-fx="scaleLock" type="checkbox" ${state.midiFx.scaleLock ? "checked" : ""}> Scale lock</label>
+      </div>
+    `;
+    chainInspectorEl.querySelectorAll("[data-midi-fx]").forEach((input) => {
+      input.addEventListener("input", () => {
+        const key = input.dataset.midiFx;
+        state.midiFx[key] = input.type === "checkbox" ? input.checked : Number(input.value);
+        update();
+      });
+    });
+    return;
+  }
+
+  if (slot.id === "audio-post") {
+    chainInspectorEl.innerHTML = `
+      <div class="chain-inspector-head">
+        <b>Drive Tone</b>
+        <span>${slot.enabled ? "post synth" : "bypassed"}</span>
+      </div>
+      <div class="mini-controls">
+        <label>Drive <input data-audio-fx="drive" type="range" min="0" max="1" step="0.01" value="${state.audioFx.drive}"><span>${state.audioFx.drive.toFixed(2)}</span></label>
+        <label>Tone <input data-audio-fx="tone" type="range" min="0" max="1" step="0.01" value="${state.audioFx.tone}"><span>${state.audioFx.tone.toFixed(2)}</span></label>
+        <label>Wet <input data-audio-fx="wet" type="range" min="0" max="1" step="0.01" value="${state.audioFx.wet}"><span>${state.audioFx.wet.toFixed(2)}</span></label>
+      </div>
+    `;
+    chainInspectorEl.querySelectorAll("[data-audio-fx]").forEach((input) => {
+      input.addEventListener("input", () => {
+        state.audioFx[input.dataset.audioFx] = Number(input.value);
+        syncAudioFx();
+        update();
+      });
+    });
+    return;
+  }
+
+  chainInspectorEl.innerHTML = `
+    <div class="chain-inspector-head">
+      <b>Westfold</b>
+      <span>shared C DSP core via WASM</span>
+    </div>
+  `;
 }
 
 function renderKnobs() {
@@ -456,6 +531,7 @@ function update(renderForms = true) {
   drawScreen();
   renderTracks();
   renderChain();
+  renderChainInspector();
   renderKnobs();
   renderSteps();
   renderPads();
@@ -472,6 +548,49 @@ function send(message) {
 
 function sendParam(param) {
   send({ type: "param", key: param.key, value: param.value });
+}
+
+function midiFxSlot() {
+  return state.chain.find((slot) => slot.id === "midi-pre");
+}
+
+function audioFxSlot() {
+  return state.chain.find((slot) => slot.id === "audio-post");
+}
+
+function nearestScaleNote(note) {
+  const allowed = scales[state.scale] || scales.major;
+  let best = note;
+  let bestDistance = Infinity;
+  for (let candidate = note - 6; candidate <= note + 6; candidate++) {
+    const pc = ((candidate - state.root) % 12 + 12) % 12;
+    const distance = Math.abs(candidate - note);
+    if (allowed.includes(pc) && distance < bestDistance) {
+      best = candidate;
+      bestDistance = distance;
+    }
+  }
+  return best;
+}
+
+function processMidiFx(note, velocity) {
+  const slot = midiFxSlot();
+  if (!slot?.enabled) return { note, velocity };
+  if (Math.random() > state.midiFx.chance) return null;
+  let processedNote = clamp(note + state.midiFx.transpose, 0, 127);
+  if (state.midiFx.scaleLock) processedNote = nearestScaleNote(processedNote);
+  return {
+    note: processedNote,
+    velocity: clamp(velocity * state.midiFx.velocity, 0, 1)
+  };
+}
+
+function syncAudioFx() {
+  send({
+    type: "audioFx",
+    enabled: Boolean(audioFxSlot()?.enabled),
+    ...state.audioFx
+  });
 }
 
 function setParamValue(param, value, markCustom = false) {
@@ -527,6 +646,7 @@ async function enableAudio() {
       audioReady = true;
       audioToggle.textContent = "WASM Audio On";
       params.forEach(sendParam);
+      syncAudioFx();
     } else if (event.data?.type === "error") {
       audioToggle.textContent = "Audio failed";
       showError(event.data.message);
@@ -536,7 +656,10 @@ async function enableAudio() {
 
 function noteOn(note, velocity = 0.94) {
   enableAudio().then(() => {
-    send({ type: "noteOn", note, velocity });
+    const processed = processMidiFx(note, velocity);
+    if (!processed) return;
+    state.activeNotes.set(note, processed.note);
+    send({ type: "noteOn", note: processed.note, velocity: processed.velocity });
   }).catch((error) => {
     audioToggle.textContent = "Audio failed";
     showError(error.message);
@@ -544,7 +667,9 @@ function noteOn(note, velocity = 0.94) {
 }
 
 function noteOff(note) {
-  send({ type: "noteOff", note });
+  const processedNote = state.activeNotes.get(note) ?? note;
+  state.activeNotes.delete(note);
+  send({ type: "noteOff", note: processedNote });
 }
 
 async function enableMidi() {
@@ -626,6 +751,7 @@ function pressWheel() {
   if (state.mode === "chain") {
     const slot = state.chain[state.selectedSlot];
     slot.enabled = !slot.enabled;
+    syncAudioFx();
   } else if (state.mode === "seq") {
     const step = state.steps[state.selectedStep];
     step.enabled = !step.enabled;

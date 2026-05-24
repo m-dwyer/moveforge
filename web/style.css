@@ -394,6 +394,50 @@ h2 {
   opacity: 0.58;
 }
 
+.chain-inspector {
+  margin-top: 10px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #181915;
+}
+
+.chain-inspector-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+  font-size: 13px;
+}
+
+.chain-inspector-head span {
+  color: var(--muted);
+}
+
+.mini-controls {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.mini-controls label {
+  display: grid;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.mini-controls label span {
+  color: var(--warn);
+  font-variant-numeric: tabular-nums;
+}
+
+.mini-controls .check-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .preset-row {
   display: flex;
   flex-wrap: wrap;
@@ -510,7 +554,8 @@ audio {
 
   .wheel-row,
   .tool-grid,
-  .chain {
+  .chain,
+  .mini-controls {
     grid-template-columns: 1fr;
   }
 }

@@ -17,6 +17,14 @@ class WestfoldProcessor extends AudioWorkletProcessor {
     this.left = null;
     this.right = null;
     this.queue = [];
+    this.audioFx = {
+      enabled: false,
+      drive: 0.35,
+      tone: 0.72,
+      wet: 0.55,
+      lpL: 0,
+      lpR: 0
+    };
 
     this.port.onmessage = (event) => {
       if (event.data?.type === "loadWasm") {
@@ -61,6 +69,28 @@ class WestfoldProcessor extends AudioWorkletProcessor {
       this.exports.wf_all_notes_off();
     } else if (message.type === "pitchBend") {
       this.exports.wf_set_pitch_bend(Number(message.value));
+    } else if (message.type === "audioFx") {
+      this.audioFx.enabled = Boolean(message.enabled);
+      this.audioFx.drive = Math.min(1, Math.max(0, Number(message.drive ?? this.audioFx.drive)));
+      this.audioFx.tone = Math.min(1, Math.max(0, Number(message.tone ?? this.audioFx.tone)));
+      this.audioFx.wet = Math.min(1, Math.max(0, Number(message.wet ?? this.audioFx.wet)));
+    }
+  }
+
+  processAudioFx(left, right, frames) {
+    if (!this.audioFx.enabled) return;
+    const gain = 1 + this.audioFx.drive * 18;
+    const wet = this.audioFx.wet;
+    const alpha = 0.015 + this.audioFx.tone * 0.65;
+    for (let i = 0; i < frames; i++) {
+      const dryL = left[i];
+      const dryR = right[i];
+      const drivenL = Math.tanh(dryL * gain);
+      const drivenR = Math.tanh(dryR * gain);
+      this.audioFx.lpL += alpha * (drivenL - this.audioFx.lpL);
+      this.audioFx.lpR += alpha * (drivenR - this.audioFx.lpR);
+      left[i] = dryL * (1 - wet) + this.audioFx.lpL * wet;
+      right[i] = dryR * (1 - wet) + this.audioFx.lpR * wet;
     }
   }
 
@@ -76,6 +106,7 @@ class WestfoldProcessor extends AudioWorkletProcessor {
     this.exports.wf_render(output[0].length);
     output[0].set(this.left.subarray(0, output[0].length));
     output[1].set(this.right.subarray(0, output[1].length));
+    this.processAudioFx(output[0], output[1], output[0].length);
     return true;
   }
 }
