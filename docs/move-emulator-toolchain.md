@@ -5,9 +5,11 @@ This branch turns the browser mock into a broader Move/Schwung iteration harness
 ## What The Emulator Now Covers
 
 - Move-style hardware shell: track buttons, mode buttons, 8 device encoders, wheel controls, transport keys, 16 step buttons, and 32 pads.
-- Schwung chain view: simple MIDI FX, sound generator, and audio FX slots with selected-slot and bypass state.
+- Schwung chain view: documented slot chain shape, `MIDI FX -> Sound Generator -> Audio FX 1 -> Audio FX 2 -> Settings`, with selected-slot and bypass state.
 - Functional local MIDI FX: `Scale Gate` can transpose, scale-lock, probability-gate, and velocity-scale notes before they reach the synth.
-- Functional local Audio FX: `Drive Tone` applies post-synth drive, tone smoothing, and wet/dry mix in the AudioWorklet.
+- Functional local Audio FX: `Drive Tone` and `Air Tone` apply post-synth drive, tone smoothing, and wet/dry mix in the AudioWorklet.
+- Master FX view: Note/Session toggles a four-slot master effects chain.
+- Slot settings: knob/routing/LFO settings are represented locally, including Receive Ch, Forward Ch, MIDI FX output mode, and two LFO indicators.
 - Device view: 8 parameters per page, encoder touch/highlight behavior, page navigation, and parameter value feedback on the OLED canvas.
 - Preset browser view: wheel-driven preset selection and loading.
 - Step harness: 16-step local sequencer, selected step state, play/stop, step clearing, and basic parameter locks while recording in step mode.
@@ -60,6 +62,7 @@ The toolchain is now credible for deciding whether Schwung can support fast loca
 6. Add real Move log tailing and install health checks once hardware is available.
 7. Add browser recording/export so current WASM sessions can be captured as WAV fixtures.
 8. Add browser-side preset save/export back to JSON.
+9. Calibrate exact display, LED, and gesture timing with real hardware via Schwung screen mirroring.
 
 ## Practical Confidence Check
 

@@ -58,7 +58,7 @@ Then open:
 http://localhost:8765/web/
 ```
 
-The mock shows the Move screen, track and mode buttons, 8 device encoders, wheel controls, transport keys, step buttons, pad layouts, Schwung-style chain slots, parameter sliders, rendered clip players, and a WASM-backed live synth running in an AudioWorklet. It reads parameter metadata from `src/module.json` and presets/render clips from `src/presets.json`.
+The mock shows the Move screen, track and mode buttons, 8 device encoders, wheel controls, transport keys, step buttons, pad layouts, a documented Schwung-style chain (`MIDI FX -> Sound -> Audio FX 1 -> Audio FX 2 -> Settings`), parameter sliders, rendered clip players, and a WASM-backed live synth running in an AudioWorklet. It reads parameter metadata from `src/module.json` and presets/render clips from `src/presets.json`.
 
 Click `Enable WASM Audio`, then play the pads or use the computer keyboard row `a w s d r f t g h u j i k o l`. If your browser supports Web MIDI, connected MIDI keyboards are also routed to the synth. MIDI CC 20-27 map to the first eight parameters.
 
@@ -164,6 +164,7 @@ make host
 make wasm
 make move
 make serve
+make emulator-test
 ```
 
 If you use `mise`, the same entry points are available as tasks:
@@ -175,6 +176,7 @@ mise run plot
 mise run wasm
 mise run web
 mise run dev
+mise run emulator-test
 mise run check
 mise run deploy
 ```

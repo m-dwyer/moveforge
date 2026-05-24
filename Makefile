@@ -1,4 +1,4 @@
-.PHONY: render suite plot test host move wasm serve dev deploy dev-deps clean
+.PHONY: render suite plot test emulator-test host move wasm serve dev deploy dev-deps clean
 
 render:
 	./scripts/render-demo.sh
@@ -11,6 +11,9 @@ plot: suite
 
 test:
 	./scripts/test.sh
+
+emulator-test:
+	node scripts/test-emulator.mjs
 
 host:
 	./scripts/build-host.sh

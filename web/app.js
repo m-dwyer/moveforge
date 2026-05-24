@@ -21,15 +21,24 @@ const scales = {
 };
 
 const midiFxParamDefs = [
-  { scope: "midiFx", key: "transpose", label: "Transpose", type: "float", min: -24, max: 24, default: 0, step: 1 },
-  { scope: "midiFx", key: "chance", label: "Chance", type: "float", min: 0, max: 1, default: 1, step: 0.01 },
-  { scope: "midiFx", key: "velocity", label: "Velocity", type: "float", min: 0.1, max: 1.5, default: 1, step: 0.01 }
+  { scope: "component", key: "transpose", label: "Transpose", min: -24, max: 24, default: 0, step: 1 },
+  { scope: "component", key: "chance", label: "Chance", min: 0, max: 1, default: 1, step: 0.01 },
+  { scope: "component", key: "velocity", label: "Velocity", min: 0.1, max: 1.5, default: 1, step: 0.01 }
 ];
 
 const audioFxParamDefs = [
-  { scope: "audioFx", key: "drive", label: "Drive", type: "float", min: 0, max: 1, default: 0.35, step: 0.01 },
-  { scope: "audioFx", key: "tone", label: "Tone", type: "float", min: 0, max: 1, default: 0.72, step: 0.01 },
-  { scope: "audioFx", key: "wet", label: "Wet", type: "float", min: 0, max: 1, default: 0.55, step: 0.01 }
+  { scope: "component", key: "drive", label: "Drive", min: 0, max: 1, default: 0.35, step: 0.01 },
+  { scope: "component", key: "tone", label: "Tone", min: 0, max: 1, default: 0.72, step: 0.01 },
+  { scope: "component", key: "wet", label: "Wet", min: 0, max: 1, default: 0.55, step: 0.01 }
+];
+
+const settingsParamDefs = [
+  { scope: "settings", key: "slot_volume", label: "Slot Vol", min: 0, max: 1, default: 1, step: 0.01 },
+  { scope: "settings", key: "receive_ch", label: "Recv Ch", min: 0, max: 16, default: 0, step: 1 },
+  { scope: "settings", key: "forward_ch", label: "Fwd Ch", min: 0, max: 17, default: 0, step: 1 },
+  { scope: "settings", key: "midi_fx_output", label: "MIDI Out", min: 0, max: 1, default: 0, step: 1 },
+  { scope: "settings", key: "lfo1_depth", label: "LFO 1", min: 0, max: 1, default: 0, step: 0.01 },
+  { scope: "settings", key: "lfo2_depth", label: "LFO 2", min: 0, max: 1, default: 0, step: 0.01 }
 ];
 
 const screen = document.getElementById("screen");
@@ -39,6 +48,7 @@ const controlsEl = document.getElementById("controls");
 const padsEl = document.getElementById("pads");
 const stepsEl = document.getElementById("steps");
 const statusEl = document.getElementById("status");
+const panelTitleEl = document.getElementById("panelTitle");
 const presetEl = document.getElementById("presets");
 const audioToggle = document.getElementById("audioToggle");
 const errorEl = document.getElementById("errors");
@@ -60,8 +70,83 @@ let audioReady = false;
 let midiAccess = null;
 let seqTimer = null;
 
+function makeMidiFx() {
+  return {
+    id: "midi-pre",
+    kind: "midi_fx",
+    type: "MIDI FX",
+    name: "Scale Gate",
+    enabled: false,
+    scaleLock: true,
+    params: { transpose: 0, chance: 1, velocity: 1 }
+  };
+}
+
+function makeSound() {
+  return { id: "westfold", kind: "sound_generator", type: "Sound", name: "Westfold", enabled: true };
+}
+
+function makeAudioFx(id, label, defaults = {}) {
+  return {
+    id,
+    kind: "audio_fx",
+    type: label,
+    name: id === "audio-fx-2" ? "Air Tone" : "Drive Tone",
+    enabled: false,
+    params: { drive: 0.35, tone: 0.72, wet: 0.55, ...defaults }
+  };
+}
+
+function makeSettings() {
+  return {
+    id: "settings",
+    kind: "settings",
+    type: "Settings",
+    name: "Slot Settings",
+    enabled: true,
+    params: {
+      slot_volume: 1,
+      receive_ch: 0,
+      forward_ch: 0,
+      midi_fx_output: 0,
+      lfo1_depth: 0,
+      lfo2_depth: 0
+    },
+    lfos: [
+      { enabled: false, targetComponent: "westfold", targetParam: "fold", shape: "sine", depth: 0, rate: 0.25, phase: 0, polarity: "bipolar", retrigger: false },
+      { enabled: false, targetComponent: "audio-fx-1", targetParam: "wet", shape: "tri", depth: 0, rate: 0.125, phase: 0, polarity: "unipolar", retrigger: false }
+    ]
+  };
+}
+
+function makeSlotState() {
+  return {
+    chain: [
+      makeMidiFx(),
+      makeSound(),
+      makeAudioFx("audio-fx-1", "Audio FX 1"),
+      makeAudioFx("audio-fx-2", "Audio FX 2", { drive: 0.08, tone: 0.9, wet: 0.25 }),
+      makeSettings()
+    ],
+    activeNotes: new Map(),
+    moveEchoEvents: []
+  };
+}
+
+function makeMasterState() {
+  return {
+    chain: [
+      makeAudioFx("master-fx-1", "Master FX 1", { drive: 0.1, wet: 0.25 }),
+      makeAudioFx("master-fx-2", "Master FX 2", { drive: 0.2, wet: 0.2 }),
+      makeAudioFx("master-fx-3", "Master FX 3", { drive: 0, tone: 0.6, wet: 0 }),
+      makeAudioFx("master-fx-4", "Master FX 4", { drive: 0, tone: 0.6, wet: 0 })
+    ]
+  };
+}
+
 const state = {
   mode: "device",
+  context: "slot",
   page: 0,
   selectedTrack: 0,
   selectedSlot: 1,
@@ -79,25 +164,10 @@ const state = {
   root: 0,
   scale: "major",
   octave: 3,
-  chain: [
-    { id: "midi-pre", type: "MIDI FX", name: "Scale Gate", enabled: false },
-    { id: "westfold", type: "Sound", name: "Westfold", enabled: true },
-    { id: "audio-post", type: "Audio FX", name: "Drive Tone", enabled: false }
-  ],
-  midiFx: {
-    transpose: 0,
-    chance: 1,
-    velocity: 1,
-    scaleLock: true
-  },
-  audioFx: {
-    drive: 0.35,
-    tone: 0.72,
-    wet: 0.55
-  },
+  tracks: Array.from({ length: 4 }, makeSlotState),
+  master: makeMasterState(),
   steps: Array.from({ length: 16 }, () => ({ enabled: false, note: 60, velocity: 0.9, locks: {} })),
-  activePads: new Map(),
-  activeNotes: new Map()
+  activePads: new Map()
 };
 
 function showError(message) {
@@ -138,36 +208,54 @@ async function loadMetadata() {
   }
 }
 
-function norm(param) {
-  return (param.value - param.min) / (param.max - param.min);
-}
-
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value));
 }
 
+function norm(param) {
+  if (param.max === param.min) return 0;
+  return (param.value - param.min) / (param.max - param.min);
+}
+
+function currentSlotState() {
+  return state.context === "master" ? state.master : state.tracks[state.selectedTrack];
+}
+
+function currentChain() {
+  return currentSlotState().chain;
+}
+
+function selectedSlot() {
+  return currentChain()[state.selectedSlot];
+}
+
+function settingsComponent() {
+  return state.tracks[state.selectedTrack].chain.find((slot) => slot.kind === "settings");
+}
+
+function scopedParams(defs, values, component) {
+  return defs.map((def) => ({ ...def, componentId: component?.id, value: values[def.key] ?? def.default }));
+}
+
 function format(param) {
   if (param.key === "transpose") return `${Number(param.value) > 0 ? "+" : ""}${Number(param.value).toFixed(0)}`;
+  if (param.key === "receive_ch") return Number(param.value) === 0 ? "All" : String(Number(param.value).toFixed(0));
+  if (param.key === "forward_ch") {
+    if (Number(param.value) === 0) return "Auto";
+    if (Number(param.value) === 1) return "Thru";
+    return `Ch ${Number(param.value) - 1}`;
+  }
+  if (param.key === "midi_fx_output") return Number(param.value) < 0.5 ? "Schw" : "Both";
   if (param.key === "bend_range") return Number(param.value).toFixed(1);
   if (param.max > 3) return Number(param.value).toFixed(2);
   return Number(param.value).toFixed(2);
 }
 
-function selectedSlot() {
-  return state.chain[state.selectedSlot];
-}
-
-function scopedParams(defs, values) {
-  return defs.map((def) => ({
-    ...def,
-    value: values[def.key] ?? def.default
-  }));
-}
-
 function activeParams() {
   const slot = selectedSlot();
-  if (state.mode === "chain" && slot?.id === "midi-pre") return scopedParams(midiFxParamDefs, state.midiFx);
-  if (state.mode === "chain" && slot?.id === "audio-post") return scopedParams(audioFxParamDefs, state.audioFx);
+  if (state.mode === "chain" && slot?.kind === "midi_fx") return scopedParams(midiFxParamDefs, slot.params, slot);
+  if (state.mode === "chain" && slot?.kind === "audio_fx") return scopedParams(audioFxParamDefs, slot.params, slot);
+  if (state.mode === "chain" && slot?.kind === "settings") return scopedParams(settingsParamDefs, slot.params, slot);
   return params;
 }
 
@@ -179,7 +267,7 @@ function activeDeviceName() {
 
 function selectedScopedSlotIsBypassed() {
   const slot = selectedSlot();
-  return state.mode === "chain" && Boolean(slot) && slot.id !== "westfold" && !slot.enabled;
+  return state.mode === "chain" && Boolean(slot) && slot.kind !== "settings" && !slot.enabled;
 }
 
 function visibleParams() {
@@ -211,8 +299,7 @@ function drawScreen() {
 function drawDeviceScreen() {
   const touched = state.touchedParam;
   drawHeader(activeDeviceName(), `${state.selectedPreset}  T${state.selectedTrack + 1}  Pg ${state.page + 1}/${pageCount()}`);
-  const visible = visibleParams();
-  visible.forEach((param, i) => {
+  visibleParams().forEach((param, i) => {
     const col = i % 4;
     const row = Math.floor(i / 4);
     const cellX = 8 + col * 60;
@@ -220,12 +307,11 @@ function drawDeviceScreen() {
     const cellW = 56;
     const value = format(param);
     const fill = Math.round(norm(param) * (cellW - 6));
-    if (touched?.key === param.key) {
+    if (touched?.key === param.key && touched?.componentId === param.componentId) {
       ctx.fillStyle = "#151713";
       ctx.fillRect(cellX - 2, cellY - 2, cellW + 4, 29);
       ctx.fillStyle = "#d8ddd0";
     }
-
     ctx.font = "8px Menlo, monospace";
     ctx.fillText(param.label.slice(0, 6), cellX, cellY + 8);
     ctx.textAlign = "right";
@@ -240,21 +326,33 @@ function drawDeviceScreen() {
   ctx.font = "10px Menlo, monospace";
 }
 
+function componentIndicator(slot) {
+  const settings = settingsComponent();
+  if (slot.kind === "settings" || state.context === "master") return "";
+  const hits = settings.lfos
+    .map((lfo, i) => lfo.enabled && lfo.targetComponent === slot.id ? `~${i + 1}` : "")
+    .filter(Boolean);
+  return hits.join("+");
+}
+
 function drawChainScreen() {
-  drawHeader("Schwung Chain", "Long Track/Menu equivalent");
-  state.chain.forEach((slot, i) => {
-    const y = 58 + i * 21;
+  const title = state.context === "master" ? "Master FX" : `Track ${state.selectedTrack + 1} Chain`;
+  drawHeader(title, state.context === "master" ? "Long Note/Session equivalent" : "Long Track/Menu equivalent");
+  currentChain().forEach((slot, i) => {
+    const y = 55 + i * 14;
     const selected = i === state.selectedSlot;
     if (selected) {
       ctx.fillStyle = "#151713";
-      ctx.fillRect(8, y - 13, 240, 17);
+      ctx.fillRect(8, y - 10, 240, 13);
       ctx.fillStyle = "#d8ddd0";
     }
-    const enabled = slot.enabled ? "ON " : "OFF";
-    ctx.fillText(`${i + 1} ${slot.type.padEnd(8)} ${enabled} ${slot.name}`, 12, y);
+    const status = slot.kind === "settings" ? "   " : slot.enabled ? "ON " : "B  ";
+    const indicator = componentIndicator(slot);
+    ctx.fillText(`${i + 1} ${slot.type.padEnd(10).slice(0, 10)} ${status}${slot.name}`.slice(0, 31), 12, y);
+    if (indicator) ctx.fillText(indicator, 220, y);
     ctx.fillStyle = "#151713";
   });
-  ctx.fillText("Wheel: select  Press: bypass", 12, 120);
+  ctx.fillText("Jog: select  Mute+Jog: bypass", 12, 120);
 }
 
 function drawSeqScreen() {
@@ -282,8 +380,7 @@ function drawBrowserScreen() {
   presets.slice(0, 5).forEach((preset, i) => {
     const idx = (state.browserIndex + i) % presets.length;
     const y = 58 + i * 13;
-    const selected = i === 0;
-    if (selected) {
+    if (i === 0) {
       ctx.fillStyle = "#151713";
       ctx.fillRect(8, y - 10, 240, 12);
       ctx.fillStyle = "#d8ddd0";
@@ -294,15 +391,29 @@ function drawBrowserScreen() {
   ctx.fillText(`Loaded: ${state.selectedPreset}`.slice(0, 30), 12, 120);
 }
 
+function selectChainPosition(index, context = state.context) {
+  state.context = context;
+  state.selectedSlot = clamp(index, 0, currentChain().length - 1);
+  state.mode = "chain";
+  state.page = 0;
+  state.touchedParam = null;
+  syncAudioChain();
+}
+
 function renderTracks() {
   tracksEl.innerHTML = "";
   for (let i = 0; i < 4; i++) {
     const button = document.createElement("button");
     button.type = "button";
-    button.className = `track ${i === state.selectedTrack ? "selected" : ""}`;
+    button.className = `track ${i === state.selectedTrack && state.context === "slot" ? "selected" : ""}`;
     button.textContent = `Track ${i + 1}`;
     button.addEventListener("click", () => {
       state.selectedTrack = i;
+      state.context = "slot";
+      state.mode = "chain";
+      state.selectedSlot = 1;
+      state.page = 0;
+      syncAudioChain();
       update();
     });
     tracksEl.appendChild(button);
@@ -311,102 +422,113 @@ function renderTracks() {
 
 function renderChain() {
   chainEl.innerHTML = "";
-  state.chain.forEach((slot, i) => {
+  currentChain().forEach((slot, i) => {
     const button = document.createElement("button");
     button.type = "button";
-    button.className = `chain-slot ${i === state.selectedSlot ? "selected" : ""} ${slot.enabled ? "" : "disabled"}`;
-    button.innerHTML = `<span>${slot.type}</span><b>${slot.name}</b><small>${slot.enabled ? "enabled" : "bypassed"}</small>`;
+    const bypass = slot.kind !== "settings" && !slot.enabled ? "disabled" : "";
+    button.className = `chain-slot ${i === state.selectedSlot ? "selected" : ""} ${bypass}`;
+    const marker = componentIndicator(slot);
+    const status = slot.kind === "settings" ? "open" : slot.enabled ? "enabled" : "bypassed";
+    button.innerHTML = `<span>${slot.type}${marker ? ` ${marker}` : ""}</span><b>${slot.name}</b><small>${status}${!slot.enabled && slot.kind !== "settings" ? " B" : ""}</small>`;
     button.addEventListener("click", () => {
-      state.selectedSlot = i;
-      state.mode = "chain";
-      state.page = 0;
-      state.touchedParam = null;
-      syncAudioFx();
+      selectChainPosition(i);
       update();
     });
     button.addEventListener("dblclick", () => {
-      slot.enabled = !slot.enabled;
-      syncAudioFx();
+      toggleSelectedBypass(slot);
       update();
     });
     chainEl.appendChild(button);
   });
 }
 
-function setSlotEnabled(slot, enabled) {
-  if (!slot || slot.id === "westfold") return;
-  slot.enabled = enabled;
-  syncAudioFx();
+function toggleSelectedBypass(slot = selectedSlot()) {
+  if (!slot || slot.kind === "settings") return;
+  slot.enabled = !slot.enabled;
+  syncAudioChain();
+}
+
+function chainToggleHtml(slot) {
+  if (slot.kind === "settings") return "";
+  return `<button class="chain-toggle ${slot.enabled ? "selected" : ""}" type="button" data-chain-toggle>${slot.enabled ? "Enabled" : "Bypassed"}</button>`;
 }
 
 function renderChainInspector() {
-  const slot = state.chain[state.selectedSlot];
+  const slot = selectedSlot();
   if (!slot) {
     chainInspectorEl.innerHTML = "";
     return;
   }
+  const bypassNote = !slot.enabled && slot.kind !== "settings"
+    ? `<p class="bypass-note">Bypassed: ${slot.kind === "midi_fx" ? "MIDI passes through unchanged." : slot.kind === "sound_generator" ? "Synth is silent; downstream FX tails can continue." : "Audio passes through dry."}</p>`
+    : "";
 
-  if (slot.id === "midi-pre") {
+  if (slot.kind === "midi_fx") {
     chainInspectorEl.innerHTML = `
-      <div class="chain-inspector-head">
-        <b>Scale Gate</b>
-        <button class="chain-toggle ${slot.enabled ? "selected" : ""}" type="button" data-chain-toggle>${slot.enabled ? "Enabled" : "Bypassed"}</button>
-      </div>
-      ${slot.enabled ? "" : '<p class="bypass-note">Bypassed: notes go straight to Westfold until enabled.</p>'}
+      <div class="chain-inspector-head"><b>${slot.name}</b>${chainToggleHtml(slot)}</div>
+      ${bypassNote}
       <div class="mini-controls">
-        <label>Transpose <input data-midi-fx="transpose" type="range" min="-24" max="24" step="1" value="${state.midiFx.transpose}"><span>${state.midiFx.transpose}</span></label>
-        <label>Chance <input data-midi-fx="chance" type="range" min="0" max="1" step="0.01" value="${state.midiFx.chance}"><span>${state.midiFx.chance.toFixed(2)}</span></label>
-        <label>Velocity <input data-midi-fx="velocity" type="range" min="0.1" max="1.5" step="0.01" value="${state.midiFx.velocity}"><span>${state.midiFx.velocity.toFixed(2)}</span></label>
-        <label class="check-row"><input data-midi-fx="scaleLock" type="checkbox" ${state.midiFx.scaleLock ? "checked" : ""}> Scale lock</label>
-      </div>
-    `;
-    chainInspectorEl.querySelectorAll("[data-midi-fx]").forEach((input) => {
+        <label>Transpose <input data-param="transpose" type="range" min="-24" max="24" step="1" value="${slot.params.transpose}"><span>${slot.params.transpose}</span></label>
+        <label>Chance <input data-param="chance" type="range" min="0" max="1" step="0.01" value="${slot.params.chance}"><span>${slot.params.chance.toFixed(2)}</span></label>
+        <label>Velocity <input data-param="velocity" type="range" min="0.1" max="1.5" step="0.01" value="${slot.params.velocity}"><span>${slot.params.velocity.toFixed(2)}</span></label>
+        <label class="check-row"><input data-scale-lock type="checkbox" ${slot.scaleLock ? "checked" : ""}> Scale lock</label>
+      </div>`;
+    chainInspectorEl.querySelectorAll("[data-param]").forEach((input) => {
       input.addEventListener("input", () => {
-        const key = input.dataset.midiFx;
-        state.midiFx[key] = input.type === "checkbox" ? input.checked : Number(input.value);
+        slot.params[input.dataset.param] = Number(input.value);
         update();
       });
     });
-    chainInspectorEl.querySelector("[data-chain-toggle]").addEventListener("click", () => {
-      setSlotEnabled(slot, !slot.enabled);
+    chainInspectorEl.querySelector("[data-scale-lock]").addEventListener("input", (event) => {
+      slot.scaleLock = event.target.checked;
       update();
     });
-    return;
-  }
-
-  if (slot.id === "audio-post") {
+  } else if (slot.kind === "audio_fx") {
     chainInspectorEl.innerHTML = `
-      <div class="chain-inspector-head">
-        <b>Drive Tone</b>
-        <button class="chain-toggle ${slot.enabled ? "selected" : ""}" type="button" data-chain-toggle>${slot.enabled ? "Enabled" : "Bypassed"}</button>
-      </div>
-      ${slot.enabled ? "" : '<p class="bypass-note">Bypassed: Drive, Tone, and Wet are stored but not heard until enabled.</p>'}
+      <div class="chain-inspector-head"><b>${slot.name}</b>${chainToggleHtml(slot)}</div>
+      ${bypassNote}
       <div class="mini-controls">
-        <label>Drive <input data-audio-fx="drive" type="range" min="0" max="1" step="0.01" value="${state.audioFx.drive}"><span>${state.audioFx.drive.toFixed(2)}</span></label>
-        <label>Tone <input data-audio-fx="tone" type="range" min="0" max="1" step="0.01" value="${state.audioFx.tone}"><span>${state.audioFx.tone.toFixed(2)}</span></label>
-        <label>Wet <input data-audio-fx="wet" type="range" min="0" max="1" step="0.01" value="${state.audioFx.wet}"><span>${state.audioFx.wet.toFixed(2)}</span></label>
-      </div>
-    `;
-    chainInspectorEl.querySelectorAll("[data-audio-fx]").forEach((input) => {
+        <label>Drive <input data-param="drive" type="range" min="0" max="1" step="0.01" value="${slot.params.drive}"><span>${slot.params.drive.toFixed(2)}</span></label>
+        <label>Tone <input data-param="tone" type="range" min="0" max="1" step="0.01" value="${slot.params.tone}"><span>${slot.params.tone.toFixed(2)}</span></label>
+        <label>Wet <input data-param="wet" type="range" min="0" max="1" step="0.01" value="${slot.params.wet}"><span>${slot.params.wet.toFixed(2)}</span></label>
+      </div>`;
+    chainInspectorEl.querySelectorAll("[data-param]").forEach((input) => {
       input.addEventListener("input", () => {
-        state.audioFx[input.dataset.audioFx] = Number(input.value);
-        syncAudioFx();
+        slot.params[input.dataset.param] = Number(input.value);
+        syncAudioChain();
         update();
       });
     });
-    chainInspectorEl.querySelector("[data-chain-toggle]").addEventListener("click", () => {
-      setSlotEnabled(slot, !slot.enabled);
+  } else if (slot.kind === "settings") {
+    const paramsHtml = settingsParamDefs.map((def) => {
+      const value = slot.params[def.key];
+      return `<label>${def.label} <input data-setting="${def.key}" type="range" min="${def.min}" max="${def.max}" step="${def.step}" value="${value}"><span>${format({ ...def, value })}</span></label>`;
+    }).join("");
+    chainInspectorEl.innerHTML = `
+      <div class="chain-inspector-head"><b>Slot Settings</b><span>knobs, routing, LFOs</span></div>
+      <div class="mini-controls">${paramsHtml}</div>
+      <p class="bypass-note">Forward: Auto, Thru, then Ch 1-16. MIDI Out: Schw or Both.</p>`;
+    chainInspectorEl.querySelectorAll("[data-setting]").forEach((input) => {
+      input.addEventListener("input", () => {
+        slot.params[input.dataset.setting] = Number(input.value);
+        slot.lfos[0].enabled = slot.params.lfo1_depth > 0;
+        slot.lfos[0].depth = slot.params.lfo1_depth;
+        slot.lfos[1].enabled = slot.params.lfo2_depth > 0;
+        slot.lfos[1].depth = slot.params.lfo2_depth;
+        syncAudioChain();
+        update();
+      });
+    });
+  } else {
+    chainInspectorEl.innerHTML = `<div class="chain-inspector-head"><b>Westfold</b>${chainToggleHtml(slot)}</div>${bypassNote}<p class="bypass-note">Shared C DSP core via WASM.</p>`;
+  }
+  const toggle = chainInspectorEl.querySelector("[data-chain-toggle]");
+  if (toggle) {
+    toggle.addEventListener("click", () => {
+      toggleSelectedBypass(slot);
       update();
     });
-    return;
   }
-
-  chainInspectorEl.innerHTML = `
-    <div class="chain-inspector-head">
-      <b>Westfold</b>
-      <span>shared C DSP core via WASM</span>
-    </div>
-  `;
 }
 
 function renderKnobs() {
@@ -456,11 +578,9 @@ function renderControls() {
         <span>${format(param)}</span>
       </div>
       <input type="range" min="${param.min}" max="${param.max}" step="${param.step || 0.01}" value="${param.value}">
-      ${bypassed ? "<small>Bypassed</small>" : ""}
-    `;
-    const input = control.querySelector("input");
-    input.addEventListener("input", () => {
-      setParamValue(param, Number(input.value), true);
+      ${bypassed ? "<small>Bypassed</small>" : ""}`;
+    control.querySelector("input").addEventListener("input", (event) => {
+      setParamValue(param, Number(event.target.value), true);
     });
     controlsEl.appendChild(control);
   });
@@ -556,9 +676,10 @@ function renderPads() {
     pad.textContent = noteNames[note % 12];
     pad.addEventListener("pointerdown", (event) => {
       event.preventDefault();
-      state.activePads.set(i, note);
+      const velocity = event.pressure && event.pressure > 0 ? clamp(event.pressure, 0.25, 1) : 0.94;
+      state.activePads.set(i, { note, velocity, aftertouch: velocity });
       state.steps[state.selectedStep].note = note;
-      noteOn(note, event.pressure && event.pressure > 0 ? clamp(event.pressure, 0.25, 1) : 0.94);
+      noteOn(note, velocity);
       update();
     });
     const end = () => {
@@ -581,7 +702,8 @@ function renderStepInspector() {
 }
 
 function update(renderForms = true) {
-  statusEl.textContent = `${state.mode[0].toUpperCase()}${state.mode.slice(1)}${state.shift ? " + Shift" : ""}`;
+  statusEl.textContent = `${state.context === "master" ? "Master " : ""}${state.mode[0].toUpperCase()}${state.mode.slice(1)}${state.shift ? " + Shift" : ""}`;
+  panelTitleEl.textContent = `${activeDeviceName()} Parameters`;
   document.querySelectorAll(".mode-key").forEach((button) => {
     button.classList.toggle("selected", button.dataset.mode === state.mode);
   });
@@ -590,6 +712,7 @@ function update(renderForms = true) {
   document.getElementById("playKey").classList.toggle("selected", state.playing);
   document.getElementById("loopKey").classList.toggle("selected", state.loop);
   document.getElementById("muteKey").classList.toggle("selected", state.mute);
+  document.getElementById("noteSessionKey").classList.toggle("selected", state.context === "master");
   drawScreen();
   renderTracks();
   renderChain();
@@ -610,15 +733,20 @@ function send(message) {
 
 function sendParam(param) {
   if (param.scope) return;
+  if (!selectedSlot()?.enabled && state.mode === "chain") return;
   send({ type: "param", key: param.key, value: param.value });
 }
 
 function midiFxSlot() {
-  return state.chain.find((slot) => slot.id === "midi-pre");
+  return state.tracks[state.selectedTrack].chain.find((slot) => slot.kind === "midi_fx");
 }
 
-function audioFxSlot() {
-  return state.chain.find((slot) => slot.id === "audio-post");
+function soundSlot() {
+  return state.tracks[state.selectedTrack].chain.find((slot) => slot.kind === "sound_generator");
+}
+
+function audioFxSlots() {
+  return state.tracks[state.selectedTrack].chain.filter((slot) => slot.kind === "audio_fx");
 }
 
 function nearestScaleNote(note) {
@@ -639,39 +767,62 @@ function nearestScaleNote(note) {
 function processMidiFx(note, velocity) {
   const slot = midiFxSlot();
   if (!slot?.enabled) return { note, velocity };
-  if (Math.random() > state.midiFx.chance) return null;
-  let processedNote = clamp(note + state.midiFx.transpose, 0, 127);
-  if (state.midiFx.scaleLock) processedNote = nearestScaleNote(processedNote);
+  if (Math.random() > slot.params.chance) return null;
+  let processedNote = clamp(note + slot.params.transpose, 0, 127);
+  if (slot.scaleLock) processedNote = nearestScaleNote(processedNote);
+  const settings = settingsComponent();
+  if (settings?.params.midi_fx_output >= 0.5) {
+    state.tracks[state.selectedTrack].moveEchoEvents.push({ note: processedNote, velocity, at: performance.now() });
+  }
   return {
     note: processedNote,
-    velocity: clamp(velocity * state.midiFx.velocity, 0, 1)
+    velocity: clamp(velocity * slot.params.velocity, 0, 1)
   };
 }
 
-function syncAudioFx() {
-  send({
-    type: "audioFx",
-    enabled: Boolean(audioFxSlot()?.enabled),
-    ...state.audioFx
-  });
+function audioFxPayload() {
+  const slotFx = audioFxSlots().map((slot) => ({
+    id: slot.id,
+    enabled: slot.enabled,
+    ...slot.params
+  }));
+  const masterFx = state.master.chain.map((slot) => ({
+    id: slot.id,
+    enabled: slot.enabled,
+    ...slot.params
+  }));
+  return { type: "audioFxChain", slotFx, masterFx };
+}
+
+function syncAudioChain() {
+  send(audioFxPayload());
+  send({ type: "soundBypass", bypassed: !soundSlot()?.enabled });
 }
 
 function setParamValue(param, value, markCustom = false) {
-  param.value = clamp(value, param.min, param.max);
-  if (param.scope === "midiFx") {
-    state.midiFx[param.key] = param.value;
+  const nextValue = clamp(value, param.min, param.max);
+  param.value = nextValue;
+  const component = param.componentId ? currentChain().find((slot) => slot.id === param.componentId) : null;
+  if (param.scope === "component" && component) {
+    component.params[param.key] = nextValue;
+    syncAudioChain();
     update();
     return;
   }
-  if (param.scope === "audioFx") {
-    state.audioFx[param.key] = param.value;
-    syncAudioFx();
+  if (param.scope === "settings") {
+    const settings = settingsComponent();
+    settings.params[param.key] = nextValue;
+    settings.lfos[0].enabled = settings.params.lfo1_depth > 0;
+    settings.lfos[0].depth = settings.params.lfo1_depth;
+    settings.lfos[1].enabled = settings.params.lfo2_depth > 0;
+    settings.lfos[1].depth = settings.params.lfo2_depth;
+    syncAudioChain();
     update();
     return;
   }
   if (markCustom) state.selectedPreset = "Custom";
   if (state.record && state.mode === "seq") {
-    state.steps[state.selectedStep].locks[param.key] = param.value;
+    state.steps[state.selectedStep].locks[param.key] = nextValue;
   }
   sendParam(param);
   update();
@@ -720,7 +871,7 @@ async function enableAudio() {
       audioReady = true;
       audioToggle.textContent = "WASM Audio On";
       params.forEach(sendParam);
-      syncAudioFx();
+      syncAudioChain();
     } else if (event.data?.type === "error") {
       audioToggle.textContent = "Audio failed";
       showError(event.data.message);
@@ -732,7 +883,8 @@ function noteOn(note, velocity = 0.94) {
   enableAudio().then(() => {
     const processed = processMidiFx(note, velocity);
     if (!processed) return;
-    state.activeNotes.set(note, processed.note);
+    const track = state.tracks[state.selectedTrack];
+    track.activeNotes.set(note, processed.note);
     send({ type: "noteOn", note: processed.note, velocity: processed.velocity });
   }).catch((error) => {
     audioToggle.textContent = "Audio failed";
@@ -741,8 +893,9 @@ function noteOn(note, velocity = 0.94) {
 }
 
 function noteOff(note) {
-  const processedNote = state.activeNotes.get(note) ?? note;
-  state.activeNotes.delete(note);
+  const track = state.tracks[state.selectedTrack];
+  const processedNote = track.activeNotes.get(note) ?? note;
+  track.activeNotes.delete(note);
   send({ type: "noteOff", note: processedNote });
 }
 
@@ -812,25 +965,27 @@ function moveWheel(direction) {
   if (state.mode === "device") {
     state.page = clamp(state.page + direction, 0, pageCount() - 1);
   } else if (state.mode === "chain") {
-    state.selectedSlot = clamp(state.selectedSlot + direction, 0, state.chain.length - 1);
+    state.selectedSlot = clamp(state.selectedSlot + direction, 0, currentChain().length - 1);
+    state.page = 0;
   } else if (state.mode === "seq") {
     state.selectedStep = clamp(state.selectedStep + direction, 0, 15);
   } else if (state.mode === "browser" && presets.length) {
     state.browserIndex = (state.browserIndex + direction + presets.length) % presets.length;
   }
+  syncAudioChain();
   update();
 }
 
 function pressWheel() {
   if (state.mode === "chain") {
-    const slot = state.chain[state.selectedSlot];
-    slot.enabled = !slot.enabled;
-    syncAudioFx();
+    if (state.mute) toggleSelectedBypass();
+    else state.mode = "device";
   } else if (state.mode === "seq") {
     const step = state.steps[state.selectedStep];
     step.enabled = !step.enabled;
   } else if (state.mode === "browser") {
     applyPreset(presets[state.browserIndex]?.name);
+    state.mode = "device";
     return;
   }
   update();
@@ -852,7 +1007,9 @@ function bindControls() {
   document.getElementById("wheelRight").addEventListener("click", () => moveWheel(1));
   document.getElementById("wheelPress").addEventListener("click", pressWheel);
   document.getElementById("backKey").addEventListener("click", () => {
-    state.mode = "device";
+    if (state.mode === "browser") state.mode = "device";
+    else if (state.mode === "device") state.mode = "chain";
+    else state.mode = "device";
     update();
   });
   document.getElementById("shiftKey").addEventListener("click", () => {
@@ -881,12 +1038,21 @@ function bindControls() {
     state.steps[state.selectedStep] = { enabled: false, note: 60, velocity: 0.9, locks: {} };
     update();
   });
+  document.getElementById("noteSessionKey").addEventListener("click", () => {
+    state.context = state.context === "master" ? "slot" : "master";
+    state.mode = "chain";
+    state.selectedSlot = 0;
+    state.page = 0;
+    syncAudioChain();
+    update();
+  });
   document.getElementById("clearSteps").addEventListener("click", () => {
     state.steps = Array.from({ length: 16 }, () => ({ enabled: false, note: 60, velocity: 0.9, locks: {} }));
     update();
   });
   document.querySelectorAll(".mode-key").forEach((button) => {
     button.addEventListener("click", () => {
+      if (button.dataset.mode === "chain") state.context = "slot";
       state.mode = button.dataset.mode;
       update();
     });
@@ -927,6 +1093,13 @@ window.addEventListener("keydown", (event) => {
   if (event.key === "ArrowLeft") return moveWheel(-1);
   if (event.key === "ArrowRight") return moveWheel(1);
   if (event.key === "Enter") return pressWheel();
+  if (event.key === "m" && event.shiftKey) {
+    state.context = "master";
+    state.mode = "chain";
+    state.selectedSlot = 0;
+    update();
+    return;
+  }
   if (event.key === " ") {
     event.preventDefault();
     return setPlaying(!state.playing);
@@ -934,7 +1107,7 @@ window.addEventListener("keydown", (event) => {
   const padIndex = keyMap[event.key];
   if (padIndex !== undefined) {
     const note = noteForPad(padIndex);
-    state.activePads.set(padIndex, note);
+    state.activePads.set(padIndex, { note, velocity: 0.94, aftertouch: 0.94 });
     noteOn(note);
     update();
   }
