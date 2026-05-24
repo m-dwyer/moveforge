@@ -3,126 +3,126 @@
     {
       "name": "Init",
       "params": {
-        "volume": 0.75,
-        "ratio": 1.5,
-        "fm": 0.15,
-        "fold": 0.35,
-        "lpg": 0.55,
-        "decay": 0.45,
-        "release": 0.8,
+        "volume": 0.72,
+        "ratio": 1,
+        "fm": 0.08,
+        "fold": 0.22,
+        "lpg": 0.5,
+        "decay": 0.38,
+        "release": 0.55,
         "bend_range": 2
       },
       "render": {
         "file": "00-init.wav",
-        "notes": [48, 55, 60, 62, 67, 72, 67, 62],
-        "note_blocks": 86,
-        "gate_blocks": 64,
-        "seconds": 8,
-        "velocity": 102
-      }
-    },
-    {
-      "name": "Pluck",
-      "params": {
-        "volume": 0.9,
-        "ratio": 1.997,
-        "fm": 0.05,
-        "fold": 0.38,
-        "lpg": 0.95,
-        "decay": 0.055,
-        "release": 0.12,
-        "bend_range": 2
-      },
-      "render": {
-        "file": "01-soft-pluck.wav",
-        "notes": [60, 67, 72, 79, 76, 72, 67, 64],
-        "note_blocks": 64,
-        "gate_blocks": 12,
+        "notes": [48, 55, 60, 64, 67, 72, 67, 64],
+        "note_blocks": 78,
+        "gate_blocks": 54,
         "seconds": 7,
-        "velocity": 118
-      }
-    },
-    {
-      "name": "Bass",
-      "params": {
-        "volume": 0.9,
-        "ratio": 0.5,
-        "fm": 0.12,
-        "fold": 0.72,
-        "lpg": 0.48,
-        "decay": 0.32,
-        "release": 0.35,
-        "bend_range": 2
-      },
-      "render": {
-        "file": "02-folded-bass.wav",
-        "notes": [36, 36, 43, 39, 36, 48, 43, 39],
-        "note_blocks": 86,
-        "gate_blocks": 66,
-        "seconds": 8,
-        "velocity": 116
-      }
-    },
-    {
-      "name": "Clang",
-      "params": {
-        "volume": 0.72,
-        "ratio": 2.997,
-        "fm": 0.58,
-        "fold": 0.44,
-        "lpg": 0.62,
-        "decay": 0.72,
-        "release": 1.4,
-        "bend_range": 2
-      },
-      "render": {
-        "file": "03-fm-clang.wav",
-        "notes": [48, 51, 55, 58, 62, 65, 69, 72],
-        "note_blocks": 92,
-        "gate_blocks": 62,
-        "seconds": 8,
-        "velocity": 102
-      }
-    },
-    {
-      "name": "Long LPG",
-      "params": {
-        "volume": 0.78,
-        "ratio": 1.25,
-        "fm": 0.18,
-        "fold": 0.36,
-        "lpg": 0.9,
-        "decay": 1.65,
-        "release": 2.4,
-        "bend_range": 2
-      },
-      "render": {
-        "file": "04-long-lpg.wav",
-        "notes": [45, 57, 45, 57],
-        "note_blocks": 172,
-        "gate_blocks": 130,
-        "seconds": 10,
         "velocity": 100
       }
     },
     {
-      "name": "Fold",
+      "name": "Buchla Pluck",
       "params": {
-        "volume": 0.7,
+        "volume": 0.88,
         "ratio": 1.997,
-        "fm": 0.34,
-        "fold": 0.95,
-        "lpg": 0.72,
-        "decay": 0.28,
-        "release": 0.75,
+        "fm": 0.06,
+        "fold": 0.42,
+        "lpg": 0.98,
+        "decay": 0.045,
+        "release": 0.09,
         "bend_range": 2
       },
       "render": {
-        "file": "05-aggressive-fold.wav",
-        "notes": [48, 55, 60, 62, 67, 72, 67, 62],
-        "note_blocks": 64,
-        "gate_blocks": 46,
+        "file": "01-buchla-pluck.wav",
+        "notes": [60, 67, 72, 79, 84, 79, 72, 67, 64, 60],
+        "note_blocks": 46,
+        "gate_blocks": 10,
+        "seconds": 6,
+        "velocity": 118
+      }
+    },
+    {
+      "name": "Rubber Bass",
+      "params": {
+        "volume": 0.92,
+        "ratio": 0.5,
+        "fm": 0.2,
+        "fold": 0.68,
+        "lpg": 0.42,
+        "decay": 0.24,
+        "release": 0.22,
+        "bend_range": 3
+      },
+      "render": {
+        "file": "02-rubber-bass.wav",
+        "notes": [36, 36, 43, 36, 39, 36, 48, 43],
+        "note_blocks": 72,
+        "gate_blocks": 48,
         "seconds": 7,
+        "velocity": 120
+      }
+    },
+    {
+      "name": "Bell FM",
+      "params": {
+        "volume": 0.7,
+        "ratio": 2.997,
+        "fm": 0.72,
+        "fold": 0.34,
+        "lpg": 0.76,
+        "decay": 0.92,
+        "release": 1.8,
+        "bend_range": 2
+      },
+      "render": {
+        "file": "03-bell-fm.wav",
+        "notes": [48, 55, 60, 64, 67, 72, 76, 79],
+        "note_blocks": 88,
+        "gate_blocks": 42,
+        "seconds": 8,
+        "velocity": 104
+      }
+    },
+    {
+      "name": "LPG Bloom",
+      "params": {
+        "volume": 0.76,
+        "ratio": 1.25,
+        "fm": 0.22,
+        "fold": 0.32,
+        "lpg": 0.92,
+        "decay": 1.9,
+        "release": 2.8,
+        "bend_range": 2
+      },
+      "render": {
+        "file": "04-lpg-bloom.wav",
+        "notes": [45, 57, 52, 64, 48, 60],
+        "note_blocks": 132,
+        "gate_blocks": 94,
+        "seconds": 10,
+        "velocity": 96
+      }
+    },
+    {
+      "name": "Fold Lead",
+      "params": {
+        "volume": 0.68,
+        "ratio": 1.997,
+        "fm": 0.38,
+        "fold": 0.96,
+        "lpg": 0.7,
+        "decay": 0.2,
+        "release": 0.48,
+        "bend_range": 7
+      },
+      "render": {
+        "file": "05-fold-lead.wav",
+        "notes": [60, 62, 67, 69, 72, 74, 79, 81, 84],
+        "note_blocks": 50,
+        "gate_blocks": 34,
+        "seconds": 6,
         "velocity": 112
       }
     }
