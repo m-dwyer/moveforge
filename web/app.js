@@ -20,6 +20,18 @@ const scales = {
   pentatonic: [0, 2, 4, 7, 9]
 };
 
+const midiFxParamDefs = [
+  { scope: "midiFx", key: "transpose", label: "Transpose", type: "float", min: -24, max: 24, default: 0, step: 1 },
+  { scope: "midiFx", key: "chance", label: "Chance", type: "float", min: 0, max: 1, default: 1, step: 0.01 },
+  { scope: "midiFx", key: "velocity", label: "Velocity", type: "float", min: 0.1, max: 1.5, default: 1, step: 0.01 }
+];
+
+const audioFxParamDefs = [
+  { scope: "audioFx", key: "drive", label: "Drive", type: "float", min: 0, max: 1, default: 0.35, step: 0.01 },
+  { scope: "audioFx", key: "tone", label: "Tone", type: "float", min: 0, max: 1, default: 0.72, step: 0.01 },
+  { scope: "audioFx", key: "wet", label: "Wet", type: "float", min: 0, max: 1, default: 0.55, step: 0.01 }
+];
+
 const screen = document.getElementById("screen");
 const ctx = screen.getContext("2d");
 const knobsEl = document.getElementById("knobs");
@@ -135,17 +147,42 @@ function clamp(value, min, max) {
 }
 
 function format(param) {
+  if (param.key === "transpose") return `${Number(param.value) > 0 ? "+" : ""}${Number(param.value).toFixed(0)}`;
   if (param.key === "bend_range") return Number(param.value).toFixed(1);
   if (param.max > 3) return Number(param.value).toFixed(2);
   return Number(param.value).toFixed(2);
 }
 
+function selectedSlot() {
+  return state.chain[state.selectedSlot];
+}
+
+function scopedParams(defs, values) {
+  return defs.map((def) => ({
+    ...def,
+    value: values[def.key] ?? def.default
+  }));
+}
+
+function activeParams() {
+  const slot = selectedSlot();
+  if (state.mode === "chain" && slot?.id === "midi-pre") return scopedParams(midiFxParamDefs, state.midiFx);
+  if (state.mode === "chain" && slot?.id === "audio-post") return scopedParams(audioFxParamDefs, state.audioFx);
+  return params;
+}
+
+function activeDeviceName() {
+  const slot = selectedSlot();
+  if (state.mode === "chain" && slot) return slot.name;
+  return "Westfold";
+}
+
 function visibleParams() {
-  return params.slice(state.page * 8, state.page * 8 + 8);
+  return activeParams().slice(state.page * 8, state.page * 8 + 8);
 }
 
 function pageCount() {
-  return Math.max(1, Math.ceil(params.length / 8));
+  return Math.max(1, Math.ceil(activeParams().length / 8));
 }
 
 function drawHeader(title, subtitle = "") {
@@ -168,7 +205,7 @@ function drawScreen() {
 
 function drawDeviceScreen() {
   const touched = state.touchedParam;
-  drawHeader("Westfold", `${state.selectedPreset}  T${state.selectedTrack + 1}  Pg ${state.page + 1}/${pageCount()}`);
+  drawHeader(activeDeviceName(), `${state.selectedPreset}  T${state.selectedTrack + 1}  Pg ${state.page + 1}/${pageCount()}`);
   const visible = visibleParams();
   visible.forEach((param, i) => {
     const col = i % 4;
@@ -277,6 +314,8 @@ function renderChain() {
     button.addEventListener("click", () => {
       state.selectedSlot = i;
       state.mode = "chain";
+      state.page = 0;
+      state.touchedParam = null;
       syncAudioFx();
       update();
     });
@@ -386,7 +425,7 @@ function renderKnobs() {
 
 function renderControls() {
   controlsEl.innerHTML = "";
-  params.forEach((param) => {
+  activeParams().forEach((param) => {
     const control = document.createElement("label");
     control.className = "control";
     control.innerHTML = `
@@ -547,6 +586,7 @@ function send(message) {
 }
 
 function sendParam(param) {
+  if (param.scope) return;
   send({ type: "param", key: param.key, value: param.value });
 }
 
@@ -595,6 +635,17 @@ function syncAudioFx() {
 
 function setParamValue(param, value, markCustom = false) {
   param.value = clamp(value, param.min, param.max);
+  if (param.scope === "midiFx") {
+    state.midiFx[param.key] = param.value;
+    update();
+    return;
+  }
+  if (param.scope === "audioFx") {
+    state.audioFx[param.key] = param.value;
+    syncAudioFx();
+    update();
+    return;
+  }
   if (markCustom) state.selectedPreset = "Custom";
   if (state.record && state.mode === "seq") {
     state.steps[state.selectedStep].locks[param.key] = param.value;
