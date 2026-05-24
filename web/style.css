@@ -394,6 +394,22 @@ h2 {
   opacity: 0.58;
 }
 
+.chain-toggle {
+  border: 1px solid var(--line);
+  background: var(--panel-2);
+  color: var(--muted);
+  border-radius: 5px;
+  min-height: 28px;
+  padding: 0 10px;
+  cursor: pointer;
+}
+
+.chain-toggle.selected {
+  background: #314b35;
+  border-color: var(--accent);
+  color: var(--text);
+}
+
 .chain-inspector {
   margin-top: 10px;
   padding: 12px;
@@ -412,6 +428,12 @@ h2 {
 
 .chain-inspector-head span {
   color: var(--muted);
+}
+
+.bypass-note {
+  margin: -2px 0 10px;
+  color: var(--warn);
+  font-size: 12px;
 }
 
 .mini-controls {
@@ -475,6 +497,18 @@ h2 {
   border: 1px solid var(--line);
   border-radius: 6px;
   background: #181915;
+}
+
+.control.bypassed,
+.knob.bypassed {
+  opacity: 0.62;
+}
+
+.control small {
+  display: block;
+  margin-top: 6px;
+  color: var(--warn);
+  font-size: 11px;
 }
 
 .control-head {

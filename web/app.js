@@ -177,6 +177,11 @@ function activeDeviceName() {
   return "Westfold";
 }
 
+function selectedScopedSlotIsBypassed() {
+  const slot = selectedSlot();
+  return state.mode === "chain" && Boolean(slot) && slot.id !== "westfold" && !slot.enabled;
+}
+
 function visibleParams() {
   return activeParams().slice(state.page * 8, state.page * 8 + 8);
 }
@@ -328,6 +333,12 @@ function renderChain() {
   });
 }
 
+function setSlotEnabled(slot, enabled) {
+  if (!slot || slot.id === "westfold") return;
+  slot.enabled = enabled;
+  syncAudioFx();
+}
+
 function renderChainInspector() {
   const slot = state.chain[state.selectedSlot];
   if (!slot) {
@@ -339,8 +350,9 @@ function renderChainInspector() {
     chainInspectorEl.innerHTML = `
       <div class="chain-inspector-head">
         <b>Scale Gate</b>
-        <span>${slot.enabled ? "in MIDI path" : "bypassed"}</span>
+        <button class="chain-toggle ${slot.enabled ? "selected" : ""}" type="button" data-chain-toggle>${slot.enabled ? "Enabled" : "Bypassed"}</button>
       </div>
+      ${slot.enabled ? "" : '<p class="bypass-note">Bypassed: notes go straight to Westfold until enabled.</p>'}
       <div class="mini-controls">
         <label>Transpose <input data-midi-fx="transpose" type="range" min="-24" max="24" step="1" value="${state.midiFx.transpose}"><span>${state.midiFx.transpose}</span></label>
         <label>Chance <input data-midi-fx="chance" type="range" min="0" max="1" step="0.01" value="${state.midiFx.chance}"><span>${state.midiFx.chance.toFixed(2)}</span></label>
@@ -355,6 +367,10 @@ function renderChainInspector() {
         update();
       });
     });
+    chainInspectorEl.querySelector("[data-chain-toggle]").addEventListener("click", () => {
+      setSlotEnabled(slot, !slot.enabled);
+      update();
+    });
     return;
   }
 
@@ -362,8 +378,9 @@ function renderChainInspector() {
     chainInspectorEl.innerHTML = `
       <div class="chain-inspector-head">
         <b>Drive Tone</b>
-        <span>${slot.enabled ? "post synth" : "bypassed"}</span>
+        <button class="chain-toggle ${slot.enabled ? "selected" : ""}" type="button" data-chain-toggle>${slot.enabled ? "Enabled" : "Bypassed"}</button>
       </div>
+      ${slot.enabled ? "" : '<p class="bypass-note">Bypassed: Drive, Tone, and Wet are stored but not heard until enabled.</p>'}
       <div class="mini-controls">
         <label>Drive <input data-audio-fx="drive" type="range" min="0" max="1" step="0.01" value="${state.audioFx.drive}"><span>${state.audioFx.drive.toFixed(2)}</span></label>
         <label>Tone <input data-audio-fx="tone" type="range" min="0" max="1" step="0.01" value="${state.audioFx.tone}"><span>${state.audioFx.tone.toFixed(2)}</span></label>
@@ -376,6 +393,10 @@ function renderChainInspector() {
         syncAudioFx();
         update();
       });
+    });
+    chainInspectorEl.querySelector("[data-chain-toggle]").addEventListener("click", () => {
+      setSlotEnabled(slot, !slot.enabled);
+      update();
     });
     return;
   }
@@ -394,7 +415,7 @@ function renderKnobs() {
     const param = visibleParams()[i];
     const el = document.createElement("button");
     el.type = "button";
-    el.className = "knob";
+    el.className = `knob ${selectedScopedSlotIsBypassed() ? "bypassed" : ""}`;
     if (!param) {
       el.innerHTML = `<div class="dial empty"></div><span>-</span>`;
       knobsEl.appendChild(el);
@@ -425,15 +446,17 @@ function renderKnobs() {
 
 function renderControls() {
   controlsEl.innerHTML = "";
+  const bypassed = selectedScopedSlotIsBypassed();
   activeParams().forEach((param) => {
     const control = document.createElement("label");
-    control.className = "control";
+    control.className = `control ${bypassed ? "bypassed" : ""}`;
     control.innerHTML = `
       <div class="control-head">
         <b>${param.label}</b>
         <span>${format(param)}</span>
       </div>
       <input type="range" min="${param.min}" max="${param.max}" step="${param.step || 0.01}" value="${param.value}">
+      ${bypassed ? "<small>Bypassed</small>" : ""}
     `;
     const input = control.querySelector("input");
     input.addEventListener("input", () => {
