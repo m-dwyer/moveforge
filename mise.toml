@@ -6,6 +6,10 @@ run = "make dev-deps"
 description = "Run DSP core smoke tests"
 run = "make test"
 
+[tasks.emulator-test]
+description = "Run browser emulator smoke tests"
+run = "make emulator-test"
+
 [tasks.render]
 description = "Render the default demo WAV"
 run = "make render"
@@ -38,6 +42,14 @@ run = "make serve"
 description = "Build WASM and serve the browser UI"
 depends = ["wasm"]
 run = "make serve"
+
+[tasks.dev]
+description = "Build WASM, serve the browser UI, and rebuild WASM when DSP or metadata changes"
+run = "make dev"
+
+[tasks.deploy]
+description = "Run checked local build steps, then install to Ableton Move"
+run = "make deploy"
 
 [tasks.check]
 description = "Run the main non-device checks"

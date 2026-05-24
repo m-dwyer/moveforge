@@ -50,11 +50,12 @@ mise run host    # build local host-only shared library
 mise run wasm    # build web/wasm/westfold.wasm with Emscripten Docker image
 mise run serve   # serve repo at http://localhost:8765/
 mise run web     # build WASM then serve the web UI
+mise run emulator-test # run browser emulator smoke tests
 mise run move    # build aarch64 Move-target module package
 mise run check   # run non-device checks: test, suite, plot, host
 ```
 
-Equivalent `make` targets exist: `make test`, `make render`, `make suite`, `make plot`, `make host`, `make wasm`, `make serve`, `make move`, and `make clean`.
+Equivalent `make` targets exist: `make test`, `make emulator-test`, `make render`, `make suite`, `make plot`, `make host`, `make wasm`, `make serve`, `make move`, and `make clean`.
 
 The web UI is served at:
 

@@ -58,9 +58,17 @@ Then open:
 http://localhost:8765/web/
 ```
 
-The mock shows the Move screen, knob pages, parameter sliders, rendered clip players, and a WASM-backed live synth running in an AudioWorklet. It reads parameter metadata from `src/module.json` and presets/render clips from `src/presets.json`.
+The mock shows the Move screen, track and mode buttons, 8 device encoders, wheel controls, transport keys, step buttons, pad layouts, a documented Schwung-style chain (`MIDI FX -> Sound -> Audio FX 1 -> Audio FX 2 -> Settings`), parameter sliders, rendered clip players, and a WASM-backed live synth running in an AudioWorklet. It reads parameter metadata from `src/module.json` and presets/render clips from `src/presets.json`.
 
 Click `Enable WASM Audio`, then play the pads or use the computer keyboard row `a w s d r f t g h u j i k o l`. If your browser supports Web MIDI, connected MIDI keyboards are also routed to the synth. MIDI CC 20-27 map to the first eight parameters.
+
+For the fastest browser loop:
+
+```bash
+mise run dev
+```
+
+This builds WASM, serves `http://localhost:8765/web/`, and rebuilds the WASM module when DSP or metadata files change.
 
 Build the module folder and release tarball:
 
@@ -100,6 +108,14 @@ Once you have a Move with Schwung installed:
 ```
 
 The script builds first, then copies `dist/westfold/` to `ableton@move.local`.
+
+For a checked deploy path:
+
+```bash
+mise run deploy
+```
+
+This runs DSP tests, renders the preset suite, builds the host library, then builds and installs the Move package. Set `MOVE_HOST=ableton@192.168.1.42` if mDNS is not resolving `move.local`.
 
 ## Development Loop
 
@@ -148,6 +164,7 @@ make host
 make wasm
 make move
 make serve
+make emulator-test
 ```
 
 If you use `mise`, the same entry points are available as tasks:
@@ -158,8 +175,13 @@ mise run test
 mise run plot
 mise run wasm
 mise run web
+mise run dev
+mise run emulator-test
 mise run check
+mise run deploy
 ```
+
+See `docs/move-emulator-toolchain.md` for the current emulator coverage and remaining gaps against the broader Move/Schwung workflow.
 
 ## Useful Upstream References
 

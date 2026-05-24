@@ -95,11 +95,18 @@ canvas {
   grid-template-columns: 42px 1fr 42px;
   gap: 12px;
   align-items: center;
+  margin-top: 12px;
 }
 
 .nav,
 #audioToggle,
-.preset-row button {
+#clearSteps,
+.preset-row button,
+.track,
+.mode-key,
+.transport,
+.chain-slot,
+.wheel {
   border: 1px solid var(--line);
   background: var(--panel-2);
   color: var(--text);
@@ -115,25 +122,37 @@ canvas {
 
 .nav:hover,
 #audioToggle:hover,
-.preset-row button:hover {
+#clearSteps:hover,
+.preset-row button:hover,
+.track:hover,
+.mode-key:hover,
+.transport:hover,
+.chain-slot:hover,
+.wheel:hover {
   border-color: var(--accent);
 }
 
 .knobs {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(8, minmax(0, 1fr));
   gap: 12px;
 }
 
 .knob {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
   display: grid;
   gap: 8px;
   justify-items: center;
   min-width: 0;
+  padding: 0;
 }
 
 .dial {
-  width: 58px;
+  width: min(46px, 100%);
   aspect-ratio: 1;
   border-radius: 50%;
   border: 2px solid #111;
@@ -141,6 +160,11 @@ canvas {
     radial-gradient(circle at 50% 50%, #2e2f29 0 42%, transparent 44%),
     conic-gradient(from -135deg, var(--accent) var(--angle), #0c0d0b var(--angle) 270deg, transparent 270deg);
   box-shadow: inset 0 0 0 8px #20211d, 0 4px 14px rgb(0 0 0 / 0.32);
+}
+
+.dial.empty {
+  background: #111;
+  opacity: 0.45;
 }
 
 .knob span {
@@ -152,6 +176,94 @@ canvas {
   white-space: nowrap;
 }
 
+.hardware-row {
+  display: grid;
+  gap: 8px;
+}
+
+.track-row {
+  grid-template-columns: repeat(4, 1fr);
+  margin-bottom: 12px;
+}
+
+.track,
+.mode-key,
+.transport,
+.wheel {
+  min-width: 0;
+  padding: 0 8px;
+  font-size: 12px;
+}
+
+.track.selected,
+.mode-key.selected,
+.transport.selected {
+  background: #314b35;
+  border-color: var(--accent);
+}
+
+.wheel-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  align-items: center;
+  margin-top: 14px;
+}
+
+.mode-row {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.wheel-cluster {
+  display: grid;
+  grid-template-columns: 38px 66px 38px;
+  gap: 8px;
+}
+
+.transport-row {
+  grid-template-columns: repeat(9, minmax(0, 1fr));
+  margin-top: 12px;
+}
+
+.steps {
+  display: grid;
+  grid-template-columns: repeat(16, minmax(0, 1fr));
+  gap: 5px;
+  margin-top: 14px;
+}
+
+.step {
+  min-height: 32px;
+  padding: 0;
+  border: 1px solid #111;
+  border-radius: 4px;
+  background: #20211d;
+  color: var(--muted);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.step.enabled {
+  color: #10130f;
+  background: var(--accent);
+}
+
+.step.selected {
+  border-color: var(--warn);
+  box-shadow: inset 0 0 0 1px var(--warn);
+}
+
+.step.playing {
+  background: var(--warn);
+  color: #181008;
+}
+
+.step.locked::after {
+  content: "*";
+  display: block;
+  line-height: 0.7;
+}
+
 .pads {
   display: grid;
   grid-template-columns: repeat(8, 1fr);
@@ -160,6 +272,9 @@ canvas {
 }
 
 .pad {
+  color: transparent;
+  cursor: pointer;
+  font-size: 10px;
   aspect-ratio: 1;
   border-radius: 5px;
   background: #2a2b26;
@@ -177,6 +292,20 @@ canvas {
 
 .pad.playable:hover {
   border-color: var(--accent);
+  color: var(--text);
+}
+
+.pad.scale {
+  background: #30342d;
+}
+
+.pad.root {
+  background: #35523b;
+  border-color: var(--accent);
+}
+
+.pad.outside {
+  opacity: 0.38;
 }
 
 .panel {
@@ -202,6 +331,133 @@ h2 {
 #audioToggle {
   padding: 0 14px;
   background: #233526;
+}
+
+.tool-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.tool-grid label {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.tool-grid select,
+.tool-grid input {
+  width: 100%;
+  min-height: 34px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel-2);
+  color: var(--text);
+  padding: 0 8px;
+}
+
+.chain {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: 18px 0 0;
+}
+
+.chain-slot {
+  display: grid;
+  gap: 3px;
+  padding: 10px;
+  text-align: left;
+  min-height: 76px;
+}
+
+.chain-slot span,
+.chain-slot small {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.chain-slot b {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chain-slot.selected {
+  border-color: var(--accent);
+  background: #243527;
+}
+
+.chain-slot.disabled {
+  opacity: 0.58;
+}
+
+.chain-toggle {
+  border: 1px solid var(--line);
+  background: var(--panel-2);
+  color: var(--muted);
+  border-radius: 5px;
+  min-height: 28px;
+  padding: 0 10px;
+  cursor: pointer;
+}
+
+.chain-toggle.selected {
+  background: #314b35;
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.chain-inspector {
+  margin-top: 10px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #181915;
+}
+
+.chain-inspector-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+  font-size: 13px;
+}
+
+.chain-inspector-head span {
+  color: var(--muted);
+}
+
+.bypass-note {
+  margin: -2px 0 10px;
+  color: var(--warn);
+  font-size: 12px;
+}
+
+.mini-controls {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.mini-controls label {
+  display: grid;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.mini-controls label span {
+  color: var(--warn);
+  font-variant-numeric: tabular-nums;
+}
+
+.mini-controls .check-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .preset-row {
@@ -243,6 +499,18 @@ h2 {
   background: #181915;
 }
 
+.control.bypassed,
+.knob.bypassed {
+  opacity: 0.62;
+}
+
+.control small {
+  display: block;
+  margin-top: 6px;
+  color: var(--warn);
+  font-size: 11px;
+}
+
 .control-head {
   display: flex;
   justify-content: space-between;
@@ -271,6 +539,30 @@ input[type="range"] {
   margin-top: 22px;
 }
 
+.sequencer-panel {
+  margin-top: 22px;
+}
+
+.panel-head.compact {
+  margin-bottom: 10px;
+}
+
+#clearSteps {
+  min-height: 32px;
+  padding: 0 10px;
+  font-size: 12px;
+}
+
+.step-inspector {
+  min-height: 40px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #181915;
+  color: var(--muted);
+  font-size: 12px;
+}
+
 audio {
   width: 100%;
   height: 36px;
@@ -285,6 +577,19 @@ audio {
   }
 
   .controls {
+    grid-template-columns: 1fr;
+  }
+
+  .knobs,
+  .transport-row,
+  .steps {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .wheel-row,
+  .tool-grid,
+  .chain,
+  .mini-controls {
     grid-template-columns: 1fr;
   }
 }

@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Westfold Move UI Mock</title>
+  <title>Westfold Move/Schwung Emulator</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -14,31 +14,98 @@
           <span class="brand">MOVE</span>
           <span class="module">Westfold</span>
         </div>
-        <span class="status" id="status">Root</span>
+        <span class="status" id="status">Device</span>
       </div>
 
       <div class="screen-wrap">
         <canvas id="screen" width="256" height="128" aria-label="Move display preview"></canvas>
       </div>
 
+      <div class="hardware-row track-row" id="tracks"></div>
+
       <div class="surface">
         <button class="nav" id="prevPage" aria-label="Previous page">&lt;</button>
-        <div class="knobs" id="knobs"></div>
+        <div class="knobs" id="knobs" aria-label="Touch-sensitive encoders"></div>
         <button class="nav" id="nextPage" aria-label="Next page">&gt;</button>
       </div>
 
+      <div class="wheel-row">
+        <div class="hardware-row mode-row">
+          <button class="mode-key selected" type="button" data-mode="device">Device</button>
+          <button class="mode-key" type="button" data-mode="chain">Chain</button>
+          <button class="mode-key" type="button" data-mode="seq">Steps</button>
+          <button class="mode-key" type="button" data-mode="browser">Browse</button>
+        </div>
+        <div class="wheel-cluster">
+          <button class="nav" id="wheelLeft" aria-label="Wheel decrement">-</button>
+          <button class="wheel" id="wheelPress" aria-label="Press wheel">Wheel</button>
+          <button class="nav" id="wheelRight" aria-label="Wheel increment">+</button>
+        </div>
+      </div>
+
+      <div class="hardware-row transport-row">
+        <button class="transport" id="shiftKey" type="button">Shift</button>
+        <button class="transport" id="playKey" type="button">Play</button>
+        <button class="transport" id="recordKey" type="button">Record</button>
+        <button class="transport" id="captureKey" type="button">Capture</button>
+        <button class="transport" id="loopKey" type="button">Loop</button>
+        <button class="transport" id="muteKey" type="button">Mute</button>
+        <button class="transport" id="deleteKey" type="button">Delete</button>
+        <button class="transport" id="noteSessionKey" type="button">Note</button>
+        <button class="transport" id="backKey" type="button">Back</button>
+      </div>
+
+      <div class="steps" id="steps" aria-label="Step buttons"></div>
       <div class="pads" id="pads"></div>
     </section>
 
     <section class="panel">
       <div class="panel-head">
-        <h1>Westfold Parameters</h1>
+        <h1 id="panelTitle">Westfold Parameters</h1>
         <button id="audioToggle" type="button">Enable WASM Audio</button>
       </div>
 
       <div class="error" id="errors" hidden></div>
+
+      <div class="tool-grid">
+        <label>
+          Pad Layout
+          <select id="layoutMode">
+            <option value="in-key-octaves">In-Key Octaves</option>
+            <option value="in-key-fourths">In-Key 4ths</option>
+            <option value="chromatic">Chromatic</option>
+          </select>
+        </label>
+        <label>
+          Root
+          <select id="rootNote"></select>
+        </label>
+        <label>
+          Scale
+          <select id="scaleName">
+            <option value="major">Major</option>
+            <option value="minor">Minor</option>
+            <option value="pentatonic">Pentatonic</option>
+          </select>
+        </label>
+        <label>
+          Octave
+          <input id="octaveBase" type="number" min="1" max="6" value="3">
+        </label>
+      </div>
+
+      <div class="chain" id="chain"></div>
+      <div class="chain-inspector" id="chainInspector"></div>
       <div class="preset-row" id="presets"></div>
       <div class="controls" id="controls"></div>
+
+      <div class="sequencer-panel">
+        <div class="panel-head compact">
+          <h2>Step Harness</h2>
+          <button id="clearSteps" type="button">Clear</button>
+        </div>
+        <div id="stepInspector" class="step-inspector"></div>
+      </div>
 
       <div class="previews">
         <h2>Rendered Clips</h2>
