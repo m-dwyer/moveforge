@@ -1,0 +1,130 @@
+{
+  "presets": [
+    {
+      "name": "Init",
+      "params": {
+        "volume": 0.75,
+        "ratio": 1.5,
+        "fm": 0.15,
+        "fold": 0.35,
+        "lpg": 0.55,
+        "decay": 0.45,
+        "release": 0.8,
+        "bend_range": 2
+      },
+      "render": {
+        "file": "00-init.wav",
+        "notes": [48, 55, 60, 62, 67, 72, 67, 62],
+        "note_blocks": 86,
+        "gate_blocks": 64,
+        "seconds": 8,
+        "velocity": 102
+      }
+    },
+    {
+      "name": "Pluck",
+      "params": {
+        "volume": 0.9,
+        "ratio": 1.997,
+        "fm": 0.05,
+        "fold": 0.38,
+        "lpg": 0.95,
+        "decay": 0.055,
+        "release": 0.12,
+        "bend_range": 2
+      },
+      "render": {
+        "file": "01-soft-pluck.wav",
+        "notes": [60, 67, 72, 79, 76, 72, 67, 64],
+        "note_blocks": 64,
+        "gate_blocks": 12,
+        "seconds": 7,
+        "velocity": 118
+      }
+    },
+    {
+      "name": "Bass",
+      "params": {
+        "volume": 0.9,
+        "ratio": 0.5,
+        "fm": 0.12,
+        "fold": 0.72,
+        "lpg": 0.48,
+        "decay": 0.32,
+        "release": 0.35,
+        "bend_range": 2
+      },
+      "render": {
+        "file": "02-folded-bass.wav",
+        "notes": [36, 36, 43, 39, 36, 48, 43, 39],
+        "note_blocks": 86,
+        "gate_blocks": 66,
+        "seconds": 8,
+        "velocity": 116
+      }
+    },
+    {
+      "name": "Clang",
+      "params": {
+        "volume": 0.72,
+        "ratio": 2.997,
+        "fm": 0.58,
+        "fold": 0.44,
+        "lpg": 0.62,
+        "decay": 0.72,
+        "release": 1.4,
+        "bend_range": 2
+      },
+      "render": {
+        "file": "03-fm-clang.wav",
+        "notes": [48, 51, 55, 58, 62, 65, 69, 72],
+        "note_blocks": 92,
+        "gate_blocks": 62,
+        "seconds": 8,
+        "velocity": 102
+      }
+    },
+    {
+      "name": "Long LPG",
+      "params": {
+        "volume": 0.78,
+        "ratio": 1.25,
+        "fm": 0.18,
+        "fold": 0.36,
+        "lpg": 0.9,
+        "decay": 1.65,
+        "release": 2.4,
+        "bend_range": 2
+      },
+      "render": {
+        "file": "04-long-lpg.wav",
+        "notes": [45, 57, 45, 57],
+        "note_blocks": 172,
+        "gate_blocks": 130,
+        "seconds": 10,
+        "velocity": 100
+      }
+    },
+    {
+      "name": "Fold",
+      "params": {
+        "volume": 0.7,
+        "ratio": 1.997,
+        "fm": 0.34,
+        "fold": 0.95,
+        "lpg": 0.72,
+        "decay": 0.28,
+        "release": 0.75,
+        "bend_range": 2
+      },
+      "render": {
+        "file": "05-aggressive-fold.wav",
+        "notes": [48, 55, 60, 62, 67, 72, 67, 62],
+        "note_blocks": 64,
+        "gate_blocks": 46,
+        "seconds": 7,
+        "velocity": 112
+      }
+    }
+  ]
+}

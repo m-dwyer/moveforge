@@ -1,0 +1,8 @@
+build/
+build-host/
+dist/
+dist-host/
+renders/
+upstream/
+web/wasm/*.wasm
+.DS_Store

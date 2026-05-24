@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Westfold Move UI Mock</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main class="app">
+    <section class="move">
+      <div class="topbar">
+        <div>
+          <span class="brand">MOVE</span>
+          <span class="module">Westfold</span>
+        </div>
+        <span class="status" id="status">Root</span>
+      </div>
+
+      <div class="screen-wrap">
+        <canvas id="screen" width="256" height="128" aria-label="Move display preview"></canvas>
+      </div>
+
+      <div class="surface">
+        <button class="nav" id="prevPage" aria-label="Previous page">&lt;</button>
+        <div class="knobs" id="knobs"></div>
+        <button class="nav" id="nextPage" aria-label="Next page">&gt;</button>
+      </div>
+
+      <div class="pads" id="pads"></div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <h1>Westfold Parameters</h1>
+        <button id="audioToggle" type="button">Enable WASM Audio</button>
+      </div>
+
+      <div class="error" id="errors" hidden></div>
+      <div class="preset-row" id="presets"></div>
+      <div class="controls" id="controls"></div>
+
+      <div class="previews">
+        <h2>Rendered Clips</h2>
+        <div id="previewList"></div>
+      </div>
+    </section>
+  </main>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
