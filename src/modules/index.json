@@ -1,6 +1,14 @@
 {
   "modules": [
-    { "id": "westfold", "name": "Westfold", "kind": "sound_generator" },
-    { "id": "dustline", "name": "Dustline", "kind": "sound_generator" }
+    {
+      "id": "dustline",
+      "name": "Dustline",
+      "kind": "sound_generator"
+    },
+    {
+      "id": "westfold",
+      "name": "Westfold",
+      "kind": "sound_generator"
+    }
   ]
 }

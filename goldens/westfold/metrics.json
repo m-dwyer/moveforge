@@ -1,0 +1,98 @@
+{
+  "00-init.wav": {
+    "sample_rate": 44100,
+    "channels": 2,
+    "frames": 308700,
+    "duration_seconds": 7,
+    "peak": 0.5932,
+    "rms": 0.31681,
+    "dc_offset": 0.012274,
+    "silence_ratio": 0.0111,
+    "clipped_samples": 0,
+    "zero_crossing_rate": [
+      0.06504,
+      0.06504
+    ],
+    "stereo_correlation": 1
+  },
+  "01-buchla-pluck.wav": {
+    "sample_rate": 44100,
+    "channels": 2,
+    "frames": 264600,
+    "duration_seconds": 6,
+    "peak": 0.74167,
+    "rms": 0.27466,
+    "dc_offset": 0.005569,
+    "silence_ratio": 0.0053,
+    "clipped_samples": 0,
+    "zero_crossing_rate": [
+      0.12986,
+      0.12986
+    ],
+    "stereo_correlation": 1
+  },
+  "02-rubber-bass.wav": {
+    "sample_rate": 44100,
+    "channels": 2,
+    "frames": 308700,
+    "duration_seconds": 7,
+    "peak": 0.77298,
+    "rms": 0.48232,
+    "dc_offset": -0.085446,
+    "silence_ratio": 0.001,
+    "clipped_samples": 0,
+    "zero_crossing_rate": [
+      0.02806,
+      0.02806
+    ],
+    "stereo_correlation": 1
+  },
+  "03-bell-fm.wav": {
+    "sample_rate": 44100,
+    "channels": 2,
+    "frames": 352800,
+    "duration_seconds": 8,
+    "peak": 0.58862,
+    "rms": 0.35603,
+    "dc_offset": -0.000004,
+    "silence_ratio": 0.0014,
+    "clipped_samples": 0,
+    "zero_crossing_rate": [
+      0.11254,
+      0.11254
+    ],
+    "stereo_correlation": 1
+  },
+  "04-lpg-bloom.wav": {
+    "sample_rate": 44100,
+    "channels": 2,
+    "frames": 441000,
+    "duration_seconds": 10,
+    "peak": 0.59659,
+    "rms": 0.35814,
+    "dc_offset": -0.031987,
+    "silence_ratio": 0.0013,
+    "clipped_samples": 0,
+    "zero_crossing_rate": [
+      0.03849,
+      0.03849
+    ],
+    "stereo_correlation": 1
+  },
+  "05-fold-lead.wav": {
+    "sample_rate": 44100,
+    "channels": 2,
+    "frames": 264600,
+    "duration_seconds": 6,
+    "peak": 0.6142,
+    "rms": 0.35375,
+    "dc_offset": -0.000692,
+    "silence_ratio": 0.0018,
+    "clipped_samples": 0,
+    "zero_crossing_rate": [
+      0.27443,
+      0.27443
+    ],
+    "stereo_correlation": 1
+  }
+}

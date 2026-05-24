@@ -1,3 +1,4 @@
+#include <stddef.h>
 #include "dustline_core.h"
 
 #define BLOCK_FRAMES 128
@@ -49,5 +50,5 @@ float *wf_right_ptr(void) {
 __attribute__((export_name("wf_render")))
 void wf_render(int frames) {
     if (frames > BLOCK_FRAMES) frames = BLOCK_FRAMES;
-    dustline_render_float(&g_core, g_left, g_right, frames);
+    dustline_process_float(&g_core, NULL, NULL, g_left, g_right, frames);
 }

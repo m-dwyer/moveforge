@@ -1,0 +1,98 @@
+{
+  "00-init.wav": {
+    "sample_rate": 44100,
+    "channels": 2,
+    "frames": 308700,
+    "duration_seconds": 7,
+    "peak": 0.56104,
+    "rms": 0.38145,
+    "dc_offset": -0.042361,
+    "silence_ratio": 0.0019,
+    "clipped_samples": 0,
+    "zero_crossing_rate": [
+      0.01928,
+      0.01928
+    ],
+    "stereo_correlation": 1
+  },
+  "01-dust-bass.wav": {
+    "sample_rate": 44100,
+    "channels": 2,
+    "frames": 308700,
+    "duration_seconds": 7,
+    "peak": 0.83728,
+    "rms": 0.75407,
+    "dc_offset": 0.523537,
+    "silence_ratio": 0.0001,
+    "clipped_samples": 0,
+    "zero_crossing_rate": [
+      0.00495,
+      0.00495
+    ],
+    "stereo_correlation": 1
+  },
+  "02-air-noise.wav": {
+    "sample_rate": 44100,
+    "channels": 2,
+    "frames": 441000,
+    "duration_seconds": 10,
+    "peak": 0.00735,
+    "rms": 0.00008,
+    "dc_offset": 0,
+    "silence_ratio": 0.9997,
+    "clipped_samples": 0,
+    "zero_crossing_rate": [
+      0.00038,
+      0.00038
+    ],
+    "stereo_correlation": 1
+  },
+  "03-pin-lead.wav": {
+    "sample_rate": 44100,
+    "channels": 2,
+    "frames": 264600,
+    "duration_seconds": 6,
+    "peak": 0.64499,
+    "rms": 0.49011,
+    "dc_offset": 0.025061,
+    "silence_ratio": 0.0003,
+    "clipped_samples": 0,
+    "zero_crossing_rate": [
+      0.11207,
+      0.11207
+    ],
+    "stereo_correlation": 1
+  },
+  "04-glass-keys.wav": {
+    "sample_rate": 44100,
+    "channels": 2,
+    "frames": 308700,
+    "duration_seconds": 7,
+    "peak": 0.35098,
+    "rms": 0.00944,
+    "dc_offset": 0.000001,
+    "silence_ratio": 0.9983,
+    "clipped_samples": 0,
+    "zero_crossing_rate": [
+      0.00167,
+      0.00167
+    ],
+    "stereo_correlation": 1
+  },
+  "05-filter-sweep.wav": {
+    "sample_rate": 44100,
+    "channels": 2,
+    "frames": 441000,
+    "duration_seconds": 10,
+    "peak": 0.48257,
+    "rms": 0.34952,
+    "dc_offset": 0.146065,
+    "silence_ratio": 0.0023,
+    "clipped_samples": 0,
+    "zero_crossing_rate": [
+      0.0205,
+      0.0205
+    ],
+    "stereo_correlation": 1
+  }
+}

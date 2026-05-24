@@ -50,7 +50,10 @@ void dustline_note_on(dustline_core_t *s, int note, float velocity);
 void dustline_note_off(dustline_core_t *s, int note);
 void dustline_all_notes_off(dustline_core_t *s);
 void dustline_pitch_bend(dustline_core_t *s, float bend);
-void dustline_render_float(dustline_core_t *s, float *left, float *right, int frames);
+void dustline_process_float(dustline_core_t *s,
+                            const float *in_left, const float *in_right,
+                            float *out_left, float *out_right,
+                            int frames);
 
 #ifdef __cplusplus
 }

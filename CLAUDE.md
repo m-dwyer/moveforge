@@ -24,7 +24,7 @@ Schwung is unofficial and device deployment should be treated as experimental. P
 The main rule: keep musical DSP behavior in the shared core.
 
 - `src/modules/<module-id>/` is a self-contained module directory.
-- `src/modules/<module-id>/dsp/<module-id>_core.c` and `src/modules/<module-id>/dsp/<module-id>_core.h` are the source of truth for synthesis behavior, parameter IDs, clamping, MIDI note state, pitch bend, and float rendering.
+- `src/modules/<module-id>/dsp/<module-id>_core.c` and `src/modules/<module-id>/dsp/<module-id>_core.h` are the source of truth for synthesis behavior, parameter IDs, clamping, MIDI note state, pitch bend, and float processing. The processing entry point is `<module>_process_float(core, in_left, in_right, out_left, out_right, frames)` — sound generators ignore the input pointers (callers pass `NULL`); audio FX modules read from them. See `docs/audio-fx-template.md` for the FX wrapper pattern.
 - `src/modules/<module-id>/dsp/<module-id>.c` is the Schwung plugin adapter. It translates Schwung lifecycle calls, string parameters, MIDI bytes, and `int16_t` block output into calls on the core.
 - `src/modules/<module-id>/dsp/<module-id>_wasm.c` is the browser/WASM adapter. It exports the shared `wf_*` C ABI for the AudioWorklet.
 - `tools/render_wav.c` is the offline host harness. It loads the Schwung wrapper directly, sends deterministic MIDI/parameter sequences, and writes WAV fixtures.

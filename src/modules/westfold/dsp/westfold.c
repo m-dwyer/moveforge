@@ -72,7 +72,7 @@ static void render_block(void *instance, int16_t *out, int frames) {
     float left[128];
     float right[128];
     if (frames > 128) frames = 128;
-    westfold_render_float(&p->core, left, right, frames);
+    westfold_process_float(&p->core, NULL, NULL, left, right, frames);
 
     for (int i = 0; i < frames; i++) {
         float l = left[i] * 32767.0f;

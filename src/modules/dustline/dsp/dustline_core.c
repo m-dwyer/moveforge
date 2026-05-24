@@ -107,8 +107,15 @@ void dustline_pitch_bend(dustline_core_t *s, float bend) {
     s->pitch_bend = clampf_local(bend, -1.0f, 1.0f);
 }
 
-void dustline_render_float(dustline_core_t *s, float *left, float *right, int frames) {
-    if (!s || !left || !right) return;
+void dustline_process_float(dustline_core_t *s,
+                            const float *in_left, const float *in_right,
+                            float *out_left, float *out_right,
+                            int frames) {
+    (void)in_left;
+    (void)in_right;
+    if (!s || !out_left || !out_right) return;
+    float *left = out_left;
+    float *right = out_right;
 
     for (int i = 0; i < frames; i++) {
         float bend_mul = powf(2.0f, (s->pitch_bend * s->bend_range) / 12.0f);

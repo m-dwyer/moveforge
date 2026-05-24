@@ -26,6 +26,22 @@ run = "make suite"
 description = "Render the suite and generate waveform/spectrum PNGs"
 run = "make plot"
 
+[tasks.metrics]
+description = "Render the suite and emit metrics.json next to WAVs"
+run = "make metrics"
+
+[tasks.check-renders]
+description = "Compare current suite metrics against goldens/<module>/metrics.json"
+run = "make check-renders"
+
+[tasks.bless-renders]
+description = "Promote current suite metrics into goldens/<module>/metrics.json"
+run = "make bless-renders"
+
+[tasks.new-module]
+description = "Scaffold a new sound_generator module from src/modules/_template/ (usage: mise run new-module -- --id myfx)"
+run = "node scripts/new-module.mjs"
+
 [tasks.host]
 description = "Build host-only shared library for local compile checks"
 run = "make host"
@@ -62,3 +78,7 @@ run = "make check"
 [tasks.check-all]
 description = "Run non-device checks for all included modules"
 run = "make check-all"
+
+[tasks.clean]
+description = "Remove build/, build-host/, dist/, dist-host/, and rendered plots"
+run = "make clean"

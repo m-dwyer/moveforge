@@ -1,18 +1,3 @@
-const fallbackParams = [
-  { key: "volume", label: "Volume", type: "float", min: 0, max: 1, default: 0.75, step: 0.01 },
-  { key: "ratio", label: "Ratio", type: "float", min: 0.25, max: 4, default: 1.5, step: 0.01 },
-  { key: "fm", label: "FM", type: "float", min: 0, max: 1, default: 0.15, step: 0.01 },
-  { key: "fold", label: "Fold", type: "float", min: 0, max: 1, default: 0.35, step: 0.01 },
-  { key: "lpg", label: "LPG", type: "float", min: 0, max: 1, default: 0.55, step: 0.01 },
-  { key: "decay", label: "Decay", type: "float", min: 0.02, max: 4, default: 0.45, step: 0.01 },
-  { key: "release", label: "Release", type: "float", min: 0.02, max: 6, default: 0.8, step: 0.01 },
-  { key: "bend_range", label: "Bend", type: "float", min: 0, max: 12, default: 2, step: 0.1 }
-];
-
-const fallbackPresets = [
-  { name: "Init", params: { volume: 0.75, ratio: 1.5, fm: 0.15, fold: 0.35, lpg: 0.55, decay: 0.45, release: 0.8, bend_range: 2 } }
-];
-
 const moduleId = new URLSearchParams(window.location.search).get("module") || "westfold";
 let activeModuleName = moduleId.replace(/(^|-)([a-z])/g, (_match, _dash, letter) => letter.toUpperCase());
 
@@ -187,54 +172,44 @@ async function loadJson(path) {
   return response.json();
 }
 
-function paramDefaultsFromModule(moduleJson) {
-  const levels = moduleJson?.capabilities?.ui_hierarchy?.levels || {};
-  const root = levels.root || {};
-  return (root.params || [])
-    .filter((item) => item.key)
-    .map((item) => ({ ...item, value: item.default }));
+function paramsFromManifest(manifest) {
+  return (manifest.params || []).map((item) => ({ ...item, value: item.default }));
 }
 
 function paramIdsFromParams(items) {
-  return Object.fromEntries(items.map((param, index) => [param.key, param.id ?? index]));
+  return Object.fromEntries(items.map((param) => [param.key, param.id]));
 }
 
 async function loadMetadata() {
-  try {
-    const [moduleJson, presetJson] = await Promise.all([
-      loadJson(`../src/modules/${moduleId}/module.json`),
-      loadJson(`../src/modules/${moduleId}/presets.json`)
-    ]);
-    activeModuleName = moduleJson.name || activeModuleName;
-    document.title = `${activeModuleName} Move/Schwung Emulator`;
-    if (moduleNameEl) moduleNameEl.textContent = activeModuleName;
-    for (const track of state.tracks) {
-      const sound = track.chain.find((slot) => slot.kind === "sound_generator");
-      if (sound) {
-        sound.id = moduleJson.id || moduleId;
-        sound.name = activeModuleName;
-      }
-      const settings = track.chain.find((slot) => slot.kind === "settings");
-      if (settings?.lfos?.[0]) settings.lfos[0].targetComponent = moduleJson.id || moduleId;
+  const [manifest, moduleJson, presetJson] = await Promise.all([
+    loadJson(`../src/modules/${moduleId}/params.json`),
+    loadJson(`../src/modules/${moduleId}/module.json`),
+    loadJson(`../src/modules/${moduleId}/presets.json`)
+  ]);
+  activeModuleName = moduleJson.name || activeModuleName;
+  document.title = `${activeModuleName} Move/Schwung Emulator`;
+  if (moduleNameEl) moduleNameEl.textContent = activeModuleName;
+  for (const track of state.tracks) {
+    const sound = track.chain.find((slot) => slot.kind === "sound_generator");
+    if (sound) {
+      sound.id = moduleJson.id || moduleId;
+      sound.name = activeModuleName;
     }
-    params = paramDefaultsFromModule(moduleJson);
-    paramIds = paramIdsFromParams(params);
-    const lfoTarget = params.some((param) => param.key === "fold") ? "fold" : params[3]?.key || params[0]?.key || "";
-    for (const track of state.tracks) {
-      const settings = track.chain.find((slot) => slot.kind === "settings");
-      if (settings?.lfos?.[0]) settings.lfos[0].targetParam = lfoTarget;
-    }
-    presets = presetJson.presets || fallbackPresets;
-    state.selectedPreset = presets[0]?.name || "Init";
-    state.browserIndex = 0;
-    applyPreset(state.selectedPreset, false);
-    renderPreviewList();
-  } catch (error) {
-    params = fallbackParams.map((p) => ({ ...p, value: p.default }));
-    paramIds = paramIdsFromParams(params);
-    presets = fallbackPresets;
-    showError(`Metadata fallback: ${error.message}`);
+    const settings = track.chain.find((slot) => slot.kind === "settings");
+    if (settings?.lfos?.[0]) settings.lfos[0].targetComponent = moduleJson.id || moduleId;
   }
+  params = paramsFromManifest(manifest);
+  paramIds = paramIdsFromParams(params);
+  const lfoTarget = params[Math.min(3, params.length - 1)]?.key || params[0]?.key || "";
+  for (const track of state.tracks) {
+    const settings = track.chain.find((slot) => slot.kind === "settings");
+    if (settings?.lfos?.[0]) settings.lfos[0].targetParam = lfoTarget;
+  }
+  presets = presetJson.presets || [];
+  state.selectedPreset = presets[0]?.name || "Init";
+  state.browserIndex = 0;
+  applyPreset(state.selectedPreset, false);
+  renderPreviewList();
 }
 
 async function loadModuleIndex() {
@@ -910,8 +885,8 @@ async function enableAudio() {
   if (!wasmResponse.ok) throw new Error(`Could not load WASM: ${wasmResponse.status}`);
   const wasmBytes = await wasmResponse.arrayBuffer();
   audio = new AudioContext({ sampleRate: 44100 });
-  await audio.audioWorklet.addModule(`westfold-worklet.js?v=${Date.now()}`);
-  node = new AudioWorkletNode(audio, "westfold-processor", {
+  await audio.audioWorklet.addModule(`module-worklet.js?v=${Date.now()}`);
+  node = new AudioWorkletNode(audio, "module-processor", {
     numberOfOutputs: 1,
     outputChannelCount: [2]
   });
@@ -1126,10 +1101,8 @@ function bindControls() {
     update();
   });
   moduleSelectEl?.addEventListener("change", () => {
-    const next = moduleSelectEl.value;
     const url = new URL(window.location.href);
-    if (next === "westfold") url.searchParams.delete("module");
-    else url.searchParams.set("module", next);
+    url.searchParams.set("module", moduleSelectEl.value);
     window.location.href = url.toString();
   });
   audioToggle.addEventListener("click", () => {
@@ -1185,5 +1158,9 @@ window.addEventListener("keyup", (event) => {
 initRootOptions();
 bindControls();
 await loadModuleIndex();
-await loadMetadata();
+try {
+  await loadMetadata();
+} catch (error) {
+  showError(`Failed to load module metadata for ${moduleId}: ${error.message}`);
+}
 update();

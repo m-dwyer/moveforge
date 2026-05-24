@@ -32,7 +32,7 @@ int main(void) {
     westfold_set_param(&synth, WESTFOLD_PARAM_VOLUME, 0.8f);
     westfold_set_param(&synth, WESTFOLD_PARAM_FOLD, 0.6f);
     westfold_note_on(&synth, 60, 1.0f);
-    westfold_render_float(&synth, left, right, FRAMES);
+    westfold_process_float(&synth, NULL, NULL, left, right, FRAMES);
 
     float peak = 0.0f;
     double energy = 0.0;
@@ -49,7 +49,7 @@ int main(void) {
 
     westfold_note_off(&synth, 60);
     float before = synth.env;
-    westfold_render_float(&synth, left, right, FRAMES);
+    westfold_process_float(&synth, NULL, NULL, left, right, FRAMES);
     require_true(synth.env < before, "release envelope decays after note off");
 
     require_true(westfold_param_id("fold") == WESTFOLD_PARAM_FOLD, "param lookup works");

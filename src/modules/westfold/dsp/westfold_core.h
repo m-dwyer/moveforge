@@ -46,7 +46,10 @@ void westfold_note_on(westfold_core_t *s, int note, float velocity);
 void westfold_note_off(westfold_core_t *s, int note);
 void westfold_all_notes_off(westfold_core_t *s);
 void westfold_pitch_bend(westfold_core_t *s, float bend);
-void westfold_render_float(westfold_core_t *s, float *left, float *right, int frames);
+void westfold_process_float(westfold_core_t *s,
+                            const float *in_left, const float *in_right,
+                            float *out_left, float *out_right,
+                            int frames);
 
 #ifdef __cplusplus
 }

@@ -3,7 +3,7 @@ import { readdir, readFile } from "node:fs/promises";
 const moduleIds = process.env.MODULE_ID
   ? [process.env.MODULE_ID]
   : (await readdir("src/modules", { withFileTypes: true }))
-      .filter((entry) => entry.isDirectory())
+      .filter((entry) => entry.isDirectory() && !entry.name.startsWith("_"))
       .map((entry) => entry.name)
       .sort();
 
