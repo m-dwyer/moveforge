@@ -5,7 +5,8 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
 IMAGE_NAME="${IMAGE_NAME:-schwung-module-builder}"
-MODULE_DIR="src/modules/westfold"
+MODULE_ID="${MODULE_ID:-westfold}"
+MODULE_DIR="src/modules/$MODULE_ID"
 
 if [ -z "${CROSS_PREFIX:-}" ] && [ -z "${SCHWUNG_NO_DOCKER:-}" ] && [ ! -f "/.dockerenv" ]; then
   if command -v docker >/dev/null 2>&1; then
@@ -17,6 +18,7 @@ if [ -z "${CROSS_PREFIX:-}" ] && [ -z "${SCHWUNG_NO_DOCKER:-}" ] && [ ! -f "/.do
       -u "$(id -u):$(id -g)" \
       -w /build \
       -e CROSS_PREFIX=aarch64-linux-gnu- \
+      -e MODULE_ID="$MODULE_ID" \
       "$IMAGE_NAME" \
       ./scripts/build.sh
     exit 0
@@ -30,23 +32,23 @@ if ! command -v "${CROSS_PREFIX}gcc" >/dev/null 2>&1; then
   exit 1
 fi
 
-mkdir -p build dist/westfold
+mkdir -p build "dist/$MODULE_ID"
 
 "${CROSS_PREFIX}gcc" -std=c11 -O3 -g -shared -fPIC \
-  "$MODULE_DIR/dsp/westfold.c" \
-  "$MODULE_DIR/dsp/westfold_core.c" \
+  "$MODULE_DIR/dsp/$MODULE_ID.c" \
+  "$MODULE_DIR/dsp/${MODULE_ID}_core.c" \
   -o build/dsp.so \
   -Isrc \
   -I"$MODULE_DIR/dsp" \
   -lm
 
-cp "$MODULE_DIR/module.json" dist/westfold/module.json
-cp "$MODULE_DIR/ui.js" dist/westfold/ui.js
-cp build/dsp.so dist/westfold/dsp.so
+cp "$MODULE_DIR/module.json" "dist/$MODULE_ID/module.json"
+cp "$MODULE_DIR/ui.js" "dist/$MODULE_ID/ui.js"
+cp build/dsp.so "dist/$MODULE_ID/dsp.so"
 
 (
   cd dist
-  tar -czf westfold-module.tar.gz westfold
+  tar -czf "$MODULE_ID-module.tar.gz" "$MODULE_ID"
 )
 
-echo "Build complete: dist/westfold-module.tar.gz"
+echo "Build complete: dist/$MODULE_ID-module.tar.gz"

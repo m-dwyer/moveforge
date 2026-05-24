@@ -1,0 +1,92 @@
+{
+  "presets": [
+    {
+      "name": "Init",
+      "params": {
+        "volume": 0.72,
+        "wave": 0.35,
+        "noise": 0.18,
+        "cutoff": 0.42,
+        "resonance": 0.18,
+        "attack": 0.008,
+        "release": 0.55,
+        "drive": 0.22,
+        "bend_range": 2
+      },
+      "render": {
+        "file": "00-init.wav",
+        "notes": [48, 55, 60, 64, 67, 72, 67, 64],
+        "note_blocks": 86,
+        "gate_blocks": 62,
+        "seconds": 8,
+        "velocity": 104
+      }
+    },
+    {
+      "name": "Dust Bass",
+      "params": {
+        "volume": 0.86,
+        "wave": 0.82,
+        "noise": 0.05,
+        "cutoff": 0.28,
+        "resonance": 0.12,
+        "attack": 0.004,
+        "release": 0.22,
+        "drive": 0.62,
+        "bend_range": 2
+      },
+      "render": {
+        "file": "01-dust-bass.wav",
+        "notes": [36, 36, 43, 39, 36, 48, 43, 39],
+        "note_blocks": 76,
+        "gate_blocks": 54,
+        "seconds": 7,
+        "velocity": 118
+      }
+    },
+    {
+      "name": "Air Noise",
+      "params": {
+        "volume": 0.62,
+        "wave": 0.15,
+        "noise": 0.72,
+        "cutoff": 0.64,
+        "resonance": 0.48,
+        "attack": 0.18,
+        "release": 2.8,
+        "drive": 0.18,
+        "bend_range": 2
+      },
+      "render": {
+        "file": "02-air-noise.wav",
+        "notes": [60, 67, 72, 79],
+        "note_blocks": 172,
+        "gate_blocks": 118,
+        "seconds": 10,
+        "velocity": 96
+      }
+    },
+    {
+      "name": "Pin Lead",
+      "params": {
+        "volume": 0.74,
+        "wave": 0.58,
+        "noise": 0.02,
+        "cutoff": 0.82,
+        "resonance": 0.34,
+        "attack": 0.002,
+        "release": 0.16,
+        "drive": 0.28,
+        "bend_range": 7
+      },
+      "render": {
+        "file": "03-pin-lead.wav",
+        "notes": [72, 74, 79, 76, 72, 67, 69, 72],
+        "note_blocks": 64,
+        "gate_blocks": 34,
+        "seconds": 7,
+        "velocity": 110
+      }
+    }
+  ]
+}

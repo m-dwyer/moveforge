@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import math
+import os
 import sys
 import wave
 from pathlib import Path
@@ -17,9 +18,10 @@ except ModuleNotFoundError as exc:
 
 
 ROOT = Path(__file__).resolve().parents[1]
-PRESETS = ROOT / "src" / "modules" / "westfold" / "presets.json"
-RENDER_DIR = ROOT / "renders" / "westfold-suite"
-OUT_DIR = ROOT / "renders" / "plots"
+MODULE_ID = os.environ.get("MODULE_ID", "westfold")
+PRESETS = ROOT / "src" / "modules" / MODULE_ID / "presets.json"
+RENDER_DIR = ROOT / "renders" / f"{MODULE_ID}-suite"
+OUT_DIR = ROOT / "renders" / "plots" / MODULE_ID
 
 W = 1400
 H = 720
