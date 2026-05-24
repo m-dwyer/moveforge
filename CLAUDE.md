@@ -124,8 +124,8 @@ Prioritized improvements to make synth and FX iteration faster and safer:
 
 1. Add a single `mise run dev` task that builds WASM, starts the web server, and watches C/JSON files to rebuild `web/wasm/westfold.wasm` when the core changes.
 2. Add a `mise run deploy` task that runs `test`, `suite`, `host`, `move`, then `install-to-move.sh`, so the full safe deploy path is one command.
-3. Generate `PARAM_IDS` for `web/westfold-worklet.js` from the selected module's `params.json` manifest to prevent metadata drift.
-4. Add a parameter-schema validator that checks `module.json`, `presets.json`, core enum order, WASM IDs, min/max/default bounds, and missing preset values.
+3. Generate `PARAM_IDS` for `web/westfold-worklet.js` from the selected module's `params.json` manifest to remove the remaining JS fallback mapping.
+4. Extend `scripts/validate-params.mjs` into a multi-module validator once additional module directories exist.
 5. Add render metrics in CI/local checks: peak, RMS, DC offset, silence detection, clipped-sample count, and per-preset JSON summaries.
 6. Add golden render comparison with tolerance, so DSP changes can intentionally update fixtures while accidental regressions are obvious.
 7. Add a browser capture/export path that records a short WAV from the current WASM state and stores it beside the offline suite for A/B comparison.
@@ -138,4 +138,4 @@ Prioritized improvements to make synth and FX iteration faster and safer:
 14. Add clang-format and a formatting task to keep C changes mechanical and reviewable.
 15. Add GitHub Actions or a local pre-push command for `mise run check`, leaving Move deploy as an explicit local-only step.
 
-For the next repo change, the highest-leverage item is probably parameter-manifest generation plus schema validation. The current setup repeats parameter identity across C, JSON, and JS; eliminating that drift will make rapid module iteration less fragile.
+For the next repo change, the highest-leverage item is probably generated parameter bindings. The current validator catches drift across C, JSON, presets, and the web fallback map, but generating the worklet mapping from `params.json` would remove that duplication entirely.
