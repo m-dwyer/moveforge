@@ -2,7 +2,16 @@
 
 Starter workspace for developing Ableton Move Schwung sound-generator modules locally before owning the hardware.
 
-The included `westfold` module is a compact West Coast style voice:
+The repo currently includes two sound-generator modules:
+
+- `westfold`: compact West Coast style voice with dual oscillator FM, wavefolder, and low-pass gate response
+- `dustline`: compact subtractive/noise voice with oscillator blend, resonant filter, and drive
+
+Each module is self-contained under `src/modules/<module-id>/` with its own DSP, Schwung metadata, parameter manifest, presets, and on-device UI.
+
+The default module is `westfold`. Set `MODULE_ID=dustline` on any module-aware command to work on Dustline instead.
+
+Westfold includes:
 
 - dual oscillators with cross-modulated FM
 - wavefolder
@@ -25,7 +34,7 @@ Render a local audio demo:
 This writes:
 
 ```text
-renders/westfold-demo.wav
+renders/<module-id>-demo.wav
 ```
 
 Render the comparison suite:
@@ -37,13 +46,19 @@ Render the comparison suite:
 This writes several labeled clips under:
 
 ```text
-renders/westfold-suite/
+renders/<module-id>-suite/
 ```
 
 Build the browser WASM synth:
 
 ```bash
 ./scripts/build-wasm.sh
+```
+
+Build Dustline's browser WASM instead:
+
+```bash
+MODULE_ID=dustline ./scripts/build-wasm.sh
 ```
 
 Start the local browser UI:
@@ -58,7 +73,13 @@ Then open:
 http://localhost:8765/web/
 ```
 
-The mock shows the Move screen, track and mode buttons, 8 device encoders, wheel controls, transport keys, step buttons, pad layouts, a documented Schwung-style chain (`MIDI FX -> Sound -> Audio FX 1 -> Audio FX 2 -> Settings`), parameter sliders, rendered clip players, and a WASM-backed live synth running in an AudioWorklet. It reads Westfold metadata from `src/modules/westfold/module.json` and presets/render clips from `src/modules/westfold/presets.json`.
+Use Dustline in the browser with:
+
+```text
+http://localhost:8765/web/?module=dustline
+```
+
+The mock shows the Move screen, track and mode buttons, 8 device encoders, wheel controls, transport keys, step buttons, a module selector backed by `src/modules/index.json`, pad layouts, a documented Schwung-style chain (`MIDI FX -> Sound -> Audio FX 1 -> Audio FX 2 -> Settings`), parameter sliders, rendered clip players, and a WASM-backed live synth running in an AudioWorklet. It reads module metadata from `src/modules/<module-id>/module.json` and presets/render clips from `src/modules/<module-id>/presets.json`.
 
 Click `Enable WASM Audio`, then play the pads or use the computer keyboard row `a w s d r f t g h u j i k o l`. If your browser supports Web MIDI, connected MIDI keyboards are also routed to the synth. MIDI CC 20-27 map to the first eight parameters.
 
@@ -68,7 +89,7 @@ For the fastest browser loop:
 mise run dev
 ```
 
-This builds WASM, serves `http://localhost:8765/web/`, and rebuilds the WASM module when DSP or metadata files change.
+This builds WASM, serves `http://localhost:8765/web/?module=<module-id>`, and rebuilds the WASM module when DSP or metadata files change.
 
 Build the module folder and release tarball:
 
@@ -79,8 +100,8 @@ Build the module folder and release tarball:
 Outputs:
 
 ```text
-dist/westfold/
-dist/westfold-module.tar.gz
+dist/<module-id>/
+dist/<module-id>-module.tar.gz
 ```
 
 `scripts/build.sh` builds for Move's aarch64 Linux target. It uses Docker automatically when no local cross compiler is present.
@@ -107,7 +128,7 @@ Once you have a Move with Schwung installed:
 ./scripts/install-to-move.sh
 ```
 
-The script builds first, then copies `dist/westfold/` to `ableton@move.local`.
+The script builds first, then copies `dist/<module-id>/` to `ableton@move.local`.
 
 For a checked deploy path:
 
@@ -119,15 +140,15 @@ This runs DSP tests, renders the preset suite, builds the host library, then bui
 
 ## Development Loop
 
-1. Edit DSP in `src/modules/westfold/dsp/westfold_core.c`.
-2. Run `./scripts/render-demo.sh --suite`.
-3. Listen through `renders/westfold-demo.wav` and `renders/westfold-suite/*.wav`.
-4. Adjust `src/modules/westfold/module.json` and `src/modules/westfold/params.json` parameter metadata when adding controls.
+1. Edit DSP in `src/modules/<module-id>/dsp/<module-id>_core.c`.
+2. Run `MODULE_ID=<module-id> ./scripts/render-demo.sh --suite`.
+3. Listen through `renders/<module-id>-demo.wav` and `renders/<module-id>-suite/*.wav`.
+4. Adjust `src/modules/<module-id>/module.json` and `src/modules/<module-id>/params.json` parameter metadata when adding controls.
 5. Run `./scripts/build.sh` before packaging or device install.
 
-For AI-assisted iteration, ask for small changes against `src/modules/westfold/dsp/westfold_core.c` and always render before judging the sound. Audio bugs are much easier to catch from short deterministic WAV fixtures than from code review alone.
+For AI-assisted iteration, ask for small changes against `src/modules/<module-id>/dsp/<module-id>_core.c` and always render before judging the sound. Audio bugs are much easier to catch from short deterministic WAV fixtures than from code review alone.
 
-The actual synth engine lives in `src/modules/westfold/dsp/westfold_core.c`; `src/modules/westfold/dsp/westfold.c` is the Schwung plugin wrapper and `src/modules/westfold/dsp/westfold_wasm.c` is the browser wrapper. Keep musical DSP changes in the core so Move builds, WAV renders, and browser audio stay aligned.
+The actual synth engine lives in `src/modules/<module-id>/dsp/<module-id>_core.c`; `src/modules/<module-id>/dsp/<module-id>.c` is the Schwung plugin wrapper and `src/modules/<module-id>/dsp/<module-id>_wasm.c` is the browser wrapper. Keep musical DSP changes in the core so Move builds, WAV renders, and browser audio stay aligned.
 
 ## Dev Checks
 
@@ -143,7 +164,7 @@ Run the core DSP smoke tests:
 make test
 ```
 
-Validate that module-scoped parameter metadata matches the C core, presets, and browser worklet:
+Validate that module-scoped parameter metadata matches each module's C core and presets:
 
 ```bash
 make validate
@@ -158,7 +179,7 @@ make plot
 Plots are written to:
 
 ```text
-renders/plots/
+renders/plots/<module-id>/
 ```
 
 Other useful targets:
@@ -172,6 +193,8 @@ make wasm
 make move
 make serve
 make emulator-test
+make check
+make check-all
 ```
 
 If you use `mise`, the same entry points are available as tasks:
@@ -186,6 +209,7 @@ mise run web
 mise run dev
 mise run emulator-test
 mise run check
+mise run check-all
 mise run deploy
 ```
 

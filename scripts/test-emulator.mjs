@@ -3,6 +3,8 @@ import { once } from "node:events";
 import { chromium } from "playwright";
 
 const port = Number(process.env.PORT || 8876);
+const moduleId = process.env.MODULE_ID || "westfold";
+const moduleQuery = moduleId === "westfold" ? "" : `?module=${encodeURIComponent(moduleId)}`;
 const server = spawn("python3", ["-m", "http.server", String(port)], {
   stdio: ["ignore", "pipe", "pipe"]
 });
@@ -11,7 +13,7 @@ async function waitForServer() {
   const deadline = Date.now() + 6000;
   while (Date.now() < deadline) {
     try {
-      const response = await fetch(`http://127.0.0.1:${port}/web/`);
+      const response = await fetch(`http://127.0.0.1:${port}/web/${moduleQuery}`);
       if (response.ok) return;
     } catch {
       await new Promise((resolve) => setTimeout(resolve, 150));
@@ -27,8 +29,25 @@ async function main() {
 
   const browser = await chromium.launch();
   const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
-  await page.goto(`http://127.0.0.1:${port}/web/`);
+  await page.goto(`http://127.0.0.1:${port}/web/${moduleQuery}`);
   await page.waitForSelector(".chain-slot");
+  await expectText(page.locator("#moduleSelect"), moduleId === "dustline" ? "Dustline" : "Westfold");
+  await expectText(page.locator("#moduleSelect"), "Dustline");
+  await expectText(page.locator("#panelTitle"), moduleId === "dustline" ? "Dustline" : "Westfold");
+  if (moduleId === "dustline") {
+    await expectText(page.locator("#controls"), "Wave");
+    await expectText(page.locator("#controls"), "Noise");
+    await expectText(page.locator("#controls"), "Cutoff");
+  } else {
+    await expectText(page.locator("#controls"), "Ratio");
+    await page.locator("#moduleSelect").selectOption("dustline");
+    await page.waitForURL(/module=dustline/);
+    await page.waitForSelector(".chain-slot");
+    await expectText(page.locator("#panelTitle"), "Dustline");
+    await expectText(page.locator("#controls"), "Wave");
+    await expectText(page.locator("#controls"), "Noise");
+    await expectText(page.locator("#controls"), "Cutoff");
+  }
 
   const slots = page.locator(".chain-slot");
   if (await slots.count() !== 5) throw new Error("slot chain should expose 5 positions");

@@ -1,4 +1,4 @@
-.PHONY: render suite plot test validate emulator-test host move wasm serve dev deploy dev-deps clean
+.PHONY: render suite plot test validate emulator-test host move wasm serve dev deploy check check-all dev-deps clean
 
 render:
 	./scripts/render-demo.sh
@@ -35,6 +35,16 @@ dev:
 
 deploy:
 	./scripts/deploy-to-move.sh
+
+check: validate test suite plot host
+
+check-all: validate test
+	$(MAKE) suite
+	$(MAKE) plot
+	$(MAKE) host
+	MODULE_ID=dustline $(MAKE) suite
+	MODULE_ID=dustline $(MAKE) plot
+	MODULE_ID=dustline $(MAKE) host
 
 dev-deps:
 	python3 -m venv .venv

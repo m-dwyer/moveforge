@@ -13,6 +13,9 @@ const fallbackPresets = [
   { name: "Init", params: { volume: 0.75, ratio: 1.5, fm: 0.15, fold: 0.35, lpg: 0.55, decay: 0.45, release: 0.8, bend_range: 2 } }
 ];
 
+const moduleId = new URLSearchParams(window.location.search).get("module") || "westfold";
+let activeModuleName = moduleId.replace(/(^|-)([a-z])/g, (_match, _dash, letter) => letter.toUpperCase());
+
 const noteNames = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 const scales = {
   major: [0, 2, 4, 5, 7, 9, 11],
@@ -56,6 +59,8 @@ const previewEl = document.getElementById("previewList");
 const chainEl = document.getElementById("chain");
 const chainInspectorEl = document.getElementById("chainInspector");
 const tracksEl = document.getElementById("tracks");
+const moduleNameEl = document.getElementById("moduleName");
+const moduleSelectEl = document.getElementById("moduleSelect");
 const layoutModeEl = document.getElementById("layoutMode");
 const rootNoteEl = document.getElementById("rootNote");
 const scaleNameEl = document.getElementById("scaleName");
@@ -84,7 +89,7 @@ function makeMidiFx() {
 }
 
 function makeSound() {
-  return { id: "westfold", kind: "sound_generator", type: "Sound", name: "Westfold", enabled: true };
+  return { id: moduleId, kind: "sound_generator", type: "Sound", name: activeModuleName, enabled: true };
 }
 
 function makeAudioFx(id, label, defaults = {}) {
@@ -114,7 +119,7 @@ function makeSettings() {
       lfo2_depth: 0
     },
     lfos: [
-      { enabled: false, targetComponent: "westfold", targetParam: "fold", shape: "sine", depth: 0, rate: 0.25, phase: 0, polarity: "bipolar", retrigger: false },
+      { enabled: false, targetComponent: moduleId, targetParam: "fold", shape: "sine", depth: 0, rate: 0.25, phase: 0, polarity: "bipolar", retrigger: false },
       { enabled: false, targetComponent: "audio-fx-1", targetParam: "wet", shape: "tri", depth: 0, rate: 0.125, phase: 0, polarity: "unipolar", retrigger: false }
     ]
   };
@@ -197,11 +202,28 @@ function paramIdsFromParams(items) {
 async function loadMetadata() {
   try {
     const [moduleJson, presetJson] = await Promise.all([
-      loadJson("../src/modules/westfold/module.json"),
-      loadJson("../src/modules/westfold/presets.json")
+      loadJson(`../src/modules/${moduleId}/module.json`),
+      loadJson(`../src/modules/${moduleId}/presets.json`)
     ]);
+    activeModuleName = moduleJson.name || activeModuleName;
+    document.title = `${activeModuleName} Move/Schwung Emulator`;
+    if (moduleNameEl) moduleNameEl.textContent = activeModuleName;
+    for (const track of state.tracks) {
+      const sound = track.chain.find((slot) => slot.kind === "sound_generator");
+      if (sound) {
+        sound.id = moduleJson.id || moduleId;
+        sound.name = activeModuleName;
+      }
+      const settings = track.chain.find((slot) => slot.kind === "settings");
+      if (settings?.lfos?.[0]) settings.lfos[0].targetComponent = moduleJson.id || moduleId;
+    }
     params = paramDefaultsFromModule(moduleJson);
     paramIds = paramIdsFromParams(params);
+    const lfoTarget = params.some((param) => param.key === "fold") ? "fold" : params[3]?.key || params[0]?.key || "";
+    for (const track of state.tracks) {
+      const settings = track.chain.find((slot) => slot.kind === "settings");
+      if (settings?.lfos?.[0]) settings.lfos[0].targetParam = lfoTarget;
+    }
     presets = presetJson.presets || fallbackPresets;
     state.selectedPreset = presets[0]?.name || "Init";
     state.browserIndex = 0;
@@ -212,6 +234,29 @@ async function loadMetadata() {
     paramIds = paramIdsFromParams(params);
     presets = fallbackPresets;
     showError(`Metadata fallback: ${error.message}`);
+  }
+}
+
+async function loadModuleIndex() {
+  if (!moduleSelectEl) return;
+  try {
+    const index = await loadJson("../src/modules/index.json");
+    moduleSelectEl.innerHTML = "";
+    for (const item of index.modules || []) {
+      const option = document.createElement("option");
+      option.value = item.id;
+      option.textContent = item.name || item.id;
+      option.selected = item.id === moduleId;
+      moduleSelectEl.appendChild(option);
+    }
+    if (!moduleSelectEl.value) moduleSelectEl.value = moduleId;
+  } catch (error) {
+    moduleSelectEl.innerHTML = "";
+    const option = document.createElement("option");
+    option.value = moduleId;
+    option.textContent = activeModuleName;
+    moduleSelectEl.appendChild(option);
+    showError(`Module index fallback: ${error.message}`);
   }
 }
 
@@ -269,7 +314,7 @@ function activeParams() {
 function activeDeviceName() {
   const slot = selectedSlot();
   if (state.mode === "chain" && slot) return slot.name;
-  return "Westfold";
+  return activeModuleName;
 }
 
 function selectedScopedSlotIsBypassed() {
@@ -527,7 +572,7 @@ function renderChainInspector() {
       });
     });
   } else {
-    chainInspectorEl.innerHTML = `<div class="chain-inspector-head"><b>Westfold</b>${chainToggleHtml(slot)}</div>${bypassNote}<p class="bypass-note">Shared C DSP core via WASM.</p>`;
+    chainInspectorEl.innerHTML = `<div class="chain-inspector-head"><b>${activeModuleName}</b>${chainToggleHtml(slot)}</div>${bypassNote}<p class="bypass-note">Shared C DSP core via WASM.</p>`;
   }
   const toggle = chainInspectorEl.querySelector("[data-chain-toggle]");
   if (toggle) {
@@ -615,7 +660,7 @@ function renderPreviewList() {
     if (!file) return;
     const audioEl = document.createElement("audio");
     audioEl.controls = true;
-    audioEl.src = `../renders/westfold-suite/${file}`;
+    audioEl.src = `../renders/${moduleId}-suite/${file}`;
     previewEl.appendChild(audioEl);
   });
 }
@@ -861,7 +906,7 @@ async function enableAudio() {
   }
   showError("");
   audioToggle.textContent = "Loading WASM...";
-  const wasmResponse = await fetch("wasm/westfold.wasm", { cache: "no-store" });
+  const wasmResponse = await fetch(`wasm/${moduleId}.wasm`, { cache: "no-store" });
   if (!wasmResponse.ok) throw new Error(`Could not load WASM: ${wasmResponse.status}`);
   const wasmBytes = await wasmResponse.arrayBuffer();
   audio = new AudioContext({ sampleRate: 44100 });
@@ -1080,6 +1125,13 @@ function bindControls() {
     state.octave = Number(octaveBaseEl.value);
     update();
   });
+  moduleSelectEl?.addEventListener("change", () => {
+    const next = moduleSelectEl.value;
+    const url = new URL(window.location.href);
+    if (next === "westfold") url.searchParams.delete("module");
+    else url.searchParams.set("module", next);
+    window.location.href = url.toString();
+  });
   audioToggle.addEventListener("click", () => {
     enableAudio()
       .then(enableMidi)
@@ -1132,5 +1184,6 @@ window.addEventListener("keyup", (event) => {
 
 initRootOptions();
 bindControls();
+await loadModuleIndex();
 await loadMetadata();
 update();

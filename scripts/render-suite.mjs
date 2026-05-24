@@ -1,7 +1,9 @@
 import { readFile } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
 
-const data = JSON.parse(await readFile("src/modules/westfold/presets.json", "utf8"));
+const moduleId = process.env.MODULE_ID || "westfold";
+const renderBin = process.env.RENDER_BIN || `./build/render_wav_${moduleId}`;
+const data = JSON.parse(await readFile(`src/modules/${moduleId}/presets.json`, "utf8"));
 
 for (const preset of data.presets) {
   const render = preset.render;
@@ -9,7 +11,7 @@ for (const preset of data.presets) {
 
   const args = [
     "--render",
-    `renders/westfold-suite/${render.file}`,
+    `renders/${moduleId}-suite/${render.file}`,
     String(render.seconds),
     String(render.note_blocks),
     String(render.gate_blocks),
@@ -21,6 +23,6 @@ for (const preset of data.presets) {
     args.push(`${key}=${value}`);
   }
 
-  const result = spawnSync("./build/render_wav", args, { stdio: "inherit" });
+  const result = spawnSync(renderBin, args, { stdio: "inherit" });
   if (result.status !== 0) process.exit(result.status ?? 1);
 }

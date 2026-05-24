@@ -4,7 +4,12 @@ Guidance for AI coding agents working in this repository.
 
 ## Project Purpose
 
-This repo is a local development harness for building custom Schwung modules for Ableton Move. It currently contains `westfold`, a compact West Coast style sound generator with:
+This repo is a local development harness for building custom Schwung modules for Ableton Move. It currently contains two sound-generator modules:
+
+- `westfold`: compact West Coast voice with FM, wavefolding, and low-pass gate behavior
+- `dustline`: compact subtractive/noise voice with oscillator blend, resonant filter, and drive
+
+Each module has:
 
 - a shared C DSP core
 - a Schwung plugin wrapper for Move deployment
@@ -18,25 +23,26 @@ Schwung is unofficial and device deployment should be treated as experimental. P
 
 The main rule: keep musical DSP behavior in the shared core.
 
-- `src/modules/westfold/` is the self-contained Westfold module directory.
-- `src/modules/westfold/dsp/westfold_core.c` and `src/modules/westfold/dsp/westfold_core.h` are the source of truth for synthesis behavior, parameter IDs, clamping, MIDI note state, pitch bend, and float rendering.
-- `src/modules/westfold/dsp/westfold.c` is the Schwung plugin adapter. It translates Schwung lifecycle calls, string parameters, MIDI bytes, and `int16_t` block output into calls on the core.
-- `src/modules/westfold/dsp/westfold_wasm.c` is the browser/WASM adapter. It exports a minimal C ABI for the AudioWorklet.
+- `src/modules/<module-id>/` is a self-contained module directory.
+- `src/modules/<module-id>/dsp/<module-id>_core.c` and `src/modules/<module-id>/dsp/<module-id>_core.h` are the source of truth for synthesis behavior, parameter IDs, clamping, MIDI note state, pitch bend, and float rendering.
+- `src/modules/<module-id>/dsp/<module-id>.c` is the Schwung plugin adapter. It translates Schwung lifecycle calls, string parameters, MIDI bytes, and `int16_t` block output into calls on the core.
+- `src/modules/<module-id>/dsp/<module-id>_wasm.c` is the browser/WASM adapter. It exports the shared `wf_*` C ABI for the AudioWorklet.
 - `tools/render_wav.c` is the offline host harness. It loads the Schwung wrapper directly, sends deterministic MIDI/parameter sequences, and writes WAV fixtures.
-- `src/modules/westfold/module.json` is Schwung metadata and Move-facing module parameter schema.
-- `src/modules/westfold/params.json` is the local source of truth for Westfold parameter IDs, labels, ranges, defaults, and ordering.
-- `src/modules/westfold/presets.json` drives local preset buttons and render-suite clips.
-- `src/modules/westfold/ui.js` is the on-device Schwung UI entry point.
-- `web/` contains the local browser UI. It reads `src/modules/westfold/module.json`, `src/modules/westfold/presets.json`, and `web/wasm/westfold.wasm`.
+- `src/modules/<module-id>/module.json` is Schwung metadata and Move-facing module parameter schema.
+- `src/modules/<module-id>/params.json` is the local source of truth for that module's parameter IDs, labels, ranges, defaults, and ordering.
+- `src/modules/<module-id>/presets.json` drives local preset buttons and render-suite clips.
+- `src/modules/<module-id>/ui.js` is the on-device Schwung UI entry point.
+- `src/modules/index.json` is the browser-visible module discovery list.
+- `web/` contains the local browser UI. It reads `src/modules/<module-id>/module.json`, `src/modules/<module-id>/presets.json`, and `web/wasm/<module-id>.wasm`.
 
 When adding a parameter, update all of these surfaces together:
 
-1. `src/modules/westfold/dsp/westfold_core.h` enum and state
-2. `src/modules/westfold/dsp/westfold_core.c` lookup, clamp, defaults, and render behavior
-3. `src/modules/westfold/module.json`
-4. `src/modules/westfold/presets.json`
-5. `src/modules/westfold/params.json`
-6. focused tests in `tests/test_westfold_core.c`
+1. `src/modules/<module-id>/dsp/<module-id>_core.h` enum and state
+2. `src/modules/<module-id>/dsp/<module-id>_core.c` lookup, clamp, defaults, and render behavior
+3. `src/modules/<module-id>/module.json`
+4. `src/modules/<module-id>/presets.json`
+5. `src/modules/<module-id>/params.json`
+6. focused tests in `tests/test_<module-id>_core.c`
 7. run `mise run validate`
 
 ## Common Commands
@@ -47,34 +53,36 @@ Use `mise` tasks when available; they wrap the `Makefile`.
 mise run setup   # create .venv and install plotting dependencies
 mise run test    # compile and run DSP core smoke tests
 mise run validate # validate module-scoped parameter metadata and mappings
-mise run render  # render renders/westfold-demo.wav
-mise run suite   # render all preset WAVs under renders/westfold-suite/
+mise run render  # render renders/<module-id>-demo.wav
+mise run suite   # render preset WAVs under renders/<module-id>-suite/
 mise run plot    # render suite and generate waveform/spectrum PNGs
 mise run host    # build local host-only shared library
-mise run wasm    # build web/wasm/westfold.wasm with Emscripten Docker image
+mise run wasm    # build web/wasm/<module-id>.wasm with Emscripten Docker image
 mise run serve   # serve repo at http://localhost:8765/
 mise run web     # build WASM then serve the web UI
 mise run emulator-test # run browser emulator smoke tests
 mise run move    # build aarch64 Move-target module package
 mise run check   # run non-device checks: validate, test, suite, plot, host
+mise run check-all # run non-device checks for all included modules
 ```
 
-Equivalent `make` targets exist: `make test`, `make validate`, `make emulator-test`, `make render`, `make suite`, `make plot`, `make host`, `make wasm`, `make serve`, `make move`, and `make clean`.
+Equivalent `make` targets exist: `make test`, `make validate`, `make emulator-test`, `make render`, `make suite`, `make plot`, `make host`, `make wasm`, `make serve`, `make move`, `make check`, `make check-all`, and `make clean`. Module-aware commands default to `MODULE_ID=westfold`; use `MODULE_ID=dustline make suite` or `MODULE_ID=dustline mise run wasm` for Dustline.
 
 The web UI is served at:
 
 ```text
 http://localhost:8765/web/
+http://localhost:8765/web/?module=dustline
 ```
 
 ## Build And Deploy Flow
 
 Fast local loop:
 
-1. Edit `src/modules/westfold/dsp/westfold_core.c`.
+1. Edit `src/modules/<module-id>/dsp/<module-id>_core.c`.
 2. Run `mise run test`.
 3. Run `mise run suite`.
-4. Listen to `renders/westfold-demo.wav` and `renders/westfold-suite/*.wav`.
+4. Listen to `renders/<module-id>-demo.wav` and `renders/<module-id>-suite/*.wav`.
 5. Run `mise run wasm` and use the browser UI for interactive checks.
 
 Move package loop:
@@ -86,8 +94,8 @@ mise run move
 This writes:
 
 ```text
-dist/westfold/
-dist/westfold-module.tar.gz
+dist/<module-id>/
+dist/<module-id>-module.tar.gz
 ```
 
 Device install loop:
@@ -96,7 +104,7 @@ Device install loop:
 ./scripts/install-to-move.sh
 ```
 
-By default this builds first, then copies `dist/westfold/` to:
+By default this builds first, then copies `dist/<module-id>/` to:
 
 ```text
 ableton@move.local:/data/UserData/schwung/modules/sound_generators/
@@ -122,20 +130,17 @@ MOVE_HOST=ableton@192.168.1.42 ./scripts/install-to-move.sh
 
 Prioritized improvements to make synth and FX iteration faster and safer:
 
-1. Add a single `mise run dev` task that builds WASM, starts the web server, and watches C/JSON files to rebuild `web/wasm/westfold.wasm` when the core changes.
-2. Add a `mise run deploy` task that runs `test`, `suite`, `host`, `move`, then `install-to-move.sh`, so the full safe deploy path is one command.
-3. Generate `PARAM_IDS` for `web/westfold-worklet.js` from the selected module's `params.json` manifest to remove the remaining JS fallback mapping.
-4. Extend `scripts/validate-params.mjs` into a multi-module validator once additional module directories exist.
-5. Add render metrics in CI/local checks: peak, RMS, DC offset, silence detection, clipped-sample count, and per-preset JSON summaries.
-6. Add golden render comparison with tolerance, so DSP changes can intentionally update fixtures while accidental regressions are obvious.
-7. Add a browser capture/export path that records a short WAV from the current WASM state and stores it beside the offline suite for A/B comparison.
-8. Add a Move health-check script that verifies SSH, Schwung module path, free disk space, target architecture, and installed module version before deploy.
-9. Add `scripts/tail-move-log.sh` or equivalent if Schwung/Move logs are available over SSH, so deploy failures are visible without manual device digging.
-10. Add a module scaffolder that copies the current Westfold pattern into a new module ID, updates metadata, presets, build paths, and web UI labels.
-11. Add an FX-module template once the sound-generator flow is stable, with audio-in/audio-out capabilities and a dedicated local render harness for processing fixture WAVs.
-12. Add a small preset morph/randomize tool in the web UI to explore parameter spaces quickly, with bounded randomization from `module.json` ranges.
-13. Add MIDI learn or configurable CC mapping in the web UI, instead of hard-coding CC 20-27.
-14. Add clang-format and a formatting task to keep C changes mechanical and reviewable.
-15. Add GitHub Actions or a local pre-push command for `mise run check`, leaving Move deploy as an explicit local-only step.
+1. Generate `PARAM_IDS` for `web/westfold-worklet.js` from the selected module's `params.json` manifest to remove the remaining JS fallback mapping.
+2. Add render metrics in CI/local checks: peak, RMS, DC offset, silence detection, clipped-sample count, and per-preset JSON summaries.
+3. Add golden render comparison with tolerance, so DSP changes can intentionally update fixtures while accidental regressions are obvious.
+4. Add a browser capture/export path that records a short WAV from the current WASM state and stores it beside the offline suite for A/B comparison.
+5. Add a Move health-check script that verifies SSH, Schwung module path, free disk space, target architecture, and installed module version before deploy.
+6. Add `scripts/tail-move-log.sh` or equivalent if Schwung/Move logs are available over SSH, so deploy failures are visible without manual device digging.
+7. Add a module scaffolder for synths and FX now that two sound generators exist.
+8. Add an FX-module template once the sound-generator flow is stable, with audio-in/audio-out capabilities and a dedicated local render harness for processing fixture WAVs.
+9. Add a small preset morph/randomize tool in the web UI to explore parameter spaces quickly, with bounded randomization from `module.json` ranges.
+10. Add MIDI learn or configurable CC mapping in the web UI, instead of hard-coding CC 20-27.
+11. Add clang-format and a formatting task to keep C changes mechanical and reviewable.
+12. Add GitHub Actions or a local pre-push command for `mise run check`, leaving Move deploy as an explicit local-only step.
 
-For the next repo change, the highest-leverage item is probably generated parameter bindings. The current validator catches drift across C, JSON, presets, and the web fallback map, but generating the worklet mapping from `params.json` would remove that duplication entirely.
+For the next repo change, the highest-leverage item is probably generated parameter bindings. The current validator catches drift across C, module JSON, and presets; generating the worklet mapping from `params.json` would remove the remaining browser-side duplication entirely.

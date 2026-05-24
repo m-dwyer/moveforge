@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Westfold Move/Schwung Emulator</title>
+  <title>Move/Schwung Emulator</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -12,7 +12,7 @@
       <div class="topbar">
         <div>
           <span class="brand">MOVE</span>
-          <span class="module">Westfold</span>
+          <span class="module" id="moduleName">Westfold</span>
         </div>
         <span class="status" id="status">Device</span>
       </div>
@@ -68,6 +68,10 @@
       <div class="error" id="errors" hidden></div>
 
       <div class="tool-grid">
+        <label>
+          Module
+          <select id="moduleSelect"></select>
+        </label>
         <label>
           Pad Layout
           <select id="layoutMode">

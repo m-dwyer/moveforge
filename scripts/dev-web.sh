@@ -6,6 +6,8 @@ cd "$ROOT"
 
 PORT="${PORT:-8765}"
 POLL_SECONDS="${POLL_SECONDS:-2}"
+MODULE_ID="${MODULE_ID:-westfold}"
+export MODULE_ID
 
 ./scripts/build-wasm.sh
 
@@ -19,11 +21,11 @@ if ! kill -0 "$SERVER_PID" >/dev/null 2>&1; then
   exit 1
 fi
 
-echo "Serving http://localhost:${PORT}/web/"
-echo "Watching src/modules/westfold and web/westfold-worklet.js"
+echo "Serving http://localhost:${PORT}/web/?module=${MODULE_ID}"
+echo "Watching src/modules/${MODULE_ID} and web/westfold-worklet.js"
 
 snapshot() {
-  find src/modules/westfold web/westfold-worklet.js \
+  find "src/modules/${MODULE_ID}" web/westfold-worklet.js \
     -type f \
     -print 2>/dev/null \
     | sort \
