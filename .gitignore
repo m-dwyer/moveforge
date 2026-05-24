@@ -5,4 +5,6 @@ dist-host/
 renders/
 upstream/
 web/wasm/*.wasm
+.venv/
+.cache/
 .DS_Store

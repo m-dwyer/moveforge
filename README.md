@@ -113,6 +113,43 @@ For AI-assisted iteration, ask for small changes against `src/dsp/westfold.c` an
 
 The actual synth engine lives in `src/dsp/westfold_core.c`; `src/dsp/westfold.c` is the Schwung plugin wrapper and `src/dsp/westfold_wasm.c` is the browser wrapper. Keep musical DSP changes in the core so Move builds, WAV renders, and browser audio stay aligned.
 
+## Dev Checks
+
+Install local Python plotting dependencies:
+
+```bash
+make dev-deps
+```
+
+Run the core DSP smoke tests:
+
+```bash
+make test
+```
+
+Render the suite and generate waveform/spectrum PNGs:
+
+```bash
+make plot
+```
+
+Plots are written to:
+
+```text
+renders/plots/
+```
+
+Other useful targets:
+
+```bash
+make render
+make suite
+make host
+make wasm
+make move
+make serve
+```
+
 ## Useful Upstream References
 
 - Schwung site: https://schwung.dev/
