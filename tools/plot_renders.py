@@ -17,7 +17,7 @@ except ModuleNotFoundError as exc:
 
 
 ROOT = Path(__file__).resolve().parents[1]
-PRESETS = ROOT / "src" / "presets.json"
+PRESETS = ROOT / "src" / "modules" / "westfold" / "presets.json"
 RENDER_DIR = ROOT / "renders" / "westfold-suite"
 OUT_DIR = ROOT / "renders" / "plots"
 

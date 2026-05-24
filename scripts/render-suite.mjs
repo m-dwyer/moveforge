@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
 
-const data = JSON.parse(await readFile("src/presets.json", "utf8"));
+const data = JSON.parse(await readFile("src/modules/westfold/presets.json", "utf8"));
 
 for (const preset of data.presets) {
   const render = preset.render;

@@ -5,6 +5,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
 IMAGE_NAME="${IMAGE_NAME:-schwung-module-builder}"
+MODULE_DIR="src/modules/westfold"
 
 if [ -z "${CROSS_PREFIX:-}" ] && [ -z "${SCHWUNG_NO_DOCKER:-}" ] && [ ! -f "/.dockerenv" ]; then
   if command -v docker >/dev/null 2>&1; then
@@ -32,14 +33,15 @@ fi
 mkdir -p build dist/westfold
 
 "${CROSS_PREFIX}gcc" -std=c11 -O3 -g -shared -fPIC \
-  src/dsp/westfold.c \
-  src/dsp/westfold_core.c \
+  "$MODULE_DIR/dsp/westfold.c" \
+  "$MODULE_DIR/dsp/westfold_core.c" \
   -o build/dsp.so \
   -Isrc \
+  -I"$MODULE_DIR/dsp" \
   -lm
 
-cp src/module.json dist/westfold/module.json
-cp src/ui.js dist/westfold/ui.js
+cp "$MODULE_DIR/module.json" dist/westfold/module.json
+cp "$MODULE_DIR/ui.js" dist/westfold/ui.js
 cp build/dsp.so dist/westfold/dsp.so
 
 (

@@ -22,7 +22,7 @@ This branch turns the browser mock into a broader Move/Schwung iteration harness
 mise run dev
 ```
 
-This builds `web/wasm/westfold.wasm`, serves the repo, and watches the DSP/metadata files that affect the web synth. Open:
+This builds `web/wasm/westfold.wasm`, serves the repo, and watches `src/modules/westfold/` plus the browser worklet files that affect the web synth. Open:
 
 ```text
 http://localhost:8765/web/
@@ -55,7 +55,7 @@ MOVE_HOST=ableton@192.168.1.42 mise run deploy
 The toolchain is now credible for deciding whether Schwung can support fast local synth iteration, but several pieces are still worth building before heavy module work:
 
 1. Generate parameter IDs for C/WASM/JS from one manifest.
-2. Validate `module.json`, `presets.json`, and step/render fixtures before build.
+2. Validate each module directory's `module.json`, `params.json`, `presets.json`, and step/render fixtures before build.
 3. Add golden render metrics: peak, RMS, DC offset, silence, clipping, and tolerance comparison.
 4. Add full FX-module mode with fixture WAV input, WASM processing, and output comparison.
 5. Add a module scaffolder for new synths, MIDI FX, and audio FX.

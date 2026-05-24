@@ -20,10 +20,10 @@ if ! kill -0 "$SERVER_PID" >/dev/null 2>&1; then
 fi
 
 echo "Serving http://localhost:${PORT}/web/"
-echo "Watching src/dsp, src/module.json, src/presets.json, and web/westfold-worklet.js"
+echo "Watching src/modules/westfold and web/westfold-worklet.js"
 
 snapshot() {
-  find src/dsp src/module.json src/presets.json web/westfold-worklet.js \
+  find src/modules/westfold web/westfold-worklet.js \
     -type f \
     -print 2>/dev/null \
     | sort \

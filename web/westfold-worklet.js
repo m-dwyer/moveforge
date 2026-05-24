@@ -1,4 +1,4 @@
-const PARAM_IDS = {
+const FALLBACK_PARAM_IDS = {
   volume: 0,
   ratio: 1,
   fm: 2,
@@ -53,7 +53,7 @@ class WestfoldProcessor extends AudioWorkletProcessor {
   handle(message) {
     if (!message || !this.exports) return;
     if (message.type === "param") {
-      const id = PARAM_IDS[message.key];
+      const id = Number.isInteger(message.id) ? message.id : FALLBACK_PARAM_IDS[message.key];
       if (id !== undefined) this.exports.wf_set_param(id, Number(message.value));
     } else if (message.type === "noteOn") {
       this.exports.wf_note_on(Number(message.note), Number(message.velocity));

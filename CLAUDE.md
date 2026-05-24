@@ -18,23 +18,26 @@ Schwung is unofficial and device deployment should be treated as experimental. P
 
 The main rule: keep musical DSP behavior in the shared core.
 
-- `src/dsp/westfold_core.c` and `src/dsp/westfold_core.h` are the source of truth for synthesis behavior, parameter IDs, clamping, MIDI note state, pitch bend, and float rendering.
-- `src/dsp/westfold.c` is the Schwung plugin adapter. It translates Schwung lifecycle calls, string parameters, MIDI bytes, and `int16_t` block output into calls on the core.
-- `src/dsp/westfold_wasm.c` is the browser/WASM adapter. It exports a minimal C ABI for the AudioWorklet.
+- `src/modules/westfold/` is the self-contained Westfold module directory.
+- `src/modules/westfold/dsp/westfold_core.c` and `src/modules/westfold/dsp/westfold_core.h` are the source of truth for synthesis behavior, parameter IDs, clamping, MIDI note state, pitch bend, and float rendering.
+- `src/modules/westfold/dsp/westfold.c` is the Schwung plugin adapter. It translates Schwung lifecycle calls, string parameters, MIDI bytes, and `int16_t` block output into calls on the core.
+- `src/modules/westfold/dsp/westfold_wasm.c` is the browser/WASM adapter. It exports a minimal C ABI for the AudioWorklet.
 - `tools/render_wav.c` is the offline host harness. It loads the Schwung wrapper directly, sends deterministic MIDI/parameter sequences, and writes WAV fixtures.
-- `src/module.json` is Schwung metadata and UI/parameter schema.
-- `src/presets.json` drives local preset buttons and render-suite clips.
-- `src/ui.js` is the on-device Schwung UI entry point.
-- `web/` contains the local browser UI. It reads `src/module.json`, `src/presets.json`, and `web/wasm/westfold.wasm`.
+- `src/modules/westfold/module.json` is Schwung metadata and Move-facing module parameter schema.
+- `src/modules/westfold/params.json` is the local source of truth for Westfold parameter IDs, labels, ranges, defaults, and ordering.
+- `src/modules/westfold/presets.json` drives local preset buttons and render-suite clips.
+- `src/modules/westfold/ui.js` is the on-device Schwung UI entry point.
+- `web/` contains the local browser UI. It reads `src/modules/westfold/module.json`, `src/modules/westfold/presets.json`, and `web/wasm/westfold.wasm`.
 
 When adding a parameter, update all of these surfaces together:
 
-1. `src/dsp/westfold_core.h` enum and state
-2. `src/dsp/westfold_core.c` lookup, clamp, defaults, and render behavior
-3. `src/module.json`
-4. `src/presets.json`
-5. `web/westfold-worklet.js` `PARAM_IDS`
+1. `src/modules/westfold/dsp/westfold_core.h` enum and state
+2. `src/modules/westfold/dsp/westfold_core.c` lookup, clamp, defaults, and render behavior
+3. `src/modules/westfold/module.json`
+4. `src/modules/westfold/presets.json`
+5. `src/modules/westfold/params.json`
 6. focused tests in `tests/test_westfold_core.c`
+7. run `mise run validate`
 
 ## Common Commands
 
@@ -43,6 +46,7 @@ Use `mise` tasks when available; they wrap the `Makefile`.
 ```bash
 mise run setup   # create .venv and install plotting dependencies
 mise run test    # compile and run DSP core smoke tests
+mise run validate # validate module-scoped parameter metadata and mappings
 mise run render  # render renders/westfold-demo.wav
 mise run suite   # render all preset WAVs under renders/westfold-suite/
 mise run plot    # render suite and generate waveform/spectrum PNGs
@@ -52,10 +56,10 @@ mise run serve   # serve repo at http://localhost:8765/
 mise run web     # build WASM then serve the web UI
 mise run emulator-test # run browser emulator smoke tests
 mise run move    # build aarch64 Move-target module package
-mise run check   # run non-device checks: test, suite, plot, host
+mise run check   # run non-device checks: validate, test, suite, plot, host
 ```
 
-Equivalent `make` targets exist: `make test`, `make emulator-test`, `make render`, `make suite`, `make plot`, `make host`, `make wasm`, `make serve`, `make move`, and `make clean`.
+Equivalent `make` targets exist: `make test`, `make validate`, `make emulator-test`, `make render`, `make suite`, `make plot`, `make host`, `make wasm`, `make serve`, `make move`, and `make clean`.
 
 The web UI is served at:
 
@@ -67,7 +71,7 @@ http://localhost:8765/web/
 
 Fast local loop:
 
-1. Edit `src/dsp/westfold_core.c`.
+1. Edit `src/modules/westfold/dsp/westfold_core.c`.
 2. Run `mise run test`.
 3. Run `mise run suite`.
 4. Listen to `renders/westfold-demo.wav` and `renders/westfold-suite/*.wav`.
@@ -120,8 +124,8 @@ Prioritized improvements to make synth and FX iteration faster and safer:
 
 1. Add a single `mise run dev` task that builds WASM, starts the web server, and watches C/JSON files to rebuild `web/wasm/westfold.wasm` when the core changes.
 2. Add a `mise run deploy` task that runs `test`, `suite`, `host`, `move`, then `install-to-move.sh`, so the full safe deploy path is one command.
-3. Generate `PARAM_IDS` for `web/westfold-worklet.js` from `src/module.json` or a shared parameter manifest to prevent metadata drift.
-4. Add a parameter-schema validator that checks `module.json`, `presets.json`, core enum order, WASM IDs, min/max/default bounds, and missing preset values.
+3. Generate `PARAM_IDS` for `web/westfold-worklet.js` from the selected module's `params.json` manifest to remove the remaining JS fallback mapping.
+4. Extend `scripts/validate-params.mjs` into a multi-module validator once additional module directories exist.
 5. Add render metrics in CI/local checks: peak, RMS, DC offset, silence detection, clipped-sample count, and per-preset JSON summaries.
 6. Add golden render comparison with tolerance, so DSP changes can intentionally update fixtures while accidental regressions are obvious.
 7. Add a browser capture/export path that records a short WAV from the current WASM state and stores it beside the offline suite for A/B comparison.
@@ -134,4 +138,4 @@ Prioritized improvements to make synth and FX iteration faster and safer:
 14. Add clang-format and a formatting task to keep C changes mechanical and reviewable.
 15. Add GitHub Actions or a local pre-push command for `mise run check`, leaving Move deploy as an explicit local-only step.
 
-For the next repo change, the highest-leverage item is probably parameter-manifest generation plus schema validation. The current setup repeats parameter identity across C, JSON, and JS; eliminating that drift will make rapid module iteration less fragile.
+For the next repo change, the highest-leverage item is probably generated parameter bindings. The current validator catches drift across C, JSON, presets, and the web fallback map, but generating the worklet mapping from `params.json` would remove that duplication entirely.
