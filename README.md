@@ -150,6 +150,17 @@ make move
 make serve
 ```
 
+If you use `mise`, the same entry points are available as tasks:
+
+```bash
+mise run setup
+mise run test
+mise run plot
+mise run wasm
+mise run web
+mise run check
+```
+
 ## Useful Upstream References
 
 - Schwung site: https://schwung.dev/
