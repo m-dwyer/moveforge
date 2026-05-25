@@ -634,10 +634,6 @@ function soundSlot() {
   return state.tracks[state.selectedTrack].chain.find((slot) => slot.kind === "sound_generator");
 }
 
-function audioFxSlots() {
-  return state.tracks[state.selectedTrack].chain.filter((slot) => slot.kind === "audio_fx");
-}
-
 function nearestScaleNote(note) {
   const allowed = scales[state.scale] || scales.major;
   let best = note;
@@ -669,22 +665,10 @@ function processMidiFx(note, velocity) {
   };
 }
 
-function audioFxPayload() {
-  const slotFx = audioFxSlots().map((slot) => ({
-    id: slot.id,
-    enabled: slot.enabled,
-    ...slot.params
-  }));
-  const masterFx = state.master.chain.map((slot) => ({
-    id: slot.id,
-    enabled: slot.enabled,
-    ...slot.params
-  }));
-  return { type: "audioFxChain", slotFx, masterFx };
-}
-
 function syncAudioChain() {
-  send(audioFxPayload());
+  // Audio FX modules are no longer faked in the worklet — they run as real
+  // C/WASM if/when full chain audition is implemented (currently single-module
+  // only). For now we just propagate the bypass flag for the sound slot.
   send({ type: "soundBypass", bypassed: !soundSlot()?.enabled });
 }
 

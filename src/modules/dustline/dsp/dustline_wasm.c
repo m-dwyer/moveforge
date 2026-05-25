@@ -4,6 +4,8 @@
 #define BLOCK_FRAMES 128
 
 static dustline_core_t g_core;
+static float g_in_left[BLOCK_FRAMES];
+static float g_in_right[BLOCK_FRAMES];
 static float g_left[BLOCK_FRAMES];
 static float g_right[BLOCK_FRAMES];
 
@@ -37,18 +39,20 @@ void mf_set_pitch_bend(float bend) {
     dustline_pitch_bend(&g_core, bend);
 }
 
+__attribute__((export_name("mf_in_left_ptr")))
+float *mf_in_left_ptr(void) { return g_in_left; }
+
+__attribute__((export_name("mf_in_right_ptr")))
+float *mf_in_right_ptr(void) { return g_in_right; }
+
 __attribute__((export_name("mf_left_ptr")))
-float *mf_left_ptr(void) {
-    return g_left;
-}
+float *mf_left_ptr(void) { return g_left; }
 
 __attribute__((export_name("mf_right_ptr")))
-float *mf_right_ptr(void) {
-    return g_right;
-}
+float *mf_right_ptr(void) { return g_right; }
 
 __attribute__((export_name("mf_render")))
 void mf_render(int frames) {
     if (frames > BLOCK_FRAMES) frames = BLOCK_FRAMES;
-    dustline_process_float(&g_core, NULL, NULL, g_left, g_right, frames);
+    dustline_process_float(&g_core, g_in_left, g_in_right, g_left, g_right, frames);
 }

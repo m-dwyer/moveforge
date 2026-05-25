@@ -5,13 +5,14 @@ class ModuleProcessor extends AudioWorkletProcessor {
     this.exports = null;
     this.mode = null;
     this.render = null;
+    this.inLeft = null;
+    this.inRight = null;
     this.left = null;
     this.right = null;
     this.keyBuf = null;
     this.valBuf = null;
     this.queue = [];
     this.soundBypassed = false;
-    this.audioFxChain = [];
 
     this.port.onmessage = (event) => {
       if (event.data?.type === "loadWasm") {
@@ -47,6 +48,10 @@ class ModuleProcessor extends AudioWorkletProcessor {
         this.exports.mf_init();
         this.left = new Float32Array(memory, this.exports.mf_left_ptr(), 128);
         this.right = new Float32Array(memory, this.exports.mf_right_ptr(), 128);
+        if (typeof this.exports.mf_in_left_ptr === "function") {
+          this.inLeft = new Float32Array(memory, this.exports.mf_in_left_ptr(), 128);
+          this.inRight = new Float32Array(memory, this.exports.mf_in_right_ptr(), 128);
+        }
         this.render = this.exports.mf_render;
       }
 
@@ -84,14 +89,14 @@ class ModuleProcessor extends AudioWorkletProcessor {
       if (this.mode === "schwung") {
         const vel = Math.max(0, Math.min(127, Math.round(Number(message.velocity) * 127)));
         this.exports.sch_midi(0x90, note, vel);
-      } else {
+      } else if (typeof this.exports.mf_note_on === "function") {
         this.exports.mf_note_on(note, Number(message.velocity));
       }
     } else if (message.type === "noteOff") {
       const note = Number(message.note);
       if (this.mode === "schwung") {
         this.exports.sch_midi(0x80, note, 0);
-      } else {
+      } else if (typeof this.exports.mf_note_off === "function") {
         this.exports.mf_note_off(note);
       }
     } else if (message.type === "allNotesOff") {
@@ -99,7 +104,7 @@ class ModuleProcessor extends AudioWorkletProcessor {
         this.writeCString(this.keyBuf, "all_notes_off");
         this.writeCString(this.valBuf, "1");
         this.exports.sch_set_param();
-      } else {
+      } else if (typeof this.exports.mf_all_notes_off === "function") {
         this.exports.mf_all_notes_off();
       }
     } else if (message.type === "pitchBend") {
@@ -107,48 +112,15 @@ class ModuleProcessor extends AudioWorkletProcessor {
       if (this.mode === "schwung") {
         const b = Math.max(0, Math.min(16383, Math.round((bend + 1) * 8192)));
         this.exports.sch_midi(0xE0, b & 0x7F, (b >> 7) & 0x7F);
-      } else {
+      } else if (typeof this.exports.mf_set_pitch_bend === "function") {
         this.exports.mf_set_pitch_bend(bend);
       }
     } else if (message.type === "soundBypass") {
       this.soundBypassed = Boolean(message.bypassed);
-    } else if (message.type === "audioFxChain") {
-      const existing = new Map(this.audioFxChain.map((fx) => [fx.id, fx]));
-      this.audioFxChain = [...(message.slotFx || []), ...(message.masterFx || [])].map((fx) => {
-        const prev = existing.get(fx.id) || { lpL: 0, lpR: 0 };
-        return {
-          id: String(fx.id),
-          enabled: Boolean(fx.enabled),
-          drive: Math.min(1, Math.max(0, Number(fx.drive ?? 0))),
-          tone: Math.min(1, Math.max(0, Number(fx.tone ?? 0.72))),
-          wet: Math.min(1, Math.max(0, Number(fx.wet ?? 0))),
-          lpL: prev.lpL,
-          lpR: prev.lpR
-        };
-      });
     }
   }
 
-  processAudioFx(left, right, frames) {
-    for (const fx of this.audioFxChain) {
-      if (!fx.enabled) continue;
-      const gain = 1 + fx.drive * 18;
-      const wet = fx.wet;
-      const alpha = 0.015 + fx.tone * 0.65;
-      for (let i = 0; i < frames; i++) {
-        const dryL = left[i];
-        const dryR = right[i];
-        const drivenL = Math.tanh(dryL * gain);
-        const drivenR = Math.tanh(dryR * gain);
-        fx.lpL += alpha * (drivenL - fx.lpL);
-        fx.lpR += alpha * (drivenR - fx.lpR);
-        left[i] = dryL * (1 - wet) + fx.lpL * wet;
-        right[i] = dryR * (1 - wet) + fx.lpR * wet;
-      }
-    }
-  }
-
-  process(_inputs, outputs) {
+  process(inputs, outputs) {
     const output = outputs[0];
     if (!output || output.length < 2) return true;
     if (!this.ready) {
@@ -157,14 +129,28 @@ class ModuleProcessor extends AudioWorkletProcessor {
       return true;
     }
 
-    this.render(output[0].length);
-    output[0].set(this.left.subarray(0, output[0].length));
-    output[1].set(this.right.subarray(0, output[1].length));
+    const frames = output[0].length;
+
+    // Feed available input (e.g. mic / upstream node) into the module's
+    // input buffers. Sound generators ignore these; audio FX read them.
+    if (this.inLeft) {
+      const input = inputs[0];
+      if (input && input.length >= 1) {
+        this.inLeft.set(input[0].subarray(0, frames));
+        this.inRight.set(input.length > 1 ? input[1].subarray(0, frames) : input[0].subarray(0, frames));
+      } else {
+        this.inLeft.fill(0);
+        this.inRight.fill(0);
+      }
+    }
+
+    this.render(frames);
+    output[0].set(this.left.subarray(0, frames));
+    output[1].set(this.right.subarray(0, frames));
     if (this.soundBypassed) {
       output[0].fill(0);
       output[1].fill(0);
     }
-    this.processAudioFx(output[0], output[1], output[0].length);
     return true;
   }
 }
