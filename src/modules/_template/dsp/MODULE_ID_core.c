@@ -2,6 +2,8 @@
 #include <math.h>
 #include <string.h>
 
+#include "MODULE_ID_params.gen.inc"
+
 #define SR 44100.0f
 #define TWO_PI 6.28318530717958647693f
 
@@ -14,36 +16,10 @@ static float clampf_local(float x, float lo, float hi) {
 void MODULE_ID_init(MODULE_ID_core_t *s) {
     if (!s) return;
     memset(s, 0, sizeof(*s));
-    s->volume = 0.7f;
-    s->tone = 0.5f;
+    s->active_note = -1;
     s->target_freq = 261.626f;
     s->freq = s->target_freq;
-    s->active_note = -1;
-}
-
-int MODULE_ID_param_id(const char *key) {
-    if (!key) return -1;
-    if (strcmp(key, "volume") == 0) return MODULE_UPPER_PARAM_VOLUME;
-    if (strcmp(key, "tone") == 0) return MODULE_UPPER_PARAM_TONE;
-    return -1;
-}
-
-void MODULE_ID_set_param(MODULE_ID_core_t *s, int param_id, float value) {
-    if (!s) return;
-    switch (param_id) {
-        case MODULE_UPPER_PARAM_VOLUME: s->volume = clampf_local(value, 0.0f, 1.0f); break;
-        case MODULE_UPPER_PARAM_TONE:   s->tone   = clampf_local(value, 0.0f, 1.0f); break;
-        default: break;
-    }
-}
-
-float MODULE_ID_get_param(const MODULE_ID_core_t *s, int param_id) {
-    if (!s) return 0.0f;
-    switch (param_id) {
-        case MODULE_UPPER_PARAM_VOLUME: return s->volume;
-        case MODULE_UPPER_PARAM_TONE:   return s->tone;
-        default: return 0.0f;
-    }
+    MODULE_ID_apply_defaults(s);
 }
 
 void MODULE_ID_note_on(MODULE_ID_core_t *s, int note, float velocity) {

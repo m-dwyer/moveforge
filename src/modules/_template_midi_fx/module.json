@@ -3,28 +3,27 @@
   "name": "MODULE_NAME",
   "abbrev": "MODULE_ABBREV",
   "version": "0.1.0",
-  "description": "MODULE_NAME synth module",
+  "description": "MODULE_NAME MIDI effect",
   "author": "Local",
   "ui": "ui.js",
   "ui_chain": "ui_chain.js",
   "dsp": "dsp.so",
   "api_version": 2,
   "capabilities": {
-    "audio_out": true,
+    "audio_out": false,
     "audio_in": false,
     "midi_in": true,
-    "midi_out": false,
+    "midi_out": true,
     "chainable": true,
-    "component_type": "sound_generator",
+    "component_type": "midi_fx",
     "ui_hierarchy": {
       "levels": {
         "root": {
           "name": "MODULE_NAME",
           "params": [
-            { "key": "volume", "name": "Volume", "type": "float", "min": 0, "max": 1, "default": 0.7, "step": 0.01 },
-            { "key": "tone", "name": "Tone", "type": "float", "min": 0, "max": 1, "default": 0.5, "step": 0.01 }
+            { "key": "scale", "name": "Scale", "type": "float", "min": 0, "max": 2, "default": 1, "step": 0.01 }
           ],
-          "knobs": ["volume", "tone"]
+          "knobs": ["scale"]
         }
       }
     }

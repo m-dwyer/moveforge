@@ -7,8 +7,12 @@ description = "Run DSP core smoke tests"
 run = "make test"
 
 [tasks.validate]
-description = "Validate module-scoped parameter metadata and mappings"
+description = "Validate module-scoped parameter metadata and check gen.inc is in sync"
 run = "pnpm run validate"
+
+[tasks.gen-params]
+description = "Generate <module>_params.gen.inc files from each module.json"
+run = "pnpm run gen-params"
 
 [tasks.emulator-test]
 description = "Run browser emulator smoke tests"

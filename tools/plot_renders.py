@@ -150,6 +150,20 @@ def plot_file(path: Path, label: str, out_path: Path) -> None:
 
 
 def main() -> int:
+    module_json_path = ROOT / "src" / "modules" / MODULE_ID / "module.json"
+    try:
+        module_json = json.loads(module_json_path.read_text())
+        component_type = (module_json.get("capabilities") or {}).get("component_type", "")
+    except FileNotFoundError:
+        component_type = ""
+    if component_type and component_type != "sound_generator":
+        print(
+            f"[{MODULE_ID}] skipping plot: component_type='{component_type}' "
+            "(only sound_generator has an offline render path)",
+            file=sys.stderr,
+        )
+        return 0
+
     data = json.loads(PRESETS.read_text())
     OUT_DIR.mkdir(parents=True, exist_ok=True)
 

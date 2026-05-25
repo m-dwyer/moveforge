@@ -23,14 +23,18 @@ int main(void) {
     float right[FRAMES];
     westfold_init(&synth);
 
-    westfold_set_param(&synth, WESTFOLD_PARAM_VOLUME, 2.0f);
-    require_true(westfold_get_param(&synth, WESTFOLD_PARAM_VOLUME) <= 1.0f, "volume clamps high");
+    int volume_id = westfold_param_id("volume");
+    int decay_id = westfold_param_id("decay");
+    int fold_id = westfold_param_id("fold");
 
-    westfold_set_param(&synth, WESTFOLD_PARAM_DECAY, -1.0f);
-    require_true(westfold_get_param(&synth, WESTFOLD_PARAM_DECAY) >= 0.02f, "decay clamps low");
+    westfold_set_param(&synth, volume_id, 2.0f);
+    require_true(westfold_get_param(&synth, volume_id) <= 1.0f, "volume clamps high");
 
-    westfold_set_param(&synth, WESTFOLD_PARAM_VOLUME, 0.8f);
-    westfold_set_param(&synth, WESTFOLD_PARAM_FOLD, 0.6f);
+    westfold_set_param(&synth, decay_id, -1.0f);
+    require_true(westfold_get_param(&synth, decay_id) >= 0.02f, "decay clamps low");
+
+    westfold_set_param(&synth, volume_id, 0.8f);
+    westfold_set_param(&synth, fold_id, 0.6f);
     westfold_note_on(&synth, 60, 1.0f);
     westfold_process_float(&synth, NULL, NULL, left, right, FRAMES);
 
@@ -52,7 +56,7 @@ int main(void) {
     westfold_process_float(&synth, NULL, NULL, left, right, FRAMES);
     require_true(synth.env < before, "release envelope decays after note off");
 
-    require_true(westfold_param_id("fold") == WESTFOLD_PARAM_FOLD, "param lookup works");
+    require_true(westfold_param_id("fold") >= 0, "param lookup works");
     require_true(westfold_param_id("does_not_exist") < 0, "unknown param lookup fails");
 
     printf("westfold core tests passed\n");

@@ -5,17 +5,6 @@
 extern "C" {
 #endif
 
-enum {
-    WESTFOLD_PARAM_VOLUME = 0,
-    WESTFOLD_PARAM_RATIO = 1,
-    WESTFOLD_PARAM_FM = 2,
-    WESTFOLD_PARAM_FOLD = 3,
-    WESTFOLD_PARAM_LPG = 4,
-    WESTFOLD_PARAM_DECAY = 5,
-    WESTFOLD_PARAM_RELEASE = 6,
-    WESTFOLD_PARAM_BEND_RANGE = 7
-};
-
 typedef struct {
     float phase_a;
     float phase_b;
@@ -39,6 +28,7 @@ typedef struct {
 } westfold_core_t;
 
 void westfold_init(westfold_core_t *s);
+void westfold_apply_defaults(westfold_core_t *s);
 void westfold_set_param(westfold_core_t *s, int param_id, float value);
 float westfold_get_param(const westfold_core_t *s, int param_id);
 int westfold_param_id(const char *key);

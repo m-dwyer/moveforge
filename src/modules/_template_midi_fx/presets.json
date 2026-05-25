@@ -1,0 +1,8 @@
+{
+  "module_id": "MODULE_ID",
+  "presets": [
+    { "name": "Passthrough", "params": { "scale": 1.0 } },
+    { "name": "Softer",      "params": { "scale": 0.6 } },
+    { "name": "Harder",      "params": { "scale": 1.5 } }
+  ]
+}

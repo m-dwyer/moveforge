@@ -18,10 +18,12 @@ int main(void) {
     float right[FRAMES];
     MODULE_ID_init(&synth);
 
-    MODULE_ID_set_param(&synth, MODULE_UPPER_PARAM_VOLUME, 2.0f);
-    require_true(MODULE_ID_get_param(&synth, MODULE_UPPER_PARAM_VOLUME) <= 1.0f, "volume clamps high");
+    int volume_id = MODULE_ID_param_id("volume");
 
-    MODULE_ID_set_param(&synth, MODULE_UPPER_PARAM_VOLUME, 0.8f);
+    MODULE_ID_set_param(&synth, volume_id, 2.0f);
+    require_true(MODULE_ID_get_param(&synth, volume_id) <= 1.0f, "volume clamps high");
+
+    MODULE_ID_set_param(&synth, volume_id, 0.8f);
     MODULE_ID_note_on(&synth, 60, 1.0f);
     MODULE_ID_process_float(&synth, NULL, NULL, left, right, FRAMES);
 
@@ -43,7 +45,7 @@ int main(void) {
     MODULE_ID_process_float(&synth, NULL, NULL, left, right, FRAMES);
     require_true(synth.env < before, "release envelope decays after note off");
 
-    require_true(MODULE_ID_param_id("volume") == MODULE_UPPER_PARAM_VOLUME, "param lookup works");
+    require_true(MODULE_ID_param_id("volume") >= 0, "param lookup works");
     require_true(MODULE_ID_param_id("does_not_exist") < 0, "unknown param lookup fails");
 
     printf("MODULE_ID core tests passed\n");

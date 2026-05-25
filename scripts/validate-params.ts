@@ -1,34 +1,42 @@
-import { readFile } from "node:fs/promises";
+import { readFile, stat } from "node:fs/promises";
 import { modulePaths, selectedModuleIds } from "./lib/modules.ts";
 
 type Param = {
   default: number;
-  id: number;
   key: string;
-  label: string;
   max: number;
   min: number;
-  step: number;
+  name?: string;
+  step?: number;
   type: string;
 };
 
-type ParamsManifest = {
-  module_id: string;
-  params: Param[];
-};
-
-type ModuleJson = {
-  capabilities?: {
-    ui_hierarchy?: {
-      levels?: {
-        root?: {
-          knobs?: string[];
-          params?: Param[];
-        };
+type Capabilities = {
+  audio_in?: boolean;
+  audio_out?: boolean;
+  chainable?: boolean;
+  component_type?: string;
+  midi_in?: boolean;
+  midi_out?: boolean;
+  ui_hierarchy?: {
+    levels?: {
+      root?: {
+        knobs?: string[];
+        name?: string;
+        params?: Param[];
       };
     };
   };
+};
+
+type ModuleJson = {
+  abbrev?: string;
+  api_version?: number;
+  capabilities?: Capabilities;
   id: string;
+  name?: string;
+  ui?: string;
+  ui_chain?: string;
 };
 
 type PresetsJson = {
@@ -43,21 +51,28 @@ type ValidationGroup = {
   moduleId: string;
 };
 
-const moduleIds = await selectedModuleIds();
+const VALID_COMPONENT_TYPES = new Set([
+  "sound_generator",
+  "audio_fx",
+  "midi_fx",
+  "utility",
+  "tool",
+  "overtake"
+]);
 
+const moduleIds = await selectedModuleIds();
 const allErrors: ValidationGroup[] = [];
+
 await validateIndex(moduleIds);
 
 for (const moduleId of moduleIds) {
   const errors: string[] = [];
   await validateModule(moduleId, errors);
-  if (errors.length) {
-    allErrors.push({ moduleId, errors });
-  }
+  if (errors.length) allErrors.push({ moduleId, errors });
 }
 
 if (allErrors.length) {
-  console.error("Parameter validation failed:");
+  console.error("Module validation failed:");
   for (const { moduleId, errors } of allErrors) {
     console.error(`\n${moduleId}:`);
     for (const error of errors) console.error(`- ${error}`);
@@ -65,7 +80,7 @@ if (allErrors.length) {
   process.exit(1);
 }
 
-console.log(`Validated parameter metadata for ${moduleIds.length} module(s): ${moduleIds.join(", ")}`);
+console.log(`Validated ${moduleIds.length} module(s): ${moduleIds.join(", ")}`);
 
 async function validateIndex(moduleIds: string[]): Promise<void> {
   if (process.env.MODULE_ID) return;
@@ -81,59 +96,125 @@ async function validateIndex(moduleIds: string[]): Promise<void> {
 
 async function validateModule(moduleId: string, errors: string[]): Promise<void> {
   const paths = modulePaths(moduleId);
-  const [manifest, moduleJson, presetsJson, header, core] = await Promise.all([
-    readJson<ParamsManifest>(paths.manifest),
-    readJson<ModuleJson>(paths.moduleJson),
-    readJson<PresetsJson>(paths.presets),
-    readFile(paths.coreHeader, "utf8"),
-    readFile(paths.coreC, "utf8")
-  ]);
+  const moduleJson = await readJson<ModuleJson>(paths.moduleJson);
+  const presetsJson = await readJson<PresetsJson>(paths.presets).catch(() => ({ presets: [] }) as PresetsJson);
 
-  const params = manifest.params || [];
-  const manifestKeys = params.map((p) => p.key);
-
-  if (manifest.module_id !== moduleJson.id) {
-    errors.push(`params.json module_id ${manifest.module_id} does not match module.json id ${moduleJson.id}`);
-  }
   if (moduleJson.id !== moduleId) {
     errors.push(`module.json id ${moduleJson.id} does not match directory ${moduleId}`);
   }
 
-  const ids = params.map((p) => p.id);
-  for (let i = 0; i < ids.length; i++) {
-    if (ids[i] !== i) errors.push(`param ${params[i]?.key || i} has id ${ids[i]}, expected ${i}`);
-  }
-  if (new Set(manifestKeys).size !== manifestKeys.length) errors.push("duplicate param keys in manifest");
-
-  const moduleParams = moduleJson?.capabilities?.ui_hierarchy?.levels?.root?.params || [];
-  compareParamLists(params, moduleParams, "module.json root params", errors);
-
-  const knobs = moduleJson?.capabilities?.ui_hierarchy?.levels?.root?.knobs || [];
-  for (const key of knobs) {
-    if (!manifestKeys.includes(key)) errors.push(`module.json knob ${key} is not a manifest param`);
+  if (typeof moduleJson.abbrev !== "string") {
+    errors.push(`module.json abbrev is missing`);
+  } else if (moduleJson.abbrev.length < 3 || moduleJson.abbrev.length > 6) {
+    errors.push(`module.json abbrev "${moduleJson.abbrev}" must be 3-6 characters`);
   }
 
+  const caps = moduleJson.capabilities;
+  if (!caps) {
+    errors.push(`module.json is missing capabilities block`);
+    return;
+  }
+  if (!caps.component_type) {
+    errors.push(`module.json capabilities.component_type is missing`);
+  } else if (!VALID_COMPONENT_TYPES.has(caps.component_type)) {
+    errors.push(`unknown component_type "${caps.component_type}"`);
+  }
+  if (caps.chainable === undefined) {
+    errors.push(`module.json capabilities.chainable is not set (skill recommends explicit true/false)`);
+  }
+
+  if (moduleJson.ui_chain && !(await fileExists(`${paths.moduleDir}/${moduleJson.ui_chain}`))) {
+    errors.push(`ui_chain "${moduleJson.ui_chain}" referenced but file missing`);
+  }
+
+  const params = caps.ui_hierarchy?.levels?.root?.params;
+  if (params) {
+    validateParams(moduleId, params, errors);
+    validateGenInc(moduleId, errors);
+    validatePresets(presetsJson, params, errors);
+    validateCoreStruct(moduleId, params, await readFile(paths.coreHeader, "utf8"), errors);
+    const knobs = caps.ui_hierarchy?.levels?.root?.knobs || [];
+    const paramKeys = new Set(params.map((p) => p.key));
+    for (const key of knobs) {
+      if (!paramKeys.has(key)) errors.push(`knob ${key} is not a declared param`);
+    }
+  } else if (caps.component_type === "sound_generator" || caps.component_type === "audio_fx") {
+    errors.push(`module.json is missing capabilities.ui_hierarchy.levels.root.params`);
+  }
+}
+
+function validateParams(moduleId: string, params: Param[], errors: string[]): void {
+  const seen = new Set<string>();
+  for (const p of params) {
+    if (!p.key) {
+      errors.push(`param is missing key`);
+      continue;
+    }
+    if (!/^[a-z][a-z0-9_]*$/.test(p.key)) {
+      errors.push(`param key "${p.key}" must match /^[a-z][a-z0-9_]*$/`);
+    }
+    if (seen.has(p.key)) errors.push(`duplicate param key "${p.key}"`);
+    seen.add(p.key);
+    if (!p.type) errors.push(`param ${p.key} missing type`);
+    if (typeof p.min !== "number" || typeof p.max !== "number") {
+      errors.push(`param ${p.key} missing min/max`);
+      continue;
+    }
+    if (p.min >= p.max) errors.push(`param ${p.key}: min ${p.min} must be < max ${p.max}`);
+    if (typeof p.default !== "number") {
+      errors.push(`param ${p.key} missing default`);
+    } else if (p.default < p.min || p.default > p.max) {
+      errors.push(`param ${p.key}: default ${p.default} outside [${p.min}, ${p.max}]`);
+    }
+  }
+}
+
+async function validateGenInc(moduleId: string, errors: string[]): Promise<void> {
+  const paths = modulePaths(moduleId);
+  const existing = await readFile(paths.paramsGenInc, "utf8").catch(() => "");
+  if (!existing) {
+    errors.push(`${paths.paramsGenInc} is missing — run \`mise run gen-params\``);
+    return;
+  }
+  const moduleJson = await readJson<ModuleJson>(paths.moduleJson);
+  const params = moduleJson.capabilities?.ui_hierarchy?.levels?.root?.params || [];
+  for (const p of params) {
+    if (!existing.includes(`return ${moduleId.toUpperCase()}_PARAM_${p.key.toUpperCase()}`)) {
+      errors.push(`${paths.paramsGenInc} appears stale for param ${p.key} — run \`mise run gen-params\``);
+      return;
+    }
+  }
+}
+
+function validatePresets(presetsJson: PresetsJson, params: Param[], errors: string[]): void {
+  const paramKeys = new Set(params.map((p) => p.key));
+  const paramByKey = new Map(params.map((p) => [p.key, p]));
   for (const preset of presetsJson.presets || []) {
     const presetKeys = Object.keys(preset.params || {});
     for (const key of presetKeys) {
-      if (!manifestKeys.includes(key)) errors.push(`preset ${preset.name} uses unknown param ${key}`);
+      if (!paramKeys.has(key)) errors.push(`preset ${preset.name} uses unknown param ${key}`);
     }
     for (const param of params) {
-      if (!(param.key in (preset.params || {}))) errors.push(`preset ${preset.name} is missing param ${param.key}`);
+      if (!(param.key in (preset.params || {}))) {
+        errors.push(`preset ${preset.name} is missing param ${param.key}`);
+      }
       const value = preset.params?.[param.key];
-      if (typeof value === "number" && (value < param.min || value > param.max)) {
-        errors.push(`preset ${preset.name} param ${param.key}=${value} outside [${param.min}, ${param.max}]`);
+      if (typeof value === "number") {
+        const p = paramByKey.get(param.key)!;
+        if (value < p.min || value > p.max) {
+          errors.push(`preset ${preset.name} param ${param.key}=${value} outside [${p.min}, ${p.max}]`);
+        }
       }
     }
   }
+}
 
-  const enumPrefix = `${moduleId.toUpperCase()}_PARAM_`;
-  for (const param of params) {
-    const enumName = `${enumPrefix}${param.key.toUpperCase()}`;
-    const enumPattern = new RegExp(`${enumName}\\s*=\\s*${param.id}\\b`);
-    if (!enumPattern.test(header)) errors.push(`missing or wrong enum mapping ${enumName} = ${param.id}`);
-    if (!core.includes(`strcmp(key, "${param.key}") == 0`)) errors.push(`${moduleId}_param_id missing key ${param.key}`);
-    if (!core.includes(enumName)) errors.push(`core set/get missing enum for ${param.key}`);
+function validateCoreStruct(moduleId: string, params: Param[], header: string, errors: string[]): void {
+  for (const p of params) {
+    const fieldPattern = new RegExp(`\\bfloat\\s+${p.key}\\b`);
+    if (!fieldPattern.test(header)) {
+      errors.push(`${moduleId}_core_t is missing field "float ${p.key};" (required by generated set/get)`);
+    }
   }
 }
 
@@ -141,19 +222,11 @@ async function readJson<T>(path: string): Promise<T> {
   return JSON.parse(await readFile(path, "utf8"));
 }
 
-function compareParamLists(expected: Param[], actual: Param[], label: string, errors: string[]): void {
-  if (actual.length !== expected.length) {
-    errors.push(`${label} has ${actual.length} params, expected ${expected.length}`);
-  }
-  for (let i = 0; i < expected.length; i++) {
-    const e = expected[i];
-    const a = actual[i];
-    if (!a) continue;
-    const fields: Array<keyof Param> = ["id", "key", "label", "type", "min", "max", "default", "step"];
-    for (const field of fields) {
-      if (a[field] !== e[field]) {
-        errors.push(`${label}[${i}].${field} is ${JSON.stringify(a[field])}, expected ${JSON.stringify(e[field])}`);
-      }
-    }
+async function fileExists(path: string): Promise<boolean> {
+  try {
+    await stat(path);
+    return true;
+  } catch {
+    return false;
   }
 }

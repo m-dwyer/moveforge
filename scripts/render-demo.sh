@@ -6,6 +6,13 @@ cd "$ROOT"
 
 MODULE_ID="${MODULE_ID:-westfold}"
 MODULE_DIR="src/modules/$MODULE_ID"
+
+COMPONENT_TYPE="$(node -e "console.log(JSON.parse(require('fs').readFileSync('$MODULE_DIR/module.json','utf8')).capabilities?.component_type ?? '')")"
+if [ "$COMPONENT_TYPE" != "sound_generator" ]; then
+  echo "[$MODULE_ID] skipping audio render: component_type='$COMPONENT_TYPE' (only sound_generator has an offline render path)" >&2
+  exit 0
+fi
+
 mkdir -p build renders
 
 cc -std=c11 -O2 -g \

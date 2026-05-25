@@ -5,12 +5,7 @@
       "name": "Dustline",
       "kind": "sound_generator"
     },
-    {
-      "id": "foo",
-      "name": "foo",
-      "kind": "sound_generator"
-    },
-    {
+{
       "id": "westfold",
       "name": "Westfold",
       "kind": "sound_generator"

@@ -6,9 +6,9 @@ export type ModulePaths = {
   coreC: string;
   coreHeader: string;
   goldenMetrics: string;
-  manifest: string;
   moduleDir: string;
   moduleJson: string;
+  paramsGenInc: string;
   presets: string;
   suiteDir: string;
   wasmC: string;
@@ -35,9 +35,9 @@ export function modulePaths(moduleId: string): ModulePaths {
     coreC: `${moduleDir}/dsp/${moduleId}_core.c`,
     coreHeader: `${moduleDir}/dsp/${moduleId}_core.h`,
     goldenMetrics: `goldens/${moduleId}/metrics.json`,
-    manifest: `${moduleDir}/params.json`,
     moduleDir,
     moduleJson: `${moduleDir}/module.json`,
+    paramsGenInc: `${moduleDir}/dsp/${moduleId}_params.gen.inc`,
     presets: `${moduleDir}/presets.json`,
     suiteDir: `renders/${moduleId}-suite`,
     wasmC: `${moduleDir}/dsp/${moduleId}_wasm.c`

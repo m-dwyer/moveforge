@@ -4,6 +4,8 @@
 #include <stdint.h>
 #include <string.h>
 
+#include "dustline_params.gen.inc"
+
 #define SR 44100.0f
 #define TWO_PI 6.2831853071795864769f
 
@@ -24,59 +26,11 @@ static float next_noise(dustline_core_t *s) {
 }
 
 void dustline_init(dustline_core_t *s) {
+    if (!s) return;
     memset(s, 0, sizeof(*s));
     s->active_note = -1;
     s->rng = 0.37f;
-    s->volume = 0.72f;
-    s->wave = 0.35f;
-    s->noise = 0.18f;
-    s->cutoff = 0.42f;
-    s->resonance = 0.18f;
-    s->attack = 0.008f;
-    s->release = 0.55f;
-    s->drive = 0.22f;
-    s->bend_range = 2.0f;
-}
-
-int dustline_param_id(const char *key) {
-    if (!key) return -1;
-    if (strcmp(key, "volume") == 0) return DUSTLINE_PARAM_VOLUME;
-    if (strcmp(key, "wave") == 0) return DUSTLINE_PARAM_WAVE;
-    if (strcmp(key, "noise") == 0) return DUSTLINE_PARAM_NOISE;
-    if (strcmp(key, "cutoff") == 0) return DUSTLINE_PARAM_CUTOFF;
-    if (strcmp(key, "resonance") == 0) return DUSTLINE_PARAM_RESONANCE;
-    if (strcmp(key, "attack") == 0) return DUSTLINE_PARAM_ATTACK;
-    if (strcmp(key, "release") == 0) return DUSTLINE_PARAM_RELEASE;
-    if (strcmp(key, "drive") == 0) return DUSTLINE_PARAM_DRIVE;
-    if (strcmp(key, "bend_range") == 0) return DUSTLINE_PARAM_BEND_RANGE;
-    return -1;
-}
-
-void dustline_set_param(dustline_core_t *s, int param_id, float value) {
-    if (!s) return;
-    if (param_id == DUSTLINE_PARAM_VOLUME) s->volume = clampf_local(value, 0.0f, 1.0f);
-    else if (param_id == DUSTLINE_PARAM_WAVE) s->wave = clampf_local(value, 0.0f, 1.0f);
-    else if (param_id == DUSTLINE_PARAM_NOISE) s->noise = clampf_local(value, 0.0f, 1.0f);
-    else if (param_id == DUSTLINE_PARAM_CUTOFF) s->cutoff = clampf_local(value, 0.0f, 1.0f);
-    else if (param_id == DUSTLINE_PARAM_RESONANCE) s->resonance = clampf_local(value, 0.0f, 0.95f);
-    else if (param_id == DUSTLINE_PARAM_ATTACK) s->attack = clampf_local(value, 0.001f, 2.0f);
-    else if (param_id == DUSTLINE_PARAM_RELEASE) s->release = clampf_local(value, 0.02f, 6.0f);
-    else if (param_id == DUSTLINE_PARAM_DRIVE) s->drive = clampf_local(value, 0.0f, 1.0f);
-    else if (param_id == DUSTLINE_PARAM_BEND_RANGE) s->bend_range = clampf_local(value, 0.0f, 12.0f);
-}
-
-float dustline_get_param(const dustline_core_t *s, int param_id) {
-    if (!s) return 0.0f;
-    if (param_id == DUSTLINE_PARAM_VOLUME) return s->volume;
-    if (param_id == DUSTLINE_PARAM_WAVE) return s->wave;
-    if (param_id == DUSTLINE_PARAM_NOISE) return s->noise;
-    if (param_id == DUSTLINE_PARAM_CUTOFF) return s->cutoff;
-    if (param_id == DUSTLINE_PARAM_RESONANCE) return s->resonance;
-    if (param_id == DUSTLINE_PARAM_ATTACK) return s->attack;
-    if (param_id == DUSTLINE_PARAM_RELEASE) return s->release;
-    if (param_id == DUSTLINE_PARAM_DRIVE) return s->drive;
-    if (param_id == DUSTLINE_PARAM_BEND_RANGE) return s->bend_range;
-    return 0.0f;
+    dustline_apply_defaults(s);
 }
 
 void dustline_note_on(dustline_core_t *s, int note, float velocity) {

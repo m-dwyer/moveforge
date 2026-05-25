@@ -29,6 +29,10 @@ const moduleIds = await selectedModuleIds();
 
 let failures = 0;
 for (const moduleId of moduleIds) {
+  if (!(await hasAudioRenderPath(moduleId))) {
+    console.log(`[${moduleId}] skipping render check (no offline render path for this component_type)`);
+    continue;
+  }
   const { goldenMetrics: goldenPath, suiteDir } = modulePaths(moduleId);
 
   const wavs = (await readdir(suiteDir, { withFileTypes: true }).catch(() => []))
@@ -117,4 +121,14 @@ function within(golden: number, current: number, tol: Tolerance): boolean {
 
 async function readJson(path: string): Promise<RenderMetricsByFile> {
   return JSON.parse(await readFile(path, "utf8"));
+}
+
+async function hasAudioRenderPath(moduleId: string): Promise<boolean> {
+  const { moduleJson } = modulePaths(moduleId);
+  try {
+    const json = JSON.parse(await readFile(moduleJson, "utf8")) as { capabilities?: { component_type?: string } };
+    return json.capabilities?.component_type === "sound_generator";
+  } catch {
+    return false;
+  }
 }

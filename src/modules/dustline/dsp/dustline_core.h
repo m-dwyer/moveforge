@@ -5,18 +5,6 @@
 extern "C" {
 #endif
 
-enum {
-    DUSTLINE_PARAM_VOLUME = 0,
-    DUSTLINE_PARAM_WAVE = 1,
-    DUSTLINE_PARAM_NOISE = 2,
-    DUSTLINE_PARAM_CUTOFF = 3,
-    DUSTLINE_PARAM_RESONANCE = 4,
-    DUSTLINE_PARAM_ATTACK = 5,
-    DUSTLINE_PARAM_RELEASE = 6,
-    DUSTLINE_PARAM_DRIVE = 7,
-    DUSTLINE_PARAM_BEND_RANGE = 8
-};
-
 typedef struct {
     float phase;
     float sub_phase;
@@ -43,6 +31,7 @@ typedef struct {
 } dustline_core_t;
 
 void dustline_init(dustline_core_t *s);
+void dustline_apply_defaults(dustline_core_t *s);
 void dustline_set_param(dustline_core_t *s, int param_id, float value);
 float dustline_get_param(const dustline_core_t *s, int param_id);
 int dustline_param_id(const char *key);

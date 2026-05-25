@@ -3,6 +3,8 @@
 #include <math.h>
 #include <string.h>
 
+#include "westfold_params.gen.inc"
+
 #define SR 44100.0f
 #define TWO_PI 6.2831853071795864769f
 
@@ -25,54 +27,10 @@ static float fold_sample(float x, float amount) {
 }
 
 void westfold_init(westfold_core_t *s) {
+    if (!s) return;
     memset(s, 0, sizeof(*s));
     s->active_note = -1;
-    s->volume = 0.75f;
-    s->ratio = 1.5f;
-    s->fm = 0.15f;
-    s->fold = 0.35f;
-    s->lpg = 0.55f;
-    s->decay = 0.45f;
-    s->release = 0.8f;
-    s->bend_range = 2.0f;
-}
-
-int westfold_param_id(const char *key) {
-    if (!key) return -1;
-    if (strcmp(key, "volume") == 0) return WESTFOLD_PARAM_VOLUME;
-    if (strcmp(key, "ratio") == 0) return WESTFOLD_PARAM_RATIO;
-    if (strcmp(key, "fm") == 0) return WESTFOLD_PARAM_FM;
-    if (strcmp(key, "fold") == 0) return WESTFOLD_PARAM_FOLD;
-    if (strcmp(key, "lpg") == 0) return WESTFOLD_PARAM_LPG;
-    if (strcmp(key, "decay") == 0) return WESTFOLD_PARAM_DECAY;
-    if (strcmp(key, "release") == 0) return WESTFOLD_PARAM_RELEASE;
-    if (strcmp(key, "bend_range") == 0) return WESTFOLD_PARAM_BEND_RANGE;
-    return -1;
-}
-
-void westfold_set_param(westfold_core_t *s, int param_id, float value) {
-    if (!s) return;
-    if (param_id == WESTFOLD_PARAM_VOLUME) s->volume = clampf_local(value, 0.0f, 1.0f);
-    else if (param_id == WESTFOLD_PARAM_RATIO) s->ratio = clampf_local(value, 0.25f, 4.0f);
-    else if (param_id == WESTFOLD_PARAM_FM) s->fm = clampf_local(value, 0.0f, 1.0f);
-    else if (param_id == WESTFOLD_PARAM_FOLD) s->fold = clampf_local(value, 0.0f, 1.0f);
-    else if (param_id == WESTFOLD_PARAM_LPG) s->lpg = clampf_local(value, 0.0f, 1.0f);
-    else if (param_id == WESTFOLD_PARAM_DECAY) s->decay = clampf_local(value, 0.02f, 4.0f);
-    else if (param_id == WESTFOLD_PARAM_RELEASE) s->release = clampf_local(value, 0.02f, 6.0f);
-    else if (param_id == WESTFOLD_PARAM_BEND_RANGE) s->bend_range = clampf_local(value, 0.0f, 12.0f);
-}
-
-float westfold_get_param(const westfold_core_t *s, int param_id) {
-    if (!s) return 0.0f;
-    if (param_id == WESTFOLD_PARAM_VOLUME) return s->volume;
-    if (param_id == WESTFOLD_PARAM_RATIO) return s->ratio;
-    if (param_id == WESTFOLD_PARAM_FM) return s->fm;
-    if (param_id == WESTFOLD_PARAM_FOLD) return s->fold;
-    if (param_id == WESTFOLD_PARAM_LPG) return s->lpg;
-    if (param_id == WESTFOLD_PARAM_DECAY) return s->decay;
-    if (param_id == WESTFOLD_PARAM_RELEASE) return s->release;
-    if (param_id == WESTFOLD_PARAM_BEND_RANGE) return s->bend_range;
-    return 0.0f;
+    westfold_apply_defaults(s);
 }
 
 void westfold_note_on(westfold_core_t *s, int note, float velocity) {

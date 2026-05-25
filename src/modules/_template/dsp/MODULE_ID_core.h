@@ -5,11 +5,6 @@
 extern "C" {
 #endif
 
-enum {
-    MODULE_UPPER_PARAM_VOLUME = 0,
-    MODULE_UPPER_PARAM_TONE = 1
-};
-
 typedef struct {
     float phase;
     float freq;
@@ -25,6 +20,7 @@ typedef struct {
 } MODULE_ID_core_t;
 
 void MODULE_ID_init(MODULE_ID_core_t *s);
+void MODULE_ID_apply_defaults(MODULE_ID_core_t *s);
 void MODULE_ID_set_param(MODULE_ID_core_t *s, int param_id, float value);
 float MODULE_ID_get_param(const MODULE_ID_core_t *s, int param_id);
 int MODULE_ID_param_id(const char *key);

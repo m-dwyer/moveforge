@@ -12,11 +12,12 @@
     "check-renders": "node scripts/check-renders.ts check",
     "dev": "node scripts/dev-web.ts",
     "emulator-test": "tsc -p web/tsconfig.json && node scripts/test-emulator.ts",
+    "gen-params": "node scripts/gen-params.ts",
     "metrics": "node scripts/render-metrics.ts",
     "new-module": "node scripts/new-module.ts",
     "serve": "tsc -p web/tsconfig.json && node scripts/serve-web.ts",
     "typecheck": "tsc -p tsconfig.json && tsc -p web/tsconfig.json",
-    "validate": "node scripts/validate-params.ts"
+    "validate": "node scripts/gen-params.ts --check && node scripts/validate-params.ts"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",

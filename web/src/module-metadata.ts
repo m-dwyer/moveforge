@@ -20,12 +20,29 @@ export type ParamDefinition = {
   value: number;
 };
 
-export type ParamsManifest = {
-  module_id: string;
-  params?: Array<Omit<ParamDefinition, "value">>;
+type RawParam = {
+  default: number;
+  key: string;
+  max: number;
+  min: number;
+  name?: string;
+  step?: number;
+  type?: string;
 };
 
 export type ModuleMetadataJson = {
+  capabilities?: {
+    component_type?: string;
+    ui_hierarchy?: {
+      levels?: {
+        root?: {
+          knobs?: string[];
+          name?: string;
+          params?: RawParam[];
+        };
+      };
+    };
+  };
   id: string;
   name?: string;
 };
@@ -41,7 +58,6 @@ export type PresetsJson = {
 };
 
 export type LoadedModuleMetadata = {
-  manifest: ParamsManifest;
   moduleJson: ModuleMetadataJson;
   paramIds: Record<string, number>;
   params: ParamDefinition[];
@@ -50,14 +66,12 @@ export type LoadedModuleMetadata = {
 };
 
 export async function loadModuleMetadata(moduleId: string): Promise<LoadedModuleMetadata> {
-  const [manifest, moduleJson, presetJson] = await Promise.all([
-    loadJson<ParamsManifest>(`/src/modules/${moduleId}/params.json`),
+  const [moduleJson, presetJson] = await Promise.all([
     loadJson<ModuleMetadataJson>(`/src/modules/${moduleId}/module.json`),
     loadJson<PresetsJson>(`/src/modules/${moduleId}/presets.json`)
   ]);
-  const params = paramsFromManifest(manifest);
+  const params = paramsFromModuleJson(moduleJson);
   return {
-    manifest,
     moduleJson,
     paramIds: Object.fromEntries(params.map((param) => [param.key, param.id])),
     params,
@@ -76,6 +90,17 @@ async function loadJson<T>(path: string): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-function paramsFromManifest(manifest: ParamsManifest): ParamDefinition[] {
-  return (manifest.params ?? []).map((item) => ({ ...item, value: item.default }));
+function paramsFromModuleJson(moduleJson: ModuleMetadataJson): ParamDefinition[] {
+  const raw = moduleJson.capabilities?.ui_hierarchy?.levels?.root?.params ?? [];
+  return raw.map((item, index) => ({
+    default: item.default,
+    id: index,
+    key: item.key,
+    label: item.name ?? item.key,
+    max: item.max,
+    min: item.min,
+    step: item.step,
+    type: item.type,
+    value: item.default
+  }));
 }

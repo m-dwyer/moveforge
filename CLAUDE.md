@@ -24,27 +24,30 @@ Schwung is unofficial and device deployment should be treated as experimental. P
 The main rule: keep musical DSP behavior in the shared core.
 
 - `src/modules/<module-id>/` is a self-contained module directory.
-- `src/modules/<module-id>/dsp/<module-id>_core.c` and `src/modules/<module-id>/dsp/<module-id>_core.h` are the source of truth for synthesis behavior, parameter IDs, clamping, MIDI note state, pitch bend, and float processing. The processing entry point is `<module>_process_float(core, in_left, in_right, out_left, out_right, frames)` — sound generators ignore the input pointers (callers pass `NULL`); audio FX modules read from them. See `docs/audio-fx-template.md` for the FX wrapper pattern.
-- `src/modules/<module-id>/dsp/<module-id>.c` is the Schwung plugin adapter. It translates Schwung lifecycle calls, string parameters, MIDI bytes, and `int16_t` block output into calls on the core.
-- `src/host/audio_fx_api_v2.h` is the local audio-FX ABI reference used by audio effect modules.
-- `src/modules/<module-id>/dsp/<module-id>_wasm.c` is the browser/WASM adapter. It exports the shared `mf_*` C ABI for the AudioWorklet.
-- `tools/render_wav.c` is the offline host harness. It loads the Schwung wrapper directly, sends deterministic MIDI/parameter sequences, and writes WAV fixtures.
-- `src/modules/<module-id>/module.json` is Schwung metadata and Move-facing module parameter schema.
-- `src/modules/<module-id>/params.json` is the local source of truth for that module's parameter IDs, labels, ranges, defaults, and ordering.
-- `src/modules/<module-id>/presets.json` drives local preset buttons and render-suite clips.
-- `src/modules/<module-id>/ui.js` is the on-device Schwung UI entry point.
+- `src/modules/<module-id>/dsp/<module-id>_core.c` and `src/modules/<module-id>/dsp/<module-id>_core.h` are the source of truth for DSP behavior, state, MIDI handling, and processing. The processing entry point is `<module>_process_float(core, in_left, in_right, out_left, out_right, frames)` — sound generators ignore the input pointers (callers pass `NULL`); audio FX modules read from them. midi_fx modules use `<module>_process_midi` + `<module>_tick` instead. See `docs/audio-fx-template.md` for the FX wrapper pattern.
+- `src/modules/<module-id>/dsp/<module-id>_params.gen.inc` is **generated** from `module.json` by `scripts/gen-params.ts`. It defines the param enum, `<module>_param_id`, `<module>_set_param` (with clamps from min/max), `<module>_get_param`, and `<module>_apply_defaults`. Included from `<module>_core.c` only; wrappers and tests use the public functions (string keys), not the enum. **Do not edit by hand** — re-run `mise run gen-params` after editing `module.json`. The state struct must have one `float` field per param key.
+- `src/modules/<module-id>/dsp/<module-id>.c` is the Schwung plugin adapter. It translates Schwung lifecycle calls, string parameters, MIDI bytes, and audio/MIDI block I/O into calls on the core. Different wrappers for each component_type (sound_generator → `plugin_api_v2_t` / `move_plugin_init_v2`; audio_fx → `audio_fx_api_v2_t` / `move_audio_fx_init_v2`; midi_fx → `midi_fx_api_v1_t` / `move_midi_fx_init`).
+- `src/host/plugin_api_v1.h`, `src/host/audio_fx_api_v2.h`, `src/host/midi_fx_api_v1.h` are local references of the Schwung ABIs.
+- `src/modules/<module-id>/dsp/<module-id>_wasm.c` is the browser/WASM adapter (sound_generator only today). It exports the shared `mf_*` C ABI for the AudioWorklet.
+- `tools/render_wav.c` is the offline host harness for sound generators. It loads the Schwung wrapper directly, sends deterministic MIDI/parameter sequences, and writes WAV fixtures. Audio FX and MIDI FX modules do not have an offline harness yet.
+- `src/modules/<module-id>/module.json` is the **single source of truth** for the module's metadata (id, name, abbrev 3-6 chars, capabilities, component_type, api_version) AND its parameter schema. The `capabilities.ui_hierarchy.levels.root.params` array (each entry: `key`, `name`, `type`, `min`, `max`, `default`, `step`) drives both Move's chain host and the codegen above.
+- `src/modules/<module-id>/presets.json` drives local preset buttons and render-suite clips. Keys must be subset of params declared in `module.json`; values must be within `[min, max]`.
+- `src/modules/<module-id>/ui.js` is the on-device Schwung UI entry point (solo mode).
+- `src/modules/<module-id>/ui_chain.js` is the Signal Chain UI shim (chain mode). Required so the module renders correctly when placed in a chain slot on device. Must export `globalThis.chain_ui = { init, tick, onMidiMessageInternal, onMidiMessageExternal }` and must NOT override `globalThis.init` or `globalThis.tick`.
 - `src/modules/index.json` is the browser-visible module discovery list.
-- `web/` contains the local browser UI. It reads `src/modules/<module-id>/module.json`, `src/modules/<module-id>/presets.json`, and `web/wasm/<module-id>.wasm`.
+- `web/` contains the local browser UI. It reads `src/modules/<module-id>/module.json`, `src/modules/<module-id>/presets.json`, and `web/wasm/<module-id>.wasm`. Param metadata is read from the same `ui_hierarchy.levels.root.params` block.
 
-When adding a parameter, update all of these surfaces together:
+When adding a parameter:
 
-1. `src/modules/<module-id>/dsp/<module-id>_core.h` enum and state
-2. `src/modules/<module-id>/dsp/<module-id>_core.c` lookup, clamp, defaults, and render behavior
-3. `src/modules/<module-id>/module.json`
-4. `src/modules/<module-id>/presets.json`
-5. `src/modules/<module-id>/params.json`
-6. focused tests in `tests/test_<module-id>_core.c`
-7. run `mise run validate`
+1. Edit `src/modules/<module-id>/module.json` (add to `capabilities.ui_hierarchy.levels.root.params`)
+2. Add a matching `float <key>;` field to the state struct in `<module-id>_core.h`
+3. Run `mise run gen-params` (regenerates the `.gen.inc`)
+4. Use the new param in `<module-id>_core.c` (the DSP)
+5. Add the key to every preset in `src/modules/<module-id>/presets.json`
+6. Focused tests in `tests/test_<module-id>_core.c`
+7. Run `mise run validate` (also re-checks the gen.inc is in sync)
+
+Adding a new module: `pnpm run new-module -- --id <id> --kind sound_generator|audio_fx|midi_fx`. Scaffolder copies the matching `_template*` directory, substitutes MODULE_ID/UPPER/NAME/ABBREV, runs gen-params, and registers in `src/modules/index.json`.
 
 ## Common Commands
 
@@ -53,8 +56,9 @@ Use `mise` tasks when available; they wrap the `Makefile`.
 ```bash
 mise run setup   # create .venv and install plotting dependencies
 mise run test    # compile and run DSP core smoke tests
-mise run validate # validate module-scoped parameter metadata and mappings
-mise run render  # render renders/<module-id>-demo.wav
+mise run gen-params # regenerate <module-id>_params.gen.inc from module.json
+mise run validate # validate module metadata + check gen.inc is in sync
+mise run render  # render renders/<module-id>-demo.wav (sound_generator only)
 mise run suite   # render preset WAVs under renders/<module-id>-suite/
 mise run plot    # render suite and generate waveform/spectrum PNGs
 mise run host    # build local host-only shared library

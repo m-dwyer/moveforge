@@ -1,4 +1,4 @@
-.PHONY: render suite plot test host move wasm deploy move-health move-logs move-cache move-restart move-screen check check-all dev-deps clean
+.PHONY: render suite plot test host move wasm deploy gen-params move-health move-logs move-cache move-restart move-screen check check-all dev-deps clean
 
 render:
 	./scripts/render-demo.sh
@@ -23,6 +23,9 @@ wasm:
 
 deploy:
 	./scripts/deploy-to-move.sh
+
+gen-params:
+	pnpm run gen-params
 
 move-health:
 	./scripts/move-health.sh

@@ -21,13 +21,17 @@ int main(void) {
     float out_r[FRAMES];
 
     MODULE_ID_init(&fx);
-    MODULE_ID_set_param(&fx, MODULE_UPPER_PARAM_MIX, 2.0f);
-    require_true(MODULE_ID_get_param(&fx, MODULE_UPPER_PARAM_MIX) <= 1.0f, "mix clamps high");
-    MODULE_ID_set_param(&fx, MODULE_UPPER_PARAM_DRIVE, -1.0f);
-    require_true(MODULE_ID_get_param(&fx, MODULE_UPPER_PARAM_DRIVE) >= 0.0f, "drive clamps low");
 
-    MODULE_ID_set_param(&fx, MODULE_UPPER_PARAM_MIX, 0.7f);
-    MODULE_ID_set_param(&fx, MODULE_UPPER_PARAM_DRIVE, 0.8f);
+    int mix_id = MODULE_ID_param_id("mix");
+    int drive_id = MODULE_ID_param_id("drive");
+
+    MODULE_ID_set_param(&fx, mix_id, 2.0f);
+    require_true(MODULE_ID_get_param(&fx, mix_id) <= 1.0f, "mix clamps high");
+    MODULE_ID_set_param(&fx, drive_id, -1.0f);
+    require_true(MODULE_ID_get_param(&fx, drive_id) >= 0.0f, "drive clamps low");
+
+    MODULE_ID_set_param(&fx, mix_id, 0.7f);
+    MODULE_ID_set_param(&fx, drive_id, 0.8f);
     for (int i = 0; i < FRAMES; i++) {
         in_l[i] = i % 2 == 0 ? 0.25f : -0.25f;
         in_r[i] = -in_l[i];
@@ -43,7 +47,7 @@ int main(void) {
         energy += (double)out_l[i] * (double)out_l[i];
     }
     require_true(energy > 0.001, "effect output has energy");
-    require_true(MODULE_ID_param_id("tone") == MODULE_UPPER_PARAM_TONE, "param lookup works");
+    require_true(MODULE_ID_param_id("tone") >= 0, "param lookup works");
     require_true(MODULE_ID_param_id("does_not_exist") < 0, "unknown param lookup fails");
 
     printf("MODULE_ID core tests passed\n");
