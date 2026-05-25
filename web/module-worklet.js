@@ -3,8 +3,6 @@ class ModuleProcessor extends AudioWorkletProcessor {
     super();
     this.ready = false;
     this.exports = null;
-    this.mode = null;
-    this.render = null;
     this.inLeft = null;
     this.inRight = null;
     this.left = null;
@@ -35,29 +33,17 @@ class ModuleProcessor extends AudioWorkletProcessor {
       this.exports = module.instance.exports;
       const memory = this.exports.memory.buffer;
 
-      if (typeof this.exports.sch_init === "function") {
-        this.mode = "schwung";
-        this.exports.sch_init();
-        this.left = new Float32Array(memory, this.exports.sch_left_ptr(), 128);
-        this.right = new Float32Array(memory, this.exports.sch_right_ptr(), 128);
-        this.keyBuf = new Uint8Array(memory, this.exports.sch_key_buf(), this.exports.sch_key_buf_size());
-        this.valBuf = new Uint8Array(memory, this.exports.sch_val_buf(), this.exports.sch_val_buf_size());
-        this.render = this.exports.sch_render;
-      } else {
-        this.mode = "wasm";
-        this.exports.mf_init();
-        this.left = new Float32Array(memory, this.exports.mf_left_ptr(), 128);
-        this.right = new Float32Array(memory, this.exports.mf_right_ptr(), 128);
-        if (typeof this.exports.mf_in_left_ptr === "function") {
-          this.inLeft = new Float32Array(memory, this.exports.mf_in_left_ptr(), 128);
-          this.inRight = new Float32Array(memory, this.exports.mf_in_right_ptr(), 128);
-        }
-        this.render = this.exports.mf_render;
-      }
+      this.exports.sch_init();
+      this.left = new Float32Array(memory, this.exports.sch_left_ptr(), 128);
+      this.right = new Float32Array(memory, this.exports.sch_right_ptr(), 128);
+      this.inLeft = new Float32Array(memory, this.exports.sch_in_left_ptr(), 128);
+      this.inRight = new Float32Array(memory, this.exports.sch_in_right_ptr(), 128);
+      this.keyBuf = new Uint8Array(memory, this.exports.sch_key_buf(), this.exports.sch_key_buf_size());
+      this.valBuf = new Uint8Array(memory, this.exports.sch_val_buf(), this.exports.sch_val_buf_size());
 
       this.ready = true;
       this.queue.splice(0).forEach((message) => this.handle(message));
-      this.port.postMessage({ type: "ready", mode: this.mode });
+      this.port.postMessage({ type: "ready" });
     } catch (error) {
       this.port.postMessage({ type: "error", message: String(error?.message || error) });
     }
@@ -81,46 +67,25 @@ class ModuleProcessor extends AudioWorkletProcessor {
   handle(message) {
     if (!message || !this.exports) return;
     if (message.type === "param") {
-      if (this.mode === "schwung") {
-        if (typeof message.key !== "string") return;
-        this.writeCString(this.keyBuf, message.key);
-        this.writeCString(this.valBuf, Number(message.value).toFixed(6));
-        this.exports.sch_set_param();
-      } else {
-        if (!Number.isInteger(message.id)) return;
-        this.exports.mf_set_param(message.id, Number(message.value));
-      }
+      if (typeof message.key !== "string") return;
+      this.writeCString(this.keyBuf, message.key);
+      this.writeCString(this.valBuf, Number(message.value).toFixed(6));
+      this.exports.sch_set_param();
     } else if (message.type === "noteOn") {
       const note = Number(message.note);
-      if (this.mode === "schwung") {
-        const vel = Math.max(0, Math.min(127, Math.round(Number(message.velocity) * 127)));
-        this.exports.sch_midi(0x90, note, vel);
-      } else if (typeof this.exports.mf_note_on === "function") {
-        this.exports.mf_note_on(note, Number(message.velocity));
-      }
+      const vel = Math.max(0, Math.min(127, Math.round(Number(message.velocity) * 127)));
+      this.exports.sch_midi(0x90, note, vel);
     } else if (message.type === "noteOff") {
       const note = Number(message.note);
-      if (this.mode === "schwung") {
-        this.exports.sch_midi(0x80, note, 0);
-      } else if (typeof this.exports.mf_note_off === "function") {
-        this.exports.mf_note_off(note);
-      }
+      this.exports.sch_midi(0x80, note, 0);
     } else if (message.type === "allNotesOff") {
-      if (this.mode === "schwung") {
-        this.writeCString(this.keyBuf, "all_notes_off");
-        this.writeCString(this.valBuf, "1");
-        this.exports.sch_set_param();
-      } else if (typeof this.exports.mf_all_notes_off === "function") {
-        this.exports.mf_all_notes_off();
-      }
+      this.writeCString(this.keyBuf, "all_notes_off");
+      this.writeCString(this.valBuf, "1");
+      this.exports.sch_set_param();
     } else if (message.type === "pitchBend") {
       const bend = Number(message.value);
-      if (this.mode === "schwung") {
-        const b = Math.max(0, Math.min(16383, Math.round((bend + 1) * 8192)));
-        this.exports.sch_midi(0xE0, b & 0x7F, (b >> 7) & 0x7F);
-      } else if (typeof this.exports.mf_set_pitch_bend === "function") {
-        this.exports.mf_set_pitch_bend(bend);
-      }
+      const b = Math.max(0, Math.min(16383, Math.round((bend + 1) * 8192)));
+      this.exports.sch_midi(0xE0, b & 0x7F, (b >> 7) & 0x7F);
     } else if (message.type === "soundBypass") {
       this.soundBypassed = Boolean(message.bypassed);
     }
@@ -137,20 +102,19 @@ class ModuleProcessor extends AudioWorkletProcessor {
 
     const frames = output[0].length;
 
-    // Feed available input (e.g. mic / upstream node) into the module's
-    // input buffers. Sound generators ignore these; audio FX read them.
-    if (this.inLeft) {
-      const input = inputs[0];
-      if (input && input.length >= 1) {
-        this.inLeft.set(input[0].subarray(0, frames));
-        this.inRight.set(input.length > 1 ? input[1].subarray(0, frames) : input[0].subarray(0, frames));
-      } else {
-        this.inLeft.fill(0);
-        this.inRight.fill(0);
-      }
+    // Always feed inputs[0] into the module's input buffers. Sound generators
+    // ignore them (their Schwung wrapper passes NULL to process_float);
+    // audio FX modules read them.
+    const input = inputs[0];
+    if (input && input.length >= 1) {
+      this.inLeft.set(input[0].subarray(0, frames));
+      this.inRight.set(input.length > 1 ? input[1].subarray(0, frames) : input[0].subarray(0, frames));
+    } else {
+      this.inLeft.fill(0);
+      this.inRight.fill(0);
     }
 
-    this.render(frames);
+    this.exports.sch_render(frames);
     output[0].set(this.left.subarray(0, frames));
     output[1].set(this.right.subarray(0, frames));
     if (this.soundBypassed) {

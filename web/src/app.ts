@@ -33,7 +33,6 @@ const chainInspectorEl = document.getElementById("chainInspector");
 const tracksEl = document.getElementById("tracks");
 const moduleNameEl = document.getElementById("moduleName");
 const moduleSelectEl = document.getElementById("moduleSelect");
-const wrapperSelectEl = document.getElementById("wrapperSelect");
 const layoutModeEl = document.getElementById("layoutMode");
 const rootNoteEl = document.getElementById("rootNote");
 const scaleNameEl = document.getElementById("scaleName");
@@ -44,7 +43,6 @@ const sequencerPanelEl = document.getElementById("sequencerPanel");
 let params = [];
 let paramIds = {};
 let presets = [];
-let wrapperVariant = (wrapperSelectEl?.value === "schwung" ? "schwung" : "wasm");
 const audioEngine = new AudioEngine();
 let midiAccess = null;
 let seqTimer = null;
@@ -734,7 +732,6 @@ async function enableAudio() {
     moduleId,
     processorName: workletProcessor,
     workletUrl,
-    wrapper: wrapperVariant,
     onReady: () => {
       document.body.dataset.audio = "ready";
       params.forEach(sendParam);
@@ -946,10 +943,6 @@ function bindControls() {
     selectModule(moduleSelectEl.value).catch((error) => {
       showError(error.message);
     });
-  });
-  wrapperSelectEl?.addEventListener("change", () => {
-    wrapperVariant = wrapperSelectEl.value === "schwung" ? "schwung" : "wasm";
-    enableAudio().catch((error) => showError(error.message));
   });
 }
 

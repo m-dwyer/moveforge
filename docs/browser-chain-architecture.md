@@ -39,10 +39,9 @@ only; this turns it into a true chain host.
   the JS fake FX, so the slot state is currently inert for audio routing.
 - `web/src/chain-state.ts` — already models a chain. Worth reading first
   before re-designing state.
-- Per-module WASM builds: working for sound_generator (`<id>.wasm` +
-  `<id>-schwung.wasm`) and audio_fx (`<id>.wasm` only — no Schwung-wrapped
-  build per the parked decision in `docs/browser-wrapper-modes.md`).
-  midi_fx has no WASM build yet.
+- Per-module WASM builds: working for sound_generator and audio_fx via
+  the Schwung wrapper (`web/wasm/<id>.wasm`, linked against
+  `schwung_wasm_glue_{sg,fx}.c`). midi_fx has no WASM build yet.
 
 ## What's missing
 
@@ -94,11 +93,12 @@ mf_out_buf_ptr() / mf_out_count_ptr()
 The worklet copies emitted messages out and posts them to the main thread
 on each MIDI input event + each `process()` call (for tick output).
 
-### audio_fx Schwung-wrapped build
+### audio_fx WASM ABI
 
-Decision deferred. The parked task #21 (drop WASM mode entirely) might
-make this moot. For now, audio_fx uses `mf_*` ABI directly via its WASM
-wrapper.
+Already resolved: audio_fx uses the Schwung wrapper via
+`schwung_wasm_glue_fx.c`. Audio passes through int16 in-place exactly as
+on device. Same `sch_*` ABI as sound_generator, plus `sch_in_left_ptr` /
+`sch_in_right_ptr` for input audio.
 
 ## Task breakdown
 
@@ -147,9 +147,8 @@ When you start a new session for this work, tell the agent:
 
 1. Read `CLAUDE.md` (project conventions + the codegen + ui_chain.js notes)
 2. Read `docs/browser-chain-architecture.md` (this file)
-3. Read `docs/browser-wrapper-modes.md` (the parked WASM-mode decision —
-   relevant because if we end up dropping WASM mode first, the chain
-   refactor changes shape)
+3. Read `docs/browser-wrapper-modes.md` for context on why the browser
+   runs the Schwung-wrapped WASM (resolved before this work started)
 4. Look at recent commits since `6ab1717` (codegen baseline)
 5. Look at `web/src/chain-state.ts` and the chain section of `web/src/app.ts`
    to understand current state shape
@@ -157,14 +156,10 @@ When you start a new session for this work, tell the agent:
 Then start with task 1 (midi_fx WASM) — it's the smallest piece and proves
 the new ABI shape works before committing to the chain refactor.
 
-## Pre-flight: revisit parked decisions first?
+## Pre-flight: prior cleanup landed
 
-The parked WASM-mode-drop (`docs/browser-wrapper-modes.md`, task #21) is
-worth resolving before this chain work, because:
-- If WASM mode goes away, the chain only deals with the Schwung-wrapped
-  WASM ABI for sound_gen and audio_fx, which means the int16 conversion
-  happens at every chain stage — matches device truth
-- If WASM mode stays, the chain has to pick which ABI per slot
-
-Recommended order: (a) drop WASM mode, (b) chain refactor. That way the
-chain code only deals with one ABI per module kind.
+The WASM-mode-drop (see `docs/browser-wrapper-modes.md`) shipped before
+this work. Chain code only has to deal with one ABI (`sch_*`) per
+module kind — sound_generator and audio_fx use the same glue contract,
+just different `_render` semantics inside. Audio passes through int16 at
+each chain stage exactly as on device.

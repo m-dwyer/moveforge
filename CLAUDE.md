@@ -12,8 +12,7 @@ This repo is a local development harness for building custom Schwung modules for
 Each module has:
 
 - a shared C DSP core
-- a Schwung plugin wrapper for Move deployment
-- a WASM wrapper for browser-based auditioning
+- a Schwung plugin wrapper for Move deployment (also compiled to WASM for browser auditioning via `src/host/schwung_wasm_glue_{sg,fx}.c`)
 - an offline WAV renderer and render suite
 - a local web UI that mocks key Move interaction surfaces
 
@@ -28,7 +27,7 @@ The main rule: keep musical DSP behavior in the shared core.
 - `src/modules/<module-id>/dsp/<module-id>_params.gen.inc` is **generated** from `module.json` by `scripts/gen-params.ts`. It defines the param enum, `<module>_param_id`, `<module>_set_param` (with clamps from min/max), `<module>_get_param`, and `<module>_apply_defaults`. Included from `<module>_core.c` only; wrappers and tests use the public functions (string keys), not the enum. **Do not edit by hand** — re-run `mise run gen-params` after editing `module.json`. The state struct must have one `float` field per param key.
 - `src/modules/<module-id>/dsp/<module-id>.c` is the Schwung plugin adapter. It translates Schwung lifecycle calls, string parameters, MIDI bytes, and audio/MIDI block I/O into calls on the core. Different wrappers for each component_type (sound_generator → `plugin_api_v2_t` / `move_plugin_init_v2`; audio_fx → `audio_fx_api_v2_t` / `move_audio_fx_init_v2`; midi_fx → `midi_fx_api_v1_t` / `move_midi_fx_init`).
 - `src/host/plugin_api_v1.h`, `src/host/audio_fx_api_v2.h`, `src/host/midi_fx_api_v1.h` are local references of the Schwung ABIs.
-- `src/modules/<module-id>/dsp/<module-id>_wasm.c` is the browser/WASM adapter (sound_generator only today). It exports the shared `mf_*` C ABI for the AudioWorklet.
+- Browser WASM builds compile the same `<module-id>.c` Schwung wrapper used on device, linked against `src/host/schwung_wasm_glue_sg.c` (sound_generator) or `schwung_wasm_glue_fx.c` (audio_fx). One `web/wasm/<id>.wasm` per module. Audio goes through the same int16 conversion as on Move, so what you hear in the browser is what plays on device. midi_fx has no browser path yet.
 - `tools/render_wav.c` is the offline host harness for sound generators. It loads the Schwung wrapper directly, sends deterministic MIDI/parameter sequences, and writes WAV fixtures.
 - `tools/render_fx.c` is the offline host harness for audio FX. It generates a test signal (sweep/noise/impulse/silence) or reads an input WAV, streams it through `move_audio_fx_init_v2` in 128-frame blocks, and writes the processed WAV.
 - `tools/trace_midi_fx.c` is the offline host harness for MIDI FX. It runs a deterministic note/tick sequence through `move_midi_fx_init` and writes a stable text trace of every event in/out. Compared byte-for-byte against goldens (no tolerance) since MIDI is discrete.

@@ -1,111 +1,42 @@
-# Browser wrapper modes — parked discussion
+# Browser wrapper modes — resolved
 
-This note captures an unresolved design question from 2026-05-26: should the
-browser auditioning path support both "WASM" (float-only) and "Schwung"
-(int16, device-faithful) wrappers, or just one?
+**Status: shipped on the `drop-wasm-mode` branch.**
 
-## Background
+Historical context: the repo used to build two WASM artifacts per module —
+a moveforge-invented `mf_*` ABI (`<id>.wasm`, float audio end-to-end) and
+the actual Schwung wrapper compiled to WASM via `schwung_wasm_glue.c`
+(`<id>-schwung.wasm`, int16 round-trip mirroring device behavior). The
+browser had a dropdown to switch between them.
 
-Each module currently builds two `.wasm` artifacts:
+This was wrong:
 
-- `web/wasm/<id>.wasm` — built from `<id>_wasm.c` + `<id>_core.c`. Exports the
-  `mf_*` ABI. Audio stays in float end-to-end.
-- `web/wasm/<id>-schwung.wasm` — built from `<id>.c` (the Schwung wrapper) +
-  `<id>_core.c` + `src/host/schwung_wasm_glue.c`. Exports the `sch_*` ABI.
-  Audio goes through `render_block` which produces int16, then the glue
-  converts back to float for the AudioWorkletNode.
+- The "mf" mode showed audio that won't exist on Move (no int16 truncation,
+  no overshoot clipping). Iterating against it hid problems that would
+  appear on deploy.
+- The "they sound different" symptom that motivated the investigation was
+  actually a latent bug: `AudioWorkletGlobalScope` doesn't expose
+  `TextEncoder` in Chrome, so the Schwung-mode `writeCString` was throwing
+  silently, so Schwung-mode `sch_set_param` never reached the C core, so
+  modules ran at default params in Schwung mode while mf mode applied
+  them correctly. After that fix landed (commit `4f3fba1`), the two
+  wrappers sounded effectively identical.
+- The mf mode was the only path keeping audio in float; everything else
+  (offline render WAVs are 16-bit, device output is 16-bit) was already
+  int16. mf was the outlier, not the canonical.
 
-The browser UI has a "Wrapper" dropdown that swaps between them.
+The cleanup:
 
-## The audible difference
+- Deleted `<id>_wasm.c` from every module + template
+- Renamed `schwung_wasm_glue.c` → `schwung_wasm_glue_sg.c`, added
+  `schwung_wasm_glue_fx.c` for the audio_fx in-place int16 path
+- Build script picks the right glue per `component_type`, produces one
+  `web/wasm/<id>.wasm`
+- Worklet collapsed to one ABI (`sch_*`); the wrapper dropdown removed
+- Per-module surface area dropped by one file (the `_wasm.c`)
 
-The same pad sounds slightly different in the two modes. Two real causes:
+What's left:
 
-1. **int16 quantization** in Schwung mode. Noise floor at ~−96 dBFS. Below
-   the threshold of audibility on most setups, but technically present.
-2. **Hard clipping** at the int16 boundary in Schwung mode. If `process_float`
-   produces samples outside `[-1, 1]` (possible with FM, fold, drive, etc.),
-   the wrapper hard-clips them; WASM mode passes them through as floats and
-   relies on the OS audio stack to clip later. This creates audibly different
-   harmonic content. **Schwung mode is the truth-telling path here** — it
-   shows what device output will sound like; WASM mode hides overshoot.
-
-## Why Schwung uses int16
-
-Hardware constraint. The Move SPI audio mailbox is fixed int16:
-
-> Audio OUT: 128 stereo int16 (per `upstream/schwung/CLAUDE.md` SPI protocol section)
-
-So the boundary at the SPI transfer is non-negotiable. Whether Schwung's
-*internal* signal chain between audio_fx modules could stay in float is a
-separate question — `audio_fx_api_v2_t` currently passes int16 in-place
-buffers (`void (*process_block)(void *instance, int16_t *audio_inout, int frames)`),
-so chain stages each round-trip through int16. This is an upstream API
-choice we can't change unilaterally.
-
-## What does float "sound better" mean?
-
-For a single module played at normal levels: not in any meaningful way.
-
-- 16-bit int = ~96 dB dynamic range, sub-audible noise floor for typical
-  synth content
-- Float matters for *cumulative* processing (long FX chains, mixing many
-  sources). Doesn't apply here — one module, one int16 truncation.
-
-So WASM mode doesn't sound "better" — it sounds *different in a way that
-can't exist on device*. The Schwung mode's int16-quantized output is what
-plays on Move.
-
-## The dilemma
-
-- **Argument for keeping WASM mode:** faster iteration on small DSP tweaks,
-  cleaner reference for "what does the pure DSP sound like."
-- **Argument for dropping WASM mode:** it's the outlier — everything else
-  (offline renders, Schwung browser mode, device) is int16. Iterating against
-  WASM mode means your DSP sounds *cleaner than truth*, leading to surprises
-  on deploy. The "pure DSP reference" is also already provided by
-  `tools/render_wav.c` (which writes 16-bit WAVs too — so even the offline
-  reference is int16).
-
-The honest conclusion was: **drop WASM mode, keep Schwung mode as the only
-browser path.** But this was parked to avoid scope-creep in the FX path PR.
-
-## What needs to happen if we drop WASM mode
-
-- Delete `<id>_wasm.c` from every module + template
-- Delete `src/host/schwung_wasm_glue.c`'s `_wasm.c` counterparts
-- Update `schwung_wasm_glue.c` to handle both `move_plugin_init_v2` (sound
-  generator) and `move_audio_fx_init_v2` (audio FX). The glue dispatches to
-  the right entry symbol at link time and exposes appropriate input/output
-  pointers (audio_fx adds `sch_in_left_ptr` / `sch_in_right_ptr`).
-- Update `scripts/build-wasm.sh` to build only one artifact per module.
-- Remove the wrapper dropdown from the browser UI.
-- Update `web/module-worklet.js` to drop the "wasm" branch.
-- Rework the audio_fx FX path (currently routes through `mf_*` exports) to
-  use the unified Schwung-wrapped glue instead.
-
-## Update 2026-05-26 — the "they sound different" symptom was a bug
-
-The audible difference the user originally heard was *not* the int16
-quantization. It was a latent bug in `web/module-worklet.js:writeCString`:
-the worklet used `new TextEncoder()` for the string-based Schwung-mode
-param routing (`sch_set_param("volume", "0.7")`), but
-`AudioWorkletGlobalScope` does not expose `TextEncoder` in Chrome (and
-likely others). The encoder threw silently, so **Schwung mode never
-applied any params** — every module ran at defaults. WASM mode used
-numeric IDs and worked fine.
-
-After replacing TextEncoder with a manual ASCII encoder (see the
-hot-reload commit), Schwung mode now applies params correctly. With the
-bug fixed, the two wrappers sound effectively identical for normal-level
-content. The only remaining technical difference is the int16
-quantization and the asymmetric clip behavior on overshoot — both at or
-below audibility.
-
-This strengthens the case for dropping WASM mode: the "fast iteration
-alternative" was only useful because the canonical mode was broken.
-
-## Status
-
-**Parked.** Revisit after render-diff lands. At that point we can do the
-cleanup as a focused PR.
+- midi_fx still has no browser path (no audio I/O — needs a different
+  approach when chain-worklets land; see `docs/browser-chain-architecture.md`)
+- Browser auditioning still routes a single module direct to output; chain
+  audition is the next phase
