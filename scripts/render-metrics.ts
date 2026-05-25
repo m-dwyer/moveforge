@@ -1,6 +1,6 @@
 import { readdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { metricsForWavFile } from "./wav-metrics.mjs";
+import { metricsForWavFile, type WavMetrics } from "./wav-metrics.ts";
 
 const moduleId = process.env.MODULE_ID || "westfold";
 const suiteDir = `renders/${moduleId}-suite`;
@@ -12,7 +12,7 @@ if (wavs.length === 0) {
   process.exit(1);
 }
 
-const summary = {};
+const summary: Record<string, WavMetrics> = {};
 for (const file of wavs.sort()) {
   const path = join(suiteDir, file);
   const metrics = await metricsForWavFile(path);

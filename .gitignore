@@ -6,5 +6,6 @@ renders/
 upstream/
 web/wasm/*.wasm
 .venv/
+node_modules/
 .cache/
 .DS_Store

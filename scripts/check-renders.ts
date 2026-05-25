@@ -1,8 +1,13 @@
 import { readFile, readdir, writeFile, mkdir } from "node:fs/promises";
 import { join } from "node:path";
-import { metricsForWavFile } from "./wav-metrics.mjs";
+import { metricsForWavFile, type WavMetrics } from "./wav-metrics.ts";
 
-const TOLERANCES = {
+type MetricValue = number | number[] | null;
+type Tolerance = { abs: number; rel: number };
+type RenderMetrics = Partial<Record<keyof WavMetrics, MetricValue>>;
+type RenderMetricsByFile = Record<string, RenderMetrics>;
+
+const TOLERANCES: Partial<Record<keyof WavMetrics, Tolerance>> = {
   peak: { abs: 0.02, rel: 0.04 },
   rms: { abs: 0.01, rel: 0.05 },
   dc_offset: { abs: 0.005, rel: Infinity },
@@ -11,10 +16,11 @@ const TOLERANCES = {
   zero_crossing_rate: { abs: 0.01, rel: 0.10 },
   clipped_samples: { abs: 16, rel: Infinity }
 };
+const METRIC_FIELDS = Object.keys(TOLERANCES) as Array<keyof WavMetrics>;
 
 const mode = process.argv[2] || "check";
 if (!["check", "bless"].includes(mode)) {
-  console.error("usage: node scripts/check-renders.mjs [check|bless]");
+  console.error("usage: node scripts/check-renders.ts [check|bless]");
   process.exit(2);
 }
 
@@ -41,7 +47,7 @@ for (const moduleId of moduleIds) {
     continue;
   }
 
-  const current = {};
+  const current: Record<string, WavMetrics> = {};
   for (const file of wavs) {
     current[file] = await metricsForWavFile(join(suiteDir, file));
   }
@@ -55,7 +61,7 @@ for (const moduleId of moduleIds) {
 
   const golden = await readJson(goldenPath).catch(() => null);
   if (!golden) {
-    console.error(`[${moduleId}] missing ${goldenPath} — run \`node scripts/check-renders.mjs bless\` to create it`);
+    console.error(`[${moduleId}] missing ${goldenPath} — run \`node scripts/check-renders.ts bless\` to create it`);
     failures++;
     continue;
   }
@@ -70,7 +76,9 @@ for (const moduleId of moduleIds) {
     const g = golden[file];
     const c = current[file];
     if (!g) continue;
-    for (const [field, tol] of Object.entries(TOLERANCES)) {
+    for (const field of METRIC_FIELDS) {
+      const tol = TOLERANCES[field];
+      if (!tol) continue;
       const gv = g[field];
       const cv = c[field];
       if (Array.isArray(gv) && Array.isArray(cv)) {
@@ -83,6 +91,8 @@ for (const moduleId of moduleIds) {
         continue;
       } else if (gv == null || cv == null) {
         moduleErrors.push(`${file}.${field} nullness changed: golden=${gv} current=${cv}`);
+      } else if (Array.isArray(gv) || Array.isArray(cv)) {
+        moduleErrors.push(`${file}.${field} shape changed: golden=${JSON.stringify(gv)} current=${JSON.stringify(cv)}`);
       } else if (!within(gv, cv, tol)) {
         moduleErrors.push(`${file}.${field} golden=${gv} current=${cv} (abs=${tol.abs}, rel=${tol.rel})`);
       }
@@ -99,17 +109,17 @@ for (const moduleId of moduleIds) {
 }
 
 if (failures > 0) {
-  console.error(`\n${failures} module(s) failed render check. If the change is intentional: \`node scripts/check-renders.mjs bless\`.`);
+  console.error(`\n${failures} module(s) failed render check. If the change is intentional: \`node scripts/check-renders.ts bless\`.`);
   process.exit(1);
 }
 
-function within(golden, current, tol) {
+function within(golden: number, current: number, tol: Tolerance): boolean {
   const diff = Math.abs(golden - current);
   if (diff <= tol.abs) return true;
   if (Math.abs(golden) > 0 && diff / Math.abs(golden) <= tol.rel) return true;
   return false;
 }
 
-async function readJson(path) {
+async function readJson(path: string): Promise<RenderMetricsByFile> {
   return JSON.parse(await readFile(path, "utf8"));
 }

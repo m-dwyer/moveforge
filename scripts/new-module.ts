@@ -6,8 +6,9 @@ import { argv, exit } from "node:process";
 const TEMPLATE_DIR = "src/modules/_template";
 
 const args = parseArgs(argv.slice(2));
-if (!args.id) {
-  console.error(`Usage: node scripts/new-module.mjs --id <module-id> [--name <DisplayName>] [--abbrev <AB>]
+const id = stringArg(args, "id");
+if (!id) {
+  console.error(`Usage: node scripts/new-module.ts --id <module-id> [--name <DisplayName>] [--abbrev <AB>]
 
 Scaffolds a new sound_generator module by copying src/modules/_template/ and
 substituting MODULE_ID / MODULE_UPPER / MODULE_NAME / MODULE_ABBREV placeholders.
@@ -23,7 +24,6 @@ Audio FX modules are not scaffolded yet — see docs/audio-fx-template.md for th
   exit(2);
 }
 
-const id = args.id;
 if (!/^[a-z][a-z0-9_]*$/.test(id)) {
   console.error(`module id must match /^[a-z][a-z0-9_]*$/ (got: ${id})`);
   exit(2);
@@ -33,8 +33,8 @@ if (id === "_template") {
   exit(2);
 }
 
-const name = args.name || id.split(/[_-]/).map((p) => p[0].toUpperCase() + p.slice(1)).join("");
-const abbrev = (args.abbrev || id.slice(0, 2)).toUpperCase();
+const name = stringArg(args, "name") || id.split(/[_-]/).map((p: string) => p[0].toUpperCase() + p.slice(1)).join("");
+const abbrev = (stringArg(args, "abbrev") || id.slice(0, 2)).toUpperCase();
 const upper = id.toUpperCase();
 const targetDir = `src/modules/${id}`;
 
@@ -74,11 +74,11 @@ console.log(`\nnext steps:`);
 console.log(`  1. edit ${targetDir}/dsp/${id}_core.c to implement synthesis`);
 console.log(`  2. add presets to ${targetDir}/presets.json (each "render" block produces a suite WAV)`);
 console.log(`  3. mise run validate && mise run test`);
-console.log(`  4. MODULE_ID=${id} mise run suite && node scripts/check-renders.mjs bless`);
+console.log(`  4. MODULE_ID=${id} mise run suite && node scripts/check-renders.ts bless`);
 console.log(`  5. MODULE_ID=${id} mise run wasm && mise run serve  (then open /web/?module=${id})`);
 
-function parseArgs(list) {
-  const out = {};
+function parseArgs(list: string[]): Record<string, string | true> {
+  const out: Record<string, string | true> = {};
   for (let i = 0; i < list.length; i++) {
     const arg = list[i];
     if (!arg.startsWith("--")) continue;
@@ -90,7 +90,12 @@ function parseArgs(list) {
   return out;
 }
 
-function applySubs(s, subs) {
+function stringArg(args: Record<string, string | true>, key: string): string | undefined {
+  const value = args[key];
+  return typeof value === "string" ? value : undefined;
+}
+
+function applySubs(s: string, subs: Record<string, string>): string {
   let out = s;
   for (const [key, val] of Object.entries(subs)) {
     out = out.split(key).join(val);
@@ -98,7 +103,7 @@ function applySubs(s, subs) {
   return out;
 }
 
-async function* walk(dir) {
+async function* walk(dir: string): AsyncGenerator<string> {
   for (const entry of await readdir(dir, { withFileTypes: true })) {
     const full = join(dir, entry.name);
     if (entry.isDirectory()) yield* walk(full);
@@ -106,13 +111,13 @@ async function* walk(dir) {
   }
 }
 
-async function pathExists(path) {
+async function pathExists(path: string): Promise<boolean> {
   try { await stat(path); return true; } catch { return false; }
 }
 
-async function registerInIndex(id, name) {
+async function registerInIndex(id: string, name: string): Promise<void> {
   const path = "src/modules/index.json";
-  const index = JSON.parse(await readFile(path, "utf8"));
+  const index = JSON.parse(await readFile(path, "utf8")) as { modules: Array<{ id: string; name: string; kind: string }> };
   if (index.modules.some((m) => m.id === id)) return;
   index.modules.push({ id, name, kind: "sound_generator" });
   index.modules.sort((a, b) => a.id.localeCompare(b.id));

@@ -1,0 +1,20 @@
+{
+  "name": "moveforge",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "dev": "node scripts/dev-web.ts",
+    "serve": "node scripts/serve-web.ts",
+    "emulator-test": "node scripts/test-emulator.ts",
+    "typecheck": "tsc -p tsconfig.json",
+    "validate": "node scripts/validate-params.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "playwright": "1.58.2",
+    "typescript": "^5.8.0"
+  }
+}

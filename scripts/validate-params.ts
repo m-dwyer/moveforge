@@ -1,5 +1,47 @@
 import { readdir, readFile } from "node:fs/promises";
 
+type Param = {
+  default: number;
+  id: number;
+  key: string;
+  label: string;
+  max: number;
+  min: number;
+  step: number;
+  type: string;
+};
+
+type ParamsManifest = {
+  module_id: string;
+  params: Param[];
+};
+
+type ModuleJson = {
+  capabilities?: {
+    ui_hierarchy?: {
+      levels?: {
+        root?: {
+          knobs?: string[];
+          params?: Param[];
+        };
+      };
+    };
+  };
+  id: string;
+};
+
+type PresetsJson = {
+  presets?: Array<{
+    name: string;
+    params?: Record<string, number>;
+  }>;
+};
+
+type ValidationGroup = {
+  errors: string[];
+  moduleId: string;
+};
+
 const moduleIds = process.env.MODULE_ID
   ? [process.env.MODULE_ID]
   : (await readdir("src/modules", { withFileTypes: true }))
@@ -7,11 +49,11 @@ const moduleIds = process.env.MODULE_ID
       .map((entry) => entry.name)
       .sort();
 
-const allErrors = [];
+const allErrors: ValidationGroup[] = [];
 await validateIndex(moduleIds);
 
 for (const moduleId of moduleIds) {
-  const errors = [];
+  const errors: string[] = [];
   await validateModule(moduleId, errors);
   if (errors.length) {
     allErrors.push({ moduleId, errors });
@@ -29,9 +71,9 @@ if (allErrors.length) {
 
 console.log(`Validated parameter metadata for ${moduleIds.length} module(s): ${moduleIds.join(", ")}`);
 
-async function validateIndex(moduleIds) {
+async function validateIndex(moduleIds: string[]): Promise<void> {
   if (process.env.MODULE_ID) return;
-  const index = await readJson("src/modules/index.json");
+  const index = await readJson<{ modules?: Array<{ id: string }> }>("src/modules/index.json");
   const indexed = (index.modules || []).map((item) => item.id).sort();
   const missing = moduleIds.filter((id) => !indexed.includes(id));
   const stale = indexed.filter((id) => !moduleIds.includes(id));
@@ -41,12 +83,12 @@ async function validateIndex(moduleIds) {
   if (errors.length) allErrors.push({ moduleId: "module index", errors });
 }
 
-async function validateModule(moduleId, errors) {
+async function validateModule(moduleId: string, errors: string[]): Promise<void> {
   const moduleDir = `src/modules/${moduleId}`;
   const [manifest, moduleJson, presetsJson, header, core] = await Promise.all([
-    readJson(`${moduleDir}/params.json`),
-    readJson(`${moduleDir}/module.json`),
-    readJson(`${moduleDir}/presets.json`),
+    readJson<ParamsManifest>(`${moduleDir}/params.json`),
+    readJson<ModuleJson>(`${moduleDir}/module.json`),
+    readJson<PresetsJson>(`${moduleDir}/presets.json`),
     readFile(`${moduleDir}/dsp/${moduleId}_core.h`, "utf8"),
     readFile(`${moduleDir}/dsp/${moduleId}_core.c`, "utf8")
   ]);
@@ -99,11 +141,11 @@ async function validateModule(moduleId, errors) {
   }
 }
 
-async function readJson(path) {
+async function readJson<T>(path: string): Promise<T> {
   return JSON.parse(await readFile(path, "utf8"));
 }
 
-function compareParamLists(expected, actual, label, errors) {
+function compareParamLists(expected: Param[], actual: Param[], label: string, errors: string[]): void {
   if (actual.length !== expected.length) {
     errors.push(`${label} has ${actual.length} params, expected ${expected.length}`);
   }
@@ -111,7 +153,8 @@ function compareParamLists(expected, actual, label, errors) {
     const e = expected[i];
     const a = actual[i];
     if (!a) continue;
-    for (const field of ["id", "key", "label", "type", "min", "max", "default", "step"]) {
+    const fields: Array<keyof Param> = ["id", "key", "label", "type", "min", "max", "default", "step"];
+    for (const field of fields) {
       if (a[field] !== e[field]) {
         errors.push(`${label}[${i}].${field} is ${JSON.stringify(a[field])}, expected ${JSON.stringify(e[field])}`);
       }

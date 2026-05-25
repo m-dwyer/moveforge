@@ -22,5 +22,5 @@ cc -std=c11 -O2 -g \
 if [ "${1:-}" = "--suite" ]; then
   rm -rf "renders/$MODULE_ID-suite"
   mkdir -p "renders/$MODULE_ID-suite"
-  RENDER_BIN="./build/render_wav_$MODULE_ID" node scripts/render-suite.mjs
+  RENDER_BIN="./build/render_wav_$MODULE_ID" node scripts/render-suite.ts
 fi

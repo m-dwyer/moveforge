@@ -3,18 +3,39 @@ import { readFile } from "node:fs/promises";
 const SILENCE_THRESHOLD = 0.001;
 const CLIP_THRESHOLD = 32766;
 
-export async function metricsForWavFile(path) {
+export type WavMetrics = {
+  sample_rate: number;
+  channels: number;
+  frames: number;
+  duration_seconds: number;
+  peak: number;
+  rms: number;
+  dc_offset: number;
+  silence_ratio: number;
+  clipped_samples: number;
+  zero_crossing_rate: number[];
+  stereo_correlation: number | null;
+};
+
+type PcmFormat = {
+  bitsPerSample: number;
+  channels: number;
+  format: number;
+  sampleRate: number;
+};
+
+export async function metricsForWavFile(path: string): Promise<WavMetrics> {
   const buffer = await readFile(path);
   return metricsForWavBuffer(buffer);
 }
 
-export function metricsForWavBuffer(buffer) {
+export function metricsForWavBuffer(buffer: Buffer): WavMetrics {
   const view = new DataView(buffer.buffer, buffer.byteOffset, buffer.byteLength);
   if (read4cc(view, 0) !== "RIFF" || read4cc(view, 8) !== "WAVE") {
     throw new Error("not a RIFF/WAVE file");
   }
   let offset = 12;
-  let fmt = null;
+  let fmt: PcmFormat | null = null;
   let dataOffset = -1;
   let dataBytes = 0;
   while (offset + 8 <= view.byteLength) {
@@ -100,13 +121,13 @@ export function metricsForWavBuffer(buffer) {
   };
 }
 
-function read4cc(view, off) {
+function read4cc(view: DataView, off: number): string {
   return String.fromCharCode(
     view.getUint8(off), view.getUint8(off + 1), view.getUint8(off + 2), view.getUint8(off + 3)
   );
 }
 
-function round(value, places) {
+function round(value: number, places: number): number {
   const factor = 10 ** places;
   return Math.round(value * factor) / factor;
 }

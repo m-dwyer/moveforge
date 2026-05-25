@@ -40,7 +40,7 @@ run = "make bless-renders"
 
 [tasks.new-module]
 description = "Scaffold a new sound_generator module from src/modules/_template/ (usage: mise run new-module -- --id myfx)"
-run = "node scripts/new-module.mjs"
+run = "node scripts/new-module.ts"
 
 [tasks.host]
 description = "Build host-only shared library for local compile checks"

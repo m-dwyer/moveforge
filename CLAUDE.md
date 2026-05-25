@@ -130,7 +130,7 @@ MOVE_HOST=ableton@192.168.1.42 ./scripts/install-to-move.sh
 
 Prioritized improvements to make synth and FX iteration faster and safer:
 
-1. Generate `PARAM_IDS` for `web/westfold-worklet.js` from the selected module's `params.json` manifest to remove the remaining JS fallback mapping.
+1. Generate `PARAM_IDS` for `web/module-worklet.js` from the selected module's `params.json` manifest to remove the remaining JS fallback mapping.
 2. Add render metrics in CI/local checks: peak, RMS, DC offset, silence detection, clipped-sample count, and per-preset JSON summaries.
 3. Add golden render comparison with tolerance, so DSP changes can intentionally update fixtures while accidental regressions are obvious.
 4. Add a browser capture/export path that records a short WAV from the current WASM state and stores it beside the offline suite for A/B comparison.

@@ -64,7 +64,7 @@ MODULE_ID=dustline ./scripts/build-wasm.sh
 Start the local browser UI:
 
 ```bash
-./scripts/serve-web.sh
+node scripts/serve-web.ts
 ```
 
 Then open:
@@ -90,6 +90,7 @@ mise run dev
 ```
 
 This builds WASM, serves `http://localhost:8765/web/?module=<module-id>`, and rebuilds the WASM module when DSP or metadata files change.
+The dev server is a small TypeScript/Node static server and watcher; it does not require Python.
 
 Build the module folder and release tarball:
 

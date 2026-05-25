@@ -10,26 +10,26 @@ plot: suite
 	.venv/bin/python tools/plot_renders.py
 
 metrics: suite
-	node scripts/render-metrics.mjs
+	node scripts/render-metrics.ts
 
 check-renders:
-	node scripts/check-renders.mjs check
+	node scripts/check-renders.ts check
 
 bless-renders:
-	node scripts/check-renders.mjs bless
+	node scripts/check-renders.ts bless
 
 new-module:
 	@if [ -z "$(ID)" ]; then echo "usage: make new-module ID=<module-id> [NAME=<DisplayName>] [ABBREV=<AB>]"; exit 2; fi
-	node scripts/new-module.mjs --id $(ID) $(if $(NAME),--name "$(NAME)") $(if $(ABBREV),--abbrev "$(ABBREV)")
+	node scripts/new-module.ts --id $(ID) $(if $(NAME),--name "$(NAME)") $(if $(ABBREV),--abbrev "$(ABBREV)")
 
 test:
 	./scripts/test.sh
 
 validate:
-	node scripts/validate-params.mjs
+	node scripts/validate-params.ts
 
 emulator-test:
-	node scripts/test-emulator.mjs
+	node scripts/test-emulator.ts
 
 host:
 	./scripts/build-host.sh
@@ -41,10 +41,10 @@ wasm:
 	./scripts/build-wasm.sh
 
 serve:
-	./scripts/serve-web.sh
+	node scripts/serve-web.ts
 
 dev:
-	./scripts/dev-web.sh
+	node scripts/dev-web.ts
 
 deploy:
 	./scripts/deploy-to-move.sh

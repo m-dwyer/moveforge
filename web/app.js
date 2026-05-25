@@ -1,4 +1,6 @@
 const moduleId = new URLSearchParams(window.location.search).get("module") || "westfold";
+const workletUrl = new URLSearchParams(window.location.search).get("worklet") || "module-worklet.js";
+const workletProcessor = new URLSearchParams(window.location.search).get("processor") || "module-processor";
 let activeModuleName = moduleId.replace(/(^|-)([a-z])/g, (_match, _dash, letter) => letter.toUpperCase());
 
 const noteNames = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
@@ -885,8 +887,10 @@ async function enableAudio() {
   if (!wasmResponse.ok) throw new Error(`Could not load WASM: ${wasmResponse.status}`);
   const wasmBytes = await wasmResponse.arrayBuffer();
   audio = new AudioContext({ sampleRate: 44100 });
-  await audio.audioWorklet.addModule(`module-worklet.js?v=${Date.now()}`);
-  node = new AudioWorkletNode(audio, "module-processor", {
+  const loadedWorkletUrl = new URL(workletUrl, window.location.href);
+  loadedWorkletUrl.searchParams.set("v", String(Date.now()));
+  await audio.audioWorklet.addModule(loadedWorkletUrl.toString());
+  node = new AudioWorkletNode(audio, workletProcessor, {
     numberOfOutputs: 1,
     outputChannelCount: [2]
   });
