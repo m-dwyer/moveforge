@@ -17,17 +17,31 @@ type AudioFxRender = {
   signal?: "sweep" | "noise" | "impulse" | "silence";
 };
 
+type MidiFxRender = {
+  file: string;
+  blocks?: number;
+  gate_blocks?: number;
+  note_blocks?: number;
+  notes?: number[];
+  velocity?: number;
+};
+
 type PresetSuite = {
   presets: Array<{
     params: Record<string, number>;
-    render?: SoundGenRender | AudioFxRender;
+    render?: SoundGenRender | AudioFxRender | MidiFxRender;
   }>;
 };
 
 const moduleId = selectedModuleId();
 const paths = modulePaths(moduleId);
-const kind = process.env.RENDER_KIND === "audio_fx" ? "audio_fx" : "sound_generator";
-const defaultBin = kind === "audio_fx" ? `./build/render_fx_${moduleId}` : `./build/render_wav_${moduleId}`;
+const envKind = process.env.RENDER_KIND;
+const kind: "sound_generator" | "audio_fx" | "midi_fx" =
+  envKind === "audio_fx" ? "audio_fx" : envKind === "midi_fx" ? "midi_fx" : "sound_generator";
+const defaultBin =
+  kind === "audio_fx" ? `./build/render_fx_${moduleId}` :
+  kind === "midi_fx" ? `./build/trace_midi_fx_${moduleId}` :
+  `./build/render_wav_${moduleId}`;
 const renderBin = process.env.RENDER_BIN || defaultBin;
 const data = JSON.parse(await readFile(paths.presets, "utf8")) as PresetSuite;
 
@@ -41,6 +55,14 @@ for (const preset of data.presets) {
   if (kind === "audio_fx") {
     const fx = render as AudioFxRender;
     args = [outPath, "--signal", fx.signal ?? "sweep", "--seconds", String(fx.seconds ?? 4)];
+  } else if (kind === "midi_fx") {
+    const mfx = render as MidiFxRender;
+    args = [outPath];
+    if (mfx.blocks !== undefined) args.push("--blocks", String(mfx.blocks));
+    if (mfx.notes !== undefined) args.push("--notes", mfx.notes.join(","));
+    if (mfx.velocity !== undefined) args.push("--velocity", String(mfx.velocity));
+    if (mfx.gate_blocks !== undefined) args.push("--gate-blocks", String(mfx.gate_blocks));
+    if (mfx.note_blocks !== undefined) args.push("--note-blocks", String(mfx.note_blocks));
   } else {
     const sg = render as SoundGenRender;
     args = [
