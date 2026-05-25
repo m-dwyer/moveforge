@@ -31,10 +31,10 @@ input {
 
 .app {
   display: grid;
-  grid-template-columns: minmax(340px, 520px) minmax(360px, 1fr);
-  gap: 24px;
-  width: min(1180px, calc(100vw - 32px));
-  margin: 32px auto;
+  grid-template-columns: minmax(320px, 500px) minmax(380px, 1fr);
+  gap: 20px;
+  width: min(1220px, calc(100vw - 28px));
+  margin: 20px auto;
   align-items: start;
 }
 
@@ -47,7 +47,7 @@ input {
 }
 
 .move {
-  padding: 18px;
+  padding: 16px;
 }
 
 .topbar,
@@ -75,8 +75,8 @@ input {
 }
 
 .screen-wrap {
-  margin: 18px 0;
-  padding: 16px;
+  margin: 14px 0;
+  padding: 14px;
   background: #080907;
   border: 1px solid #000;
   border-radius: 6px;
@@ -227,11 +227,11 @@ canvas {
   display: grid;
   grid-template-columns: repeat(16, minmax(0, 1fr));
   gap: 5px;
-  margin-top: 14px;
+  margin-top: 12px;
 }
 
 .step {
-  min-height: 32px;
+  min-height: 28px;
   padding: 0;
   border: 1px solid #111;
   border-radius: 4px;
@@ -265,8 +265,8 @@ canvas {
 .pads {
   display: grid;
   grid-template-columns: repeat(8, 1fr);
-  gap: 7px;
-  margin-top: 18px;
+  gap: 6px;
+  margin-top: 14px;
 }
 
 .pad {
@@ -307,7 +307,8 @@ canvas {
 }
 
 .panel {
-  padding: 20px;
+  padding: 18px 20px;
+  background: #171814;
 }
 
 h1,
@@ -317,7 +318,13 @@ h2 {
 }
 
 h1 {
-  font-size: 22px;
+  font-size: 20px;
+}
+
+.panel-subtitle {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 12px;
 }
 
 h2 {
@@ -330,7 +337,7 @@ h2 {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 10px;
-  margin-top: 18px;
+  margin-top: 16px;
 }
 
 .tool-grid label {
@@ -353,17 +360,30 @@ h2 {
 
 .chain {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-  margin: 18px 0 0;
+  grid-template-columns: 1fr;
+  gap: 0;
+  margin: 16px 0 0;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  overflow: hidden;
 }
 
 .chain-slot {
   display: grid;
-  gap: 3px;
-  padding: 10px;
+  grid-template-columns: minmax(86px, 0.85fr) minmax(120px, 1.6fr) minmax(76px, 0.65fr);
+  gap: 12px;
+  align-items: center;
+  padding: 8px 12px;
   text-align: left;
-  min-height: 76px;
+  min-height: 42px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  background: #1b1c18;
+}
+
+.chain-slot:last-child {
+  border-bottom: 0;
 }
 
 .chain-slot span,
@@ -376,11 +396,13 @@ h2 {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-size: 13px;
 }
 
 .chain-slot.selected {
-  border-color: var(--accent);
+  border-color: var(--line);
   background: #243527;
+  box-shadow: inset 3px 0 0 var(--accent);
 }
 
 .chain-slot.disabled {
@@ -405,22 +427,43 @@ h2 {
 
 .chain-inspector {
   margin-top: 10px;
-  padding: 12px;
+  padding: 12px 14px;
   border: 1px solid var(--line);
   border-radius: 6px;
-  background: #181915;
+  background: #1c1d19;
 }
 
 .chain-inspector-head {
   display: flex;
   justify-content: space-between;
+  align-items: center;
   gap: 12px;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
   font-size: 13px;
 }
 
 .chain-inspector-head span {
+  display: block;
   color: var(--muted);
+  font-size: 11px;
+  margin-bottom: 3px;
+}
+
+.chain-inspector-head b {
+  display: block;
+  font-size: 17px;
+}
+
+.chain-inspector-meta {
+  display: flex;
+  gap: 12px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.chain-inspector-meta span:first-child {
+  color: var(--warn);
+  min-width: max-content;
 }
 
 .bypass-note {
@@ -457,7 +500,7 @@ h2 {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin: 18px 0;
+  margin: 14px 0;
 }
 
 .error {
@@ -481,15 +524,28 @@ h2 {
 
 .controls {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
+  grid-template-columns: 1fr;
+  gap: 0;
+  margin-top: 14px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  overflow: hidden;
 }
 
 .control {
-  padding: 12px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
+  display: grid;
+  grid-template-columns: minmax(116px, 0.75fr) minmax(180px, 1.6fr);
+  gap: 14px;
+  align-items: center;
+  padding: 10px 14px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
   background: #181915;
+}
+
+.control:last-child {
+  border-bottom: 0;
 }
 
 .control.bypassed,
@@ -508,7 +564,7 @@ h2 {
   display: flex;
   justify-content: space-between;
   gap: 10px;
-  margin-bottom: 10px;
+  margin-bottom: 0;
   font-size: 13px;
 }
 

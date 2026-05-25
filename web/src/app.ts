@@ -23,9 +23,11 @@ const padsEl = document.getElementById("pads");
 const stepsEl = document.getElementById("steps");
 const statusEl = document.getElementById("status");
 const panelTitleEl = document.getElementById("panelTitle");
+const panelSubtitleEl = document.getElementById("panelSubtitle");
 const presetEl = document.getElementById("presets");
 const errorEl = document.getElementById("errors");
 const previewEl = document.getElementById("previewList");
+const previewsPanelEl = document.getElementById("previewsPanel");
 const chainEl = document.getElementById("chain");
 const chainInspectorEl = document.getElementById("chainInspector");
 const tracksEl = document.getElementById("tracks");
@@ -36,6 +38,7 @@ const rootNoteEl = document.getElementById("rootNote");
 const scaleNameEl = document.getElementById("scaleName");
 const octaveBaseEl = document.getElementById("octaveBase");
 const stepInspectorEl = document.getElementById("stepInspector");
+const sequencerPanelEl = document.getElementById("sequencerPanel");
 
 let params = [];
 let paramIds = {};
@@ -372,66 +375,28 @@ function renderChainInspector() {
   const bypassNote = !slot.enabled && slot.kind !== "settings"
     ? `<p class="bypass-note">Bypassed: ${slot.kind === "midi_fx" ? "MIDI passes through unchanged." : slot.kind === "sound_generator" ? "Synth is silent; downstream FX tails can continue." : "Audio passes through dry."}</p>`
     : "";
+  const detail = slot.kind === "settings"
+    ? "Knobs, routing, and LFO state for this track."
+    : slot.kind === "sound_generator"
+      ? "Shared C DSP core via WASM."
+      : slot.kind === "midi_fx"
+        ? "Transforms notes before the sound generator."
+        : "Processes audio after the sound generator.";
+  const status = slot.kind === "settings" ? "Open" : slot.enabled ? "Enabled" : "Bypassed";
 
-  if (slot.kind === "midi_fx") {
-    chainInspectorEl.innerHTML = `
-      <div class="chain-inspector-head"><b>${slot.name}</b>${chainToggleHtml(slot)}</div>
-      ${bypassNote}
-      <div class="mini-controls">
-        <label>Transpose <input data-param="transpose" type="range" min="-24" max="24" step="1" value="${slot.params.transpose}"><span>${slot.params.transpose}</span></label>
-        <label>Chance <input data-param="chance" type="range" min="0" max="1" step="0.01" value="${slot.params.chance}"><span>${slot.params.chance.toFixed(2)}</span></label>
-        <label>Velocity <input data-param="velocity" type="range" min="0.1" max="1.5" step="0.01" value="${slot.params.velocity}"><span>${slot.params.velocity.toFixed(2)}</span></label>
-        <label class="check-row"><input data-scale-lock type="checkbox" ${slot.scaleLock ? "checked" : ""}> Scale lock</label>
-      </div>`;
-    chainInspectorEl.querySelectorAll("[data-param]").forEach((input) => {
-      input.addEventListener("input", () => {
-        slot.params[input.dataset.param] = Number(input.value);
-        update();
-      });
-    });
-    chainInspectorEl.querySelector("[data-scale-lock]").addEventListener("input", (event) => {
-      slot.scaleLock = event.target.checked;
-      update();
-    });
-  } else if (slot.kind === "audio_fx") {
-    chainInspectorEl.innerHTML = `
-      <div class="chain-inspector-head"><b>${slot.name}</b>${chainToggleHtml(slot)}</div>
-      ${bypassNote}
-      <div class="mini-controls">
-        <label>Drive <input data-param="drive" type="range" min="0" max="1" step="0.01" value="${slot.params.drive}"><span>${slot.params.drive.toFixed(2)}</span></label>
-        <label>Tone <input data-param="tone" type="range" min="0" max="1" step="0.01" value="${slot.params.tone}"><span>${slot.params.tone.toFixed(2)}</span></label>
-        <label>Wet <input data-param="wet" type="range" min="0" max="1" step="0.01" value="${slot.params.wet}"><span>${slot.params.wet.toFixed(2)}</span></label>
-      </div>`;
-    chainInspectorEl.querySelectorAll("[data-param]").forEach((input) => {
-      input.addEventListener("input", () => {
-        slot.params[input.dataset.param] = Number(input.value);
-        syncAudioChain();
-        update();
-      });
-    });
-  } else if (slot.kind === "settings") {
-    const paramsHtml = settingsParamDefs.map((def) => {
-      const value = slot.params[def.key];
-      return `<label>${def.label} <input data-setting="${def.key}" type="range" min="${def.min}" max="${def.max}" step="${def.step}" value="${value}"><span>${format({ ...def, value })}</span></label>`;
-    }).join("");
-    chainInspectorEl.innerHTML = `
-      <div class="chain-inspector-head"><b>Slot Settings</b><span>knobs, routing, LFOs</span></div>
-      <div class="mini-controls">${paramsHtml}</div>
-      <p class="bypass-note">Forward: Auto, Thru, then Ch 1-16. MIDI Out: Schw or Both.</p>`;
-    chainInspectorEl.querySelectorAll("[data-setting]").forEach((input) => {
-      input.addEventListener("input", () => {
-        slot.params[input.dataset.setting] = Number(input.value);
-        slot.lfos[0].enabled = slot.params.lfo1_depth > 0;
-        slot.lfos[0].depth = slot.params.lfo1_depth;
-        slot.lfos[1].enabled = slot.params.lfo2_depth > 0;
-        slot.lfos[1].depth = slot.params.lfo2_depth;
-        syncAudioChain();
-        update();
-      });
-    });
-  } else {
-    chainInspectorEl.innerHTML = `<div class="chain-inspector-head"><b>${activeModuleName}</b>${chainToggleHtml(slot)}</div>${bypassNote}<p class="bypass-note">Shared C DSP core via WASM.</p>`;
-  }
+  chainInspectorEl.innerHTML = `
+    <div class="chain-inspector-head">
+      <div>
+        <span>${state.context === "master" ? "Master" : `Track ${state.selectedTrack + 1}`} / ${slot.type}</span>
+        <b>${slot.name}</b>
+      </div>
+      ${chainToggleHtml(slot)}
+    </div>
+    <div class="chain-inspector-meta">
+      <span>${status}</span>
+      <span>${detail}</span>
+    </div>
+    ${bypassNote}`;
   const toggle = chainInspectorEl.querySelector("[data-chain-toggle]");
   if (toggle) {
     toggle.addEventListener("click", () => {
@@ -498,6 +463,10 @@ function renderControls() {
 
 function renderPresets() {
   presetEl.innerHTML = "";
+  const slot = selectedSlot();
+  const showPresets = state.mode !== "chain" || slot?.kind === "sound_generator";
+  presetEl.hidden = !showPresets;
+  if (!showPresets) return;
   presets.forEach((preset, index) => {
     const button = document.createElement("button");
     button.type = "button";
@@ -613,7 +582,15 @@ function renderStepInspector() {
 
 function update(renderForms = true) {
   statusEl.textContent = `${state.context === "master" ? "Master " : ""}${state.mode[0].toUpperCase()}${state.mode.slice(1)}${state.shift ? " + Shift" : ""}`;
-  panelTitleEl.textContent = `${activeDeviceName()} Parameters`;
+  const slot = selectedSlot();
+  panelTitleEl.textContent = state.mode === "chain" ? "Chain" : `${activeDeviceName()} Parameters`;
+  if (panelSubtitleEl) {
+    panelSubtitleEl.textContent = state.mode === "chain" && slot
+      ? `${state.context === "master" ? "Master" : `Track ${state.selectedTrack + 1}`} / ${slot.name}`
+      : `${activeModuleName} / ${state.selectedPreset}`;
+  }
+  if (sequencerPanelEl) sequencerPanelEl.hidden = state.mode !== "seq";
+  if (previewsPanelEl) previewsPanelEl.hidden = state.mode === "chain";
   document.querySelectorAll(".mode-key").forEach((button) => {
     button.classList.toggle("selected", button.dataset.mode === state.mode);
   });

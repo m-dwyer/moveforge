@@ -61,7 +61,10 @@
 
     <section class="panel">
       <div class="panel-head">
-        <h1 id="panelTitle">Westfold Parameters</h1>
+        <div>
+          <h1 id="panelTitle">Westfold Parameters</h1>
+          <p class="panel-subtitle" id="panelSubtitle"></p>
+        </div>
       </div>
 
       <div class="error" id="errors" hidden></div>
@@ -102,7 +105,7 @@
       <div class="preset-row" id="presets"></div>
       <div class="controls" id="controls"></div>
 
-      <div class="sequencer-panel">
+      <div class="sequencer-panel" id="sequencerPanel">
         <div class="panel-head compact">
           <h2>Step Harness</h2>
           <button id="clearSteps" type="button">Clear</button>
@@ -110,7 +113,7 @@
         <div id="stepInspector" class="step-inspector"></div>
       </div>
 
-      <div class="previews">
+      <div class="previews" id="previewsPanel">
         <h2>Rendered Clips</h2>
         <div id="previewList"></div>
       </div>
