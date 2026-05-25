@@ -64,11 +64,17 @@ class ModuleProcessor extends AudioWorkletProcessor {
   }
 
   writeCString(buf, value) {
+    // AudioWorkletGlobalScope does not expose TextEncoder in some browsers,
+    // so manually copy ASCII bytes. Param keys and stringified float values
+    // are always ASCII; replace anything else with '?'.
     if (!buf) return;
-    const enc = new TextEncoder().encode(String(value));
+    const s = String(value);
     const max = buf.length - 1;
-    const n = enc.length < max ? enc.length : max;
-    buf.set(enc.subarray(0, n));
+    let n = 0;
+    for (let i = 0; i < s.length && n < max; i++) {
+      const code = s.charCodeAt(i);
+      buf[n++] = code < 0x80 ? code : 0x3F;
+    }
     buf[n] = 0;
   }
 

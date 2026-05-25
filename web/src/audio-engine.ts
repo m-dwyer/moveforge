@@ -77,4 +77,13 @@ export class AudioEngine {
   send(message: WorkletMessage): void {
     this.#node?.port.postMessage(message);
   }
+
+  async reload(): Promise<void> {
+    if (!this.#node || !this.#moduleId) return;
+    await this.#loadModule(this.#moduleId, this.#wrapper);
+  }
+
+  get moduleId(): string | null {
+    return this.#moduleId;
+  }
 }

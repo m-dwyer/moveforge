@@ -84,12 +84,28 @@ browser path.** But this was parked to avoid scope-creep in the FX path PR.
 - Rework the audio_fx FX path (currently routes through `mf_*` exports) to
   use the unified Schwung-wrapped glue instead.
 
+## Update 2026-05-26 — the "they sound different" symptom was a bug
+
+The audible difference the user originally heard was *not* the int16
+quantization. It was a latent bug in `web/module-worklet.js:writeCString`:
+the worklet used `new TextEncoder()` for the string-based Schwung-mode
+param routing (`sch_set_param("volume", "0.7")`), but
+`AudioWorkletGlobalScope` does not expose `TextEncoder` in Chrome (and
+likely others). The encoder threw silently, so **Schwung mode never
+applied any params** — every module ran at defaults. WASM mode used
+numeric IDs and worked fine.
+
+After replacing TextEncoder with a manual ASCII encoder (see the
+hot-reload commit), Schwung mode now applies params correctly. With the
+bug fixed, the two wrappers sound effectively identical for normal-level
+content. The only remaining technical difference is the int16
+quantization and the asymmetric clip behavior on overshoot — both at or
+below audibility.
+
+This strengthens the case for dropping WASM mode: the "fast iteration
+alternative" was only useful because the canonical mode was broken.
+
 ## Status
 
-**Parked.** Revisit after FX path, midi_fx trace harness, WASM hot-reload,
-and render-diff are done. At that point we can do the cleanup as a focused
-PR.
-
-If you reopen this: the easiest test for "should I drop WASM mode?" is to
-see whether anyone has actually relied on float-only output for anything.
-If not, the simplification is free.
+**Parked.** Revisit after render-diff lands. At that point we can do the
+cleanup as a focused PR.

@@ -7,6 +7,7 @@ export type StaticServer = {
   close: () => Promise<void>;
   origin: string;
   port: number;
+  pushEvent: (event: string, data: unknown) => void;
   server: Server;
 };
 
@@ -26,12 +27,36 @@ const MIME_TYPES: Record<string, string> = {
   ".wav": "audio/wav"
 };
 
+const EVENT_STREAM_PATH = "/__dev/events";
+
 export async function startStaticServer(options: StaticServerOptions): Promise<StaticServer> {
   const host = options.host ?? "127.0.0.1";
   const root = resolve(options.root ?? process.cwd());
+  const eventClients = new Set<ServerResponse>();
+
   const server = createServer(async (request, response) => {
     try {
       const url = new URL(request.url ?? "/", `http://${request.headers.host ?? host}`);
+
+      if (url.pathname === EVENT_STREAM_PATH) {
+        response.writeHead(200, {
+          "cache-control": "no-store",
+          "content-type": "text/event-stream",
+          "connection": "keep-alive",
+          "access-control-allow-origin": "*"
+        });
+        response.write(":\n\n");
+        eventClients.add(response);
+        const heartbeat = setInterval(() => response.write(":\n\n"), 25_000);
+        const cleanup = () => {
+          clearInterval(heartbeat);
+          eventClients.delete(response);
+        };
+        request.on("close", cleanup);
+        request.on("error", cleanup);
+        return;
+      }
+
       const path = await resolveRequestPath(root, url.pathname);
       if (!path) return sendText(response, 403, "Forbidden\n");
 
@@ -63,10 +88,26 @@ export async function startStaticServer(options: StaticServerOptions): Promise<S
 
   const address = server.address();
   const port = typeof address === "object" && address ? address.port : options.port;
+
   return {
-    close: () => new Promise((resolveClose) => server.close(() => resolveClose())),
+    close: () =>
+      new Promise((resolveClose) => {
+        for (const client of eventClients) client.end();
+        eventClients.clear();
+        server.close(() => resolveClose());
+      }),
     origin: `http://${host}:${port}`,
     port,
+    pushEvent: (event: string, data: unknown) => {
+      const payload = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+      for (const client of eventClients) {
+        try {
+          client.write(payload);
+        } catch {
+          eventClients.delete(client);
+        }
+      }
+    },
     server
   };
 }

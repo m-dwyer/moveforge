@@ -49,6 +49,13 @@ const audioEngine = new AudioEngine();
 let midiAccess = null;
 let seqTimer = null;
 
+window.addEventListener("moveforge:wasm-rebuilt", (event) => {
+  const detail = event.detail;
+  if (!audioEngine.ready) return;
+  if (detail?.moduleId && detail.moduleId !== audioEngine.moduleId) return;
+  audioEngine.reload().catch((error) => console.error("[dev-reload] wasm reload failed", error));
+});
+
 const state = makeInitialState(moduleId, activeModuleName);
 
 function showError(message) {

@@ -66,6 +66,7 @@ mise run plot    # render suite and generate waveform/spectrum PNGs
 mise run host    # build local host-only shared library
 mise run wasm    # build web/wasm/<module-id>.wasm with Emscripten Docker image
 mise run serve   # serve repo at http://localhost:8765/
+mise run dev     # serve + rebuild on save, hot-reload WASM in the browser without a page refresh (web changes still reload the page)
 mise run web     # build WASM then serve the web UI
 mise run emulator-test # run browser emulator smoke tests
 mise run move    # build aarch64 Move-target module package

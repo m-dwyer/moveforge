@@ -75,6 +75,11 @@ function scheduleRebuild(path: string): void {
   debounceTimer = setTimeout(() => void rebuild(path), Math.max(50, rebuildDebounceMs));
 }
 
+function moduleIdFromPath(path: string): string | null {
+  const match = path.match(/^src\/modules\/([^/\\]+)/);
+  return match ? match[1] : null;
+}
+
 async function rebuild(path: string): Promise<void> {
   if (rebuilding) {
     rebuildAgain = true;
@@ -92,9 +97,16 @@ async function rebuild(path: string): Promise<void> {
   try {
     if (shouldBuildWeb) await buildWeb();
     if (shouldBuildWasm) await buildWasm();
-    console.log("Rebuild complete. Reload the browser tab.");
+    console.log("Rebuild complete; pushing reload event to browser.");
+    if (shouldBuildWeb) {
+      server?.pushEvent("rebuild", { kind: "web" });
+    }
+    if (shouldBuildWasm) {
+      const moduleId = moduleIdFromPath(path) ?? explicitModuleId ?? null;
+      server?.pushEvent("rebuild", { kind: "wasm", moduleId });
+    }
   } catch (error) {
-    console.error(`WASM rebuild failed: ${error instanceof Error ? error.message : String(error)}`);
+    console.error(`Rebuild failed: ${error instanceof Error ? error.message : String(error)}`);
   } finally {
     rebuilding = false;
     if (rebuildAgain) {
