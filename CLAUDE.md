@@ -26,7 +26,7 @@ The main rule: keep musical DSP behavior in the shared core.
 - `src/modules/<module-id>/` is a self-contained module directory.
 - `src/modules/<module-id>/dsp/<module-id>_core.c` and `src/modules/<module-id>/dsp/<module-id>_core.h` are the source of truth for synthesis behavior, parameter IDs, clamping, MIDI note state, pitch bend, and float processing. The processing entry point is `<module>_process_float(core, in_left, in_right, out_left, out_right, frames)` — sound generators ignore the input pointers (callers pass `NULL`); audio FX modules read from them. See `docs/audio-fx-template.md` for the FX wrapper pattern.
 - `src/modules/<module-id>/dsp/<module-id>.c` is the Schwung plugin adapter. It translates Schwung lifecycle calls, string parameters, MIDI bytes, and `int16_t` block output into calls on the core.
-- `src/modules/<module-id>/dsp/<module-id>_wasm.c` is the browser/WASM adapter. It exports the shared `wf_*` C ABI for the AudioWorklet.
+- `src/modules/<module-id>/dsp/<module-id>_wasm.c` is the browser/WASM adapter. It exports the shared `mf_*` C ABI for the AudioWorklet.
 - `tools/render_wav.c` is the offline host harness. It loads the Schwung wrapper directly, sends deterministic MIDI/parameter sequences, and writes WAV fixtures.
 - `src/modules/<module-id>/module.json` is Schwung metadata and Move-facing module parameter schema.
 - `src/modules/<module-id>/params.json` is the local source of truth for that module's parameter IDs, labels, ranges, defaults, and ordering.
@@ -66,7 +66,7 @@ mise run check   # run non-device checks: validate, test, suite, plot, host
 mise run check-all # run non-device checks for all included modules
 ```
 
-Native/device `make` targets exist for `make test`, `make render`, `make suite`, `make plot`, `make host`, `make wasm`, `make move`, `make check`, `make check-all`, and `make clean`. Node, TypeScript, and browser tasks live in `package.json` (`npm run validate`, `npm run serve`, `npm run emulator-test`, `npm run typecheck`). Module-aware commands default to `MODULE_ID=westfold`; use `MODULE_ID=dustline make suite` or `MODULE_ID=dustline mise run wasm` for Dustline.
+Native/device `make` targets exist for `make test`, `make render`, `make suite`, `make plot`, `make host`, `make wasm`, `make move`, `make check`, `make check-all`, and `make clean`. Node, TypeScript, and browser tasks live in `package.json` (`pnpm run validate`, `pnpm run serve`, `pnpm run emulator-test`, `pnpm run typecheck`). Module-aware commands default to `MODULE_ID=westfold`; use `MODULE_ID=dustline make suite` or `MODULE_ID=dustline mise run wasm` for Dustline.
 
 The web UI is served at:
 

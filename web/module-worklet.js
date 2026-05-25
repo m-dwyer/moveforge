@@ -28,9 +28,9 @@ class ModuleProcessor extends AudioWorkletProcessor {
     try {
       const module = await WebAssembly.instantiate(bytes, {});
       this.exports = module.instance.exports;
-      this.exports.wf_init();
-      this.left = new Float32Array(this.exports.memory.buffer, this.exports.wf_left_ptr(), 128);
-      this.right = new Float32Array(this.exports.memory.buffer, this.exports.wf_right_ptr(), 128);
+      this.exports.mf_init();
+      this.left = new Float32Array(this.exports.memory.buffer, this.exports.mf_left_ptr(), 128);
+      this.right = new Float32Array(this.exports.memory.buffer, this.exports.mf_right_ptr(), 128);
       this.ready = true;
       this.queue.splice(0).forEach((message) => this.handle(message));
       this.port.postMessage({ type: "ready" });
@@ -43,15 +43,15 @@ class ModuleProcessor extends AudioWorkletProcessor {
     if (!message || !this.exports) return;
     if (message.type === "param") {
       if (!Number.isInteger(message.id)) return;
-      this.exports.wf_set_param(message.id, Number(message.value));
+      this.exports.mf_set_param(message.id, Number(message.value));
     } else if (message.type === "noteOn") {
-      this.exports.wf_note_on(Number(message.note), Number(message.velocity));
+      this.exports.mf_note_on(Number(message.note), Number(message.velocity));
     } else if (message.type === "noteOff") {
-      this.exports.wf_note_off(Number(message.note));
+      this.exports.mf_note_off(Number(message.note));
     } else if (message.type === "allNotesOff") {
-      this.exports.wf_all_notes_off();
+      this.exports.mf_all_notes_off();
     } else if (message.type === "pitchBend") {
-      this.exports.wf_set_pitch_bend(Number(message.value));
+      this.exports.mf_set_pitch_bend(Number(message.value));
     } else if (message.type === "soundBypass") {
       this.soundBypassed = Boolean(message.bypassed);
     } else if (message.type === "audioFxChain") {
@@ -99,7 +99,7 @@ class ModuleProcessor extends AudioWorkletProcessor {
       return true;
     }
 
-    this.exports.wf_render(output[0].length);
+    this.exports.mf_render(output[0].length);
     output[0].set(this.left.subarray(0, output[0].length));
     output[1].set(this.right.subarray(0, output[1].length));
     if (this.soundBypassed) {

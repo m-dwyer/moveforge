@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 import { chromium, type Locator, type Page } from "playwright";
+import { selectedModuleId } from "./lib/modules.ts";
 import { startStaticServer } from "./lib/static-server.ts";
 
 const port = Number(process.env.PORT ?? 8876);
-const moduleId = process.env.MODULE_ID ?? "westfold";
+const moduleId = selectedModuleId();
 const moduleQuery = moduleId === "westfold" ? "" : `?module=${encodeURIComponent(moduleId)}`;
 const server = await startStaticServer({ port });
 
@@ -67,13 +68,16 @@ async function main(): Promise<void> {
       nodes.some((node) => node.scrollWidth > node.clientWidth + 1)
     );
     if (overflowing) throw new Error("control cards should not horizontally overflow at narrow width");
+
+    await page.locator("#audioToggle").click();
+    await expectText(page.locator("#audioToggle"), "WASM Audio On", 6000);
   } finally {
     await browser.close();
   }
 }
 
-async function expectText(locator: Locator, text: string): Promise<void> {
-  const deadline = Date.now() + 3000;
+async function expectText(locator: Locator, text: string, timeoutMs = 3000): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     if ((await locator.textContent())?.includes(text)) return;
     await new Promise((resolve) => setTimeout(resolve, 80));

@@ -124,4 +124,4 @@ This harness is not implemented yet; add it when the first FX module lands.
 
 ## Web UI / WASM
 
-The current worklet (`web/module-worklet.js`) is output-only — it calls `wf_render(frames)` and reads the module's pre-allocated L/R float buffers. To audition FX in the browser, the WASM adapter would need to expose `wf_in_left_ptr` / `wf_in_right_ptr` exports and the worklet would need to copy `inputs[0]` into those buffers before calling render. Defer until needed.
+The current worklet (`web/module-worklet.js`) is output-only — it calls `mf_render(frames)` and reads the module's pre-allocated L/R float buffers. To audition FX in the browser, the WASM adapter would need to expose `mf_in_left_ptr` / `mf_in_right_ptr` exports and the worklet would need to copy `inputs[0]` into those buffers before calling render. Defer until needed.

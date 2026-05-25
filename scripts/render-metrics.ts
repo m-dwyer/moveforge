@@ -1,9 +1,10 @@
 import { readdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { modulePaths, selectedModuleId } from "./lib/modules.ts";
 import { metricsForWavFile, type WavMetrics } from "./wav-metrics.ts";
 
-const moduleId = process.env.MODULE_ID || "westfold";
-const suiteDir = `renders/${moduleId}-suite`;
+const moduleId = selectedModuleId();
+const { suiteDir } = modulePaths(moduleId);
 
 const entries = await readdir(suiteDir, { withFileTypes: true }).catch(() => []);
 const wavs = entries.filter((entry) => entry.isFile() && entry.name.endsWith(".wav")).map((entry) => entry.name);

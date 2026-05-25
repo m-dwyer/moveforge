@@ -1,4 +1,5 @@
-import { readdir, readFile } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
+import { modulePaths, selectedModuleIds } from "./lib/modules.ts";
 
 type Param = {
   default: number;
@@ -42,12 +43,7 @@ type ValidationGroup = {
   moduleId: string;
 };
 
-const moduleIds = process.env.MODULE_ID
-  ? [process.env.MODULE_ID]
-  : (await readdir("src/modules", { withFileTypes: true }))
-      .filter((entry) => entry.isDirectory() && !entry.name.startsWith("_"))
-      .map((entry) => entry.name)
-      .sort();
+const moduleIds = await selectedModuleIds();
 
 const allErrors: ValidationGroup[] = [];
 await validateIndex(moduleIds);
@@ -84,13 +80,13 @@ async function validateIndex(moduleIds: string[]): Promise<void> {
 }
 
 async function validateModule(moduleId: string, errors: string[]): Promise<void> {
-  const moduleDir = `src/modules/${moduleId}`;
+  const paths = modulePaths(moduleId);
   const [manifest, moduleJson, presetsJson, header, core] = await Promise.all([
-    readJson<ParamsManifest>(`${moduleDir}/params.json`),
-    readJson<ModuleJson>(`${moduleDir}/module.json`),
-    readJson<PresetsJson>(`${moduleDir}/presets.json`),
-    readFile(`${moduleDir}/dsp/${moduleId}_core.h`, "utf8"),
-    readFile(`${moduleDir}/dsp/${moduleId}_core.c`, "utf8")
+    readJson<ParamsManifest>(paths.manifest),
+    readJson<ModuleJson>(paths.moduleJson),
+    readJson<PresetsJson>(paths.presets),
+    readFile(paths.coreHeader, "utf8"),
+    readFile(paths.coreC, "utf8")
   ]);
 
   const params = manifest.params || [];

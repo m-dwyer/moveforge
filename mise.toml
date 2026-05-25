@@ -8,11 +8,11 @@ run = "make test"
 
 [tasks.validate]
 description = "Validate module-scoped parameter metadata and mappings"
-run = "npm run validate"
+run = "pnpm run validate"
 
 [tasks.emulator-test]
 description = "Run browser emulator smoke tests"
-run = "npm run emulator-test"
+run = "pnpm run emulator-test"
 
 [tasks.render]
 description = "Render the default demo WAV"
@@ -29,19 +29,19 @@ run = "make plot"
 [tasks.metrics]
 description = "Render the suite and emit metrics.json next to WAVs"
 depends = ["suite"]
-run = "npm run metrics"
+run = "pnpm run metrics"
 
 [tasks.check-renders]
 description = "Compare current suite metrics against goldens/<module>/metrics.json"
-run = "npm run check-renders"
+run = "pnpm run check-renders"
 
 [tasks.bless-renders]
 description = "Promote current suite metrics into goldens/<module>/metrics.json"
-run = "npm run bless-renders"
+run = "pnpm run bless-renders"
 
 [tasks.new-module]
 description = "Scaffold a new sound_generator module from src/modules/_template/ (usage: mise run new-module -- --id myfx)"
-run = "npm run new-module --"
+run = "pnpm run new-module --"
 
 [tasks.host]
 description = "Build host-only shared library for local compile checks"
@@ -57,16 +57,16 @@ run = "make wasm"
 
 [tasks.serve]
 description = "Serve the local browser UI at http://localhost:8765/web/"
-run = "npm run serve"
+run = "pnpm run serve"
 
 [tasks.web]
 description = "Build WASM and serve the browser UI"
 depends = ["wasm"]
-run = "npm run serve"
+run = "pnpm run serve"
 
 [tasks.dev]
 description = "Build browser TypeScript and WASM, serve the browser UI, and rebuild when source files change"
-run = "npm run dev"
+run = "pnpm run dev"
 
 [tasks.deploy]
 description = "Run checked local build steps, then install to Ableton Move"

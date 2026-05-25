@@ -1,5 +1,6 @@
 import { readFile, readdir, writeFile, mkdir } from "node:fs/promises";
 import { join } from "node:path";
+import { modulePaths, selectedModuleIds } from "./lib/modules.ts";
 import { metricsForWavFile, type WavMetrics } from "./wav-metrics.ts";
 
 type MetricValue = number | number[] | null;
@@ -20,21 +21,15 @@ const METRIC_FIELDS = Object.keys(TOLERANCES) as Array<keyof WavMetrics>;
 
 const mode = process.argv[2] || "check";
 if (!["check", "bless"].includes(mode)) {
-  console.error("usage: node scripts/check-renders.ts [check|bless]");
+  console.error("usage: pnpm run check-renders | pnpm run bless-renders");
   process.exit(2);
 }
 
-const moduleIds = process.env.MODULE_ID
-  ? [process.env.MODULE_ID]
-  : (await readdir("src/modules", { withFileTypes: true }))
-      .filter((e) => e.isDirectory() && !e.name.startsWith("_"))
-      .map((e) => e.name)
-      .sort();
+const moduleIds = await selectedModuleIds();
 
 let failures = 0;
 for (const moduleId of moduleIds) {
-  const suiteDir = `renders/${moduleId}-suite`;
-  const goldenPath = `goldens/${moduleId}/metrics.json`;
+  const { goldenMetrics: goldenPath, suiteDir } = modulePaths(moduleId);
 
   const wavs = (await readdir(suiteDir, { withFileTypes: true }).catch(() => []))
     .filter((e) => e.isFile() && e.name.endsWith(".wav"))
@@ -61,7 +56,7 @@ for (const moduleId of moduleIds) {
 
   const golden = await readJson(goldenPath).catch(() => null);
   if (!golden) {
-    console.error(`[${moduleId}] missing ${goldenPath} — run \`node scripts/check-renders.ts bless\` to create it`);
+    console.error(`[${moduleId}] missing ${goldenPath} — run \`pnpm run bless-renders\` to create it`);
     failures++;
     continue;
   }
@@ -109,7 +104,7 @@ for (const moduleId of moduleIds) {
 }
 
 if (failures > 0) {
-  console.error(`\n${failures} module(s) failed render check. If the change is intentional: \`node scripts/check-renders.ts bless\`.`);
+  console.error(`\n${failures} module(s) failed render check. If the change is intentional: \`pnpm run bless-renders\`.`);
   process.exit(1);
 }
 

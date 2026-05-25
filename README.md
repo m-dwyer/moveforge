@@ -64,7 +64,7 @@ MODULE_ID=dustline ./scripts/build-wasm.sh
 Start the local browser UI:
 
 ```bash
-npm run serve
+pnpm run serve
 ```
 
 Then open:
@@ -168,7 +168,7 @@ make test
 Validate that module-scoped parameter metadata matches each module's C core and presets:
 
 ```bash
-npm run validate
+pnpm run validate
 ```
 
 Render the suite and generate waveform/spectrum PNGs:
@@ -193,10 +193,10 @@ make wasm
 make move
 make check
 make check-all
-npm run typecheck
-npm run validate
-npm run serve
-npm run emulator-test
+pnpm run typecheck
+pnpm run validate
+pnpm run serve
+pnpm run emulator-test
 ```
 
 If you use `mise`, the same entry points are available as tasks:

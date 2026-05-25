@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
+import { modulePaths, selectedModuleId } from "./lib/modules.ts";
 
 type PresetSuite = {
   presets: Array<{
@@ -15,9 +16,10 @@ type PresetSuite = {
   }>;
 };
 
-const moduleId = process.env.MODULE_ID || "westfold";
+const moduleId = selectedModuleId();
+const paths = modulePaths(moduleId);
 const renderBin = process.env.RENDER_BIN || `./build/render_wav_${moduleId}`;
-const data = JSON.parse(await readFile(`src/modules/${moduleId}/presets.json`, "utf8")) as PresetSuite;
+const data = JSON.parse(await readFile(paths.presets, "utf8")) as PresetSuite;
 
 for (const preset of data.presets) {
   const render = preset.render;
@@ -25,7 +27,7 @@ for (const preset of data.presets) {
 
   const args = [
     "--render",
-    `renders/${moduleId}-suite/${render.file}`,
+    `${paths.suiteDir}/${render.file}`,
     String(render.seconds),
     String(render.note_blocks),
     String(render.gate_blocks),

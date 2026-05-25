@@ -25,24 +25,24 @@ deploy:
 	./scripts/deploy-to-move.sh
 
 check:
-	npm run typecheck
-	npm run validate
+	pnpm run typecheck
+	pnpm run validate
 	$(MAKE) test
 	$(MAKE) suite
-	npm run check-renders
+	pnpm run check-renders
 	$(MAKE) plot
 	$(MAKE) host
 
 check-all:
-	npm run typecheck
-	npm run validate
+	pnpm run typecheck
+	pnpm run validate
 	$(MAKE) test
 	$(MAKE) suite
-	npm run check-renders
+	pnpm run check-renders
 	$(MAKE) plot
 	$(MAKE) host
 	MODULE_ID=dustline $(MAKE) suite
-	MODULE_ID=dustline npm run check-renders
+	MODULE_ID=dustline pnpm run check-renders
 	MODULE_ID=dustline $(MAKE) plot
 	MODULE_ID=dustline $(MAKE) host
 

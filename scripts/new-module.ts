@@ -8,7 +8,7 @@ const TEMPLATE_DIR = "src/modules/_template";
 const args = parseArgs(argv.slice(2));
 const id = stringArg(args, "id");
 if (!id) {
-  console.error(`Usage: node scripts/new-module.ts --id <module-id> [--name <DisplayName>] [--abbrev <AB>]
+  console.error(`Usage: pnpm run new-module -- --id <module-id> [--name <DisplayName>] [--abbrev <AB>]
 
 Scaffolds a new sound_generator module by copying src/modules/_template/ and
 substituting MODULE_ID / MODULE_UPPER / MODULE_NAME / MODULE_ABBREV placeholders.
@@ -74,7 +74,7 @@ console.log(`\nnext steps:`);
 console.log(`  1. edit ${targetDir}/dsp/${id}_core.c to implement synthesis`);
 console.log(`  2. add presets to ${targetDir}/presets.json (each "render" block produces a suite WAV)`);
 console.log(`  3. mise run validate && mise run test`);
-console.log(`  4. MODULE_ID=${id} mise run suite && node scripts/check-renders.ts bless`);
+console.log(`  4. MODULE_ID=${id} mise run suite && MODULE_ID=${id} pnpm run bless-renders`);
 console.log(`  5. MODULE_ID=${id} mise run wasm && mise run serve  (then open /web/?module=${id})`);
 
 function parseArgs(list: string[]): Record<string, string | true> {

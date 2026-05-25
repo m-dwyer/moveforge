@@ -1,5 +1,12 @@
 // @ts-nocheck
 import { AudioEngine } from "./audio-engine.js";
+import {
+  audioFxParamDefs,
+  makeInitialState,
+  midiFxParamDefs,
+  scales,
+  settingsParamDefs
+} from "./chain-state.js";
 import { loadModuleIndex as fetchModuleIndex, loadModuleMetadata } from "./module-metadata.js";
 
 const moduleId = new URLSearchParams(window.location.search).get("module") || "westfold";
@@ -8,33 +15,6 @@ const workletProcessor = new URLSearchParams(window.location.search).get("proces
 let activeModuleName = moduleId.replace(/(^|-)([a-z])/g, (_match, _dash, letter) => letter.toUpperCase());
 
 const noteNames = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
-const scales = {
-  major: [0, 2, 4, 5, 7, 9, 11],
-  minor: [0, 2, 3, 5, 7, 8, 10],
-  pentatonic: [0, 2, 4, 7, 9]
-};
-
-const midiFxParamDefs = [
-  { scope: "component", key: "transpose", label: "Transpose", min: -24, max: 24, default: 0, step: 1 },
-  { scope: "component", key: "chance", label: "Chance", min: 0, max: 1, default: 1, step: 0.01 },
-  { scope: "component", key: "velocity", label: "Velocity", min: 0.1, max: 1.5, default: 1, step: 0.01 }
-];
-
-const audioFxParamDefs = [
-  { scope: "component", key: "drive", label: "Drive", min: 0, max: 1, default: 0.35, step: 0.01 },
-  { scope: "component", key: "tone", label: "Tone", min: 0, max: 1, default: 0.72, step: 0.01 },
-  { scope: "component", key: "wet", label: "Wet", min: 0, max: 1, default: 0.55, step: 0.01 }
-];
-
-const settingsParamDefs = [
-  { scope: "settings", key: "slot_volume", label: "Slot Vol", min: 0, max: 1, default: 1, step: 0.01 },
-  { scope: "settings", key: "receive_ch", label: "Recv Ch", min: 0, max: 16, default: 0, step: 1 },
-  { scope: "settings", key: "forward_ch", label: "Fwd Ch", min: 0, max: 17, default: 0, step: 1 },
-  { scope: "settings", key: "midi_fx_output", label: "MIDI Out", min: 0, max: 1, default: 0, step: 1 },
-  { scope: "settings", key: "lfo1_depth", label: "LFO 1", min: 0, max: 1, default: 0, step: 0.01 },
-  { scope: "settings", key: "lfo2_depth", label: "LFO 2", min: 0, max: 1, default: 0, step: 0.01 }
-];
-
 const screen = document.getElementById("screen");
 const ctx = screen.getContext("2d");
 const knobsEl = document.getElementById("knobs");
@@ -65,105 +45,7 @@ const audioEngine = new AudioEngine();
 let midiAccess = null;
 let seqTimer = null;
 
-function makeMidiFx() {
-  return {
-    id: "midi-pre",
-    kind: "midi_fx",
-    type: "MIDI FX",
-    name: "Scale Gate",
-    enabled: false,
-    scaleLock: true,
-    params: { transpose: 0, chance: 1, velocity: 1 }
-  };
-}
-
-function makeSound() {
-  return { id: moduleId, kind: "sound_generator", type: "Sound", name: activeModuleName, enabled: true };
-}
-
-function makeAudioFx(id, label, defaults = {}) {
-  return {
-    id,
-    kind: "audio_fx",
-    type: label,
-    name: id === "audio-fx-2" ? "Air Tone" : "Drive Tone",
-    enabled: false,
-    params: { drive: 0.35, tone: 0.72, wet: 0.55, ...defaults }
-  };
-}
-
-function makeSettings() {
-  return {
-    id: "settings",
-    kind: "settings",
-    type: "Settings",
-    name: "Slot Settings",
-    enabled: true,
-    params: {
-      slot_volume: 1,
-      receive_ch: 0,
-      forward_ch: 0,
-      midi_fx_output: 0,
-      lfo1_depth: 0,
-      lfo2_depth: 0
-    },
-    lfos: [
-      { enabled: false, targetComponent: moduleId, targetParam: "fold", shape: "sine", depth: 0, rate: 0.25, phase: 0, polarity: "bipolar", retrigger: false },
-      { enabled: false, targetComponent: "audio-fx-1", targetParam: "wet", shape: "tri", depth: 0, rate: 0.125, phase: 0, polarity: "unipolar", retrigger: false }
-    ]
-  };
-}
-
-function makeSlotState() {
-  return {
-    chain: [
-      makeMidiFx(),
-      makeSound(),
-      makeAudioFx("audio-fx-1", "Audio FX 1"),
-      makeAudioFx("audio-fx-2", "Audio FX 2", { drive: 0.08, tone: 0.9, wet: 0.25 }),
-      makeSettings()
-    ],
-    activeNotes: new Map(),
-    moveEchoEvents: []
-  };
-}
-
-function makeMasterState() {
-  return {
-    chain: [
-      makeAudioFx("master-fx-1", "Master FX 1", { drive: 0.1, wet: 0.25 }),
-      makeAudioFx("master-fx-2", "Master FX 2", { drive: 0.2, wet: 0.2 }),
-      makeAudioFx("master-fx-3", "Master FX 3", { drive: 0, tone: 0.6, wet: 0 }),
-      makeAudioFx("master-fx-4", "Master FX 4", { drive: 0, tone: 0.6, wet: 0 })
-    ]
-  };
-}
-
-const state = {
-  mode: "device",
-  context: "slot",
-  page: 0,
-  selectedTrack: 0,
-  selectedSlot: 1,
-  selectedPreset: "Init",
-  browserIndex: 0,
-  touchedParam: null,
-  shift: false,
-  record: false,
-  playing: false,
-  loop: false,
-  mute: false,
-  selectedStep: 0,
-  playStep: -1,
-  padLayout: "in-key-octaves",
-  root: 0,
-  scale: "major",
-  octave: 3,
-  tracks: Array.from({ length: 4 }, makeSlotState),
-  master: makeMasterState(),
-  steps: Array.from({ length: 16 }, () => ({ enabled: false, note: 60, velocity: 0.9, locks: {} })),
-  activePads: new Map()
-};
+const state = makeInitialState(moduleId, activeModuleName);
 
 function showError(message) {
   errorEl.textContent = message || "";

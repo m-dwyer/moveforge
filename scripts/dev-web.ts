@@ -3,11 +3,12 @@ import { spawn } from "node:child_process";
 import { watch, type FSWatcher } from "node:fs";
 import { readdir } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
+import { selectedModuleId } from "./lib/modules.ts";
 import { startStaticServer, type StaticServer } from "./lib/static-server.ts";
 
 const port = Number(process.env.PORT ?? 8765);
 const rebuildDebounceMs = Number(process.env.REBUILD_DEBOUNCE_MS ?? 200);
-const moduleId = process.env.MODULE_ID ?? "westfold";
+const moduleId = selectedModuleId();
 const watchedRoots = [`src/modules/${moduleId}`, "web"];
 const ignoredPathParts = new Set(["dist", "wasm"]);
 

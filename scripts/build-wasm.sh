@@ -19,7 +19,7 @@ docker run --rm \
     -O3 \
     -I"$MODULE_DIR/dsp" \
     -s STANDALONE_WASM=1 \
-    -s EXPORTED_FUNCTIONS='["_wf_init","_wf_set_param","_wf_note_on","_wf_note_off","_wf_all_notes_off","_wf_set_pitch_bend","_wf_left_ptr","_wf_right_ptr","_wf_render"]' \
+    -s EXPORTED_FUNCTIONS='["_mf_init","_mf_set_param","_mf_note_on","_mf_note_off","_mf_all_notes_off","_mf_set_pitch_bend","_mf_left_ptr","_mf_right_ptr","_mf_render"]' \
     -Wl,--no-entry \
     -o "web/wasm/$MODULE_ID.wasm"
 
