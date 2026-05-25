@@ -3,6 +3,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
+. "$ROOT/scripts/lib/move-guards.sh"
 
 MODULE_ID="${MODULE_ID:-westfold}"
 MOVE_HOST="${MOVE_HOST:-ableton@move.local}"
@@ -42,6 +43,10 @@ EOF
       ;;
   esac
 done
+
+move_guard_validate_module_id "$MODULE_ID"
+move_guard_validate_component_type "$COMPONENT_TYPE"
+move_guard_validate_host "$MOVE_HOST"
 
 fail() {
   echo "install-to-move: $1" >&2
@@ -92,12 +97,12 @@ fi
 echo "install-to-move: $MOVE_HOST /data/UserData has ${FREE_MB} MiB free"
 
 # 5. Copy
-ssh "$MOVE_HOST" "mkdir -p $REMOTE_DIR"
+ssh "$MOVE_HOST" "test -d /data/UserData/schwung && mkdir -p '$REMOTE_DIR'"
 scp -r "dist/$MODULE_ID" "$MOVE_HOST:$REMOTE_DIR/"
 
 # 6. Post-deploy probe
 REMOTE_PATH="$REMOTE_DIR/$MODULE_ID/dsp.so"
-REMOTE_SIZE=$(ssh "$MOVE_HOST" "stat -c %s $REMOTE_PATH 2>/dev/null || stat -f %z $REMOTE_PATH 2>/dev/null || echo 0")
+REMOTE_SIZE=$(ssh "$MOVE_HOST" "stat -c %s '$REMOTE_PATH' 2>/dev/null || stat -f %z '$REMOTE_PATH' 2>/dev/null || echo 0")
 if [ "$REMOTE_SIZE" != "$LOCAL_SIZE" ]; then
   echo "install-to-move: ERROR remote dsp.so size $REMOTE_SIZE != local $LOCAL_SIZE" >&2
   exit 1

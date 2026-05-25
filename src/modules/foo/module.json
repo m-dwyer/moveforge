@@ -1,0 +1,31 @@
+{
+  "id": "foo",
+  "name": "foo",
+  "abbrev": "FOO",
+  "version": "0.1.0",
+  "description": "foo synth module",
+  "author": "Local",
+  "ui": "ui.js",
+  "dsp": "dsp.so",
+  "api_version": 2,
+  "capabilities": {
+    "audio_out": true,
+    "audio_in": false,
+    "midi_in": true,
+    "midi_out": false,
+    "chainable": true,
+    "component_type": "sound_generator",
+    "ui_hierarchy": {
+      "levels": {
+        "root": {
+          "label": "foo",
+          "params": [
+            { "id": 0, "key": "volume", "label": "Volume", "type": "float", "min": 0, "max": 1, "default": 0.7, "step": 0.01 },
+            { "id": 1, "key": "tone", "label": "Tone", "type": "float", "min": 0, "max": 1, "default": 0.5, "step": 0.01 }
+          ],
+          "knobs": ["volume", "tone"]
+        }
+      }
+    }
+  }
+}

@@ -1,4 +1,4 @@
-.PHONY: render suite plot test host move wasm deploy check check-all dev-deps clean
+.PHONY: render suite plot test host move wasm deploy move-health move-logs move-cache move-restart move-screen check check-all dev-deps clean
 
 render:
 	./scripts/render-demo.sh
@@ -23,6 +23,21 @@ wasm:
 
 deploy:
 	./scripts/deploy-to-move.sh
+
+move-health:
+	./scripts/move-health.sh
+
+move-logs:
+	./scripts/tail-move-log.sh
+
+move-cache:
+	./scripts/clear-move-cache.sh
+
+move-restart:
+	./scripts/restart-move.sh
+
+move-screen:
+	node scripts/capture-move-screen.ts
 
 check:
 	pnpm run typecheck

@@ -133,6 +133,18 @@ mise run deploy
 
 This runs DSP tests, renders the preset suite, builds the host library, then builds and installs the Move package. Set `MOVE_HOST=ableton@192.168.1.42` if mDNS is not resolving `move.local`.
 
+Useful hardware-debug helpers:
+
+```bash
+mise run move-health
+./scripts/tail-move-log.sh --enable --clear --yes
+./scripts/clear-move-cache.sh --apply
+mise run move-restart
+mise run move-screen
+```
+
+See `docs/schwung-device-workflow.md` for the device log, cache, restart, and upstream-reference workflow.
+
 ## Development Loop
 
 1. Edit DSP in `src/modules/<module-id>/dsp/<module-id>_core.c`.
@@ -191,6 +203,13 @@ pnpm run typecheck
 pnpm run validate
 pnpm run serve
 pnpm run emulator-test
+```
+
+Scaffold a new sound generator or audio effect:
+
+```bash
+pnpm run new-module -- --id pluckbox --kind sound_generator
+pnpm run new-module -- --id drive_tone --kind audio_fx
 ```
 
 If you use `mise`, the same entry points are available as tasks:

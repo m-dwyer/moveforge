@@ -62,6 +62,18 @@ or:
 MOVE_HOST=ableton@192.168.1.42 mise run deploy
 ```
 
+For device-side debugging after deploy:
+
+```bash
+mise run move-health
+./scripts/tail-move-log.sh --enable --clear --yes
+./scripts/clear-move-cache.sh --apply
+mise run move-restart
+mise run move-screen
+```
+
+See `docs/schwung-device-workflow.md` for the checked hardware loop.
+
 ## Remaining Gaps
 
 The toolchain is now credible for deciding whether Schwung can support fast local synth iteration, but several pieces are still worth building before heavy module work:
@@ -69,12 +81,11 @@ The toolchain is now credible for deciding whether Schwung can support fast loca
 1. Generate parameter IDs for C/WASM/JS from one manifest.
 2. Extend validation to step/render fixtures in addition to each module directory's `module.json`, `params.json`, and `presets.json`.
 3. Add golden render metrics: peak, RMS, DC offset, silence, clipping, and tolerance comparison.
-4. Add full FX-module mode with fixture WAV input, WASM processing, and output comparison.
-5. Add a module scaffolder for new synths, MIDI FX, and audio FX.
-6. Add real Move log tailing and install health checks once hardware is available.
-7. Add browser recording/export so current WASM sessions can be captured as WAV fixtures.
-8. Add browser-side preset save/export back to JSON.
-9. Calibrate exact display, LED, and gesture timing with real hardware via Schwung screen mirroring.
+4. Add an FX render harness with fixture WAV input.
+5. Add WASM/browser processing support for audio FX input/output comparison.
+6. Add browser recording/export so current WASM sessions can be captured as WAV fixtures.
+7. Add browser-side preset save/export back to JSON.
+8. Calibrate exact display, LED, and gesture timing with real hardware via Schwung screen mirroring.
 
 ## Practical Confidence Check
 

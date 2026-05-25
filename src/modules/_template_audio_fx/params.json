@@ -1,0 +1,8 @@
+{
+  "module_id": "MODULE_ID",
+  "params": [
+    { "id": 0, "key": "mix", "label": "Mix", "type": "float", "min": 0, "max": 1, "default": 0.5, "step": 0.01 },
+    { "id": 1, "key": "drive", "label": "Drive", "type": "float", "min": 0, "max": 1, "default": 0.2, "step": 0.01 },
+    { "id": 2, "key": "tone", "label": "Tone", "type": "float", "min": 0, "max": 1, "default": 0.7, "step": 0.01 }
+  ]
+}

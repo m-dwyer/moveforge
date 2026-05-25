@@ -26,6 +26,7 @@ The main rule: keep musical DSP behavior in the shared core.
 - `src/modules/<module-id>/` is a self-contained module directory.
 - `src/modules/<module-id>/dsp/<module-id>_core.c` and `src/modules/<module-id>/dsp/<module-id>_core.h` are the source of truth for synthesis behavior, parameter IDs, clamping, MIDI note state, pitch bend, and float processing. The processing entry point is `<module>_process_float(core, in_left, in_right, out_left, out_right, frames)` — sound generators ignore the input pointers (callers pass `NULL`); audio FX modules read from them. See `docs/audio-fx-template.md` for the FX wrapper pattern.
 - `src/modules/<module-id>/dsp/<module-id>.c` is the Schwung plugin adapter. It translates Schwung lifecycle calls, string parameters, MIDI bytes, and `int16_t` block output into calls on the core.
+- `src/host/audio_fx_api_v2.h` is the local audio-FX ABI reference used by audio effect modules.
 - `src/modules/<module-id>/dsp/<module-id>_wasm.c` is the browser/WASM adapter. It exports the shared `mf_*` C ABI for the AudioWorklet.
 - `tools/render_wav.c` is the offline host harness. It loads the Schwung wrapper directly, sends deterministic MIDI/parameter sequences, and writes WAV fixtures.
 - `src/modules/<module-id>/module.json` is Schwung metadata and Move-facing module parameter schema.
@@ -62,11 +63,16 @@ mise run serve   # serve repo at http://localhost:8765/
 mise run web     # build WASM then serve the web UI
 mise run emulator-test # run browser emulator smoke tests
 mise run move    # build aarch64 Move-target module package
+mise run move-health # check SSH, Schwung paths, disk, logs, and installed module files
+mise run move-logs # tail /data/UserData/schwung/debug.log
+mise run move-cache # dry-run transient Schwung/Move runtime cache clearing
+mise run move-restart # ask Schwung's restart helper to restart Move
+mise run move-screen # capture the Move/Schwung screen endpoint
 mise run check   # run non-device checks: validate, test, suite, plot, host
 mise run check-all # run non-device checks for all included modules
 ```
 
-Native/device `make` targets exist for `make test`, `make render`, `make suite`, `make plot`, `make host`, `make wasm`, `make move`, `make check`, `make check-all`, and `make clean`. Node, TypeScript, and browser tasks live in `package.json` (`pnpm run validate`, `pnpm run serve`, `pnpm run emulator-test`, `pnpm run typecheck`). Module-aware commands default to `MODULE_ID=westfold`; use `MODULE_ID=dustline make suite` or `MODULE_ID=dustline mise run wasm` for Dustline.
+Native/device `make` targets exist for `make test`, `make render`, `make suite`, `make plot`, `make host`, `make wasm`, `make move`, `make move-health`, `make move-logs`, `make move-cache`, `make move-restart`, `make move-screen`, `make check`, `make check-all`, and `make clean`. Node, TypeScript, and browser tasks live in `package.json` (`pnpm run validate`, `pnpm run serve`, `pnpm run emulator-test`, `pnpm run typecheck`). Keep Move shell operations out of `package.json`; use direct scripts, `make`, or `mise` tasks instead. Module-aware commands default to `MODULE_ID=westfold`; use `MODULE_ID=dustline make suite` or `MODULE_ID=dustline mise run wasm` for Dustline.
 
 The web UI is served at:
 
@@ -133,13 +139,12 @@ Prioritized improvements to make synth and FX iteration faster and safer:
 2. Add render metrics in CI/local checks: peak, RMS, DC offset, silence detection, clipped-sample count, and per-preset JSON summaries.
 3. Add golden render comparison with tolerance, so DSP changes can intentionally update fixtures while accidental regressions are obvious.
 4. Add a browser capture/export path that records a short WAV from the current WASM state and stores it beside the offline suite for A/B comparison.
-5. Add a Move health-check script that verifies SSH, Schwung module path, free disk space, target architecture, and installed module version before deploy.
-6. Add `scripts/tail-move-log.sh` or equivalent if Schwung/Move logs are available over SSH, so deploy failures are visible without manual device digging.
-7. Add a module scaffolder for synths and FX now that two sound generators exist.
-8. Add an FX-module template once the sound-generator flow is stable, with audio-in/audio-out capabilities and a dedicated local render harness for processing fixture WAVs.
-9. Add a small preset morph/randomize tool in the web UI to explore parameter spaces quickly, with bounded randomization from `module.json` ranges.
-10. Add MIDI learn or configurable CC mapping in the web UI, instead of hard-coding CC 20-27.
-11. Add clang-format and a formatting task to keep C changes mechanical and reviewable.
-12. Add GitHub Actions or a local pre-push command for `mise run check`, leaving Move deploy as an explicit local-only step.
+5. Add an FX render harness for processing fixture WAVs through `move_audio_fx_init_v2`.
+6. Add browser/WASM support for audio FX inputs and output comparison.
+7. Add a hardware screenshot/OLED calibration path against the real 128x64 display.
+8. Add a small preset morph/randomize tool in the web UI to explore parameter spaces quickly, with bounded randomization from `module.json` ranges.
+9. Add MIDI learn or configurable CC mapping in the web UI, instead of hard-coding CC 20-27.
+10. Add clang-format and a formatting task to keep C changes mechanical and reviewable.
+11. Add GitHub Actions or a local pre-push command for `mise run check`, leaving Move deploy as an explicit local-only step.
 
 For the next repo change, the highest-leverage item is probably generated parameter bindings. The current validator catches drift across C, module JSON, and presets; generating the worklet mapping from `params.json` would remove the remaining browser-side duplication entirely.

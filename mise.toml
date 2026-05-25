@@ -40,7 +40,7 @@ description = "Promote current suite metrics into goldens/<module>/metrics.json"
 run = "pnpm run bless-renders"
 
 [tasks.new-module]
-description = "Scaffold a new sound_generator module from src/modules/_template/ (usage: mise run new-module -- --id myfx)"
+description = "Scaffold a new Schwung module (usage: mise run new-module -- --id myfx --kind audio_fx)"
 run = "pnpm run new-module --"
 
 [tasks.host]
@@ -71,6 +71,26 @@ run = "pnpm run dev"
 [tasks.deploy]
 description = "Run checked local build steps, then install to Ableton Move"
 run = "make deploy"
+
+[tasks.move-health]
+description = "Check SSH, Schwung paths, disk space, and installed module files on Ableton Move"
+run = "make move-health"
+
+[tasks.move-logs]
+description = "Tail Schwung debug.log on Ableton Move"
+run = "make move-logs"
+
+[tasks.move-cache]
+description = "Clear transient Schwung/Move runtime caches on Ableton Move"
+run = "make move-cache"
+
+[tasks.move-restart]
+description = "Ask Schwung's restart helper to restart Move"
+run = "make move-restart"
+
+[tasks.move-screen]
+description = "Capture the Move/Schwung screen endpoint with Playwright"
+run = "make move-screen"
 
 [tasks.check]
 description = "Run the main non-device checks"

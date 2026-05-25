@@ -1,0 +1,7 @@
+{
+  "module_id": "foo",
+  "params": [
+    { "id": 0, "key": "volume", "label": "Volume", "type": "float", "min": 0, "max": 1, "default": 0.7, "step": 0.01 },
+    { "id": 1, "key": "tone", "label": "Tone", "type": "float", "min": 0, "max": 1, "default": 0.5, "step": 0.01 }
+  ]
+}

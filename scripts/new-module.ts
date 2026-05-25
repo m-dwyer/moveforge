@@ -3,14 +3,12 @@ import { mkdir, readdir, readFile, writeFile, stat } from "node:fs/promises";
 import { dirname, join, relative } from "node:path";
 import { argv, exit } from "node:process";
 
-const TEMPLATE_DIR = "src/modules/_template";
-
 const args = parseArgs(argv.slice(2));
 const id = stringArg(args, "id");
 if (!id) {
-  console.error(`Usage: pnpm run new-module -- --id <module-id> [--name <DisplayName>] [--abbrev <AB>]
+  console.error(`Usage: pnpm run new-module -- --id <module-id> [--name <DisplayName>] [--abbrev <AB>] [--kind sound_generator|audio_fx]
 
-Scaffolds a new sound_generator module by copying src/modules/_template/ and
+Scaffolds a new Schwung module by copying the matching template and
 substituting MODULE_ID / MODULE_UPPER / MODULE_NAME / MODULE_ABBREV placeholders.
 
 Arguments:
@@ -18,8 +16,7 @@ Arguments:
             and the prefix for all C functions. Must match [a-z][a-z0-9_]+.
   --name    Human-readable display name (defaults to title-cased id).
   --abbrev  2-letter abbreviation (defaults to first 2 letters of id, upper-cased).
-
-Audio FX modules are not scaffolded yet — see docs/audio-fx-template.md for the wrapper pattern.
+  --kind    Module kind: sound_generator or audio_fx (default: sound_generator).
 `);
   exit(2);
 }
@@ -35,6 +32,8 @@ if (id === "_template") {
 
 const name = stringArg(args, "name") || id.split(/[_-]/).map((p: string) => p[0].toUpperCase() + p.slice(1)).join("");
 const abbrev = (stringArg(args, "abbrev") || id.slice(0, 2)).toUpperCase();
+const kind = moduleKind(stringArg(args, "kind") || "sound_generator");
+const templateDir = kind === "audio_fx" ? "src/modules/_template_audio_fx" : "src/modules/_template";
 const upper = id.toUpperCase();
 const targetDir = `src/modules/${id}`;
 
@@ -51,8 +50,8 @@ const replacements = {
 };
 
 const filesCopied = [];
-for await (const file of walk(TEMPLATE_DIR)) {
-  const rel = relative(TEMPLATE_DIR, file);
+for await (const file of walk(templateDir)) {
+  const rel = relative(templateDir, file);
   const renamed = applySubs(rel, replacements);
 
   const targetPath = rel.startsWith("tests/")
@@ -71,11 +70,17 @@ await registerInIndex(id, name);
 console.log(`scaffolded ${filesCopied.length} files:`);
 for (const f of filesCopied) console.log(`  ${f}`);
 console.log(`\nnext steps:`);
-console.log(`  1. edit ${targetDir}/dsp/${id}_core.c to implement synthesis`);
-console.log(`  2. add presets to ${targetDir}/presets.json (each "render" block produces a suite WAV)`);
+console.log(`  1. edit ${targetDir}/dsp/${id}_core.c to implement DSP behavior`);
+console.log(`  2. add presets to ${targetDir}/presets.json`);
 console.log(`  3. mise run validate && mise run test`);
-console.log(`  4. MODULE_ID=${id} mise run suite && MODULE_ID=${id} pnpm run bless-renders`);
-console.log(`  5. mise run wasm && mise run serve  (then choose ${id} in the Module selector)`);
+if (kind === "sound_generator") {
+  console.log(`  4. MODULE_ID=${id} mise run suite && MODULE_ID=${id} pnpm run bless-renders`);
+  console.log(`  5. MODULE_ID=${id} mise run wasm && mise run serve  (then choose ${id} in the Module selector)`);
+} else {
+  console.log(`  4. MODULE_ID=${id} ./scripts/build-host.sh`);
+  console.log(`  5. deploy with MODULE_ID=${id} COMPONENT_TYPE=audio_fx ./scripts/install-to-move.sh`);
+  console.log(`  6. add an FX render/WASM harness before using browser/offline auditioning`);
+}
 
 function parseArgs(list: string[]): Record<string, string | true> {
   const out: Record<string, string | true> = {};
@@ -93,6 +98,12 @@ function parseArgs(list: string[]): Record<string, string | true> {
 function stringArg(args: Record<string, string | true>, key: string): string | undefined {
   const value = args[key];
   return typeof value === "string" ? value : undefined;
+}
+
+function moduleKind(value: string): "sound_generator" | "audio_fx" {
+  if (value === "sound_generator" || value === "audio_fx") return value;
+  console.error(`--kind must be sound_generator or audio_fx (got: ${value})`);
+  exit(2);
 }
 
 function applySubs(s: string, subs: Record<string, string>): string {
@@ -119,7 +130,7 @@ async function registerInIndex(id: string, name: string): Promise<void> {
   const path = "src/modules/index.json";
   const index = JSON.parse(await readFile(path, "utf8")) as { modules: Array<{ id: string; name: string; kind: string }> };
   if (index.modules.some((m) => m.id === id)) return;
-  index.modules.push({ id, name, kind: "sound_generator" });
+  index.modules.push({ id, name, kind });
   index.modules.sort((a, b) => a.id.localeCompare(b.id));
   await writeFile(path, JSON.stringify(index, null, 2) + "\n");
 }

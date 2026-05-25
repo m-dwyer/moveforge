@@ -120,8 +120,20 @@ audio_fx_api_v2_t* move_audio_fx_init_v2(const host_api_v1_t *host) {
 3. Streams 128-frame blocks through `process_block`.
 4. Writes the processed audio out.
 
-This harness is not implemented yet; add it when the first FX module lands.
+This harness is not implemented yet; add it when the first serious FX module lands.
 
 ## Web UI / WASM
 
 The current worklet (`web/module-worklet.js`) is output-only — it calls `mf_render(frames)` and reads the module's pre-allocated L/R float buffers. To audition FX in the browser, the WASM adapter would need to expose `mf_in_left_ptr` / `mf_in_right_ptr` exports and the worklet would need to copy `inputs[0]` into those buffers before calling render. Defer until needed.
+
+## Scaffolding
+
+Create a starter FX module with:
+
+```bash
+pnpm run new-module -- --id myfx --kind audio_fx
+```
+
+The template includes a minimal `move_audio_fx_init_v2` wrapper, local
+`audio_fx_api_v2.h` reference, params/presets metadata, and a core smoke test.
+Offline WAV rendering and browser auditioning are still sound-generator-only.
