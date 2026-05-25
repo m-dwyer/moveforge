@@ -1,9 +1,12 @@
+export type WrapperVariant = "wasm" | "schwung";
+
 export type AudioEngineOptions = {
   moduleId: string;
   onError: (message: string) => void;
   onReady: () => void;
   processorName: string;
   workletUrl: string;
+  wrapper?: WrapperVariant;
 };
 
 export type WorkletMessage = Record<string, unknown>;
@@ -11,6 +14,7 @@ export type WorkletMessage = Record<string, unknown>;
 export class AudioEngine {
   #audio: AudioContext | null = null;
   #moduleId: string | null = null;
+  #wrapper: WrapperVariant = "wasm";
   #node: AudioWorkletNode | null = null;
   #ready = false;
 
@@ -18,15 +22,20 @@ export class AudioEngine {
     return this.#ready;
   }
 
+  get wrapper(): WrapperVariant {
+    return this.#wrapper;
+  }
+
   async enable(options: AudioEngineOptions): Promise<void> {
-    if (this.#ready && this.#audio && this.#moduleId === options.moduleId) {
+    const wrapper = options.wrapper ?? "wasm";
+    if (this.#ready && this.#audio && this.#moduleId === options.moduleId && this.#wrapper === wrapper) {
       await this.#audio.resume();
       return;
     }
 
     if (!this.#audio || !this.#node) await this.#startWorklet(options);
     await this.#audio?.resume();
-    await this.#loadModule(options.moduleId);
+    await this.#loadModule(options.moduleId, wrapper);
   }
 
   async #startWorklet(options: AudioEngineOptions): Promise<void> {
@@ -53,13 +62,15 @@ export class AudioEngine {
     this.#node = node;
   }
 
-  async #loadModule(moduleId: string): Promise<void> {
+  async #loadModule(moduleId: string, wrapper: WrapperVariant): Promise<void> {
     if (!this.#node) throw new Error("Audio worklet is not ready");
-    const wasmResponse = await fetch(`/web/wasm/${moduleId}.wasm`, { cache: "no-store" });
+    const suffix = wrapper === "schwung" ? "-schwung" : "";
+    const wasmResponse = await fetch(`/web/wasm/${moduleId}${suffix}.wasm`, { cache: "no-store" });
     if (!wasmResponse.ok) throw new Error(`Could not load audio module: ${wasmResponse.status}`);
     const wasmBytes = await wasmResponse.arrayBuffer();
     this.#ready = false;
     this.#moduleId = moduleId;
+    this.#wrapper = wrapper;
     this.#node.port.postMessage({ type: "loadWasm", bytes: wasmBytes }, [wasmBytes]);
   }
 
