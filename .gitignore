@@ -9,3 +9,7 @@ web/wasm/*.wasm
 node_modules/
 .cache/
 .DS_Store
+
+# Golden WAVs are large; regenerated locally via `pnpm run bless-renders`.
+# Only metrics.json + .trace under goldens/ are checked in.
+goldens/**/*.wav
