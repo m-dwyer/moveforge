@@ -40,6 +40,11 @@ void dustline_note_on(dustline_core_t *s, int note, float velocity) {
     if (s->freq <= 0.0f) s->freq = s->target_freq;
     s->velocity = clampf_local(velocity, 0.0f, 1.0f);
     s->gate = 1.0f;
+    /* Recover from any non-finite filter state left over from a prior
+     * unstable run (e.g. user loaded an older build that hit the SVF
+     * stability bug). */
+    if (!(s->lp == s->lp) || s->lp > 1e6f || s->lp < -1e6f) s->lp = 0.0f;
+    if (!(s->bp == s->bp) || s->bp > 1e6f || s->bp < -1e6f) s->bp = 0.0f;
 }
 
 void dustline_note_off(dustline_core_t *s, int note) {
@@ -94,7 +99,12 @@ void dustline_process_float(dustline_core_t *s,
 
         float cutoff_hz = 70.0f + powf(s->cutoff, 2.2f) * 14000.0f;
         float f = clampf_local(2.0f * sinf((TWO_PI * 0.5f) * cutoff_hz / SR), 0.002f, 0.95f);
-        float q = 0.35f + s->resonance * 3.8f;
+        /* Chamberlin SVF is conditionally stable: f*q must stay below ~2.
+         * Cap q to 1.8/f so high cutoff + high resonance can't blow up
+         * (was producing NaN at e.g. cutoff=0.86, resonance=0.76). */
+        float q_desired = 0.35f + s->resonance * 3.8f;
+        float q_max = 1.8f / (f + 1e-6f);
+        float q = q_desired < q_max ? q_desired : q_max;
         s->lp += f * s->bp;
         float hp = source - s->lp - q * s->bp;
         s->bp += f * hp;
