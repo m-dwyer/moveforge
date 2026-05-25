@@ -1,3 +1,7 @@
+// @ts-nocheck
+import { AudioEngine } from "./audio-engine.js";
+import { loadModuleIndex as fetchModuleIndex, loadModuleMetadata } from "./module-metadata.js";
+
 const moduleId = new URLSearchParams(window.location.search).get("module") || "westfold";
 const workletUrl = new URLSearchParams(window.location.search).get("worklet") || "module-worklet.js";
 const workletProcessor = new URLSearchParams(window.location.search).get("processor") || "module-processor";
@@ -57,9 +61,7 @@ const stepInspectorEl = document.getElementById("stepInspector");
 let params = [];
 let paramIds = {};
 let presets = [];
-let audio = null;
-let node = null;
-let audioReady = false;
+const audioEngine = new AudioEngine();
 let midiAccess = null;
 let seqTimer = null;
 
@@ -168,26 +170,9 @@ function showError(message) {
   errorEl.hidden = !message;
 }
 
-async function loadJson(path) {
-  const response = await fetch(path, { cache: "no-store" });
-  if (!response.ok) throw new Error(`${path}: ${response.status}`);
-  return response.json();
-}
-
-function paramsFromManifest(manifest) {
-  return (manifest.params || []).map((item) => ({ ...item, value: item.default }));
-}
-
-function paramIdsFromParams(items) {
-  return Object.fromEntries(items.map((param) => [param.key, param.id]));
-}
-
 async function loadMetadata() {
-  const [manifest, moduleJson, presetJson] = await Promise.all([
-    loadJson(`../src/modules/${moduleId}/params.json`),
-    loadJson(`../src/modules/${moduleId}/module.json`),
-    loadJson(`../src/modules/${moduleId}/presets.json`)
-  ]);
+  const metadata = await loadModuleMetadata(moduleId);
+  const { moduleJson } = metadata;
   activeModuleName = moduleJson.name || activeModuleName;
   document.title = `${activeModuleName} Move/Schwung Emulator`;
   if (moduleNameEl) moduleNameEl.textContent = activeModuleName;
@@ -200,14 +185,14 @@ async function loadMetadata() {
     const settings = track.chain.find((slot) => slot.kind === "settings");
     if (settings?.lfos?.[0]) settings.lfos[0].targetComponent = moduleJson.id || moduleId;
   }
-  params = paramsFromManifest(manifest);
-  paramIds = paramIdsFromParams(params);
+  params = metadata.params;
+  paramIds = metadata.paramIds;
   const lfoTarget = params[Math.min(3, params.length - 1)]?.key || params[0]?.key || "";
   for (const track of state.tracks) {
     const settings = track.chain.find((slot) => slot.kind === "settings");
     if (settings?.lfos?.[0]) settings.lfos[0].targetParam = lfoTarget;
   }
-  presets = presetJson.presets || [];
+  presets = metadata.presets;
   state.selectedPreset = presets[0]?.name || "Init";
   state.browserIndex = 0;
   applyPreset(state.selectedPreset, false);
@@ -217,7 +202,7 @@ async function loadMetadata() {
 async function loadModuleIndex() {
   if (!moduleSelectEl) return;
   try {
-    const index = await loadJson("../src/modules/index.json");
+    const index = await fetchModuleIndex();
     moduleSelectEl.innerHTML = "";
     for (const item of index.modules || []) {
       const option = document.createElement("option");
@@ -757,7 +742,7 @@ function update(renderForms = true) {
 }
 
 function send(message) {
-  if (node) node.port.postMessage(message);
+  audioEngine.send(message);
 }
 
 function sendParam(param) {
@@ -877,37 +862,22 @@ function applyPreset(name, shouldUpdate = true) {
 }
 
 async function enableAudio() {
-  if (audioReady) {
-    await audio.resume();
-    return;
-  }
   showError("");
   audioToggle.textContent = "Loading WASM...";
-  const wasmResponse = await fetch(`wasm/${moduleId}.wasm`, { cache: "no-store" });
-  if (!wasmResponse.ok) throw new Error(`Could not load WASM: ${wasmResponse.status}`);
-  const wasmBytes = await wasmResponse.arrayBuffer();
-  audio = new AudioContext({ sampleRate: 44100 });
-  const loadedWorkletUrl = new URL(workletUrl, window.location.href);
-  loadedWorkletUrl.searchParams.set("v", String(Date.now()));
-  await audio.audioWorklet.addModule(loadedWorkletUrl.toString());
-  node = new AudioWorkletNode(audio, workletProcessor, {
-    numberOfOutputs: 1,
-    outputChannelCount: [2]
-  });
-  node.connect(audio.destination);
-  node.port.onmessage = (event) => {
-    if (event.data?.type === "needWasm") {
-      node.port.postMessage({ type: "loadWasm", bytes: wasmBytes }, [wasmBytes]);
-    } else if (event.data?.type === "ready") {
-      audioReady = true;
+  await audioEngine.enable({
+    moduleId,
+    processorName: workletProcessor,
+    workletUrl,
+    onReady: () => {
       audioToggle.textContent = "WASM Audio On";
       params.forEach(sendParam);
       syncAudioChain();
-    } else if (event.data?.type === "error") {
+    },
+    onError: (message) => {
       audioToggle.textContent = "Audio failed";
-      showError(event.data.message);
+      showError(message);
     }
-  };
+  });
 }
 
 function noteOn(note, velocity = 0.94) {

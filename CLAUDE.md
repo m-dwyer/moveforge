@@ -66,7 +66,7 @@ mise run check   # run non-device checks: validate, test, suite, plot, host
 mise run check-all # run non-device checks for all included modules
 ```
 
-Equivalent `make` targets exist: `make test`, `make validate`, `make emulator-test`, `make render`, `make suite`, `make plot`, `make host`, `make wasm`, `make serve`, `make move`, `make check`, `make check-all`, and `make clean`. Module-aware commands default to `MODULE_ID=westfold`; use `MODULE_ID=dustline make suite` or `MODULE_ID=dustline mise run wasm` for Dustline.
+Native/device `make` targets exist for `make test`, `make render`, `make suite`, `make plot`, `make host`, `make wasm`, `make move`, `make check`, `make check-all`, and `make clean`. Node, TypeScript, and browser tasks live in `package.json` (`npm run validate`, `npm run serve`, `npm run emulator-test`, `npm run typecheck`). Module-aware commands default to `MODULE_ID=westfold`; use `MODULE_ID=dustline make suite` or `MODULE_ID=dustline mise run wasm` for Dustline.
 
 The web UI is served at:
 

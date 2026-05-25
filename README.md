@@ -64,7 +64,7 @@ MODULE_ID=dustline ./scripts/build-wasm.sh
 Start the local browser UI:
 
 ```bash
-node scripts/serve-web.ts
+npm run serve
 ```
 
 Then open:
@@ -89,7 +89,7 @@ For the fastest browser loop:
 mise run dev
 ```
 
-This builds WASM, serves `http://localhost:8765/web/?module=<module-id>`, and rebuilds the WASM module when DSP or metadata files change.
+This builds browser TypeScript and WASM, serves `http://localhost:8765/web/?module=<module-id>`, and rebuilds browser code or WASM when relevant source files change.
 The dev server is a small TypeScript/Node static server and watcher; it does not require Python.
 
 Build the module folder and release tarball:
@@ -168,7 +168,7 @@ make test
 Validate that module-scoped parameter metadata matches each module's C core and presets:
 
 ```bash
-make validate
+npm run validate
 ```
 
 Render the suite and generate waveform/spectrum PNGs:
@@ -188,14 +188,15 @@ Other useful targets:
 ```bash
 make render
 make suite
-make validate
 make host
 make wasm
 make move
-make serve
-make emulator-test
 make check
 make check-all
+npm run typecheck
+npm run validate
+npm run serve
+npm run emulator-test
 ```
 
 If you use `mise`, the same entry points are available as tasks:

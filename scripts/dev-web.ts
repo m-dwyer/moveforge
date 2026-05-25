@@ -2,14 +2,14 @@
 import { spawn } from "node:child_process";
 import { watch, type FSWatcher } from "node:fs";
 import { readdir } from "node:fs/promises";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { startStaticServer, type StaticServer } from "./lib/static-server.ts";
 
 const port = Number(process.env.PORT ?? 8765);
 const rebuildDebounceMs = Number(process.env.REBUILD_DEBOUNCE_MS ?? 200);
 const moduleId = process.env.MODULE_ID ?? "westfold";
 const watchedRoots = [`src/modules/${moduleId}`, "web"];
-const ignoredPathParts = new Set(["wasm"]);
+const ignoredPathParts = new Set(["dist", "wasm"]);
 
 let server: StaticServer | null = null;
 let rebuilding = false;
@@ -18,6 +18,7 @@ let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 const watchers: FSWatcher[] = [];
 const watchedDirs = new Set<string>();
 
+await buildWeb();
 await buildWasm();
 server = await startStaticServer({ port });
 
@@ -31,6 +32,10 @@ process.on("SIGTERM", () => void shutdown());
 
 async function buildWasm(): Promise<void> {
   await run("./scripts/build-wasm.sh", [], { MODULE_ID: moduleId });
+}
+
+async function buildWeb(): Promise<void> {
+  await run(process.execPath, [resolve("node_modules/typescript/bin/tsc"), "-p", "web/tsconfig.json"], {});
 }
 
 async function watchTree(root: string): Promise<void> {
@@ -73,10 +78,18 @@ async function rebuild(path: string): Promise<void> {
     return;
   }
   rebuilding = true;
-  console.log(`Change detected in ${path}; rebuilding WASM...`);
+  const shouldBuildWeb = path.split(/[\\/]/).includes("src") && path.split(/[\\/]/).includes("web");
+  const shouldBuildWasm = path.startsWith(`src/modules/${moduleId}`);
+  if (!shouldBuildWeb && !shouldBuildWasm) {
+    console.log(`Change detected in ${path}; reload the browser tab.`);
+    rebuilding = false;
+    return;
+  }
+  console.log(`Change detected in ${path}; rebuilding ${shouldBuildWeb && shouldBuildWasm ? "web and WASM" : shouldBuildWeb ? "web" : "WASM"}...`);
   try {
-    await buildWasm();
-    console.log("WASM rebuilt. Reload the browser tab.");
+    if (shouldBuildWeb) await buildWeb();
+    if (shouldBuildWasm) await buildWasm();
+    console.log("Rebuild complete. Reload the browser tab.");
   } catch (error) {
     console.error(`WASM rebuild failed: ${error instanceof Error ? error.message : String(error)}`);
   } finally {

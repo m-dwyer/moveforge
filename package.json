@@ -6,10 +6,15 @@
     "node": ">=24"
   },
   "scripts": {
+    "bless-renders": "node scripts/check-renders.ts bless",
+    "build:web": "tsc -p web/tsconfig.json",
+    "check-renders": "node scripts/check-renders.ts check",
     "dev": "node scripts/dev-web.ts",
-    "serve": "node scripts/serve-web.ts",
-    "emulator-test": "node scripts/test-emulator.ts",
-    "typecheck": "tsc -p tsconfig.json",
+    "emulator-test": "tsc -p web/tsconfig.json && node scripts/test-emulator.ts",
+    "metrics": "node scripts/render-metrics.ts",
+    "new-module": "node scripts/new-module.ts",
+    "serve": "tsc -p web/tsconfig.json && node scripts/serve-web.ts",
+    "typecheck": "tsc -p tsconfig.json && tsc -p web/tsconfig.json",
     "validate": "node scripts/validate-params.ts"
   },
   "devDependencies": {

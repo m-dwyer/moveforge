@@ -1,4 +1,4 @@
-.PHONY: render suite plot metrics check-renders bless-renders new-module test validate emulator-test host move wasm serve dev deploy check check-all dev-deps clean
+.PHONY: render suite plot test host move wasm deploy check check-all dev-deps clean
 
 render:
 	./scripts/render-demo.sh
@@ -9,27 +9,8 @@ suite:
 plot: suite
 	.venv/bin/python tools/plot_renders.py
 
-metrics: suite
-	node scripts/render-metrics.ts
-
-check-renders:
-	node scripts/check-renders.ts check
-
-bless-renders:
-	node scripts/check-renders.ts bless
-
-new-module:
-	@if [ -z "$(ID)" ]; then echo "usage: make new-module ID=<module-id> [NAME=<DisplayName>] [ABBREV=<AB>]"; exit 2; fi
-	node scripts/new-module.ts --id $(ID) $(if $(NAME),--name "$(NAME)") $(if $(ABBREV),--abbrev "$(ABBREV)")
-
 test:
 	./scripts/test.sh
-
-validate:
-	node scripts/validate-params.ts
-
-emulator-test:
-	node scripts/test-emulator.ts
 
 host:
 	./scripts/build-host.sh
@@ -40,24 +21,28 @@ move:
 wasm:
 	./scripts/build-wasm.sh
 
-serve:
-	node scripts/serve-web.ts
-
-dev:
-	node scripts/dev-web.ts
-
 deploy:
 	./scripts/deploy-to-move.sh
 
-check: validate test suite check-renders plot host
-
-check-all: validate test
+check:
+	npm run typecheck
+	npm run validate
+	$(MAKE) test
 	$(MAKE) suite
-	$(MAKE) check-renders
+	npm run check-renders
+	$(MAKE) plot
+	$(MAKE) host
+
+check-all:
+	npm run typecheck
+	npm run validate
+	$(MAKE) test
+	$(MAKE) suite
+	npm run check-renders
 	$(MAKE) plot
 	$(MAKE) host
 	MODULE_ID=dustline $(MAKE) suite
-	MODULE_ID=dustline $(MAKE) check-renders
+	MODULE_ID=dustline npm run check-renders
 	MODULE_ID=dustline $(MAKE) plot
 	MODULE_ID=dustline $(MAKE) host
 
