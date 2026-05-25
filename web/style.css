@@ -99,7 +99,6 @@ canvas {
 }
 
 .nav,
-#audioToggle,
 #clearSteps,
 .preset-row button,
 .track,
@@ -121,7 +120,6 @@ canvas {
 }
 
 .nav:hover,
-#audioToggle:hover,
 #clearSteps:hover,
 .preset-row button:hover,
 .track:hover,
@@ -326,11 +324,6 @@ h2 {
   font-size: 15px;
   color: var(--muted);
   margin-bottom: 10px;
-}
-
-#audioToggle {
-  padding: 0 14px;
-  background: #233526;
 }
 
 .tool-grid {

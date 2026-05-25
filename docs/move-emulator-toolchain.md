@@ -28,16 +28,16 @@ This builds `web/wasm/<module-id>.wasm`, serves the repo, and watches `src/modul
 http://localhost:8765/web/
 ```
 
-For the second included synth:
+For the second included synth, use the Module selector in the web UI.
 
 ```bash
-MODULE_ID=dustline mise run dev
+mise run dev
 ```
 
 Then open:
 
 ```text
-http://localhost:8765/web/?module=dustline
+http://localhost:8765/web/
 ```
 
 Use this loop for quick sound-design changes before building a Move package.

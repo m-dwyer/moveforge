@@ -75,7 +75,7 @@ console.log(`  1. edit ${targetDir}/dsp/${id}_core.c to implement synthesis`);
 console.log(`  2. add presets to ${targetDir}/presets.json (each "render" block produces a suite WAV)`);
 console.log(`  3. mise run validate && mise run test`);
 console.log(`  4. MODULE_ID=${id} mise run suite && MODULE_ID=${id} pnpm run bless-renders`);
-console.log(`  5. MODULE_ID=${id} mise run wasm && mise run serve  (then open /web/?module=${id})`);
+console.log(`  5. mise run wasm && mise run serve  (then choose ${id} in the Module selector)`);
 
 function parseArgs(list: string[]): Record<string, string | true> {
   const out: Record<string, string | true> = {};

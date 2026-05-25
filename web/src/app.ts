@@ -9,7 +9,7 @@ import {
 } from "./chain-state.js";
 import { loadModuleIndex as fetchModuleIndex, loadModuleMetadata } from "./module-metadata.js";
 
-const moduleId = new URLSearchParams(window.location.search).get("module") || "westfold";
+let moduleId = "westfold";
 const workletUrl = new URLSearchParams(window.location.search).get("worklet") || "module-worklet.js";
 const workletProcessor = new URLSearchParams(window.location.search).get("processor") || "module-processor";
 let activeModuleName = moduleId.replace(/(^|-)([a-z])/g, (_match, _dash, letter) => letter.toUpperCase());
@@ -24,7 +24,6 @@ const stepsEl = document.getElementById("steps");
 const statusEl = document.getElementById("status");
 const panelTitleEl = document.getElementById("panelTitle");
 const presetEl = document.getElementById("presets");
-const audioToggle = document.getElementById("audioToggle");
 const errorEl = document.getElementById("errors");
 const previewEl = document.getElementById("previewList");
 const chainEl = document.getElementById("chain");
@@ -79,6 +78,21 @@ async function loadMetadata() {
   state.browserIndex = 0;
   applyPreset(state.selectedPreset, false);
   renderPreviewList();
+}
+
+async function selectModule(nextModuleId) {
+  if (!nextModuleId || nextModuleId === moduleId) return;
+  send({ type: "allNotesOff" });
+  for (const track of state.tracks) track.activeNotes.clear();
+  state.activePads.clear();
+  moduleId = nextModuleId;
+  activeModuleName = moduleId.replace(/(^|-)([a-z])/g, (_match, _dash, letter) => letter.toUpperCase());
+  state.page = 0;
+  state.mode = "device";
+  state.touchedParam = null;
+  await loadMetadata();
+  if (audioEngine.ready) await enableAudio();
+  update();
 }
 
 async function loadModuleIndex() {
@@ -745,18 +759,18 @@ function applyPreset(name, shouldUpdate = true) {
 
 async function enableAudio() {
   showError("");
-  audioToggle.textContent = "Loading WASM...";
+  document.body.dataset.audio = "starting";
   await audioEngine.enable({
     moduleId,
     processorName: workletProcessor,
     workletUrl,
     onReady: () => {
-      audioToggle.textContent = "WASM Audio On";
+      document.body.dataset.audio = "ready";
       params.forEach(sendParam);
       syncAudioChain();
     },
     onError: (message) => {
-      audioToggle.textContent = "Audio failed";
+      document.body.dataset.audio = "failed";
       showError(message);
     }
   });
@@ -764,13 +778,14 @@ async function enableAudio() {
 
 function noteOn(note, velocity = 0.94) {
   enableAudio().then(() => {
+    if (!midiAccess) void enableMidi(true);
     const processed = processMidiFx(note, velocity);
     if (!processed) return;
     const track = state.tracks[state.selectedTrack];
     track.activeNotes.set(note, processed.note);
     send({ type: "noteOn", note: processed.note, velocity: processed.velocity });
   }).catch((error) => {
-    audioToggle.textContent = "Audio failed";
+    document.body.dataset.audio = "failed";
     showError(error.message);
   });
 }
@@ -782,9 +797,9 @@ function noteOff(note) {
   send({ type: "noteOff", note: processedNote });
 }
 
-async function enableMidi() {
+async function enableMidi(silent = false) {
   if (!navigator.requestMIDIAccess) {
-    showError("Web MIDI is not available in this browser.");
+    if (!silent) showError("Web MIDI is not available in this browser.");
     return;
   }
   midiAccess = await navigator.requestMIDIAccess();
@@ -957,17 +972,9 @@ function bindControls() {
     update();
   });
   moduleSelectEl?.addEventListener("change", () => {
-    const url = new URL(window.location.href);
-    url.searchParams.set("module", moduleSelectEl.value);
-    window.location.href = url.toString();
-  });
-  audioToggle.addEventListener("click", () => {
-    enableAudio()
-      .then(enableMidi)
-      .catch((error) => {
-        audioToggle.textContent = "Audio failed";
-        showError(error.message);
-      });
+    selectModule(moduleSelectEl.value).catch((error) => {
+      showError(error.message);
+    });
   });
 }
 

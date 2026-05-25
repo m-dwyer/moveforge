@@ -73,15 +73,9 @@ Then open:
 http://localhost:8765/web/
 ```
 
-Use Dustline in the browser with:
-
-```text
-http://localhost:8765/web/?module=dustline
-```
-
 The mock shows the Move screen, track and mode buttons, 8 device encoders, wheel controls, transport keys, step buttons, a module selector backed by `src/modules/index.json`, pad layouts, a documented Schwung-style chain (`MIDI FX -> Sound -> Audio FX 1 -> Audio FX 2 -> Settings`), parameter sliders, rendered clip players, and a WASM-backed live synth running in an AudioWorklet. It reads module metadata from `src/modules/<module-id>/module.json` and presets/render clips from `src/modules/<module-id>/presets.json`.
 
-Click `Enable WASM Audio`, then play the pads or use the computer keyboard row `a w s d r f t g h u j i k o l`. If your browser supports Web MIDI, connected MIDI keyboards are also routed to the synth. MIDI CC 20-27 map to the first eight parameters.
+Play the pads or use the computer keyboard row `a w s d r f t g h u j i k o l`; audio starts on the first note. If your browser supports Web MIDI, connected MIDI keyboards are also routed to the synth. MIDI CC 20-27 map to the first eight parameters.
 
 For the fastest browser loop:
 
@@ -89,7 +83,7 @@ For the fastest browser loop:
 mise run dev
 ```
 
-This builds browser TypeScript and WASM, serves `http://localhost:8765/web/?module=<module-id>`, and rebuilds browser code or WASM when relevant source files change.
+This builds browser TypeScript and every module's WASM, serves `http://localhost:8765/web/`, and rebuilds browser code or WASM when relevant source files change.
 The dev server is a small TypeScript/Node static server and watcher; it does not require Python.
 
 Build the module folder and release tarball:

@@ -3,13 +3,14 @@ import { spawn } from "node:child_process";
 import { watch, type FSWatcher } from "node:fs";
 import { readdir } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
-import { selectedModuleId } from "./lib/modules.ts";
+import { listModuleIds } from "./lib/modules.ts";
 import { startStaticServer, type StaticServer } from "./lib/static-server.ts";
 
 const port = Number(process.env.PORT ?? 8765);
 const rebuildDebounceMs = Number(process.env.REBUILD_DEBOUNCE_MS ?? 200);
-const moduleId = selectedModuleId();
-const watchedRoots = [`src/modules/${moduleId}`, "web"];
+const explicitModuleId = process.env.MODULE_ID;
+const moduleIds = explicitModuleId ? [explicitModuleId] : await listModuleIds();
+const watchedRoots = [explicitModuleId ? `src/modules/${explicitModuleId}` : "src/modules", "web"];
 const ignoredPathParts = new Set(["dist", "wasm"]);
 
 let server: StaticServer | null = null;
@@ -23,7 +24,7 @@ await buildWeb();
 await buildWasm();
 server = await startStaticServer({ port });
 
-console.log(`Serving ${server.origin}/web/?module=${encodeURIComponent(moduleId)}`);
+console.log(`Serving ${server.origin}/web/`);
 console.log(`Watching ${watchedRoots.join(", ")} for changes`);
 
 for (const root of watchedRoots) await watchTree(root);
@@ -32,7 +33,8 @@ process.on("SIGINT", () => void shutdown());
 process.on("SIGTERM", () => void shutdown());
 
 async function buildWasm(): Promise<void> {
-  await run("./scripts/build-wasm.sh", [], { MODULE_ID: moduleId });
+  const env: Record<string, string> = explicitModuleId ? { MODULE_ID: explicitModuleId } : {};
+  await run("./scripts/build-wasm.sh", [], env);
 }
 
 async function buildWeb(): Promise<void> {
@@ -80,7 +82,7 @@ async function rebuild(path: string): Promise<void> {
   }
   rebuilding = true;
   const shouldBuildWeb = path.split(/[\\/]/).includes("src") && path.split(/[\\/]/).includes("web");
-  const shouldBuildWasm = path.startsWith(`src/modules/${moduleId}`);
+  const shouldBuildWasm = explicitModuleId ? path.startsWith(`src/modules/${explicitModuleId}`) : path.startsWith("src/modules/");
   if (!shouldBuildWeb && !shouldBuildWasm) {
     console.log(`Change detected in ${path}; reload the browser tab.`);
     rebuilding = false;
