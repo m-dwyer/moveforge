@@ -73,7 +73,8 @@ export async function startStaticServer(options: StaticServerOptions): Promise<S
 
 async function resolveRequestPath(root: string, requestPath: string): Promise<string | null> {
   const decoded = decodeURIComponent(requestPath);
-  const joined = resolve(root, `.${decoded}`);
+  const appPath = decoded === "/" ? "/web/" : decoded;
+  const joined = resolve(root, `.${appPath}`);
   const rel = relative(root, joined);
   if (rel === "" || (!rel.startsWith("..") && !rel.includes(`..${sep}`))) return joined;
   return null;

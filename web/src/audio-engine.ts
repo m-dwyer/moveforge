@@ -55,7 +55,7 @@ export class AudioEngine {
 
   async #loadModule(moduleId: string): Promise<void> {
     if (!this.#node) throw new Error("Audio worklet is not ready");
-    const wasmResponse = await fetch(`wasm/${moduleId}.wasm`, { cache: "no-store" });
+    const wasmResponse = await fetch(`/web/wasm/${moduleId}.wasm`, { cache: "no-store" });
     if (!wasmResponse.ok) throw new Error(`Could not load audio module: ${wasmResponse.status}`);
     const wasmBytes = await wasmResponse.arrayBuffer();
     this.#ready = false;

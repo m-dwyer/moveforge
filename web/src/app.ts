@@ -10,7 +10,7 @@ import {
 import { loadModuleIndex as fetchModuleIndex, loadModuleMetadata } from "./module-metadata.js";
 
 let moduleId = "westfold";
-const workletUrl = new URLSearchParams(window.location.search).get("worklet") || "module-worklet.js";
+const workletUrl = new URLSearchParams(window.location.search).get("worklet") || "/web/module-worklet.js";
 const workletProcessor = new URLSearchParams(window.location.search).get("processor") || "module-processor";
 let activeModuleName = moduleId.replace(/(^|-)([a-z])/g, (_match, _dash, letter) => letter.toUpperCase());
 
@@ -518,7 +518,7 @@ function renderPreviewList() {
     if (!file) return;
     const audioEl = document.createElement("audio");
     audioEl.controls = true;
-    audioEl.src = `../renders/${moduleId}-suite/${file}`;
+    audioEl.src = `/renders/${moduleId}-suite/${file}`;
     previewEl.appendChild(audioEl);
   });
 }

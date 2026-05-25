@@ -25,7 +25,7 @@ mise run dev
 This builds `web/wasm/<module-id>.wasm`, serves the repo, and watches `src/modules/<module-id>/` plus the browser worklet files that affect the web synth. Open:
 
 ```text
-http://localhost:8765/web/
+http://localhost:8765/
 ```
 
 For the second included synth, use the Module selector in the web UI.
@@ -37,7 +37,7 @@ mise run dev
 Then open:
 
 ```text
-http://localhost:8765/web/
+http://localhost:8765/
 ```
 
 Use this loop for quick sound-design changes before building a Move package.

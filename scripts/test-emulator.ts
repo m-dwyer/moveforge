@@ -3,7 +3,7 @@ import { chromium, type Locator, type Page } from "playwright";
 import { selectedModuleId } from "./lib/modules.ts";
 import { startStaticServer } from "./lib/static-server.ts";
 
-const port = Number(process.env.PORT ?? 8876);
+const port = Number(process.env.PORT ?? 0);
 const moduleId = selectedModuleId();
 const server = await startStaticServer({ port });
 
@@ -17,7 +17,7 @@ async function main(): Promise<void> {
   const browser = await chromium.launch();
   try {
     const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
-    await page.goto(`${server.origin}/web/`);
+    await page.goto(`${server.origin}/`);
     await page.waitForSelector(".chain-slot");
 
     await expectText(page.locator("#moduleSelect"), "Westfold");

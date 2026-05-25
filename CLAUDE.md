@@ -71,7 +71,7 @@ Native/device `make` targets exist for `make test`, `make render`, `make suite`,
 The web UI is served at:
 
 ```text
-http://localhost:8765/web/
+http://localhost:8765/
 ```
 
 ## Build And Deploy Flow

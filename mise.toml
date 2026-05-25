@@ -56,7 +56,7 @@ description = "Build browser WASM synth"
 run = "make wasm"
 
 [tasks.serve]
-description = "Serve the local browser UI at http://localhost:8765/web/"
+description = "Serve the local browser UI at http://localhost:8765/"
 run = "pnpm run serve"
 
 [tasks.web]

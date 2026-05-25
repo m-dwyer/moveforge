@@ -24,7 +24,7 @@ await buildWeb();
 await buildWasm();
 server = await startStaticServer({ port });
 
-console.log(`Serving ${server.origin}/web/`);
+console.log(`Serving ${server.origin}/`);
 console.log(`Watching ${watchedRoots.join(", ")} for changes`);
 
 for (const root of watchedRoots) await watchTree(root);
