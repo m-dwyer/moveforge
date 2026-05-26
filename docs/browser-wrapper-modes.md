@@ -34,9 +34,7 @@ The cleanup:
 - Worklet collapsed to one ABI (`sch_*`); the wrapper dropdown removed
 - Per-module surface area dropped by one file (the `_wasm.c`)
 
-What's left:
-
-- midi_fx still has no browser path (no audio I/O — needs a different
-  approach when chain-worklets land; see `docs/browser-chain-architecture.md`)
-- Browser auditioning still routes a single module direct to output; chain
-  audition is the next phase
+Both midi_fx and full chain audition shipped after this doc was written; see
+`docs/architecture.md` for the current shape (one `AudioWorkletNode` per
+active chain slot, midi_fx routed via main-thread MIDI relay to the sound
+slot).
