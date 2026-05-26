@@ -3,12 +3,14 @@ class ModuleProcessor extends AudioWorkletProcessor {
     super();
     this.ready = false;
     this.exports = null;
+    this.mode = null; // "audio" (sch_*) | "midi_fx" (mf_*)
     this.inLeft = null;
     this.inRight = null;
     this.left = null;
     this.right = null;
     this.keyBuf = null;
     this.valBuf = null;
+    this.outBuf = null;
     this.queue = [];
     this.soundBypassed = false;
 
@@ -33,17 +35,32 @@ class ModuleProcessor extends AudioWorkletProcessor {
       this.exports = module.instance.exports;
       const memory = this.exports.memory.buffer;
 
-      this.exports.sch_init();
-      this.left = new Float32Array(memory, this.exports.sch_left_ptr(), 128);
-      this.right = new Float32Array(memory, this.exports.sch_right_ptr(), 128);
-      this.inLeft = new Float32Array(memory, this.exports.sch_in_left_ptr(), 128);
-      this.inRight = new Float32Array(memory, this.exports.sch_in_right_ptr(), 128);
-      this.keyBuf = new Uint8Array(memory, this.exports.sch_key_buf(), this.exports.sch_key_buf_size());
-      this.valBuf = new Uint8Array(memory, this.exports.sch_val_buf(), this.exports.sch_val_buf_size());
+      this.ready = false;
+      this.left = this.right = this.inLeft = this.inRight = null;
+      this.keyBuf = this.valBuf = this.outBuf = null;
+
+      if (typeof this.exports.mf_init === "function") {
+        this.mode = "midi_fx";
+        this.exports.mf_init();
+        this.keyBuf = new Uint8Array(memory, this.exports.mf_key_buf(), this.exports.mf_key_buf_size());
+        this.valBuf = new Uint8Array(memory, this.exports.mf_val_buf(), this.exports.mf_val_buf_size());
+        this.outBuf = new Uint8Array(memory, this.exports.mf_out_buf_ptr(), this.exports.mf_out_buf_size());
+      } else if (typeof this.exports.sch_init === "function") {
+        this.mode = "audio";
+        this.exports.sch_init();
+        this.left = new Float32Array(memory, this.exports.sch_left_ptr(), 128);
+        this.right = new Float32Array(memory, this.exports.sch_right_ptr(), 128);
+        this.inLeft = new Float32Array(memory, this.exports.sch_in_left_ptr(), 128);
+        this.inRight = new Float32Array(memory, this.exports.sch_in_right_ptr(), 128);
+        this.keyBuf = new Uint8Array(memory, this.exports.sch_key_buf(), this.exports.sch_key_buf_size());
+        this.valBuf = new Uint8Array(memory, this.exports.sch_val_buf(), this.exports.sch_val_buf_size());
+      } else {
+        throw new Error("WASM exports neither sch_init nor mf_init");
+      }
 
       this.ready = true;
       this.queue.splice(0).forEach((message) => this.handle(message));
-      this.port.postMessage({ type: "ready" });
+      this.port.postMessage({ type: "ready", mode: this.mode });
     } catch (error) {
       this.port.postMessage({ type: "error", message: String(error?.message || error) });
     }
@@ -64,8 +81,45 @@ class ModuleProcessor extends AudioWorkletProcessor {
     buf[n] = 0;
   }
 
+  emitOutgoingMidi(count) {
+    if (!count || !this.outBuf) return;
+    const max = Math.min(count, Math.floor(this.outBuf.length / 3));
+    for (let i = 0; i < max; i++) {
+      const status = this.outBuf[i * 3];
+      const d1 = this.outBuf[i * 3 + 1];
+      const d2 = this.outBuf[i * 3 + 2];
+      this.port.postMessage({ type: "midiOut", status, d1, d2 });
+    }
+  }
+
   handle(message) {
     if (!message || !this.exports) return;
+    if (this.mode === "midi_fx") {
+      if (message.type === "param") {
+        if (typeof message.key !== "string") return;
+        this.writeCString(this.keyBuf, message.key);
+        this.writeCString(this.valBuf, Number(message.value).toFixed(6));
+        this.exports.mf_set_param();
+      } else if (message.type === "midiIn") {
+        const status = Number(message.status) & 0xFF;
+        const d1 = Number(message.d1) & 0x7F;
+        const d2 = Number(message.d2) & 0x7F;
+        const n = this.exports.mf_process_midi_byte(status, d1, d2);
+        this.emitOutgoingMidi(n);
+      } else if (message.type === "noteOn") {
+        const note = Number(message.note) & 0x7F;
+        const vel = Math.max(0, Math.min(127, Math.round(Number(message.velocity) * 127)));
+        const n = this.exports.mf_process_midi_byte(0x90, note, vel);
+        this.emitOutgoingMidi(n);
+      } else if (message.type === "noteOff") {
+        const note = Number(message.note) & 0x7F;
+        const n = this.exports.mf_process_midi_byte(0x80, note, 0);
+        this.emitOutgoingMidi(n);
+      }
+      return;
+    }
+
+    // audio mode (sch_*)
     if (message.type === "param") {
       if (typeof message.key !== "string") return;
       this.writeCString(this.keyBuf, message.key);
@@ -78,6 +132,11 @@ class ModuleProcessor extends AudioWorkletProcessor {
     } else if (message.type === "noteOff") {
       const note = Number(message.note);
       this.exports.sch_midi(0x80, note, 0);
+    } else if (message.type === "midiIn") {
+      const status = Number(message.status) & 0xFF;
+      const d1 = Number(message.d1) & 0x7F;
+      const d2 = Number(message.d2) & 0x7F;
+      this.exports.sch_midi(status, d1, d2);
     } else if (message.type === "allNotesOff") {
       this.writeCString(this.keyBuf, "all_notes_off");
       this.writeCString(this.valBuf, "1");
@@ -94,13 +153,25 @@ class ModuleProcessor extends AudioWorkletProcessor {
   process(inputs, outputs) {
     const output = outputs[0];
     if (!output || output.length < 2) return true;
+    const frames = output[0].length;
+
+    if (this.mode === "midi_fx") {
+      // No audio output; emit silence so downstream nodes get a clean signal.
+      // Run the periodic tick so time-based MIDI (arp, clock) can be emitted.
+      output[0].fill(0);
+      output[1].fill(0);
+      if (this.ready) {
+        const n = this.exports.mf_tick(frames);
+        this.emitOutgoingMidi(n);
+      }
+      return true;
+    }
+
     if (!this.ready) {
       output[0].fill(0);
       output[1].fill(0);
       return true;
     }
-
-    const frames = output[0].length;
 
     // Always feed inputs[0] into the module's input buffers. Sound generators
     // ignore them (their Schwung wrapper passes NULL to process_float);

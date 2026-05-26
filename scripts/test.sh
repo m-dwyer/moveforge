@@ -4,7 +4,11 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
-MODULE_IDS="${MODULE_ID:-westfold dustline}"
+if [ -n "${MODULE_ID:-}" ]; then
+  MODULE_IDS="$MODULE_ID"
+else
+  MODULE_IDS="$(find src/modules -mindepth 1 -maxdepth 1 -type d ! -name '_*' -exec basename {} \; | sort)"
+fi
 mkdir -p build
 
 for MODULE_ID in $MODULE_IDS; do

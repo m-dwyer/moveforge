@@ -5,7 +5,12 @@
       "name": "Dustline",
       "kind": "sound_generator"
     },
-{
+    {
+      "id": "velo_scale",
+      "name": "Velo Scale",
+      "kind": "midi_fx"
+    },
+    {
       "id": "westfold",
       "name": "Westfold",
       "kind": "sound_generator"
