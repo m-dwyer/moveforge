@@ -43,6 +43,7 @@ const sequencerPanelEl = document.getElementById("sequencerPanel");
 let params = [];
 let paramIds = {};
 let presets = [];
+let moduleIndex = []; // [{ id, name?, kind? }, ...] — populated by loadModuleIndex
 const audioEngine = new AudioEngine();
 let midiAccess = null;
 let seqTimer = null;
@@ -50,8 +51,19 @@ let seqTimer = null;
 window.addEventListener("moveforge:wasm-rebuilt", (event) => {
   const detail = event.detail;
   if (!audioEngine.ready) return;
-  if (detail?.moduleId && detail.moduleId !== audioEngine.moduleId) return;
-  audioEngine.reload().catch((error) => console.error("[dev-reload] wasm reload failed", error));
+  const rebuiltModuleId = detail?.moduleId;
+  if (!rebuiltModuleId) {
+    audioEngine.reloadAll().catch((error) => console.error("[dev-reload] wasm reload failed", error));
+    return;
+  }
+  // Reload every slot currently hosting the rebuilt module.
+  const track = state.tracks[state.selectedTrack];
+  const matchingSlots = track.chain
+    .filter((slot) => slot.moduleId === rebuiltModuleId)
+    .map((slot) => slot.id);
+  if (matchingSlots.length === 0) return;
+  Promise.all(matchingSlots.map((id) => audioEngine.reloadSlot(id)))
+    .catch((error) => console.error("[dev-reload] wasm reload failed", error));
 });
 
 const state = makeInitialState(moduleId, activeModuleName);
@@ -70,11 +82,10 @@ async function loadMetadata() {
   for (const track of state.tracks) {
     const sound = track.chain.find((slot) => slot.kind === "sound_generator");
     if (sound) {
-      sound.id = moduleJson.id || moduleId;
+      sound.moduleId = moduleJson.id || moduleId;
       sound.name = activeModuleName;
     }
-    const settings = track.chain.find((slot) => slot.kind === "settings");
-    if (settings?.lfos?.[0]) settings.lfos[0].targetComponent = moduleJson.id || moduleId;
+    // LFO target stays anchored to the positional sound slot id, not the moduleId.
   }
   params = metadata.params;
   paramIds = metadata.paramIds;
@@ -109,10 +120,11 @@ async function loadModuleIndex() {
   if (!moduleSelectEl) return;
   try {
     const index = await fetchModuleIndex();
+    moduleIndex = index.modules || [];
     moduleSelectEl.innerHTML = "";
     // Top-level dropdown drives the sound_generator slot only.
-    // midi_fx / audio_fx slots get their own pickers (chain UI).
-    for (const item of index.modules || []) {
+    // midi_fx / audio_fx slots get their own pickers in the chain inspector.
+    for (const item of moduleIndex) {
       if (item.kind && item.kind !== "sound_generator") continue;
       const option = document.createElement("option");
       option.value = item.id;
@@ -376,6 +388,18 @@ function chainToggleHtml(slot) {
   return `<button class="chain-toggle ${slot.enabled ? "selected" : ""}" type="button" data-chain-toggle>${slot.enabled ? "Enabled" : "Bypassed"}</button>`;
 }
 
+function chainPickerHtml(slot) {
+  if (slot.kind !== "midi_fx" && slot.kind !== "audio_fx") return "";
+  const options = moduleIndex.filter((item) => (item.kind || "sound_generator") === slot.kind);
+  if (options.length === 0) {
+    return `<div class="chain-picker"><label>Module</label><span class="chain-picker-empty">No ${slot.kind === "midi_fx" ? "MIDI FX" : "Audio FX"} modules installed</span></div>`;
+  }
+  const optionsHtml = [`<option value="">— Empty —</option>`]
+    .concat(options.map((item) => `<option value="${item.id}"${item.id === slot.moduleId ? " selected" : ""}>${item.name || item.id}</option>`))
+    .join("");
+  return `<div class="chain-picker"><label for="chain-picker-${slot.id}">Module</label><select id="chain-picker-${slot.id}" data-chain-picker>${optionsHtml}</select></div>`;
+}
+
 function renderChainInspector() {
   const slot = selectedSlot();
   if (!slot) {
@@ -406,6 +430,7 @@ function renderChainInspector() {
       <span>${status}</span>
       <span>${detail}</span>
     </div>
+    ${chainPickerHtml(slot)}
     ${bypassNote}`;
   const toggle = chainInspectorEl.querySelector("[data-chain-toggle]");
   if (toggle) {
@@ -414,6 +439,70 @@ function renderChainInspector() {
       update();
     });
   }
+  const picker = chainInspectorEl.querySelector("[data-chain-picker]");
+  if (picker) {
+    picker.addEventListener("change", (event) => {
+      const nextModuleId = event.target.value || null;
+      handleSlotModuleChange(slot, nextModuleId);
+    });
+  }
+}
+
+function handleSlotModuleChange(slot, nextModuleId) {
+  if (slot.moduleId === nextModuleId) return;
+  slot.moduleId = nextModuleId;
+  if (nextModuleId) {
+    const entry = moduleIndex.find((item) => item.id === nextModuleId);
+    slot.name = entry?.name || nextModuleId;
+    slot.enabled = true;
+  } else {
+    slot.name = "Empty";
+    slot.enabled = false;
+  }
+  syncChainToEngine().catch((error) => {
+    document.body.dataset.audio = "failed";
+    showError(error.message || String(error));
+  });
+  update();
+}
+
+function buildChainSpec() {
+  const track = state.tracks[state.selectedTrack];
+  const spec = [];
+  for (const slot of track.chain) {
+    if (slot.kind === "settings") continue;
+    if (!slot.moduleId) continue;
+    if (!slot.enabled && slot.kind === "audio_fx") continue;
+    spec.push({ slotId: slot.id, moduleId: slot.moduleId, kind: slot.kind });
+  }
+  return spec;
+}
+
+function buildEngineConfig() {
+  return {
+    workletUrl,
+    processorName: workletProcessor,
+    onError: (_slotId, message) => {
+      document.body.dataset.audio = "failed";
+      showError(message);
+    },
+    onSlotReady: (slotId) => {
+      if (slotId === "sound") {
+        document.body.dataset.audio = "ready";
+        params.forEach(sendParam);
+        syncAudioChain();
+      }
+    },
+    onMidiOut: (event) => {
+      // Wired in Task 4 — relay midi_fx output to the sound slot.
+      void event;
+    }
+  };
+}
+
+async function syncChainToEngine() {
+  if (!audioEngine.hasSlot("sound")) return; // not enabled yet; first enableAudio will pick up state
+  await audioEngine.enableChain(buildChainSpec(), buildEngineConfig());
 }
 
 function renderKnobs() {
@@ -674,10 +763,15 @@ function processMidiFx(note, velocity) {
 }
 
 function syncAudioChain() {
-  // Audio FX modules are no longer faked in the worklet — they run as real
-  // C/WASM if/when full chain audition is implemented (currently single-module
-  // only). For now we just propagate the bypass flag for the sound slot.
+  // Sound bypass is handled inside the sound_gen worklet (silences its output
+  // while leaving downstream FX tails alive). For midi_fx / audio_fx slots,
+  // bypass = removed from the engine chain entirely, which is what
+  // syncChainToEngine derives from buildChainSpec().
   send({ type: "soundBypass", bypassed: !soundSlot()?.enabled });
+  syncChainToEngine().catch((error) => {
+    document.body.dataset.audio = "failed";
+    showError(error.message || String(error));
+  });
 }
 
 function setParamValue(param, value, markCustom = false) {
@@ -731,20 +825,7 @@ function applyPreset(name, shouldUpdate = true) {
 async function enableAudio() {
   showError("");
   document.body.dataset.audio = "starting";
-  await audioEngine.enable({
-    moduleId,
-    processorName: workletProcessor,
-    workletUrl,
-    onReady: () => {
-      document.body.dataset.audio = "ready";
-      params.forEach(sendParam);
-      syncAudioChain();
-    },
-    onError: (message) => {
-      document.body.dataset.audio = "failed";
-      showError(message);
-    }
-  });
+  await audioEngine.enableChain(buildChainSpec(), buildEngineConfig());
 }
 
 function noteOn(note, velocity = 0.94) {

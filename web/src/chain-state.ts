@@ -14,6 +14,7 @@ export type MidiFxSlot = {
   enabled: boolean;
   id: string;
   kind: "midi_fx";
+  moduleId: string | null;
   name: string;
   params: Record<"chance" | "transpose" | "velocity", number>;
   scaleLock: boolean;
@@ -24,6 +25,7 @@ export type SoundSlot = {
   enabled: boolean;
   id: string;
   kind: "sound_generator";
+  moduleId: string | null;
   name: string;
   type: string;
 };
@@ -32,6 +34,7 @@ export type AudioFxSlot = {
   enabled: boolean;
   id: string;
   kind: "audio_fx";
+  moduleId: string | null;
   name: string;
   params: Record<"drive" | "tone" | "wet", number>;
   type: string;
@@ -164,7 +167,8 @@ function makeMidiFx(): MidiFxSlot {
     id: "midi-pre",
     kind: "midi_fx",
     type: "MIDI FX",
-    name: "Scale Gate",
+    name: "Empty",
+    moduleId: null,
     enabled: false,
     scaleLock: true,
     params: { transpose: 0, chance: 1, velocity: 1 }
@@ -172,7 +176,14 @@ function makeMidiFx(): MidiFxSlot {
 }
 
 function makeSound(moduleId: string, moduleName: string): SoundSlot {
-  return { id: moduleId, kind: "sound_generator", type: "Sound", name: moduleName, enabled: true };
+  return {
+    id: "sound",
+    kind: "sound_generator",
+    type: "Sound",
+    name: moduleName,
+    moduleId,
+    enabled: true
+  };
 }
 
 function makeAudioFx(id: string, label: string, defaults: Partial<AudioFxSlot["params"]> = {}): AudioFxSlot {
@@ -180,7 +191,8 @@ function makeAudioFx(id: string, label: string, defaults: Partial<AudioFxSlot["p
     id,
     kind: "audio_fx",
     type: label,
-    name: id === "audio-fx-2" ? "Air Tone" : "Drive Tone",
+    name: "Empty",
+    moduleId: null,
     enabled: false,
     params: { drive: 0.35, tone: 0.72, wet: 0.55, ...defaults }
   };
@@ -202,7 +214,7 @@ function makeSettings(moduleId: string): SettingsSlot {
       lfo2_depth: 0
     },
     lfos: [
-      { enabled: false, targetComponent: moduleId, targetParam: "fold", shape: "sine", depth: 0, rate: 0.25, phase: 0, polarity: "bipolar", retrigger: false },
+      { enabled: false, targetComponent: "sound", targetParam: "fold", shape: "sine", depth: 0, rate: 0.25, phase: 0, polarity: "bipolar", retrigger: false },
       { enabled: false, targetComponent: "audio-fx-1", targetParam: "wet", shape: "tri", depth: 0, rate: 0.125, phase: 0, polarity: "unipolar", retrigger: false }
     ]
   };

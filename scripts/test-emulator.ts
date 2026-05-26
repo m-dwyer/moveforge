@@ -48,10 +48,21 @@ async function main(): Promise<void> {
     await expectText(slots.nth(4), "Settings");
 
     await slots.nth(2).click();
-    await expectText(page.locator("#chainInspector"), "Drive Tone");
+    await expectText(page.locator("#chainInspector"), "Audio FX 1");
+    await expectText(page.locator("#chainInspector"), "Module");
     await expectText(page.locator("#controls"), "Drive");
     await page.locator("[data-chain-toggle]").click();
     await expectText(slots.nth(2), "enabled");
+
+    // MIDI FX picker: select velo_scale and confirm the slot reflects it.
+    await slots.nth(0).click();
+    await expectText(page.locator("#chainInspector"), "MIDI FX");
+    const midiPicker = page.locator("[data-chain-picker]");
+    await midiPicker.selectOption("velo_scale");
+    await expectText(slots.nth(0), "Velo Scale");
+    // Clearing the picker should restore "Empty".
+    await midiPicker.selectOption("");
+    await expectText(slots.nth(0), "Empty");
 
     await slots.nth(4).click();
     await expectText(page.locator("#chainInspector"), "Slot Settings");
