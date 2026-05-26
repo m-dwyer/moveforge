@@ -6,22 +6,14 @@ import {
   type LoadedModuleMetadata,
   type ModuleIndexItem
 } from "./module-metadata";
-import {
-  audioFxParamDefs,
-  makeInitialState,
-  midiFxParamDefs,
-  settingsParamDefs,
-  type AppState,
-  type ChainSlot,
-  type ScopedParamDefinition
-} from "./chain-state";
+import { makeInitialState, type AppState, type ChainSlot } from "./chain-state";
 import type { ParamDefinition } from "./module-metadata";
 
 export type StoreState = AppState & {
   activeModuleName: string;
   moduleId: string;
   moduleIndex: ModuleIndexItem[];
-  slotMeta: Map<string, LoadedModuleMetadata>;
+  slotMeta: Record<string, LoadedModuleMetadata>;
   topLevelParams: ParamDefinition[];
   error: string | null;
 };
@@ -48,7 +40,7 @@ export const useStore = create<Store>()(
     activeModuleName: initialModuleName,
     moduleId: initialModuleId,
     moduleIndex: [],
-    slotMeta: new Map(),
+    slotMeta: {},
     topLevelParams: [],
     error: null,
 
@@ -121,7 +113,7 @@ export const useStore = create<Store>()(
           target.name = "Empty";
           target.enabled = false;
           target.params = {};
-          draft.slotMeta.delete(target.id);
+          delete draft.slotMeta[target.id];
         });
         return;
       }
@@ -135,7 +127,7 @@ export const useStore = create<Store>()(
           target.name = meta.moduleJson.name ?? nextModuleId;
           target.enabled = true;
           target.params = Object.fromEntries(meta.params.map((p) => [p.key, p.default]));
-          draft.slotMeta.set(target.id, meta);
+          draft.slotMeta[target.id] = meta;
         });
       } catch (err) {
         set((draft) => {
@@ -182,43 +174,3 @@ export type SlotParamRow = {
   step: number;
   value: number;
 };
-
-export function selectParamsForSelectedSlot(state: StoreState): SlotParamRow[] {
-  const slot = selectSelectedSlot(state);
-  if (slot.kind === "sound_generator") {
-    return state.topLevelParams.map((p) => ({
-      key: p.key,
-      label: p.label,
-      min: p.min,
-      max: p.max,
-      step: p.step ?? 0.01,
-      value: p.value
-    }));
-  }
-  if (slot.kind === "settings") {
-    return scoped(settingsParamDefs, slot.params);
-  }
-  const meta = state.slotMeta.get(slot.id);
-  if (!meta) {
-    return scoped(slot.kind === "midi_fx" ? midiFxParamDefs : audioFxParamDefs, slot.params);
-  }
-  return meta.params.map((p) => ({
-    key: p.key,
-    label: p.label,
-    min: p.min,
-    max: p.max,
-    step: p.step ?? 0.01,
-    value: slot.params[p.key] ?? p.default
-  }));
-}
-
-function scoped(defs: ScopedParamDefinition[], values: Record<string, number>): SlotParamRow[] {
-  return defs.map((def) => ({
-    key: def.key,
-    label: def.label,
-    min: def.min,
-    max: def.max,
-    step: def.step ?? 0.01,
-    value: values[def.key] ?? def.default
-  }));
-}

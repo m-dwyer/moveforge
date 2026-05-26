@@ -1,13 +1,43 @@
-import { useStore, selectParamsForSelectedSlot, selectSelectedSlot } from "@/store";
+import { useMemo } from "react";
+import { useStore, selectSelectedSlot, type SlotParamRow } from "@/store";
 import { Slider } from "@/components/ui/slider";
+import { audioFxParamDefs, midiFxParamDefs, settingsParamDefs, type ScopedParamDefinition } from "@/chain-state";
 
 export function Controls() {
-  const params = useStore(selectParamsForSelectedSlot);
   const slot = useStore(selectSelectedSlot);
+  const topLevelParams = useStore((s) => s.topLevelParams);
+  const slotMetaEntry = useStore((s) => s.slotMeta[slot.id] ?? null);
   const trackIndex = useStore((s) => s.selectedTrack);
   const slotIndex = useStore((s) => s.selectedSlot);
   const setTopLevelParam = useStore((s) => s.setTopLevelParam);
   const setSlotParam = useStore((s) => s.setSlotParam);
+
+  const params = useMemo<SlotParamRow[]>(() => {
+    if (slot.kind === "sound_generator") {
+      return topLevelParams.map((p) => ({
+        key: p.key,
+        label: p.label,
+        min: p.min,
+        max: p.max,
+        step: p.step ?? 0.01,
+        value: p.value
+      }));
+    }
+    if (slot.kind === "settings") {
+      return rowsFromDefs(settingsParamDefs, slot.params);
+    }
+    if (slotMetaEntry) {
+      return slotMetaEntry.params.map((p) => ({
+        key: p.key,
+        label: p.label,
+        min: p.min,
+        max: p.max,
+        step: p.step ?? 0.01,
+        value: (slot.params as Record<string, number>)[p.key] ?? p.default
+      }));
+    }
+    return rowsFromDefs(slot.kind === "midi_fx" ? midiFxParamDefs : audioFxParamDefs, slot.params as Record<string, number>);
+  }, [slot, topLevelParams, slotMetaEntry]);
 
   if (params.length === 0) {
     return (
@@ -44,6 +74,17 @@ export function Controls() {
       ))}
     </div>
   );
+}
+
+function rowsFromDefs(defs: ScopedParamDefinition[], values: Record<string, number>): SlotParamRow[] {
+  return defs.map((def) => ({
+    key: def.key,
+    label: def.label,
+    min: def.min,
+    max: def.max,
+    step: def.step ?? 0.01,
+    value: values[def.key] ?? def.default
+  }));
 }
 
 function formatValue(p: { key: string; value: number; step: number }): string {
