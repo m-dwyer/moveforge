@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { useStore, selectSelectedSlot, type SlotParamRow } from "@/store";
 import { Slider } from "@/components/ui/slider";
 import { audioFxParamDefs, midiFxParamDefs, settingsParamDefs, type ScopedParamDefinition } from "@/chain-state";
+import { sendParamToSlot } from "@/audio";
 
 export function Controls() {
   const slot = useStore(selectSelectedSlot);
@@ -50,8 +51,16 @@ export function Controls() {
   }
 
   const onChange = (key: string, value: number) => {
-    if (slot.kind === "sound_generator") setTopLevelParam(key, value);
-    else setSlotParam(trackIndex, slotIndex, key, value);
+    if (slot.kind === "sound_generator") {
+      setTopLevelParam(key, value);
+      const p = topLevelParams.find((p) => p.key === key);
+      if (p) sendParamToSlot("sound", key, p.id, value);
+      return;
+    }
+    setSlotParam(trackIndex, slotIndex, key, value);
+    if (slot.kind === "settings") return;
+    const p = slotMetaEntry?.params.find((p) => p.key === key);
+    if (p) sendParamToSlot(slot.id, key, p.id, value);
   };
 
   return (

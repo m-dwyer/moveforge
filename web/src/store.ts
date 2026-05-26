@@ -6,7 +6,7 @@ import {
   type LoadedModuleMetadata,
   type ModuleIndexItem
 } from "./module-metadata";
-import { makeInitialState, type AppState, type ChainSlot } from "./chain-state";
+import { makeInitialState, type AppState, type ChainSlot, type ScaleName } from "./chain-state";
 import type { ParamDefinition } from "./module-metadata";
 
 export type StoreState = AppState & {
@@ -27,6 +27,10 @@ export type StoreActions = {
   toggleSlotBypass: (trackIndex: number, slotIndex: number) => void;
   setTopLevelParam: (key: string, value: number) => void;
   setSlotParam: (trackIndex: number, slotIndex: number, key: string, value: number) => void;
+  setPadLayout: (layout: AppState["padLayout"]) => void;
+  setRoot: (root: number) => void;
+  setScale: (scale: ScaleName) => void;
+  setOctave: (octave: number) => void;
 };
 
 export type Store = StoreState & StoreActions;
@@ -154,6 +158,26 @@ export const useStore = create<Store>()(
         const slot = draft.tracks[trackIndex].chain[slotIndex];
         if (slot.kind === "sound_generator") return;
         (slot.params as Record<string, number>)[key] = value;
+      }),
+
+    setPadLayout: (layout) =>
+      set((draft) => {
+        draft.padLayout = layout;
+      }),
+
+    setRoot: (root) =>
+      set((draft) => {
+        draft.root = root;
+      }),
+
+    setScale: (scale) =>
+      set((draft) => {
+        draft.scale = scale;
+      }),
+
+    setOctave: (octave) =>
+      set((draft) => {
+        draft.octave = octave;
       })
   }))
 );
