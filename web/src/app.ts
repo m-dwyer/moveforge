@@ -494,8 +494,29 @@ function buildEngineConfig() {
       }
     },
     onMidiOut: (event) => {
-      // Wired in Task 4 — relay midi_fx output to the sound slot.
-      void event;
+      // Relay MIDI emitted by a midi_fx worklet onward to the sound_gen slot.
+      // Only midi_fx slots emit midiOut; if a future module emits too, it
+      // would also flow here — we keep the routing scoped to the midi_fx slot.
+      const slot = midiFxSlot();
+      if (!slot || event.slotId !== slot.id) return;
+      if (!audioEngine.hasSlot("sound")) return;
+      const type = event.status & 0xF0;
+      if (type === 0x90 && event.d2 > 0) {
+        audioEngine.sendToSlot("sound", {
+          type: "noteOn",
+          note: event.d1,
+          velocity: event.d2 / 127
+        });
+      } else if (type === 0x80 || (type === 0x90 && event.d2 === 0)) {
+        audioEngine.sendToSlot("sound", { type: "noteOff", note: event.d1 });
+      } else {
+        audioEngine.sendToSlot("sound", {
+          type: "midiIn",
+          status: event.status,
+          d1: event.d1,
+          d2: event.d2
+        });
+      }
     }
   };
 }
@@ -828,9 +849,28 @@ async function enableAudio() {
   await audioEngine.enableChain(buildChainSpec(), buildEngineConfig());
 }
 
+function activeMidiFxSlotId() {
+  const slot = midiFxSlot();
+  if (!slot?.moduleId) return null;
+  return audioEngine.hasSlot(slot.id) ? slot.id : null;
+}
+
 function noteOn(note, velocity = 0.94) {
   enableAudio().then(() => {
     if (!midiAccess) void enableMidi(true);
+    const midiFxId = activeMidiFxSlotId();
+    if (midiFxId) {
+      // Real midi_fx module: route through the worklet. The sound slot is
+      // fed by onMidiOut as the WASM emits transformed messages.
+      audioEngine.sendToSlot(midiFxId, {
+        type: "midiIn",
+        status: 0x90,
+        d1: clamp(Math.round(note), 0, 127),
+        d2: clamp(Math.round(velocity * 127), 1, 127)
+      });
+      return;
+    }
+    // Legacy client-side midi_fx shim (mock chain-state midi_fx slot).
     const processed = processMidiFx(note, velocity);
     if (!processed) return;
     const track = state.tracks[state.selectedTrack];
@@ -843,6 +883,16 @@ function noteOn(note, velocity = 0.94) {
 }
 
 function noteOff(note) {
+  const midiFxId = activeMidiFxSlotId();
+  if (midiFxId) {
+    audioEngine.sendToSlot(midiFxId, {
+      type: "midiIn",
+      status: 0x80,
+      d1: clamp(Math.round(note), 0, 127),
+      d2: 0
+    });
+    return;
+  }
   const track = state.tracks[state.selectedTrack];
   const processedNote = track.activeNotes.get(note) ?? note;
   track.activeNotes.delete(note);

@@ -63,6 +63,9 @@ async function main(): Promise<void> {
     // Clearing the picker should restore "Empty".
     await midiPicker.selectOption("");
     await expectText(slots.nth(0), "Empty");
+    // Re-select so the final pad click exercises midi_fx → sound routing.
+    await midiPicker.selectOption("velo_scale");
+    await expectText(slots.nth(0), "Velo Scale");
 
     await slots.nth(4).click();
     await expectText(page.locator("#chainInspector"), "Slot Settings");
