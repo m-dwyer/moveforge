@@ -472,7 +472,10 @@ function buildChainSpec() {
   for (const slot of track.chain) {
     if (slot.kind === "settings") continue;
     if (!slot.moduleId) continue;
-    if (!slot.enabled && slot.kind === "audio_fx") continue;
+    // Bypass for midi_fx / audio_fx = remove from engine chain entirely.
+    // Sound bypass is handled inside the worklet via the soundBypass
+    // message so downstream FX tails can keep ringing out.
+    if (!slot.enabled && (slot.kind === "audio_fx" || slot.kind === "midi_fx")) continue;
     spec.push({ slotId: slot.id, moduleId: slot.moduleId, kind: slot.kind });
   }
   return spec;
@@ -523,6 +526,11 @@ function buildEngineConfig() {
 
 async function syncChainToEngine() {
   if (!audioEngine.hasSlot("sound")) return; // not enabled yet; first enableAudio will pick up state
+  // Rebuilding the chain tears down + recreates worklets for changed slots,
+  // which loses any held-note state. Release everything currently sounding
+  // so the rebuilt chain starts silent instead of with stuck synth voices.
+  audioEngine.sendToAll({ type: "allNotesOff" });
+  for (const track of state.tracks) track.activeNotes.clear();
   await audioEngine.enableChain(buildChainSpec(), buildEngineConfig());
 }
 
@@ -851,7 +859,7 @@ async function enableAudio() {
 
 function activeMidiFxSlotId() {
   const slot = midiFxSlot();
-  if (!slot?.moduleId) return null;
+  if (!slot?.moduleId || !slot.enabled) return null;
   return audioEngine.hasSlot(slot.id) ? slot.id : null;
 }
 
