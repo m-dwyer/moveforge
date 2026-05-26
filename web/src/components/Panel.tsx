@@ -2,6 +2,7 @@ import { useStore, selectSelectedSlot } from "@/store";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Chain } from "./Chain";
 import { Controls } from "./Controls";
+import { Presets } from "./Presets";
 import { TrackBar } from "./TrackBar";
 
 export function Panel() {
@@ -49,6 +50,8 @@ export function Panel() {
       <TrackBar />
 
       <Chain />
+
+      {slot.kind === "sound_generator" && <Presets />}
 
       <Controls />
     </section>

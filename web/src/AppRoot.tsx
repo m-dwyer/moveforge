@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { Panel } from "@/components/Panel";
 import { PadConfig } from "@/components/PadConfig";
 import { PadGrid } from "@/components/PadGrid";
+import { StepHarness } from "@/components/StepHarness";
 
 export function AppRoot() {
   const initialize = useStore((s) => s.initialize);
@@ -46,6 +47,7 @@ export function AppRoot() {
           <PadConfig />
           <PadGrid />
         </section>
+        <StepHarness />
         <footer className="text-xs text-muted">
           Move emulator (knobs/transport/sequencer) lands later. Legacy app:{" "}
           <a className="text-accent underline" href="/web/legacy.html">/web/legacy.html</a>.

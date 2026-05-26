@@ -7,6 +7,8 @@ import {
   type ModuleIndexItem
 } from "./module-metadata";
 import { makeInitialState, type AppState, type ChainSlot, type ScaleName } from "./chain-state";
+import type { Preset } from "./module-metadata";
+import { sendParamToSlot } from "./audio";
 import type { ParamDefinition } from "./module-metadata";
 
 export type StoreState = AppState & {
@@ -15,6 +17,7 @@ export type StoreState = AppState & {
   moduleIndex: ModuleIndexItem[];
   slotMeta: Record<string, LoadedModuleMetadata>;
   topLevelParams: ParamDefinition[];
+  presets: Preset[];
   error: string | null;
 };
 
@@ -31,6 +34,13 @@ export type StoreActions = {
   setRoot: (root: number) => void;
   setScale: (scale: ScaleName) => void;
   setOctave: (octave: number) => void;
+  applyPreset: (name: string) => void;
+  setPlaying: (playing: boolean) => void;
+  setPlayStep: (index: number) => void;
+  toggleStep: (index: number) => void;
+  selectStep: (index: number) => void;
+  setStepNote: (index: number, note: number) => void;
+  setStepVelocity: (index: number, velocity: number) => void;
 };
 
 export type Store = StoreState & StoreActions;
@@ -46,6 +56,7 @@ export const useStore = create<Store>()(
     moduleIndex: [],
     slotMeta: {},
     topLevelParams: [],
+    presets: [],
     error: null,
 
     initialize: async (moduleId) => {
@@ -56,6 +67,8 @@ export const useStore = create<Store>()(
           draft.moduleId = moduleId;
           draft.activeModuleName = metaRes.moduleJson.name ?? moduleId;
           draft.topLevelParams = metaRes.params;
+          draft.presets = metaRes.presets;
+          draft.selectedPreset = metaRes.presets[0]?.name ?? "Init";
           for (const track of draft.tracks) {
             const sound = track.chain.find((s) => s.kind === "sound_generator");
             if (sound) {
@@ -89,6 +102,8 @@ export const useStore = create<Store>()(
           draft.moduleId = moduleId;
           draft.activeModuleName = meta.moduleJson.name ?? moduleId;
           draft.topLevelParams = meta.params;
+          draft.presets = meta.presets;
+          draft.selectedPreset = meta.presets[0]?.name ?? "Init";
           for (const track of draft.tracks) {
             const sound = track.chain.find((s) => s.kind === "sound_generator");
             if (sound) {
@@ -178,6 +193,55 @@ export const useStore = create<Store>()(
     setOctave: (octave) =>
       set((draft) => {
         draft.octave = octave;
+      }),
+
+    applyPreset: (name) => {
+      const preset = get().presets.find((p) => p.name === name);
+      if (!preset || !preset.params) return;
+      set((draft) => {
+        draft.selectedPreset = name;
+        for (const [key, value] of Object.entries(preset.params!)) {
+          const param = draft.topLevelParams.find((p) => p.key === key);
+          if (param) param.value = value;
+        }
+      });
+      // Push the new values to the audio engine.
+      const params = get().topLevelParams;
+      for (const [key, value] of Object.entries(preset.params)) {
+        const p = params.find((q) => q.key === key);
+        if (p) sendParamToSlot("sound", key, p.id, value);
+      }
+    },
+
+    setPlaying: (playing) =>
+      set((draft) => {
+        draft.playing = playing;
+        if (!playing) draft.playStep = -1;
+      }),
+
+    setPlayStep: (index) =>
+      set((draft) => {
+        draft.playStep = index;
+      }),
+
+    toggleStep: (index) =>
+      set((draft) => {
+        draft.steps[index].enabled = !draft.steps[index].enabled;
+      }),
+
+    selectStep: (index) =>
+      set((draft) => {
+        draft.selectedStep = index;
+      }),
+
+    setStepNote: (index, note) =>
+      set((draft) => {
+        draft.steps[index].note = note;
+      }),
+
+    setStepVelocity: (index, velocity) =>
+      set((draft) => {
+        draft.steps[index].velocity = velocity;
       })
   }))
 );
