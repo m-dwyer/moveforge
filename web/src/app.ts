@@ -1,9 +1,7 @@
 // @ts-nocheck
 import { AudioEngine } from "./audio-engine.js";
 import {
-  audioFxParamDefs,
   makeInitialState,
-  midiFxParamDefs,
   scales,
   settingsParamDefs
 } from "./chain-state.js";
@@ -44,6 +42,7 @@ let params = [];
 let paramIds = {};
 let presets = [];
 let moduleIndex = []; // [{ id, name?, kind? }, ...] — populated by loadModuleIndex
+const slotMeta = new Map(); // slotId -> LoadedModuleMetadata for that slot's current module
 const audioEngine = new AudioEngine();
 let midiAccess = null;
 let seqTimer = null;
@@ -182,14 +181,13 @@ function format(param) {
   }
   if (param.key === "midi_fx_output") return Number(param.value) < 0.5 ? "Schw" : "Both";
   if (param.key === "bend_range") return Number(param.value).toFixed(1);
-  if (param.max > 3) return Number(param.value).toFixed(2);
+  if (Number(param.step) >= 1) return Number(param.value).toFixed(0);
   return Number(param.value).toFixed(2);
 }
 
 function activeParams() {
   const slot = selectedSlot();
-  if (state.mode === "chain" && slot?.kind === "midi_fx") return scopedParams(midiFxParamDefs, slot.params, slot);
-  if (state.mode === "chain" && slot?.kind === "audio_fx") return scopedParams(audioFxParamDefs, slot.params, slot);
+  if (state.mode === "chain" && (slot?.kind === "midi_fx" || slot?.kind === "audio_fx")) return scopedParamsForSlot(slot);
   if (state.mode === "chain" && slot?.kind === "settings") return scopedParams(settingsParamDefs, slot.params, slot);
   return params;
 }
@@ -448,22 +446,63 @@ function renderChainInspector() {
   }
 }
 
-function handleSlotModuleChange(slot, nextModuleId) {
+async function handleSlotModuleChange(slot, nextModuleId) {
   if (slot.moduleId === nextModuleId) return;
   slot.moduleId = nextModuleId;
   if (nextModuleId) {
     const entry = moduleIndex.find((item) => item.id === nextModuleId);
     slot.name = entry?.name || nextModuleId;
     slot.enabled = true;
+    try {
+      const meta = await loadModuleMetadata(nextModuleId);
+      slotMeta.set(slot.id, meta);
+      slot.params = {};
+      for (const param of meta.params) slot.params[param.key] = param.default;
+    } catch (error) {
+      showError(`Failed to load ${nextModuleId} metadata: ${error.message || error}`);
+    }
   } else {
     slot.name = "Empty";
     slot.enabled = false;
+    slotMeta.delete(slot.id);
+    slot.params = {};
   }
-  syncChainToEngine().catch((error) => {
+  try {
+    await syncChainToEngine();
+  } catch (error) {
     document.body.dataset.audio = "failed";
     showError(error.message || String(error));
-  });
+  }
   update();
+}
+
+function scopedParamsForSlot(slot) {
+  const meta = slotMeta.get(slot.id);
+  if (!meta) return [];
+  return meta.params.map((p) => ({
+    scope: "component",
+    componentId: slot.id,
+    key: p.key,
+    label: p.label,
+    min: p.min,
+    max: p.max,
+    default: p.default,
+    step: p.step,
+    id: p.id,
+    value: slot.params[p.key] ?? p.default
+  }));
+}
+
+function seedSlotParams(slotId) {
+  const track = state.tracks[state.selectedTrack];
+  const slot = track.chain.find((s) => s.id === slotId);
+  if (!slot) return;
+  const meta = slotMeta.get(slotId);
+  if (!meta) return;
+  for (const p of meta.params) {
+    const value = slot.params[p.key] ?? p.default;
+    audioEngine.sendToSlot(slotId, { type: "param", key: p.key, id: p.id, value });
+  }
 }
 
 function buildChainSpec() {
@@ -494,7 +533,9 @@ function buildEngineConfig() {
         document.body.dataset.audio = "ready";
         params.forEach(sendParam);
         syncAudioChain();
+        return;
       }
+      seedSlotParams(slotId);
     },
     onMidiOut: (event) => {
       // Relay MIDI emitted by a midi_fx worklet onward to the sound_gen slot.
@@ -778,8 +819,11 @@ function nearestScaleNote(note) {
 function processMidiFx(note, velocity) {
   const slot = midiFxSlot();
   if (!slot?.enabled) return { note, velocity };
-  if (Math.random() > slot.params.chance) return null;
-  let processedNote = clamp(note + slot.params.transpose, 0, 127);
+  const chance = slot.params.chance ?? 1;
+  const transpose = slot.params.transpose ?? 0;
+  const velMul = slot.params.velocity ?? 1;
+  if (Math.random() > chance) return null;
+  let processedNote = clamp(note + transpose, 0, 127);
   if (slot.scaleLock) processedNote = nearestScaleNote(processedNote);
   const settings = settingsComponent();
   if (settings?.params.midi_fx_output >= 0.5) {
@@ -787,7 +831,7 @@ function processMidiFx(note, velocity) {
   }
   return {
     note: processedNote,
-    velocity: clamp(velocity * slot.params.velocity, 0, 1)
+    velocity: clamp(velocity * velMul, 0, 1)
   };
 }
 
@@ -809,7 +853,11 @@ function setParamValue(param, value, markCustom = false) {
   const component = param.componentId ? currentChain().find((slot) => slot.id === param.componentId) : null;
   if (param.scope === "component" && component) {
     component.params[param.key] = nextValue;
-    syncAudioChain();
+    if ((component.kind === "audio_fx" || component.kind === "midi_fx") && component.enabled && audioEngine.hasSlot(component.id)) {
+      audioEngine.sendToSlot(component.id, { type: "param", key: param.key, id: param.id, value: nextValue });
+    } else {
+      syncAudioChain();
+    }
     update();
     return;
   }

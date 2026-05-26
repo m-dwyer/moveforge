@@ -16,7 +16,7 @@ export type MidiFxSlot = {
   kind: "midi_fx";
   moduleId: string | null;
   name: string;
-  params: Record<"chance" | "transpose" | "velocity", number>;
+  params: Record<string, number>;
   scaleLock: boolean;
   type: string;
 };
@@ -36,7 +36,7 @@ export type AudioFxSlot = {
   kind: "audio_fx";
   moduleId: string | null;
   name: string;
-  params: Record<"drive" | "tone" | "wet", number>;
+  params: Record<string, number>;
   type: string;
 };
 
@@ -171,7 +171,7 @@ function makeMidiFx(): MidiFxSlot {
     moduleId: null,
     enabled: false,
     scaleLock: true,
-    params: { transpose: 0, chance: 1, velocity: 1 }
+    params: {}
   };
 }
 
@@ -186,7 +186,7 @@ function makeSound(moduleId: string, moduleName: string): SoundSlot {
   };
 }
 
-function makeAudioFx(id: string, label: string, defaults: Partial<AudioFxSlot["params"]> = {}): AudioFxSlot {
+function makeAudioFx(id: string, label: string): AudioFxSlot {
   return {
     id,
     kind: "audio_fx",
@@ -194,7 +194,7 @@ function makeAudioFx(id: string, label: string, defaults: Partial<AudioFxSlot["p
     name: "Empty",
     moduleId: null,
     enabled: false,
-    params: { drive: 0.35, tone: 0.72, wet: 0.55, ...defaults }
+    params: {}
   };
 }
 
@@ -226,7 +226,7 @@ function makeSlotState(moduleId: string, moduleName: string): TrackState {
       makeMidiFx(),
       makeSound(moduleId, moduleName),
       makeAudioFx("audio-fx-1", "Audio FX 1"),
-      makeAudioFx("audio-fx-2", "Audio FX 2", { drive: 0.08, tone: 0.9, wet: 0.25 }),
+      makeAudioFx("audio-fx-2", "Audio FX 2"),
       makeSettings(moduleId)
     ],
     activeNotes: new Map(),
@@ -237,10 +237,10 @@ function makeSlotState(moduleId: string, moduleName: string): TrackState {
 function makeMasterState(): MasterState {
   return {
     chain: [
-      makeAudioFx("master-fx-1", "Master FX 1", { drive: 0.1, wet: 0.25 }),
-      makeAudioFx("master-fx-2", "Master FX 2", { drive: 0.2, wet: 0.2 }),
-      makeAudioFx("master-fx-3", "Master FX 3", { drive: 0, tone: 0.6, wet: 0 }),
-      makeAudioFx("master-fx-4", "Master FX 4", { drive: 0, tone: 0.6, wet: 0 })
+      makeAudioFx("master-fx-1", "Master FX 1"),
+      makeAudioFx("master-fx-2", "Master FX 2"),
+      makeAudioFx("master-fx-3", "Master FX 3"),
+      makeAudioFx("master-fx-4", "Master FX 4")
     ]
   };
 }
