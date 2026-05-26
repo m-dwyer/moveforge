@@ -110,7 +110,10 @@ async function loadModuleIndex() {
   try {
     const index = await fetchModuleIndex();
     moduleSelectEl.innerHTML = "";
+    // Top-level dropdown drives the sound_generator slot only.
+    // midi_fx / audio_fx slots get their own pickers (chain UI).
     for (const item of index.modules || []) {
+      if (item.kind && item.kind !== "sound_generator") continue;
       const option = document.createElement("option");
       option.value = item.id;
       option.textContent = item.name || item.id;
