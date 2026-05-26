@@ -31,8 +31,8 @@ export function AppRoot() {
 
   useEffect(() => {
     const handler = (event: Event) => {
-      const detail = (event as CustomEvent<{ moduleId?: string }>).detail;
-      if (detail?.moduleId) void reloadModuleWasm(detail.moduleId);
+      const detail = (event as CustomEvent<{ moduleId: string | null }>).detail;
+      void reloadModuleWasm(detail?.moduleId ?? null);
     };
     window.addEventListener("moveforge:wasm-rebuilt", handler);
     return () => window.removeEventListener("moveforge:wasm-rebuilt", handler);

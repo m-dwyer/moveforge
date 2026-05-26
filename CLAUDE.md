@@ -65,10 +65,10 @@ mise run suite   # render preset WAVs under renders/<module-id>-suite/
 mise run plot    # render suite and generate waveform/spectrum PNGs
 mise run host    # build local host-only shared library
 mise run wasm    # build web/wasm/<module-id>.wasm with Emscripten Docker image
-mise run serve   # serve repo at http://localhost:8765/
-mise run dev     # serve + rebuild on save, hot-reload WASM in the browser without a page refresh (web changes still reload the page)
+mise run serve   # run Vite dev server at http://localhost:8765/web/
+mise run dev     # same as serve; Vite handles React HMR + a custom plugin watches src/modules/* and rebuilds the relevant WASM, then hot-swaps that slot in the audio engine without a page reload
 mise run web     # build WASM then serve the web UI
-mise run emulator-test # run browser emulator smoke tests
+mise run emulator-test # currently a stub (see docs/emulator-test-rewrite.md)
 mise run move    # build aarch64 Move-target module package
 mise run move-health # check SSH, Schwung paths, disk, logs, and installed module files
 mise run move-logs # tail /data/UserData/schwung/debug.log
@@ -84,8 +84,10 @@ Native/device `make` targets exist for `make test`, `make render`, `make suite`,
 The web UI is served at:
 
 ```text
-http://localhost:8765/
+http://localhost:8765/web/
 ```
+
+The browser UI is React + Vite + Tailwind + shadcn (`web/src/*.tsx`, `web/src/components/*`). State is in a Zustand store (`web/src/store.ts`); the audio engine bridge is `web/src/audio.ts` and wraps `web/src/audio-engine.ts` unchanged.
 
 ## Build And Deploy Flow
 

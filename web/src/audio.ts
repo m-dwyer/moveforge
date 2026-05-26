@@ -116,13 +116,13 @@ export function sendParamToSlot(slotId: string, key: string, id: number, value: 
   engine.sendToSlot(slotId, { type: "param", key, id, value });
 }
 
-export async function reloadModuleWasm(moduleId: string): Promise<void> {
-  // Reload every slot currently hosting the rebuilt module.
+export async function reloadModuleWasm(moduleId: string | null): Promise<void> {
+  // moduleId === null means a shared host header changed; reload every loaded slot.
   const state = useStore.getState();
   for (const track of state.tracks) {
     for (const slot of track.chain) {
       if (slot.kind === "settings") continue;
-      if (slot.moduleId !== moduleId) continue;
+      if (moduleId !== null && slot.moduleId !== moduleId) continue;
       if (engine.hasSlot(slot.id)) await engine.reloadSlot(slot.id);
     }
   }
