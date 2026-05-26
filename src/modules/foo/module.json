@@ -1,0 +1,33 @@
+{
+  "id": "foo",
+  "name": "Foo",
+  "abbrev": "FOO",
+  "version": "0.1.0",
+  "description": "Stereo feedback delay",
+  "author": "Local",
+  "ui": "ui.js",
+  "ui_chain": "ui_chain.js",
+  "dsp": "dsp.so",
+  "api_version": 2,
+  "capabilities": {
+    "audio_out": true,
+    "audio_in": true,
+    "midi_in": false,
+    "midi_out": false,
+    "chainable": true,
+    "component_type": "audio_fx",
+    "ui_hierarchy": {
+      "levels": {
+        "root": {
+          "name": "Foo",
+          "params": [
+            { "key": "time", "name": "Time", "type": "float", "min": 0, "max": 1, "default": 0.25, "step": 0.01 },
+            { "key": "feedback", "name": "Feedback", "type": "float", "min": 0, "max": 0.95, "default": 0.35, "step": 0.01 },
+            { "key": "mix", "name": "Mix", "type": "float", "min": 0, "max": 1, "default": 0.35, "step": 0.01 }
+          ],
+          "knobs": ["time", "feedback", "mix"]
+        }
+      }
+    }
+  }
+}

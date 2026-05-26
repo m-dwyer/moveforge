@@ -1,0 +1,20 @@
+{
+  "module_id": "foo",
+  "presets": [
+    {
+      "name": "Init",
+      "params": { "time": 0.25, "feedback": 0.35, "mix": 0.35 },
+      "render": { "file": "00-init.wav", "signal": "impulse", "seconds": 4 }
+    },
+    {
+      "name": "Slap",
+      "params": { "time": 0.08, "feedback": 0.15, "mix": 0.5 },
+      "render": { "file": "01-slap.wav", "signal": "impulse", "seconds": 3 }
+    },
+    {
+      "name": "Dub",
+      "params": { "time": 0.55, "feedback": 0.75, "mix": 0.45 },
+      "render": { "file": "02-dub.wav", "signal": "impulse", "seconds": 6 }
+    }
+  ]
+}

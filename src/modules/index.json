@@ -1,14 +1,19 @@
 {
   "modules": [
     {
+      "id": "arpy",
+      "name": "Arpy",
+      "kind": "midi_fx"
+    },
+    {
       "id": "dustline",
       "name": "Dustline",
       "kind": "sound_generator"
     },
     {
-      "id": "velo_scale",
-      "name": "Velo Scale",
-      "kind": "midi_fx"
+      "id": "foo",
+      "name": "Foo",
+      "kind": "audio_fx"
     },
     {
       "id": "westfold",

@@ -1,0 +1,50 @@
+{
+  "00-init.wav": {
+    "sample_rate": 44100,
+    "channels": 2,
+    "frames": 176400,
+    "duration_seconds": 4,
+    "peak": 0.45621,
+    "rms": 0.00353,
+    "dc_offset": 0.000038,
+    "silence_ratio": 0.9995,
+    "clipped_samples": 0,
+    "zero_crossing_rate": [
+      0,
+      0
+    ],
+    "stereo_correlation": 1
+  },
+  "01-slap.wav": {
+    "sample_rate": 44100,
+    "channels": 2,
+    "frames": 132300,
+    "duration_seconds": 3,
+    "peak": 0.35092,
+    "rms": 0.00387,
+    "dc_offset": 0.000046,
+    "silence_ratio": 0.9996,
+    "clipped_samples": 0,
+    "zero_crossing_rate": [
+      0,
+      0
+    ],
+    "stereo_correlation": 1
+  },
+  "02-dub.wav": {
+    "sample_rate": 44100,
+    "channels": 2,
+    "frames": 264600,
+    "duration_seconds": 6,
+    "peak": 0.38602,
+    "rms": 0.00311,
+    "dc_offset": 0.000047,
+    "silence_ratio": 0.999,
+    "clipped_samples": 0,
+    "zero_crossing_rate": [
+      0,
+      0
+    ],
+    "stereo_correlation": 1
+  }
+}

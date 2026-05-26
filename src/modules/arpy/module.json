@@ -1,0 +1,33 @@
+{
+  "id": "arpy",
+  "name": "Arpy",
+  "abbrev": "ARP",
+  "version": "0.1.0",
+  "description": "Arpy MIDI effect",
+  "author": "Local",
+  "ui": "ui.js",
+  "ui_chain": "ui_chain.js",
+  "dsp": "dsp.so",
+  "api_version": 2,
+  "capabilities": {
+    "audio_out": false,
+    "audio_in": false,
+    "midi_in": true,
+    "midi_out": true,
+    "chainable": true,
+    "component_type": "midi_fx",
+    "ui_hierarchy": {
+      "levels": {
+        "root": {
+          "name": "Arpy",
+          "params": [
+            { "key": "pattern", "name": "Pattern", "type": "float", "min": 0, "max": 3, "default": 1, "step": 1 },
+            { "key": "chord", "name": "Chord", "type": "float", "min": 0, "max": 4, "default": 3, "step": 1 },
+            { "key": "rate", "name": "Rate", "type": "float", "min": 0, "max": 1, "default": 0.3, "step": 0.01 }
+          ],
+          "knobs": ["pattern", "chord", "rate"]
+        }
+      }
+    }
+  }
+}

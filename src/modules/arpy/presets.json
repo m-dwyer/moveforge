@@ -1,0 +1,25 @@
+{
+  "module_id": "arpy",
+  "presets": [
+    {
+      "name": "Off",
+      "params": { "pattern": 0, "chord": 3, "rate": 0.3 },
+      "render": { "file": "00-off.trace", "blocks": 60, "notes": [60], "velocity": 100 }
+    },
+    {
+      "name": "Triad Up",
+      "params": { "pattern": 1, "chord": 3, "rate": 0.3 },
+      "render": { "file": "01-triad-up.trace", "blocks": 120, "notes": [60], "velocity": 100, "note_blocks": 120, "gate_blocks": 120 }
+    },
+    {
+      "name": "Power Up-Down",
+      "params": { "pattern": 3, "chord": 2, "rate": 0.4 },
+      "render": { "file": "02-power-updown.trace", "blocks": 160, "notes": [60], "velocity": 100, "note_blocks": 160, "gate_blocks": 160 }
+    },
+    {
+      "name": "Dom7 Up",
+      "params": { "pattern": 1, "chord": 4, "rate": 0.2 },
+      "render": { "file": "03-dom7-up.trace", "blocks": 120, "notes": [60], "velocity": 100, "note_blocks": 120, "gate_blocks": 120 }
+    }
+  ]
+}

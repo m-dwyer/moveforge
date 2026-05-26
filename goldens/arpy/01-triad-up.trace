@@ -1,0 +1,10 @@
+# midi_fx trace
+# blocks=120 notes=60 velocity=100 note_blocks=120 gate_blocks=120
+# param pattern=1
+# param chord=3
+# param rate=0.3
+# block event bytes
+0 in 90 3C 64
+0 tick-out 90 3C 64
+81 tick-out 80 3C 00
+115 tick-out 90 40 64
