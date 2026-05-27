@@ -36,6 +36,8 @@ function Pad({ note, root, scale }: { note: number; root: number; scale: "major"
   return (
     <button
       type="button"
+      data-testid="pad"
+      data-note={note}
       title={noteLabel(note)}
       onPointerDown={(e) => {
         e.preventDefault();

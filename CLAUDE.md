@@ -68,7 +68,7 @@ mise run wasm    # build web/wasm/<module-id>.wasm with Emscripten Docker image
 mise run serve   # run Vite dev server at http://localhost:8765/
 mise run dev     # same as serve; Vite handles React HMR + a custom plugin watches src/modules/* and rebuilds the relevant WASM, then hot-swaps that slot in the audio engine without a page reload
 mise run web     # build WASM then serve the web UI
-mise run emulator-test # currently a stub (see docs/emulator-test-rewrite.md)
+mise run web-test # Playwright tests against the React web UI (audio mocked)
 mise run move    # build aarch64 Move-target module package
 mise run move-health # check SSH, Schwung paths, disk, logs, and installed module files
 mise run move-logs # tail /data/UserData/schwung/debug.log
@@ -79,7 +79,7 @@ mise run check   # run non-device checks: validate, test, suite, plot, host
 mise run check-all # run non-device checks for all included modules
 ```
 
-Native/device `make` targets exist for `make test`, `make render`, `make suite`, `make plot`, `make host`, `make wasm`, `make move`, `make move-health`, `make move-logs`, `make move-cache`, `make move-restart`, `make move-screen`, `make check`, `make check-all`, and `make clean`. Node, TypeScript, and browser tasks live in `package.json` (`pnpm run validate`, `pnpm run serve`, `pnpm run emulator-test`, `pnpm run typecheck`). Keep Move shell operations out of `package.json`; use direct scripts, `make`, or `mise` tasks instead. Module-aware commands default to `MODULE_ID=westfold`; use `MODULE_ID=dustline make suite` or `MODULE_ID=dustline mise run wasm` for Dustline.
+Native/device `make` targets exist for `make test`, `make render`, `make suite`, `make plot`, `make host`, `make wasm`, `make move`, `make move-health`, `make move-logs`, `make move-cache`, `make move-restart`, `make move-screen`, `make check`, `make check-all`, and `make clean`. Node, TypeScript, and browser tasks live in `package.json` (`pnpm run validate`, `pnpm run serve`, `pnpm test`, `pnpm run typecheck`). Keep Move shell operations out of `package.json`; use direct scripts, `make`, or `mise` tasks instead. Module-aware commands default to `MODULE_ID=westfold`; use `MODULE_ID=dustline make suite` or `MODULE_ID=dustline mise run wasm` for Dustline.
 
 The web UI is served at:
 

@@ -14,9 +14,9 @@ run = "pnpm run validate"
 description = "Generate <module>_params.gen.inc files from each module.json"
 run = "pnpm run gen-params"
 
-[tasks.emulator-test]
-description = "Run browser emulator smoke tests"
-run = "pnpm run emulator-test"
+[tasks.web-test]
+description = "Run Playwright tests against the React web UI"
+run = "pnpm test"
 
 [tasks.render]
 description = "Render the default demo WAV"

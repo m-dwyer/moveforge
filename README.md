@@ -202,7 +202,7 @@ make check-all
 pnpm run typecheck
 pnpm run validate
 pnpm run serve
-pnpm run emulator-test
+pnpm test
 ```
 
 Scaffold a new sound generator or audio effect:
@@ -222,7 +222,7 @@ mise run plot
 mise run wasm
 mise run web
 mise run dev
-mise run emulator-test
+mise run web-test
 mise run check
 mise run check-all
 mise run deploy

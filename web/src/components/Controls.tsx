@@ -42,7 +42,7 @@ export function Controls() {
 
   if (params.length === 0) {
     return (
-      <div className="rounded-md border border-line bg-panel-2 p-4 text-sm text-muted">
+      <div data-testid="controls" className="rounded-md border border-line bg-panel-2 p-4 text-sm text-muted">
         {slot.kind === "midi_fx" || slot.kind === "audio_fx"
           ? "Pick a module above to see its parameters."
           : "No parameters for this slot."}
@@ -64,7 +64,7 @@ export function Controls() {
   };
 
   return (
-    <div className="overflow-hidden rounded-md border border-line bg-panel-2">
+    <div data-testid="controls" className="overflow-hidden rounded-md border border-line bg-panel-2">
       {params.map((p) => (
         <div
           key={p.key}

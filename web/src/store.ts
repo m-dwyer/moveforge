@@ -8,7 +8,7 @@ import {
 } from "./module-metadata";
 import { makeInitialState, type AppState, type ChainSlot, type ScaleName } from "./chain-state";
 import type { Preset } from "./module-metadata";
-import { sendParamToSlot } from "./audio";
+import { sendParamToSlot } from "@/audio";
 import type { ParamDefinition } from "./module-metadata";
 
 export type StoreState = AppState & {

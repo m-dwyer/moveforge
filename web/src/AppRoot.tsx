@@ -50,7 +50,7 @@ export function AppRoot() {
         <div className="mx-auto flex h-full max-w-[1400px] flex-col gap-3 p-4">
           <header className="flex items-baseline justify-between">
             <div>
-              <h1 className="text-lg font-bold tracking-tight">{activeModuleName}</h1>
+              <h1 className="text-lg font-bold tracking-tight" data-testid="panel-title">{activeModuleName}</h1>
               <p className="text-xs text-muted">
                 Track {selectedTrack + 1} / {slot.type}
               </p>

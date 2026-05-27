@@ -6,29 +6,35 @@ import { readFile } from "node:fs/promises";
 
 const REPO_ROOT = import.meta.dirname;
 
-export default defineConfig({
-  root: "web",
-  server: {
-    port: 8765,
-    strictPort: true,
-    open: "/",
-    watch: {
-      // .wasm changes are handled by the WASM rebuilder below, which fires a
-      // custom HMR event the page listens for. Skip the default reload.
-      ignored: ["**/wasm/**", "**/dist/**"]
-    }
-  },
-  resolve: {
-    alias: {
-      "@": resolve(REPO_ROOT, "web/src")
-    }
-  },
-  build: {
-    outDir: "dist",
-    emptyOutDir: true,
-    target: "es2022"
-  },
-  plugins: [react(), serveRepoModules(), wasmRebuilder()]
+export default defineConfig(({ mode }) => {
+  const isTest = mode === "test";
+  return {
+    root: "web",
+    server: {
+      port: 8765,
+      strictPort: true,
+      open: "/",
+      watch: {
+        // .wasm changes are handled by the WASM rebuilder below, which fires a
+        // custom HMR event the page listens for. Skip the default reload.
+        ignored: ["**/wasm/**", "**/dist/**"]
+      }
+    },
+    resolve: {
+      alias: [
+        ...(isTest
+          ? [{ find: "@/audio", replacement: resolve(REPO_ROOT, "web/tests/mocks/audio.ts") }]
+          : []),
+        { find: "@", replacement: resolve(REPO_ROOT, "web/src") }
+      ]
+    },
+    build: {
+      outDir: "dist",
+      emptyOutDir: true,
+      target: "es2022"
+    },
+    plugins: [react(), serveRepoModules(), ...(isTest ? [] : [wasmRebuilder()])]
+  };
 });
 
 // Expose src/modules/<id>/{module,presets}.json + src/modules/index.json at

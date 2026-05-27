@@ -10,6 +10,8 @@ node_modules/
 .cache/
 .vite/
 web/dist/
+test-results/
+playwright-report/
 .DS_Store
 
 # Golden WAVs are large; regenerated locally via `pnpm run bless-renders`.

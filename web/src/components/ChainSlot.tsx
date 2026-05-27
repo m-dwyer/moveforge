@@ -35,6 +35,9 @@ export function ChainSlot({ slot, trackIndex, slotIndex }: Props) {
 
   return (
     <div
+      data-testid="chain-slot"
+      data-slot-kind={slot.kind}
+      data-slot-index={slotIndex}
       onClick={() => selectSlot(slotIndex)}
       className={cn(
         "grid cursor-pointer grid-cols-[80px_1fr_auto] items-center gap-3 border-b border-line px-3 py-1.5 transition-colors",
@@ -91,7 +94,7 @@ function Picker({
   return (
     <div onClick={(e) => e.stopPropagation()}>
       <Select value={value} onValueChange={onPick}>
-        <SelectTrigger className="h-8">
+        <SelectTrigger className="h-8" data-testid="slot-picker">
           <SelectValue placeholder="— Empty —" />
         </SelectTrigger>
         <SelectContent>
