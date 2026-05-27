@@ -3,30 +3,30 @@
 #include <stdlib.h>
 
 #include "host/audio_fx_api_v2.h"
-#include "foo_core.h"
+#include "trail_core.h"
 
 #define BLOCK_FRAMES 128
 
 typedef struct {
-    foo_core_t core;
+    trail_core_t core;
     float in_l[BLOCK_FRAMES];
     float in_r[BLOCK_FRAMES];
     float out_l[BLOCK_FRAMES];
     float out_r[BLOCK_FRAMES];
-} foo_plugin_t;
+} trail_plugin_t;
 
 static void* create_instance(const char *module_dir, const char *config_json) {
     (void)module_dir;
     (void)config_json;
-    foo_plugin_t *p = (foo_plugin_t*)calloc(1, sizeof(foo_plugin_t));
-    if (p) foo_init(&p->core);
+    trail_plugin_t *p = (trail_plugin_t*)calloc(1, sizeof(trail_plugin_t));
+    if (p) trail_init(&p->core);
     return p;
 }
 
 static void destroy_instance(void *instance) { free(instance); }
 
 static void process_block(void *instance, int16_t *audio_inout, int frames) {
-    foo_plugin_t *p = (foo_plugin_t*)instance;
+    trail_plugin_t *p = (trail_plugin_t*)instance;
     if (!p || !audio_inout || frames <= 0) return;
     if (frames > BLOCK_FRAMES) frames = BLOCK_FRAMES;
 
@@ -35,7 +35,7 @@ static void process_block(void *instance, int16_t *audio_inout, int frames) {
         p->in_r[i] = audio_inout[i * 2 + 1] / 32768.0f;
     }
 
-    foo_process_float(&p->core, p->in_l, p->in_r, p->out_l, p->out_r, frames);
+    trail_process_float(&p->core, p->in_l, p->in_r, p->out_l, p->out_r, frames);
 
     for (int i = 0; i < frames; i++) {
         float l = p->out_l[i] * 32767.0f;
@@ -50,16 +50,16 @@ static void process_block(void *instance, int16_t *audio_inout, int frames) {
 }
 
 static void set_param(void *instance, const char *key, const char *val) {
-    foo_plugin_t *p = (foo_plugin_t*)instance;
-    if (p && key && val) foo_set_param(&p->core, foo_param_id(key), (float)atof(val));
+    trail_plugin_t *p = (trail_plugin_t*)instance;
+    if (p && key && val) trail_set_param(&p->core, trail_param_id(key), (float)atof(val));
 }
 
 static int get_param(void *instance, const char *key, char *buf, int buf_len) {
-    foo_plugin_t *p = (foo_plugin_t*)instance;
+    trail_plugin_t *p = (trail_plugin_t*)instance;
     if (!p || !key || !buf || buf_len <= 0) return -1;
-    int id = foo_param_id(key);
+    int id = trail_param_id(key);
     if (id < 0) return -1;
-    return snprintf(buf, (size_t)buf_len, "%.6f", foo_get_param(&p->core, id));
+    return snprintf(buf, (size_t)buf_len, "%.6f", trail_get_param(&p->core, id));
 }
 
 static void on_midi(void *instance, const uint8_t *msg, int len, int source) {

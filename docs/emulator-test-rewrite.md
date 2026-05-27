@@ -19,8 +19,8 @@ last passing commit on `main` before `web-react-port`).
    (`Wave`, `Noise`, `Cutoff`).
 3. **Chain exposes 5 slots in the right order.** MIDI FX, Sound, Audio FX 1,
    Audio FX 2, Settings.
-4. **Per-slot Audio FX picker loads modules.** Click Audio FX 1, pick "Foo",
-   slot name becomes "Foo", params (e.g. `Time`) appear in the controls panel.
+4. **Per-slot Audio FX picker loads modules.** Click Audio FX 1, pick "Trail Delay",
+   slot name becomes "Trail Delay", params (e.g. `Time`) appear in the controls panel.
    Clearing the picker returns the slot to "Empty".
 5. **Per-slot MIDI FX picker loads modules.** Same pattern with "Arpy" on the
    MIDI FX slot; verifies a `Pattern` param shows up.

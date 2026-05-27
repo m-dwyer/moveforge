@@ -11,8 +11,8 @@
       "kind": "sound_generator"
     },
     {
-      "id": "foo",
-      "name": "Foo",
+      "id": "trail",
+      "name": "Trail Delay",
       "kind": "audio_fx"
     },
     {

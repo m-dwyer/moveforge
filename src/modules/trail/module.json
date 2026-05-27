@@ -1,7 +1,7 @@
 {
-  "id": "foo",
-  "name": "Foo",
-  "abbrev": "FOO",
+  "id": "trail",
+  "name": "Trail Delay",
+  "abbrev": "TRL",
   "version": "0.1.0",
   "description": "Stereo feedback delay",
   "author": "Local",
@@ -19,7 +19,7 @@
     "ui_hierarchy": {
       "levels": {
         "root": {
-          "name": "Foo",
+          "name": "Trail Delay",
           "params": [
             { "key": "time", "name": "Time", "type": "float", "min": 0, "max": 1, "default": 0.25, "step": 0.01 },
             { "key": "feedback", "name": "Feedback", "type": "float", "min": 0, "max": 0.95, "default": 0.35, "step": 0.01 },
