@@ -25,7 +25,7 @@ export function PadConfig() {
   const setOctave = useStore((s) => s.setOctave);
 
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+    <div className="grid grid-cols-2 gap-2 sm:grid-cols-[2fr_1fr_1fr_1fr]">
       <Field label="Pad Layout">
         <Select value={padLayout} onValueChange={(v) => setPadLayout(v as typeof padLayout)}>
           <SelectTrigger>

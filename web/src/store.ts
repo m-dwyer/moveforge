@@ -18,6 +18,7 @@ export type StoreState = AppState & {
   slotMeta: Record<string, LoadedModuleMetadata>;
   topLevelParams: ParamDefinition[];
   presets: Preset[];
+  bpm: number;
   error: string | null;
 };
 
@@ -41,6 +42,7 @@ export type StoreActions = {
   selectStep: (index: number) => void;
   setStepNote: (index: number, note: number) => void;
   setStepVelocity: (index: number, velocity: number) => void;
+  setBpm: (bpm: number) => void;
 };
 
 export type Store = StoreState & StoreActions;
@@ -57,6 +59,7 @@ export const useStore = create<Store>()(
     slotMeta: {},
     topLevelParams: [],
     presets: [],
+    bpm: 120,
     error: null,
 
     initialize: async (moduleId) => {
@@ -242,6 +245,11 @@ export const useStore = create<Store>()(
     setStepVelocity: (index, velocity) =>
       set((draft) => {
         draft.steps[index].velocity = velocity;
+      }),
+
+    setBpm: (bpm) =>
+      set((draft) => {
+        draft.bpm = Math.max(40, Math.min(240, Math.round(bpm)));
       })
   }))
 );

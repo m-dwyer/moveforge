@@ -1,15 +1,20 @@
 import { useEffect } from "react";
-import { useStore } from "@/store";
+import { useStore, selectSelectedSlot } from "@/store";
 import { syncChain, reloadModuleWasm } from "@/audio";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Panel } from "@/components/Panel";
 import { PadConfig } from "@/components/PadConfig";
 import { PadGrid } from "@/components/PadGrid";
 import { StepHarness } from "@/components/StepHarness";
+import { useKeyboardPlay } from "@/lib/keyboard";
 
 export function AppRoot() {
   const initialize = useStore((s) => s.initialize);
   const moduleId = useStore((s) => s.moduleId);
+  const activeModuleName = useStore((s) => s.activeModuleName);
+  const selectedTrack = useStore((s) => s.selectedTrack);
+  const slot = useStore(selectSelectedSlot);
+  const error = useStore((s) => s.error);
 
   useEffect(() => {
     void initialize(moduleId);
@@ -17,8 +22,6 @@ export function AppRoot() {
   }, []);
 
   useEffect(() => {
-    // Whenever the chain shape changes (modules picked, bypass toggled, track switched),
-    // re-sync the engine. Param-only updates are sent directly from Controls.
     let prevChain = useStore.getState().tracks[useStore.getState().selectedTrack].chain;
     let prevTrack = useStore.getState().selectedTrack;
     return useStore.subscribe((state) => {
@@ -39,19 +42,36 @@ export function AppRoot() {
     return () => window.removeEventListener("moveforge:wasm-rebuilt", handler);
   }, []);
 
+  useKeyboardPlay();
+
   return (
     <TooltipProvider delayDuration={200}>
-      <main className="mx-auto min-h-screen w-full max-w-3xl space-y-4 p-6">
-        <Panel />
-        <section className="space-y-3">
-          <PadConfig />
-          <PadGrid />
-        </section>
-        <StepHarness />
-        <footer className="text-xs text-muted">
-          Move emulator (knobs/transport/sequencer) lands later. Legacy app:{" "}
-          <a className="text-accent underline" href="/web/legacy.html">/web/legacy.html</a>.
-        </footer>
+      <main className="h-screen bg-bg text-text">
+        <div className="mx-auto flex h-full max-w-[1400px] flex-col gap-3 p-4">
+          <header className="flex items-baseline justify-between">
+            <div>
+              <h1 className="text-lg font-bold tracking-tight">{activeModuleName}</h1>
+              <p className="text-xs text-muted">
+                Track {selectedTrack + 1} / {slot.type}
+              </p>
+            </div>
+          </header>
+
+          {error && (
+            <div className="rounded border border-red-700 bg-red-950/40 px-3 py-1.5 text-sm text-red-200">{error}</div>
+          )}
+
+          <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 overflow-hidden lg:grid-cols-2">
+            <section className="flex min-h-0 flex-col gap-3 overflow-y-auto pr-1">
+              <Panel />
+            </section>
+            <section className="flex min-h-0 flex-col gap-3 overflow-y-auto pl-1">
+              <PadConfig />
+              <PadGrid />
+              <StepHarness />
+            </section>
+          </div>
+        </div>
       </main>
     </TooltipProvider>
   );

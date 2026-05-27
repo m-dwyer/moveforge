@@ -16,10 +16,16 @@ export function PadGrid() {
   );
 
   return (
-    <div className="grid grid-cols-8 gap-1.5">
-      {notes.map((note, i) => (
-        <Pad key={i} note={note} root={root} scale={scale} />
-      ))}
+    <div className="space-y-2">
+      <div className="grid w-full grid-cols-8 gap-1.5">
+        {notes.map((note, i) => (
+          <Pad key={i} note={note} root={root} scale={scale} />
+        ))}
+      </div>
+      <p className="text-[11px] text-muted">
+        Keyboard: <kbd className="rounded bg-panel-2 px-1 font-mono">a–l</kbd> + black keys (w r t u i o) play first 16 pads ·{" "}
+        <kbd className="rounded bg-panel-2 px-1 font-mono">space</kbd> play/stop sequencer
+      </p>
     </div>
   );
 }
