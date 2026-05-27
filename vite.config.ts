@@ -1,5 +1,7 @@
-import { defineConfig, type Plugin, type ViteDevServer } from "vite";
+import { defineConfig } from "vitest/config";
+import type { Plugin, ViteDevServer } from "vite";
 import react from "@vitejs/plugin-react";
+import { playwright } from "@vitest/browser-playwright";
 import { resolve, sep } from "node:path";
 import { spawn } from "node:child_process";
 import { readFile } from "node:fs/promises";
@@ -33,7 +35,16 @@ export default defineConfig(({ mode }) => {
       emptyOutDir: true,
       target: "es2022"
     },
-    plugins: [react(), serveRepoModules(), ...(isTest ? [] : [wasmRebuilder()])]
+    plugins: [react(), serveRepoModules(), ...(isTest ? [] : [wasmRebuilder()])],
+    test: {
+      include: ["tests/**/*.spec.ts"],
+      browser: {
+        enabled: true,
+        headless: true,
+        provider: playwright(),
+        instances: [{ browser: "chromium" }]
+      }
+    }
   };
 });
 

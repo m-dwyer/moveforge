@@ -68,7 +68,7 @@ mise run wasm    # build web/wasm/<module-id>.wasm with Emscripten Docker image
 mise run serve   # run Vite dev server at http://localhost:8765/
 mise run dev     # same as serve; Vite handles React HMR + a custom plugin watches src/modules/* and rebuilds the relevant WASM, then hot-swaps that slot in the audio engine without a page reload
 mise run web     # build WASM then serve the web UI
-mise run web-test # Playwright tests against the React web UI (audio mocked)
+mise run web-test # Vitest browser-mode component tests for the React UI (audio mocked)
 mise run move    # build aarch64 Move-target module package
 mise run move-health # check SSH, Schwung paths, disk, logs, and installed module files
 mise run move-logs # tail /data/UserData/schwung/debug.log

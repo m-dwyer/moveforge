@@ -11,7 +11,8 @@ node_modules/
 .vite/
 web/dist/
 test-results/
-playwright-report/
+web/.vitest-attachments/
+web/tests/__screenshots__/
 .DS_Store
 
 # Golden WAVs are large; regenerated locally via `pnpm run bless-renders`.

@@ -15,7 +15,7 @@ description = "Generate <module>_params.gen.inc files from each module.json"
 run = "pnpm run gen-params"
 
 [tasks.web-test]
-description = "Run Playwright tests against the React web UI"
+description = "Run Vitest browser-mode component tests for the React web UI"
 run = "pnpm test"
 
 [tasks.render]

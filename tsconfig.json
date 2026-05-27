@@ -9,5 +9,5 @@
     "strict": true,
     "target": "ES2024"
   },
-  "include": ["scripts/**/*.ts", "playwright.config.ts"]
+  "include": ["scripts/**/*.ts"]
 }
