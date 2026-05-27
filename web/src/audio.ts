@@ -2,7 +2,7 @@ import { AudioEngine, type AudioEngineConfig, type ChainSlotSpec } from "./audio
 import { useStore } from "./store";
 
 const params = new URLSearchParams(window.location.search);
-const workletUrl = params.get("worklet") ?? "/web/module-worklet.js";
+const workletUrl = params.get("worklet") ?? "/module-worklet.js";
 const workletProcessor = params.get("processor") ?? "module-processor";
 
 const engine = new AudioEngine();

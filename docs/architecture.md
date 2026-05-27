@@ -128,7 +128,7 @@ fixtures + browser preset row + on-device preset list all read it.
 
 ### Browser audition
 
-1. User runs `mise run serve`. Vite starts at `localhost:8765/web/`.
+1. User runs `mise run serve`. Vite starts at `localhost:8765/`.
 2. `audio-engine.ts` lazy-boots an `AudioContext` on first pad press.
 3. For each populated chain slot, an `AudioWorkletNode` instantiates
    `module-worklet.js`, which loads `web/wasm/<id>.wasm` and exposes a port

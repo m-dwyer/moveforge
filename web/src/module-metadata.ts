@@ -67,8 +67,8 @@ export type LoadedModuleMetadata = {
 
 export async function loadModuleMetadata(moduleId: string): Promise<LoadedModuleMetadata> {
   const [moduleJson, presetJson] = await Promise.all([
-    loadJson<ModuleMetadataJson>(`/src/modules/${moduleId}/module.json`),
-    loadJson<PresetsJson>(`/src/modules/${moduleId}/presets.json`)
+    loadJson<ModuleMetadataJson>(`/modules/${moduleId}/module.json`),
+    loadJson<PresetsJson>(`/modules/${moduleId}/presets.json`)
   ]);
   const params = paramsFromModuleJson(moduleJson);
   return {
@@ -81,7 +81,7 @@ export async function loadModuleMetadata(moduleId: string): Promise<LoadedModule
 }
 
 export async function loadModuleIndex(): Promise<ModuleIndex> {
-  return loadJson<ModuleIndex>("/src/modules/index.json");
+  return loadJson<ModuleIndex>("/modules/index.json");
 }
 
 async function loadJson<T>(path: string): Promise<T> {

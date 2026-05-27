@@ -2,39 +2,79 @@ import { defineConfig, type Plugin, type ViteDevServer } from "vite";
 import react from "@vitejs/plugin-react";
 import { resolve, sep } from "node:path";
 import { spawn } from "node:child_process";
+import { readFile } from "node:fs/promises";
+
+const REPO_ROOT = import.meta.dirname;
 
 export default defineConfig({
-  appType: "mpa",
+  root: "web",
   server: {
     port: 8765,
     strictPort: true,
-    open: "/web/",
-    fs: { strict: false },
+    open: "/",
     watch: {
       // .wasm changes are handled by the WASM rebuilder below, which fires a
       // custom HMR event the page listens for. Skip the default reload.
-      ignored: ["**/web/wasm/**", "**/build/**", "**/dist/**", "**/dist-host/**", "**/renders/**"]
+      ignored: ["**/wasm/**", "**/dist/**"]
     }
   },
   resolve: {
     alias: {
-      "@": resolve(import.meta.dirname, "web/src")
+      "@": resolve(REPO_ROOT, "web/src")
     }
   },
   build: {
-    outDir: "web/dist",
+    outDir: "dist",
     emptyOutDir: true,
-    target: "es2022",
-    rollupOptions: {
-      input: resolve(import.meta.dirname, "web/index.html")
-    }
+    target: "es2022"
   },
-  plugins: [react(), wasmRebuilder()]
+  plugins: [react(), serveRepoModules(), wasmRebuilder()]
 });
 
+// Expose src/modules/<id>/{module,presets}.json + src/modules/index.json at
+// /modules/* — those files live outside the Vite root (web/), so they need
+// an explicit URL mapping rather than Vite's filesystem fallthrough.
+function serveRepoModules(): Plugin {
+  const sourceDir = resolve(REPO_ROOT, "src/modules");
+  const allowedPrefix = sourceDir + sep;
+  return {
+    name: "moveforge-serve-repo-modules",
+    apply: "serve",
+    configureServer(server) {
+      server.middlewares.use(async (req, res, next) => {
+        if (!req.url) return next();
+        const match = req.url.split("?")[0].match(/^\/modules\/(.+)$/);
+        if (!match) return next();
+        const filePath = resolve(sourceDir, match[1]);
+        if (!filePath.startsWith(allowedPrefix) && filePath !== sourceDir) {
+          res.statusCode = 403;
+          res.end("forbidden");
+          return;
+        }
+        try {
+          const data = await readFile(filePath);
+          res.setHeader("Content-Type", contentTypeFor(filePath));
+          res.end(data);
+        } catch {
+          res.statusCode = 404;
+          res.end("not found");
+        }
+      });
+    }
+  };
+}
+
+function contentTypeFor(path: string): string {
+  const ext = path.split(".").pop() ?? "";
+  if (ext === "json") return "application/json";
+  if (ext === "wasm") return "application/wasm";
+  if (ext === "js") return "text/javascript";
+  return "application/octet-stream";
+}
+
 function wasmRebuilder(): Plugin {
-  const sourceRoot = resolve(import.meta.dirname, "src/modules");
-  const sharedHostDir = resolve(import.meta.dirname, "src/host");
+  const sourceRoot = resolve(REPO_ROOT, "src/modules");
+  const sharedHostDir = resolve(REPO_ROOT, "src/host");
   let busy = false;
   const queued = new Set<string | null>(); // null = rebuild all
   let server: ViteDevServer;
@@ -87,7 +127,7 @@ function wasmRebuilder(): Plugin {
     const env = { ...process.env, ...(moduleId ? { MODULE_ID: moduleId } : {}) };
     try {
       await new Promise<void>((res, rej) => {
-        const child = spawn("./scripts/build-wasm.sh", [], { env, stdio: "inherit" });
+        const child = spawn("./scripts/build-wasm.sh", [], { env, stdio: "inherit", cwd: REPO_ROOT });
         child.on("exit", (code) => (code === 0 ? res() : rej(new Error(`exit ${code}`))));
         child.on("error", rej);
       });
