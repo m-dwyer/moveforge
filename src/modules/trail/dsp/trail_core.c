@@ -14,9 +14,11 @@ void trail_init(trail_core_t *s) {
 }
 
 static inline float soft_clip(float x) {
-    if (x > 1.5f) x = 1.5f;
-    if (x < -1.5f) x = -1.5f;
-    return x;
+    float ax = x < 0.0f ? -x : x;
+    float y = x / (1.0f + 0.35f * ax);
+    if (y > 0.98f) y = 0.98f;
+    if (y < -0.98f) y = -0.98f;
+    return y;
 }
 
 void trail_process_float(trail_core_t *s,
@@ -53,8 +55,8 @@ void trail_process_float(trail_core_t *s,
         s->buf_l[w] = soft_clip(in_left[i]  + s->lpf_l * fb);
         s->buf_r[w] = soft_clip(in_right[i] + s->lpf_r * fb);
 
-        out_left[i]  = in_left[i]  * (1.0f - mix) + dl * mix;
-        out_right[i] = in_right[i] * (1.0f - mix) + dr * mix;
+        out_left[i]  = soft_clip(in_left[i]  * (1.0f - mix) + dl * mix);
+        out_right[i] = soft_clip(in_right[i] * (1.0f - mix) + dr * mix);
 
         w++;
         if (w >= TRAIL_DELAY_MAX) w = 0;

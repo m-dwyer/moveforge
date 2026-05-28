@@ -4,14 +4,14 @@
     "channels": 2,
     "frames": 308700,
     "duration_seconds": 7,
-    "peak": 0.56104,
-    "rms": 0.38145,
-    "dc_offset": -0.042361,
+    "peak": 0.59006,
+    "rms": 0.31565,
+    "dc_offset": 0.001784,
     "silence_ratio": 0.0019,
     "clipped_samples": 0,
     "zero_crossing_rate": [
-      0.01928,
-      0.01928
+      0.01863,
+      0.01863
     ],
     "stereo_correlation": 1
   },
@@ -20,14 +20,14 @@
     "channels": 2,
     "frames": 308700,
     "duration_seconds": 7,
-    "peak": 0.83728,
-    "rms": 0.75407,
-    "dc_offset": 0.523537,
-    "silence_ratio": 0.0001,
+    "peak": 0.85495,
+    "rms": 0.35768,
+    "dc_offset": 0.038453,
+    "silence_ratio": 0.0014,
     "clipped_samples": 0,
     "zero_crossing_rate": [
-      0.00495,
-      0.00495
+      0.00574,
+      0.00574
     ],
     "stereo_correlation": 1
   },
@@ -36,14 +36,14 @@
     "channels": 2,
     "frames": 441000,
     "duration_seconds": 10,
-    "peak": 0.40097,
-    "rms": 0.05947,
-    "dc_offset": 0.000001,
-    "silence_ratio": 0.9762,
+    "peak": 0.01611,
+    "rms": 0.00029,
+    "dc_offset": 0,
+    "silence_ratio": 0.9991,
     "clipped_samples": 0,
     "zero_crossing_rate": [
-      0.02369,
-      0.02369
+      0.00094,
+      0.00094
     ],
     "stereo_correlation": 1
   },
@@ -52,14 +52,14 @@
     "channels": 2,
     "frames": 264600,
     "duration_seconds": 6,
-    "peak": 0.64499,
-    "rms": 0.49011,
-    "dc_offset": 0.025061,
+    "peak": 0.59088,
+    "rms": 0.4029,
+    "dc_offset": -0.003969,
     "silence_ratio": 0.0003,
     "clipped_samples": 0,
     "zero_crossing_rate": [
-      0.11207,
-      0.11207
+      0.10009,
+      0.10009
     ],
     "stereo_correlation": 1
   },
@@ -68,14 +68,14 @@
     "channels": 2,
     "frames": 308700,
     "duration_seconds": 7,
-    "peak": 0.55371,
-    "rms": 0.25327,
-    "dc_offset": -0.000046,
-    "silence_ratio": 0.7738,
+    "peak": 0.4512,
+    "rms": 0.03021,
+    "dc_offset": 0.000001,
+    "silence_ratio": 0.9933,
     "clipped_samples": 0,
     "zero_crossing_rate": [
-      0.22068,
-      0.22068
+      0.00648,
+      0.00648
     ],
     "stereo_correlation": 1
   },
@@ -84,14 +84,14 @@
     "channels": 2,
     "frames": 441000,
     "duration_seconds": 10,
-    "peak": 0.48257,
-    "rms": 0.34952,
-    "dc_offset": 0.146065,
-    "silence_ratio": 0.0023,
+    "peak": 0.51563,
+    "rms": 0.25962,
+    "dc_offset": 0.001962,
+    "silence_ratio": 0.0037,
     "clipped_samples": 0,
     "zero_crossing_rate": [
-      0.0205,
-      0.0205
+      0.02192,
+      0.02192
     ],
     "stereo_correlation": 1
   }

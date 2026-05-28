@@ -15,6 +15,8 @@ typedef struct {
     float gate;
     float lp;
     float bp;
+    float hp_x;
+    float hp_y;
     float rng;
     int active_note;
     float pitch_bend;

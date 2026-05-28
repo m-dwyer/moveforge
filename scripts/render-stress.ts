@@ -102,7 +102,7 @@ function buildCases(params: Param[], defaults: Record<string, number>, kind: str
   }
 
   const allMax = Object.fromEntries(params.map((param) => [param.key, param.max]));
-  add("All Max", allMax);
+  add("All Max", allMax, kind === "sound_generator" && hasSlowMaxAttack(params));
 
   const hot = { ...defaults };
   for (const param of params) {
@@ -126,6 +126,10 @@ function isSilencingParam(key: string, value: number, kind: string): boolean {
   if (value !== 0) return false;
   if (kind === "sound_generator") return /^(volume|level)$/i.test(key);
   return /^level$/i.test(key);
+}
+
+function hasSlowMaxAttack(params: Param[]): boolean {
+  return params.some((param) => /attack/i.test(param.key) && param.max >= 1.5);
 }
 
 function slug(value: string): string {

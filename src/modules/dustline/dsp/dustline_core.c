@@ -102,7 +102,11 @@ void dustline_process_float(dustline_core_t *s,
 
         float amp = s->volume * (0.12f + 0.88f * s->velocity) * s->env;
         float gain = 1.0f + s->drive * 12.0f;
-        float y = tanhf(s->lp * gain) * amp;
+        float y = tanhf(s->lp * gain) * amp * 0.96f;
+        float hp_out = y - s->hp_x + 0.995f * s->hp_y;
+        s->hp_x = y;
+        s->hp_y = hp_out;
+        y = tanhf(hp_out) * 0.94f;
         left[i] = moveforge_clampf(y, -1.0f, 1.0f);
         right[i] = left[i];
     }

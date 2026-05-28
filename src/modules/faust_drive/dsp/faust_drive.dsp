@@ -22,8 +22,9 @@ preGain  = 1.0 + drive * 29.0;
 // tone is a simple low-pass cutoff from 200 Hz (dark) to 8 kHz (bright).
 toneCut  = 200.0 + tone * 7800.0;
 
+limit(x) = x / (1.0 + 0.35 * abs(x));
 wet(x) = x * preGain : ma.tanh : fi.lowpass(1, toneCut);
 
-oneChannel = _ <: _, wet : *(1.0 - mix), *(mix) :> *(level);
+oneChannel = _ <: _, wet : *(1.0 - mix), *(mix) :> *(level * 0.92) : limit;
 
 process = oneChannel, oneChannel;
