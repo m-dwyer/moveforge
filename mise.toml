@@ -109,5 +109,5 @@ description = "Run non-device checks for all included modules"
 run = "make check-all"
 
 [tasks.clean]
-description = "Remove build/, build-host/, dist/, dist-host/, and rendered plots"
+description = "Remove build/, build-host/, dist/, dist-host/, rendered plots, and browser WASM"
 run = "make clean"

@@ -1,7 +1,7 @@
 #include "faust_voice_core.h"
 #include "host/faust_adapter.h"
+#include "modules/_shared/dsp_runtime.h"
 
-#include <math.h>
 #include <string.h>
 
 #include "faust_voice_faust.c"
@@ -11,10 +11,6 @@
 /* Pitch bend range: ±2 semitones (a common default). The C wrapper writes
  * pitch_bend_semis directly when 0xE0 messages arrive. */
 #define FAUST_VOICE_BEND_RANGE_SEMIS 2.0f
-
-static inline float midi_to_hz(float note_semis) {
-    return 440.0f * powf(2.0f, (note_semis - 69.0f) / 12.0f);
-}
 
 static void capture_slider(void *ui, const char *label, FAUSTFLOAT *zone,
                            FAUSTFLOAT init, FAUSTFLOAT min, FAUSTFLOAT max, FAUSTFLOAT step) {
@@ -43,7 +39,7 @@ static void push_params_to_faust(faust_voice_core_t *s) {
 
 static void recompute_freq(faust_voice_core_t *s) {
     if (s->active_note < 0) return;
-    s->current_freq = midi_to_hz((float)s->active_note + s->pitch_bend_semis);
+    s->current_freq = moveforge_midi_note_to_hz((float)s->active_note + s->pitch_bend_semis);
 }
 
 void faust_voice_init(faust_voice_core_t *s) {
@@ -58,7 +54,7 @@ void faust_voice_init(faust_voice_core_t *s) {
 
     s->fdsp = newfaust_voice_faust();
     if (!s->fdsp) return;
-    initfaust_voice_faust((faust_voice_faust*)s->fdsp, 44100);
+    initfaust_voice_faust((faust_voice_faust*)s->fdsp, (int)MOVEFORGE_SAMPLE_RATE);
 
     UIGlue glue = moveforge_faust_make_ui(s, capture_slider);
     buildUserInterfacefaust_voice_faust((faust_voice_faust*)s->fdsp, &glue);

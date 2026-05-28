@@ -19,6 +19,8 @@ Schwung is unofficial and not supported by Ableton. Treat device deployment as e
 
 Each module lives under `src/modules/<id>/` and is self-contained: `module.json` (metadata + param schema), `presets.json`, `ui.js` / `ui_chain.js` (on-device UI shims), and `dsp/`.
 
+Shared module-side helpers live under `src/modules/_shared/`. The leading underscore keeps them out of module discovery, matching the template directories.
+
 The default module for module-aware commands is `westfold`. Set `MODULE_ID=<id>` on any command to target a different module.
 
 ## Authoring Paths
@@ -63,7 +65,7 @@ src/modules/<id>/
 
 A module is Faust-backed if and only if `<id>.dsp` exists. The build scripts (`build.sh`, `build-wasm.sh`, `test.sh`, `render-demo.sh`) detect the `.dsp` and compile `<id>_adapter.c` instead of `<id>_core.c`. No flag, no config — the file layout is the signal.
 
-Best for: audio FX (filter cascades, delays, waveshapers, reverbs) and synth voices where you want declarative DSP. Faust source is typically much shorter than the equivalent hand-written C and eliminates whole classes of memory/state bugs.
+Best for: audio FX and sound generators by default. Faust source is typically much shorter than the equivalent hand-written C and eliminates whole classes of memory/state bugs. Plain-C audio DSP should be treated as an explicit exception, not the default.
 
 **The generated `<id>_faust.c` is checked into the repo.** Anyone who clones the repo can build without installing Faust; only authors who modify `.dsp` need `faust` on `$PATH`. `pnpm run validate` includes a drift check that fails CI if the checked-in C is stale.
 
@@ -118,7 +120,7 @@ Play the pads or use the computer keyboard row `a w s d r f t g h u j i k o l`; 
 Build the module folder and release tarball:
 
 ```bash
-MODULE_ID=<id> ./scripts/build.sh
+./scripts/build.sh
 ```
 
 Outputs:
@@ -128,7 +130,7 @@ dist/<id>/                 (module.json, ui.js, ui_chain.js, presets.json, dsp.s
 dist/<id>-module.tar.gz
 ```
 
-`scripts/build.sh` cross-compiles for Move's aarch64 Linux target. It uses Docker automatically when no local cross compiler is present.
+Omitting `MODULE_ID` builds every module. Set `MODULE_ID=<id>` to build one module. `scripts/build.sh` cross-compiles for Move's aarch64 Linux target and uses Docker automatically when no local cross compiler is present.
 
 ## Module Authoring Loop
 
@@ -165,7 +167,7 @@ pnpm run new-module -- --id myarp --kind midi_fx
 pnpm run new-module -- --id hand_tuned --kind sound_generator --dsp c
 ```
 
-The scaffolder defaults to Faust for audio FX and sound generators, and to plain C for MIDI FX. Use `--dsp c` when a synth or audio effect needs hand-written C for unusual state, performance tuning, or host-specific behavior. Faust scaffolds use dedicated boilerplate templates, generate params, regenerate checked-in Faust C, add the module to `src/modules/index.json`, and create a core smoke test. MIDI FX modules are always plain C.
+The scaffolder defaults to Faust for audio FX and sound generators, and to plain C for MIDI FX. Use `--dsp c` for audio DSP only as a documented exception when Faust creates a concrete implementation, performance, or debugging problem. Faust scaffolds use dedicated boilerplate templates, generate params, regenerate checked-in Faust C, add the module to `src/modules/index.json`, and create a core smoke test. MIDI FX modules are always plain C.
 
 ## Move Target
 
@@ -233,9 +235,10 @@ Individual gates:
 | `mise run check-renders` | Compare current suite metrics against `goldens/<id>/metrics.json` |
 | `pnpm run bless-renders` | Promote current suite metrics into goldens (after intentional change) |
 | `mise run host` | Build host-only `.so` for local compile sanity |
-| `mise run move` | Cross-compile aarch64 `.so` + dist tarball |
+| `mise run move` | Cross-compile aarch64 `.so` + dist tarball for all modules, or one module with `MODULE_ID=<id>` |
 | `mise run wasm` | Emscripten-compile browser `.wasm` |
 | `mise run web` / `mise run dev` | WASM + Vite browser UI at `http://localhost:8765/` |
+| `mise run clean` | Remove build outputs, rendered plots, and browser WASM artifacts |
 
 ## Agent Skill
 

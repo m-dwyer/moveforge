@@ -3,16 +3,15 @@
 #include <stdlib.h>
 
 #include "host/audio_fx_api_v2.h"
+#include "modules/_shared/dsp_runtime.h"
 #include "MODULE_ID_core.h"
-
-#define BLOCK_FRAMES 128
 
 typedef struct {
     MODULE_ID_core_t core;
-    float in_l[BLOCK_FRAMES];
-    float in_r[BLOCK_FRAMES];
-    float out_l[BLOCK_FRAMES];
-    float out_r[BLOCK_FRAMES];
+    float in_l[MOVEFORGE_BLOCK_FRAMES];
+    float in_r[MOVEFORGE_BLOCK_FRAMES];
+    float out_l[MOVEFORGE_BLOCK_FRAMES];
+    float out_r[MOVEFORGE_BLOCK_FRAMES];
 } MODULE_ID_plugin_t;
 
 static void* create_instance(const char *module_dir, const char *config_json) {
@@ -32,25 +31,11 @@ static void destroy_instance(void *instance) {
 static void process_block(void *instance, int16_t *audio_inout, int frames) {
     MODULE_ID_plugin_t *p = (MODULE_ID_plugin_t*)instance;
     if (!p || !audio_inout || frames <= 0) return;
-    if (frames > BLOCK_FRAMES) frames = BLOCK_FRAMES;
+    if (frames > MOVEFORGE_BLOCK_FRAMES) frames = MOVEFORGE_BLOCK_FRAMES;
 
-    for (int i = 0; i < frames; i++) {
-        p->in_l[i] = audio_inout[i * 2] / 32768.0f;
-        p->in_r[i] = audio_inout[i * 2 + 1] / 32768.0f;
-    }
-
+    moveforge_stereo_i16_to_float(audio_inout, p->in_l, p->in_r, frames);
     MODULE_ID_process_float(&p->core, p->in_l, p->in_r, p->out_l, p->out_r, frames);
-
-    for (int i = 0; i < frames; i++) {
-        float l = p->out_l[i] * 32767.0f;
-        float r = p->out_r[i] * 32767.0f;
-        if (l > 32767.0f) l = 32767.0f;
-        if (l < -32768.0f) l = -32768.0f;
-        if (r > 32767.0f) r = 32767.0f;
-        if (r < -32768.0f) r = -32768.0f;
-        audio_inout[i * 2] = (int16_t)l;
-        audio_inout[i * 2 + 1] = (int16_t)r;
-    }
+    moveforge_stereo_float_to_i16(p->out_l, p->out_r, audio_inout, frames);
 }
 
 static void set_param(void *instance, const char *key, const char *val) {

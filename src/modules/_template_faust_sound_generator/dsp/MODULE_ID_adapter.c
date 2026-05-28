@@ -1,17 +1,13 @@
 #include "MODULE_ID_core.h"
 #include "host/faust_adapter.h"
+#include "modules/_shared/dsp_runtime.h"
 
-#include <math.h>
 #include <string.h>
 
 #include "MODULE_ID_faust.c"
 #include "MODULE_ID_params.gen.inc"
 
 #define MODULE_ID_BEND_RANGE_SEMIS 2.0f
-
-static inline float midi_to_hz(float note_semis) {
-    return 440.0f * powf(2.0f, (note_semis - 69.0f) / 12.0f);
-}
 
 static void capture_slider(void *ui, const char *label, FAUSTFLOAT *zone,
                            FAUSTFLOAT init, FAUSTFLOAT min, FAUSTFLOAT max, FAUSTFLOAT step) {
@@ -36,7 +32,7 @@ static void push_params_to_faust(MODULE_ID_core_t *s) {
 
 static void recompute_freq(MODULE_ID_core_t *s) {
     if (s->active_note < 0) return;
-    s->current_freq = midi_to_hz((float)s->active_note + s->pitch_bend_semis);
+    s->current_freq = moveforge_midi_note_to_hz((float)s->active_note + s->pitch_bend_semis);
 }
 
 void MODULE_ID_init(MODULE_ID_core_t *s) {
@@ -49,7 +45,7 @@ void MODULE_ID_init(MODULE_ID_core_t *s) {
 
     s->fdsp = newMODULE_ID_faust();
     if (!s->fdsp) return;
-    initMODULE_ID_faust((MODULE_ID_faust*)s->fdsp, 44100);
+    initMODULE_ID_faust((MODULE_ID_faust*)s->fdsp, (int)MOVEFORGE_SAMPLE_RATE);
 
     UIGlue glue = moveforge_faust_make_ui(s, capture_slider);
     buildUserInterfaceMODULE_ID_faust((MODULE_ID_faust*)s->fdsp, &glue);

@@ -4,6 +4,7 @@
 #include <string.h>
 
 #include "host/plugin_api_v1.h"
+#include "modules/_shared/dsp_runtime.h"
 #include "westfold_core.h"
 
 typedef struct {
@@ -36,8 +37,7 @@ static void on_midi(void *instance, const uint8_t *msg, int len, int source) {
     } else if (status == 0x80 || (status == 0x90 && msg[2] == 0)) {
         westfold_note_off(&p->core, msg[1]);
     } else if (status == 0xE0) {
-        int bend = ((int)msg[2] << 7) | msg[1];
-        westfold_pitch_bend(&p->core, ((float)bend - 8192.0f) / 8192.0f);
+        westfold_pitch_bend(&p->core, moveforge_midi_bend_normalized(msg[1], msg[2]));
     }
 }
 
@@ -69,21 +69,11 @@ static void render_block(void *instance, int16_t *out, int frames) {
     westfold_plugin_t *p = (westfold_plugin_t*)instance;
     if (!p || !out || frames <= 0) return;
 
-    float left[128];
-    float right[128];
-    if (frames > 128) frames = 128;
+    float left[MOVEFORGE_BLOCK_FRAMES];
+    float right[MOVEFORGE_BLOCK_FRAMES];
+    if (frames > MOVEFORGE_BLOCK_FRAMES) frames = MOVEFORGE_BLOCK_FRAMES;
     westfold_process_float(&p->core, NULL, NULL, left, right, frames);
-
-    for (int i = 0; i < frames; i++) {
-        float l = left[i] * 32767.0f;
-        float r = right[i] * 32767.0f;
-        if (l > 32767.0f) l = 32767.0f;
-        if (l < -32768.0f) l = -32768.0f;
-        if (r > 32767.0f) r = 32767.0f;
-        if (r < -32768.0f) r = -32768.0f;
-        out[i * 2] = (int16_t)l;
-        out[i * 2 + 1] = (int16_t)r;
-    }
+    moveforge_stereo_float_to_i16(left, right, out, frames);
 }
 
 static plugin_api_v2_t g_api = {

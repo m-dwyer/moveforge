@@ -35,6 +35,7 @@ Schwung is unofficial and device deployment should be treated as experimental. P
 The main rule: keep musical DSP behavior in the shared core.
 
 - `src/modules/<module-id>/` is a self-contained module directory.
+- `src/modules/_shared/` contains shared module-side C helpers used by wrappers/templates. It is not a module; the leading underscore keeps it out of discovery.
 - `src/modules/<module-id>/dsp/<module-id>_core.h` declares the **public API contract** — `<module>_init`, `<module>_process_float`, `<module>_set_param`, etc. This shape is identical for plain-C and Faust modules; the wrapper and tests can't tell which is in use.
 - For **plain C** modules, `<module-id>_core.c` implements that contract directly — it holds the DSP state struct, MIDI handling, and the per-sample processing loop. The processing entry point is `<module>_process_float(core, in_left, in_right, out_left, out_right, frames)` — sound generators ignore the input pointers (callers pass `NULL`); audio FX modules read from them. midi_fx modules use `<module>_process_midi` + `<module>_tick` instead. See `docs/audio-fx-template.md` for the FX wrapper pattern.
 - For **Faust** modules, `<module-id>.dsp` is the canonical DSP source. `mise run gen-faust` invokes the Faust compiler to produce `<module-id>_faust.c` (checked in so the project builds without Faust installed). `<module-id>_adapter.c` implements the moveforge API contract by bridging to the generated Faust DSP — captures parameter zone addresses via `buildUserInterface`, drives `compute()` each block. See `src/host/faust_adapter.h` for shared UIGlue boilerplate and `src/host/faust_module_arch.c.in` for the architecture template gen-faust passes to Faust. Build scripts detect by presence of `<id>.dsp` and compile `_adapter.c` instead of `_core.c` — no flag, no config.
@@ -63,7 +64,7 @@ When adding a parameter:
 6. Focused tests in `tests/test_<module-id>_core.c`.
 7. Run `mise run validate` (re-checks both `gen-params` and `gen-faust` drift).
 
-Adding a new module: `pnpm run new-module -- --id <id> --kind sound_generator|audio_fx|midi_fx` scaffolds a module from the matching template directory, substitutes MODULE_ID/UPPER/NAME/ABBREV, runs gen-params, and registers in `src/modules/index.json`. Faust is the default authoring path for `sound_generator` and `audio_fx`, using `src/modules/_template_faust_sound_generator/` or `src/modules/_template_faust_audio_fx/`, and the scaffolder also regenerates checked-in Faust C. Use `--dsp c` for synths or audio FX only when Faust is awkward, too opaque, too slow, or the module needs unusual hand-written state. MIDI FX modules are always plain C.
+Adding a new module: `pnpm run new-module -- --id <id> --kind sound_generator|audio_fx|midi_fx` scaffolds a module from the matching template directory, substitutes MODULE_ID/UPPER/NAME/ABBREV, runs gen-params, and registers in `src/modules/index.json`. Faust is the default authoring path for `sound_generator` and `audio_fx`, using `src/modules/_template_faust_sound_generator/` or `src/modules/_template_faust_audio_fx/`, and the scaffolder also regenerates checked-in Faust C. Use `--dsp c` for audio DSP only as a documented exception when Faust creates a concrete implementation, performance, or debugging problem. MIDI FX modules are always plain C.
 
 ## Common Commands
 

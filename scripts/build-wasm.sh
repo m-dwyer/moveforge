@@ -19,11 +19,13 @@ FORCE="${FORCE:-0}"
 SHARED_DEPS_SG=(
   "src/host/schwung_wasm_glue_sg.c"
   "src/host/plugin_api_v1.h"
+  "src/modules/_shared/dsp_runtime.h"
 )
 SHARED_DEPS_FX=(
   "src/host/schwung_wasm_glue_fx.c"
   "src/host/audio_fx_api_v2.h"
   "src/host/plugin_api_v1.h"
+  "src/modules/_shared/dsp_runtime.h"
 )
 SHARED_DEPS_MIDI_FX=(
   "src/host/midi_fx_wasm_glue.c"

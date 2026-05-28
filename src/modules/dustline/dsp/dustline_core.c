@@ -6,16 +6,7 @@
 
 #include "dustline_params.gen.inc"
 
-#define SR 44100.0f
-#define TWO_PI 6.2831853071795864769f
-
-static float clampf_local(float x, float lo, float hi) {
-    return x < lo ? lo : (x > hi ? hi : x);
-}
-
-static float midi_to_hz(int note) {
-    return 440.0f * powf(2.0f, ((float)note - 69.0f) / 12.0f);
-}
+#include "modules/_shared/dsp_runtime.h"
 
 static float next_noise(dustline_core_t *s) {
     uint32_t x = (uint32_t)(s->rng * 4294967295.0f);
@@ -36,9 +27,9 @@ void dustline_init(dustline_core_t *s) {
 void dustline_note_on(dustline_core_t *s, int note, float velocity) {
     if (!s) return;
     s->active_note = note;
-    s->target_freq = midi_to_hz(note);
+    s->target_freq = moveforge_midi_note_to_hz((float)note);
     if (s->freq <= 0.0f) s->freq = s->target_freq;
-    s->velocity = clampf_local(velocity, 0.0f, 1.0f);
+    s->velocity = moveforge_clampf(velocity, 0.0f, 1.0f);
     s->gate = 1.0f;
     /* Recover from any non-finite filter state left over from a prior
      * unstable run (e.g. user loaded an older build that hit the SVF
@@ -63,7 +54,7 @@ void dustline_all_notes_off(dustline_core_t *s) {
 
 void dustline_pitch_bend(dustline_core_t *s, float bend) {
     if (!s) return;
-    s->pitch_bend = clampf_local(bend, -1.0f, 1.0f);
+    s->pitch_bend = moveforge_clampf(bend, -1.0f, 1.0f);
 }
 
 void dustline_process_float(dustline_core_t *s,
@@ -80,12 +71,12 @@ void dustline_process_float(dustline_core_t *s,
         float bend_mul = powf(2.0f, (s->pitch_bend * s->bend_range) / 12.0f);
         s->freq += (s->target_freq * bend_mul - s->freq) * 0.002f;
 
-        float attack_coeff = 1.0f - expf(-1.0f / (s->attack * SR));
-        float release_coeff = 1.0f - expf(-1.0f / (s->release * SR));
+        float attack_coeff = 1.0f - expf(-1.0f / (s->attack * MOVEFORGE_SAMPLE_RATE));
+        float release_coeff = 1.0f - expf(-1.0f / (s->release * MOVEFORGE_SAMPLE_RATE));
         s->env += ((s->gate > 0.5f ? 1.0f : 0.0f) - s->env) * (s->gate > 0.5f ? attack_coeff : release_coeff);
 
-        s->phase += clampf_local(s->freq, 1.0f, 16000.0f) / SR;
-        s->sub_phase += clampf_local(s->freq * 0.5f, 1.0f, 16000.0f) / SR;
+        s->phase += moveforge_clampf(s->freq, 1.0f, 16000.0f) / MOVEFORGE_SAMPLE_RATE;
+        s->sub_phase += moveforge_clampf(s->freq * 0.5f, 1.0f, 16000.0f) / MOVEFORGE_SAMPLE_RATE;
         if (s->phase >= 1.0f) s->phase -= floorf(s->phase);
         if (s->sub_phase >= 1.0f) s->sub_phase -= floorf(s->sub_phase);
 
@@ -98,7 +89,7 @@ void dustline_process_float(dustline_core_t *s,
         source = source * (1.0f - s->noise) + next_noise(s) * s->noise;
 
         float cutoff_hz = 70.0f + powf(s->cutoff, 2.2f) * 14000.0f;
-        float f = clampf_local(2.0f * sinf((TWO_PI * 0.5f) * cutoff_hz / SR), 0.002f, 0.95f);
+        float f = moveforge_clampf(2.0f * sinf((MOVEFORGE_TWO_PI * 0.5f) * cutoff_hz / MOVEFORGE_SAMPLE_RATE), 0.002f, 0.95f);
         /* Chamberlin SVF is conditionally stable: f*q must stay below ~2.
          * Cap q to 1.8/f so high cutoff + high resonance can't blow up
          * (was producing NaN at e.g. cutoff=0.86, resonance=0.76). */
@@ -112,7 +103,7 @@ void dustline_process_float(dustline_core_t *s,
         float amp = s->volume * (0.12f + 0.88f * s->velocity) * s->env;
         float gain = 1.0f + s->drive * 12.0f;
         float y = tanhf(s->lp * gain) * amp;
-        left[i] = clampf_local(y, -1.0f, 1.0f);
+        left[i] = moveforge_clampf(y, -1.0f, 1.0f);
         right[i] = left[i];
     }
 }

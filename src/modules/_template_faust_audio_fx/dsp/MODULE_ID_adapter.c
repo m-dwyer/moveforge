@@ -1,5 +1,6 @@
 #include "MODULE_ID_core.h"
 #include "host/faust_adapter.h"
+#include "modules/_shared/dsp_runtime.h"
 
 #include <string.h>
 
@@ -29,7 +30,7 @@ void MODULE_ID_init(MODULE_ID_core_t *s) {
 
     s->fdsp = newMODULE_ID_faust();
     if (!s->fdsp) return;
-    initMODULE_ID_faust((MODULE_ID_faust*)s->fdsp, 44100);
+    initMODULE_ID_faust((MODULE_ID_faust*)s->fdsp, (int)MOVEFORGE_SAMPLE_RATE);
 
     UIGlue glue = moveforge_faust_make_ui(s, capture_slider);
     buildUserInterfaceMODULE_ID_faust((MODULE_ID_faust*)s->fdsp, &glue);

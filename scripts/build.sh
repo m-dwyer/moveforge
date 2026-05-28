@@ -5,20 +5,26 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
 IMAGE_NAME="${IMAGE_NAME:-schwung-module-builder}"
-MODULE_ID="${MODULE_ID:-westfold}"
-MODULE_DIR="src/modules/$MODULE_ID"
+if [ -n "${MODULE_ID:-}" ]; then
+  MODULE_IDS="$MODULE_ID"
+else
+  MODULE_IDS="$(find src/modules -mindepth 1 -maxdepth 1 -type d ! -name '_*' -exec basename {} \; | sort)"
+fi
 
 if [ -z "${CROSS_PREFIX:-}" ] && [ -z "${SCHWUNG_NO_DOCKER:-}" ] && [ ! -f "/.dockerenv" ]; then
   if command -v docker >/dev/null 2>&1; then
     if ! docker image inspect "$IMAGE_NAME" >/dev/null 2>&1; then
       docker build -t "$IMAGE_NAME" -f scripts/Dockerfile .
     fi
+    DOCKER_ENV=(-e CROSS_PREFIX=aarch64-linux-gnu-)
+    if [ -n "${MODULE_ID:-}" ]; then
+      DOCKER_ENV+=(-e "MODULE_ID=$MODULE_ID")
+    fi
     docker run --rm \
       -v "$ROOT:/build" \
       -u "$(id -u):$(id -g)" \
       -w /build \
-      -e CROSS_PREFIX=aarch64-linux-gnu- \
-      -e MODULE_ID="$MODULE_ID" \
+      "${DOCKER_ENV[@]}" \
       "$IMAGE_NAME" \
       ./scripts/build.sh
     exit 0
@@ -32,34 +38,39 @@ if ! command -v "${CROSS_PREFIX}gcc" >/dev/null 2>&1; then
   exit 1
 fi
 
-mkdir -p build "dist/$MODULE_ID"
+mkdir -p build
 
-# Faust-backed modules implement the core API via `<id>_adapter.c` (bridges
-# to the Faust-generated C). Plain-C modules implement it directly in
-# `<id>_core.c`. Detect by presence of `<id>.dsp`.
-if [ -f "$MODULE_DIR/dsp/$MODULE_ID.dsp" ]; then
-  CORE_IMPL="$MODULE_DIR/dsp/${MODULE_ID}_adapter.c"
-else
-  CORE_IMPL="$MODULE_DIR/dsp/${MODULE_ID}_core.c"
-fi
+for MODULE_ID in $MODULE_IDS; do
+  MODULE_DIR="src/modules/$MODULE_ID"
+  mkdir -p "dist/$MODULE_ID"
 
-"${CROSS_PREFIX}gcc" -std=c11 -O3 -g -shared -fPIC \
-  "$MODULE_DIR/dsp/$MODULE_ID.c" \
-  "$CORE_IMPL" \
-  -o build/dsp.so \
-  -Isrc \
-  -I"$MODULE_DIR/dsp" \
-  -lm
+  # Faust-backed modules implement the core API via `<id>_adapter.c` (bridges
+  # to the Faust-generated C). Plain-C modules implement it directly in
+  # `<id>_core.c`. Detect by presence of `<id>.dsp`.
+  if [ -f "$MODULE_DIR/dsp/$MODULE_ID.dsp" ]; then
+    CORE_IMPL="$MODULE_DIR/dsp/${MODULE_ID}_adapter.c"
+  else
+    CORE_IMPL="$MODULE_DIR/dsp/${MODULE_ID}_core.c"
+  fi
 
-cp "$MODULE_DIR/module.json" "dist/$MODULE_ID/module.json"
-cp "$MODULE_DIR/ui.js" "dist/$MODULE_ID/ui.js"
-cp build/dsp.so "dist/$MODULE_ID/dsp.so"
-[ -f "$MODULE_DIR/ui_chain.js" ] && cp "$MODULE_DIR/ui_chain.js" "dist/$MODULE_ID/ui_chain.js"
-[ -f "$MODULE_DIR/presets.json" ] && cp "$MODULE_DIR/presets.json" "dist/$MODULE_ID/presets.json"
+  "${CROSS_PREFIX}gcc" -std=c11 -O3 -g -shared -fPIC \
+    "$MODULE_DIR/dsp/$MODULE_ID.c" \
+    "$CORE_IMPL" \
+    -o "build/${MODULE_ID}-dsp.so" \
+    -Isrc \
+    -I"$MODULE_DIR/dsp" \
+    -lm
 
-(
-  cd dist
-  tar -czf "$MODULE_ID-module.tar.gz" "$MODULE_ID"
-)
+  cp "$MODULE_DIR/module.json" "dist/$MODULE_ID/module.json"
+  cp "$MODULE_DIR/ui.js" "dist/$MODULE_ID/ui.js"
+  cp "build/${MODULE_ID}-dsp.so" "dist/$MODULE_ID/dsp.so"
+  [ -f "$MODULE_DIR/ui_chain.js" ] && cp "$MODULE_DIR/ui_chain.js" "dist/$MODULE_ID/ui_chain.js"
+  [ -f "$MODULE_DIR/presets.json" ] && cp "$MODULE_DIR/presets.json" "dist/$MODULE_ID/presets.json"
 
-echo "Build complete: dist/$MODULE_ID-module.tar.gz"
+  (
+    cd dist
+    tar -czf "$MODULE_ID-module.tar.gz" "$MODULE_ID"
+  )
+
+  echo "Build complete: dist/$MODULE_ID-module.tar.gz"
+done

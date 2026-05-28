@@ -1,5 +1,6 @@
 #include "faust_drive_core.h"
 #include "host/faust_adapter.h"
+#include "modules/_shared/dsp_runtime.h"
 
 #include <string.h>
 
@@ -34,7 +35,7 @@ void faust_drive_init(faust_drive_core_t *s) {
 
     s->fdsp = newfaust_drive_faust();
     if (!s->fdsp) return;
-    initfaust_drive_faust((faust_drive_faust*)s->fdsp, 44100);
+    initfaust_drive_faust((faust_drive_faust*)s->fdsp, (int)MOVEFORGE_SAMPLE_RATE);
 
     UIGlue glue = moveforge_faust_make_ui(s, capture_slider);
     buildUserInterfacefaust_drive_faust((faust_drive_faust*)s->fdsp, &glue);

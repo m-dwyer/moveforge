@@ -69,4 +69,4 @@ dev-deps:
 	.venv/bin/python -m pip install -r requirements-dev.txt
 
 clean:
-	rm -rf build build-host dist dist-host renders/plots
+	rm -rf build build-host dist dist-host renders/plots web/wasm/*.wasm
