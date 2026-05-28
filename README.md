@@ -17,7 +17,7 @@ See [MODULES.md](MODULES.md) for the module index grouped by component type.
 | `westfold` | sound_generator | plain C | West Coast voice: dual oscillator FM, wavefolder, low-pass gate |
 | `dustline` | sound_generator | plain C | Subtractive/noise voice: oscillator blend, resonant filter, drive |
 | `faust_voice` | sound_generator | Faust | Mono sawtooth + ADSR + resonant LPF + tanh — reference Faust voice |
-| `trail` | audio_fx | plain C | Stereo feedback delay with damped feedback |
+| `trail` | audio_fx | Faust | Lush stereo delay: tempo-syncable, modulated, filtered/saturated feedback, ping-pong width, reverb tail |
 | `faust_drive` | audio_fx | Faust | Stereo drive/tone/mix — reference Faust FX |
 | `arpy` | midi_fx | plain C | Arpeggiator with clock sync |
 

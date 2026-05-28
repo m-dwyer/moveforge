@@ -1,7 +1,13 @@
 {
   "params": {
-    "time": "Sets the delay time. Lower values create slapback and comb-like effects; higher values create longer echoes.",
-    "feedback": "Controls how much delayed signal is fed back into the delay line. Higher values create more repeats and can build level quickly.",
-    "mix": "Sets the wet/dry balance. Low values keep the original signal forward; high values emphasize the delayed signal."
+    "time": "Free delay time (~10 ms to 2 s), used when Sync is set to Free. Short values give slapback and comb effects; long values give wide echoes.",
+    "sync": "Tempo sync division. Free uses the Time knob; otherwise the delay locks to the host tempo: 1/16, 1/8T, 1/8, 1/8 dotted, 1/4, 1/4 dotted, 1/2, 3/4, 1/1 bar. (On the device this tracks Move's tempo; offline and in the browser it uses 120 BPM.)",
+    "feedback": "How much delayed signal is fed back. Higher values give more repeats; the feedback is filtered and saturated so it stays musical as it builds.",
+    "tone": "Color of the repeats. Low = dark/dub (each echo gets thinner and warmer); high = open and bright.",
+    "mod": "Depth of a slow LFO that wobbles the delay time, adding tape/analog chorus and movement to the tail.",
+    "width": "Stereo character. Low keeps channels independent; centre is natural stereo; high becomes a ping-pong as feedback crosses between left and right.",
+    "drive": "Tape-style saturation in the feedback path. Higher values warm and compress the repeats, good for driven dub sustains.",
+    "space": "Blends a reverb tail into the wet signal. Low = pure delay; high = the repeats smear into a lush reverberant wash.",
+    "mix": "Wet/dry balance. Low keeps the original signal forward; high emphasizes the delayed/reverberant signal."
   }
 }

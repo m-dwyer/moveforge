@@ -18,6 +18,9 @@ export type StoreState = AppState & {
   slotMeta: Record<string, LoadedModuleMetadata>;
   topLevelParams: ParamDefinition[];
   presets: Preset[];
+  /* Selected preset name per chain slot id (for audio_fx / midi_fx slots).
+   * The sound_generator slot uses the top-level `selectedPreset` instead. */
+  slotPreset: Record<string, string>;
   bpm: number;
   error: string | null;
 };
@@ -36,6 +39,7 @@ export type StoreActions = {
   setScale: (scale: ScaleName) => void;
   setOctave: (octave: number) => void;
   applyPreset: (name: string) => void;
+  applySlotPreset: (trackIndex: number, slotIndex: number, name: string) => void;
   setPlaying: (playing: boolean) => void;
   setPlayStep: (index: number) => void;
   toggleStep: (index: number) => void;
@@ -59,6 +63,7 @@ export const useStore = create<Store>()(
     slotMeta: {},
     topLevelParams: [],
     presets: [],
+    slotPreset: {},
     bpm: 120,
     error: null,
 
@@ -136,6 +141,7 @@ export const useStore = create<Store>()(
           target.enabled = false;
           target.params = {};
           delete draft.slotMeta[target.id];
+          delete draft.slotPreset[target.id];
         });
         return;
       }
@@ -150,6 +156,7 @@ export const useStore = create<Store>()(
           target.enabled = true;
           target.params = Object.fromEntries(meta.params.map((p) => [p.key, p.default]));
           draft.slotMeta[target.id] = meta;
+          delete draft.slotPreset[target.id];
         });
       } catch (err) {
         set((draft) => {
@@ -213,6 +220,28 @@ export const useStore = create<Store>()(
       for (const [key, value] of Object.entries(preset.params)) {
         const p = params.find((q) => q.key === key);
         if (p) sendParamToSlot("sound", key, p.id, value);
+      }
+    },
+
+    applySlotPreset: (trackIndex, slotIndex, name) => {
+      const slot = get().tracks[trackIndex]?.chain[slotIndex];
+      if (!slot) return;
+      const meta = get().slotMeta[slot.id];
+      const preset = meta?.presets.find((p) => p.name === name);
+      if (!preset || !preset.params) return;
+      set((draft) => {
+        draft.slotPreset[slot.id] = name;
+        const target = draft.tracks[trackIndex].chain[slotIndex];
+        if (target.kind === "sound_generator" || target.kind === "settings") return;
+        const params = target.params as Record<string, number>;
+        for (const [key, value] of Object.entries(preset.params!)) {
+          params[key] = value;
+        }
+      });
+      // Push the new values to the audio engine for this slot.
+      for (const [key, value] of Object.entries(preset.params)) {
+        const p = meta?.params.find((q) => q.key === key);
+        if (p) sendParamToSlot(slot.id, key, p.id, value);
       }
     },
 

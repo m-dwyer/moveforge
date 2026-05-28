@@ -6,8 +6,14 @@
 
 enum {
     TRAIL_PARAM_TIME = 0,
-    TRAIL_PARAM_FEEDBACK = 1,
-    TRAIL_PARAM_MIX = 2
+    TRAIL_PARAM_SYNC = 1,
+    TRAIL_PARAM_FEEDBACK = 2,
+    TRAIL_PARAM_TONE = 3,
+    TRAIL_PARAM_MOD = 4,
+    TRAIL_PARAM_WIDTH = 5,
+    TRAIL_PARAM_DRIVE = 6,
+    TRAIL_PARAM_SPACE = 7,
+    TRAIL_PARAM_MIX = 8
 };
 
 static inline float trail_params_clampf_(float x, float lo, float hi) {
@@ -17,7 +23,13 @@ static inline float trail_params_clampf_(float x, float lo, float hi) {
 int trail_param_id(const char *key) {
     if (!key) return -1;
     if (strcmp(key, "time") == 0) return TRAIL_PARAM_TIME;
+    if (strcmp(key, "sync") == 0) return TRAIL_PARAM_SYNC;
     if (strcmp(key, "feedback") == 0) return TRAIL_PARAM_FEEDBACK;
+    if (strcmp(key, "tone") == 0) return TRAIL_PARAM_TONE;
+    if (strcmp(key, "mod") == 0) return TRAIL_PARAM_MOD;
+    if (strcmp(key, "width") == 0) return TRAIL_PARAM_WIDTH;
+    if (strcmp(key, "drive") == 0) return TRAIL_PARAM_DRIVE;
+    if (strcmp(key, "space") == 0) return TRAIL_PARAM_SPACE;
     if (strcmp(key, "mix") == 0) return TRAIL_PARAM_MIX;
     return -1;
 }
@@ -26,7 +38,13 @@ void trail_set_param(trail_core_t *s, int param_id, float value) {
     if (!s) return;
     switch (param_id) {
         case TRAIL_PARAM_TIME: s->time = trail_params_clampf_(value, 0.0f, 1.0f); break;
+        case TRAIL_PARAM_SYNC: s->sync = trail_params_clampf_(value, 0.0f, 9.0f); break;
         case TRAIL_PARAM_FEEDBACK: s->feedback = trail_params_clampf_(value, 0.0f, 0.95f); break;
+        case TRAIL_PARAM_TONE: s->tone = trail_params_clampf_(value, 0.0f, 1.0f); break;
+        case TRAIL_PARAM_MOD: s->mod = trail_params_clampf_(value, 0.0f, 1.0f); break;
+        case TRAIL_PARAM_WIDTH: s->width = trail_params_clampf_(value, 0.0f, 1.0f); break;
+        case TRAIL_PARAM_DRIVE: s->drive = trail_params_clampf_(value, 0.0f, 1.0f); break;
+        case TRAIL_PARAM_SPACE: s->space = trail_params_clampf_(value, 0.0f, 1.0f); break;
         case TRAIL_PARAM_MIX: s->mix = trail_params_clampf_(value, 0.0f, 1.0f); break;
         default: break;
     }
@@ -36,7 +54,13 @@ float trail_get_param(const trail_core_t *s, int param_id) {
     if (!s) return 0.0f;
     switch (param_id) {
         case TRAIL_PARAM_TIME: return s->time;
+        case TRAIL_PARAM_SYNC: return s->sync;
         case TRAIL_PARAM_FEEDBACK: return s->feedback;
+        case TRAIL_PARAM_TONE: return s->tone;
+        case TRAIL_PARAM_MOD: return s->mod;
+        case TRAIL_PARAM_WIDTH: return s->width;
+        case TRAIL_PARAM_DRIVE: return s->drive;
+        case TRAIL_PARAM_SPACE: return s->space;
         case TRAIL_PARAM_MIX: return s->mix;
         default: return 0.0f;
     }
@@ -44,8 +68,14 @@ float trail_get_param(const trail_core_t *s, int param_id) {
 
 void trail_apply_defaults(trail_core_t *s) {
     if (!s) return;
-    s->time = 0.25f;
-    s->feedback = 0.35f;
+    s->time = 0.3f;
+    s->sync = 0.0f;
+    s->feedback = 0.45f;
+    s->tone = 0.55f;
+    s->mod = 0.2f;
+    s->width = 0.5f;
+    s->drive = 0.15f;
+    s->space = 0.25f;
     s->mix = 0.35f;
 }
 

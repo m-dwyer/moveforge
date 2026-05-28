@@ -10,7 +10,7 @@ export function Panel() {
     <>
       <TrackBar />
       <Chain />
-      {slot.kind === "sound_generator" && <Presets />}
+      {slot.kind !== "settings" && <Presets />}
       <Controls />
     </>
   );

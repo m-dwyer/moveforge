@@ -1,10 +1,26 @@
-import { useStore } from "@/store";
+import { useStore, selectSelectedSlot } from "@/store";
 import { cn } from "@/lib/utils";
 
 export function Presets() {
-  const presets = useStore((s) => s.presets);
-  const selected = useStore((s) => s.selectedPreset);
-  const apply = useStore((s) => s.applyPreset);
+  const slot = useStore(selectSelectedSlot);
+  const trackIndex = useStore((s) => s.selectedTrack);
+  const slotIndex = useStore((s) => s.selectedSlot);
+
+  // The sound_generator slot uses the top-level module presets; every other
+  // module slot (audio_fx / midi_fx) uses the presets loaded into slotMeta.
+  const isSound = slot.kind === "sound_generator";
+  const topLevelPresets = useStore((s) => s.presets);
+  const slotPresets = useStore((s) => s.slotMeta[slot.id]?.presets ?? null);
+  const selectedTopLevel = useStore((s) => s.selectedPreset);
+  const selectedSlot = useStore((s) => s.slotPreset[slot.id]);
+  const applyTopLevel = useStore((s) => s.applyPreset);
+  const applySlot = useStore((s) => s.applySlotPreset);
+
+  const presets = isSound ? topLevelPresets : slotPresets ?? [];
+  const selected = isSound ? selectedTopLevel : selectedSlot;
+  const apply = isSound
+    ? applyTopLevel
+    : (name: string) => applySlot(trackIndex, slotIndex, name);
 
   if (presets.length === 0) return null;
 

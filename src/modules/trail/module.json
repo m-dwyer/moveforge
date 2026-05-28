@@ -2,8 +2,8 @@
   "id": "trail",
   "name": "Trail Delay",
   "abbrev": "TRL",
-  "version": "0.1.0",
-  "description": "Stereo feedback delay",
+  "version": "0.2.0",
+  "description": "Lush stereo delay: tempo-syncable, modulated, filtered feedback with reverb tail",
   "author": "Local",
   "ui": "ui.js",
   "ui_chain": "ui_chain.js",
@@ -21,11 +21,17 @@
         "root": {
           "name": "Trail Delay",
           "params": [
-            { "key": "time", "name": "Time", "type": "float", "min": 0, "max": 1, "default": 0.25, "step": 0.01 },
-            { "key": "feedback", "name": "Feedback", "type": "float", "min": 0, "max": 0.95, "default": 0.35, "step": 0.01 },
+            { "key": "time", "name": "Time", "type": "float", "min": 0, "max": 1, "default": 0.3, "step": 0.01 },
+            { "key": "sync", "name": "Sync", "type": "float", "min": 0, "max": 9, "default": 0, "step": 1 },
+            { "key": "feedback", "name": "Feedback", "type": "float", "min": 0, "max": 0.95, "default": 0.45, "step": 0.01 },
+            { "key": "tone", "name": "Tone", "type": "float", "min": 0, "max": 1, "default": 0.55, "step": 0.01 },
+            { "key": "mod", "name": "Mod", "type": "float", "min": 0, "max": 1, "default": 0.2, "step": 0.01 },
+            { "key": "width", "name": "Width", "type": "float", "min": 0, "max": 1, "default": 0.5, "step": 0.01 },
+            { "key": "drive", "name": "Drive", "type": "float", "min": 0, "max": 1, "default": 0.15, "step": 0.01 },
+            { "key": "space", "name": "Space", "type": "float", "min": 0, "max": 1, "default": 0.25, "step": 0.01 },
             { "key": "mix", "name": "Mix", "type": "float", "min": 0, "max": 1, "default": 0.35, "step": 0.01 }
           ],
-          "knobs": ["time", "feedback", "mix"]
+          "knobs": ["time", "sync", "feedback", "tone", "mod", "width", "drive", "space", "mix"]
         }
       }
     }

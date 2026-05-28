@@ -26,6 +26,12 @@ extern audio_fx_api_v2_t* move_audio_fx_init_v2(const host_api_v1_t *host);
 #define SR 44100
 #define BLOCK 128
 
+/* Tempo exposed to sync-aware FX (e.g. Trail). Settable via --bpm; defaults to
+ * 120, which matches the NULL-get_bpm fallback so non-sync renders are stable. */
+static float g_render_bpm = 120.0f;
+static float render_get_bpm(void) { return g_render_bpm; }
+static int render_get_clock_status(void) { return MOVE_CLOCK_STATUS_RUNNING; }
+
 static void write_u16(FILE *f, uint16_t v) { fputc(v & 255, f); fputc((v >> 8) & 255, f); }
 static void write_u32(FILE *f, uint32_t v) {
     fputc(v & 255, f); fputc((v >> 8) & 255, f);
@@ -132,6 +138,7 @@ int main(int argc, char **argv) {
         if (strcmp(argv[i], "--input") == 0 && i + 1 < argc) { input_path = argv[++i]; continue; }
         if (strcmp(argv[i], "--signal") == 0 && i + 1 < argc) { signal_kind = argv[++i]; continue; }
         if (strcmp(argv[i], "--seconds") == 0 && i + 1 < argc) { seconds = atoi(argv[++i]); continue; }
+        if (strcmp(argv[i], "--bpm") == 0 && i + 1 < argc) { g_render_bpm = (float)atof(argv[++i]); continue; }
         char *eq = strchr(argv[i], '=');
         if (eq && param_count < 32) {
             *eq = '\0';
@@ -156,6 +163,8 @@ int main(int argc, char **argv) {
     host.api_version = MOVE_PLUGIN_API_VERSION;
     host.sample_rate = SR;
     host.frames_per_block = BLOCK;
+    host.get_bpm = render_get_bpm;
+    host.get_clock_status = render_get_clock_status;
     audio_fx_api_v2_t *api = move_audio_fx_init_v2(&host);
     if (!api) { fprintf(stderr, "init failed\n"); free(input); return 1; }
 
