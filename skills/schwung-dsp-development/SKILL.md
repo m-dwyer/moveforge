@@ -1,20 +1,23 @@
+---
+name: schwung-dsp-development
+description: Author DSP modules for Ableton Move's Schwung host inside the moveforge repo (~/src/moveforge). Covers sound generators (synth voices), audio FX, and MIDI FX, in either Faust (`.dsp`) or plain C. Use this skill whenever the user mentions creating, modifying, debugging, or deploying Schwung modules, moveforge modules, Move plugins, faust modules, or DSP iteration — even if they don't name the skill explicitly. Trigger on phrases like "new synth", "add a delay", "new module", "Faust drive", "Schwung deploy", "fix this DSP", or paths under `src/modules/`.
+---
+
 # Schwung DSP Development
 
-Workflow guide for authoring DSP modules in this repo. Covers sound generators (synth voices), audio FX, and MIDI FX, in either Faust (`.dsp`) or plain C.
+Guide DSP iteration in the moveforge repo at `~/src/moveforge`. The repo builds custom modules for Ableton Move's Schwung host. Each module compiles to the same `dsp.so` (aarch64 device build) and `web/wasm/<id>.wasm` (browser audition) from a single source tree, so what works locally is what plays on device.
 
-> This doc is the canonical workflow reference. It is also installed as a Claude/Codex skill at `~/.agents/skills/schwung-dsp-development/SKILL.md` (or `~/.codex/skills/schwung-dsp-development/SKILL.md` for Codex) — when you're working with an LLM assistant, the skill version triggers automatically. The content is the same.
-
-This repo builds custom modules for Ableton Move's Schwung host. Each module compiles to the same `dsp.so` (aarch64 device build) and `web/wasm/<id>.wasm` (browser audition) from a single source tree, so what works locally is what plays on device.
-
-There are **two authoring paths** (Faust and plain C) sharing one wrapper pipeline. The right path depends on the kind of module and what you want to iterate on. Picking the wrong path early causes wasted refactor work later.
+This skill exists because there are now **two authoring paths** (Faust and plain C) sharing one wrapper pipeline, and the right path depends on the kind of module and what the user wants to iterate on. Picking the wrong path early causes wasted refactor work later.
 
 ## Read first
 
-- [`README.md`](../README.md) — current command surface and the authoring-paths overview
-- [`CLAUDE.md`](../CLAUDE.md) — architecture, conventions, ABI, hard constraints (sample rate, block size, no per-block allocation)
-- [`docs/faust-first-schwung-dsp-workflow.md`](faust-first-schwung-dsp-workflow.md) — the design doc that motivated the Faust path
+Before suggesting changes, skim these in `~/src/moveforge`:
 
-Specifically, `CLAUDE.md`'s "Architecture" and "Development Conventions" sections are the canonical source for what shapes a module — don't re-derive them.
+- `README.md` — current command surface and the authoring-paths section
+- `CLAUDE.md` — architecture, conventions, ABI, hard constraints (sample rate, block size, no per-block allocation)
+- `docs/faust-first-schwung-dsp-workflow.md` — the design doc that motivated the Faust path
+
+Don't re-derive these. Specifically, read `CLAUDE.md`'s "Architecture" and "Development Conventions" sections — they're the canonical source for what shapes a module.
 
 ## Pick the authoring path
 
@@ -26,7 +29,7 @@ The first decision is **Faust or plain C**. The kind of module narrows it:
 | `sound_generator` | **Faust** if a generic voice (osc → env → filter); **plain C** for unusual oscillator math, FM topologies, low-pass-gate shaping, or anything where you want full control. Faust reference: `src/modules/faust_voice/`. C references: `src/modules/westfold/` (West Coast), `src/modules/dustline/` (subtractive). |
 | `midi_fx` | **Plain C, always.** Faust is sample-stream first and contorts around discrete MIDI events. Reference: `src/modules/arpy/`. |
 
-When in doubt, decide explicitly: "Faust for declarative DSP, or plain C for full control?" — don't drift into one by accident.
+When in doubt, ask the user: "Faust for declarative DSP, or plain C for full control?" Don't silently pick.
 
 ## File layout
 
@@ -68,6 +71,7 @@ The scaffolder copies the matching `_template*`, substitutes id/name/abbrev, run
 The scaffolder doesn't have a Faust template yet. The fastest path is to copy a reference and rename:
 
 ```bash
+cd ~/src/moveforge
 cp -r src/modules/faust_drive src/modules/myfx       # for audio_fx
 # OR
 cp -r src/modules/faust_voice src/modules/myfx       # for sound_generator
@@ -136,7 +140,7 @@ mise run dev
 # http://localhost:8765/  → pick <id> in the module selector
 ```
 
-For AI-assisted iteration: small, contained changes (one filter, one envelope) work much better than sweeping edits. **Always render and check the plots before judging the sound** — audio bugs are much easier to catch from a deterministic WAV fixture than from code review alone.
+For AI-assisted iteration: ask for small, contained changes (one filter, one envelope). **Always render and check the plots before judging the sound** — audio bugs are much easier to catch from a deterministic WAV fixture than from code review alone.
 
 ## Build, package, deploy
 
@@ -149,7 +153,7 @@ MODULE_ID=<id> mise run move
 # → dist/<id>/ and dist/<id>-module.tar.gz
 # The tarball includes module.json, ui.js, ui_chain.js, presets.json, dsp.so
 
-# Deploy to a real device (when you have hardware)
+# Deploy to a real device (only when the user has hardware and asks)
 MODULE_ID=<id> ./scripts/install-to-move.sh
 # COMPONENT_TYPE is inferred from module.json. Override with COMPONENT_TYPE=...
 ```
@@ -172,9 +176,11 @@ These are load-bearing — violating them causes real bugs or wastes time:
 
 6. **Stay inside the constraints.** No `malloc`/`free` in the audio loop — the core struct is calloc'd once at instance creation. The host runs the audio thread at `SCHED_FIFO 90` on a single core with ~2.9 ms per 128-frame block; per-block allocations or syscalls will glitch or crash. Schwung sets `FPCR FZ` (flush-to-zero), so denormals are silently flushed — don't add denormal guards.
 
-7. **C is the device-facing language.** No C++ in modules. `libstdc++` is not guaranteed on Move. The reference modules in the Schwung host repo confirm this.
+7. **C is the device-facing language.** No C++ in modules. `libstdc++` is not guaranteed on Move. The reference modules (in `~/src/schwung`) confirm this.
 
 ## Reference modules — when to look at which
+
+When you need a concrete pattern to copy:
 
 | Need | Look at |
 |---|---|
@@ -186,10 +192,12 @@ These are load-bearing — violating them causes real bugs or wastes time:
 | MIDI FX (event dispatch, clock sync, voice tracking) | `src/modules/arpy/` |
 | Shared Faust adapter boilerplate | `src/host/faust_adapter.h` |
 | Faust architecture template | `src/host/faust_module_arch.c.in` |
-| Schwung ABI references | `src/host/plugin_api_v1.h`, `src/host/audio_fx_api_v2.h`, `src/host/midi_fx_api_v1.h` |
+| Schwung ABI references | `src/host/plugin_api_v1.h`, `audio_fx_api_v2.h`, `midi_fx_api_v1.h` |
 | Real Schwung host code (rarely needed) | `~/src/schwung/` (separate clone) |
 
 ## Debugging checklist
+
+When a module misbehaves:
 
 1. **`mise run validate` fails?** Run the named gen script. Usually `gen-params` (after editing `module.json`) or `gen-faust` (after editing `.dsp`).
 2. **`mise run test` fails?** The core smoke test exercises init, param clamping, processing finite/bounded output. Read the assertion that failed first, not the whole test.
@@ -198,9 +206,9 @@ These are load-bearing — violating them causes real bugs or wastes time:
 5. **`check-renders` fails on a Faust module after editing `.dsp`?** Expected — DSP changed. Listen to the renders, look at the plots, decide if intentional, then `pnpm run bless-renders`.
 6. **Faust output looks weird?** The generated `_faust.c` is readable but verbose. Trust the `.dsp` source — start there, regenerate, and only inspect the generated C if symbol-level debugging needs it.
 
-## Out of scope
+## What this skill does NOT do
 
-- **Faust language tutoring** — for filter design, oscillator construction, FFT use, polyphony, see [`faustdoc.grame.fr/manual/`](https://faustdoc.grame.fr/manual/) and `stdfaust.lib`.
-- **Schwung host internals** — modules are leaf nodes. Host changes live in a separate repo (`~/src/schwung`).
-- **The React/Vite browser UI** beyond confirming the module is registered and the WASM exists.
-- **The Move device** (network, OS, USB) — outside this repo.
+- Doesn't help you author the actual Faust DSP language. For Faust idioms (filter design, oscillator construction, FFT use, polyphony), point the user at `https://faustdoc.grame.fr/manual/` and `stdfaust.lib`.
+- Doesn't help with Schwung host internals — modules are leaf nodes. If the host itself needs changes, that's a separate repo (`~/src/schwung`).
+- Doesn't help with the React/Vite browser UI beyond confirming the module is registered and the WASM exists.
+- Doesn't help with the Move device (network, OS, USB). Those are outside this repo.

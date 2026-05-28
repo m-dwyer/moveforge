@@ -2,7 +2,7 @@
 
 Guidance for AI coding agents working in this repository.
 
-> For module-authoring workflows specifically (creating new modules, adding params, the Faust vs plain-C decision, the dev loop), read `docs/schwung-dsp-development.md` — it's the canonical workflow guide and is kept in sync with the `schwung-dsp-development` agent skill.
+> For module-authoring workflows specifically (creating new modules, adding params, the Faust vs plain-C decision, the dev loop), read `skills/schwung-dsp-development/SKILL.md` — it's the canonical workflow guide and also doubles as an installable agent skill (run `scripts/install-skill.sh` to add it to your personal Claude/Codex skills).
 
 ## Project Purpose
 

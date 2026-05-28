@@ -236,6 +236,16 @@ Individual gates:
 | `mise run wasm` | Emscripten-compile browser `.wasm` |
 | `mise run web` / `mise run dev` | WASM + Vite browser UI at `http://localhost:8765/` |
 
+## Agent Skill
+
+For LLM-assisted iteration, this repo ships an agent skill at `skills/schwung-dsp-development/SKILL.md` that walks Claude (or Codex) through the full module-authoring workflow described above. Install it into your personal skills tree:
+
+```bash
+./scripts/install-skill.sh
+```
+
+This copies the skill to `~/.agents/skills/schwung-dsp-development/` and symlinks it from `~/.claude/skills/` so Claude Code picks it up. Re-run the script any time the in-repo `SKILL.md` changes. The skill is the canonical workflow doc — read it on GitHub even without installing.
+
 ## Useful Upstream References
 
 - Schwung site: https://schwung.dev/
