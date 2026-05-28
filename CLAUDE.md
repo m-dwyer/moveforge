@@ -2,6 +2,8 @@
 
 Guidance for AI coding agents working in this repository.
 
+> For module-authoring workflows specifically (creating new modules, adding params, the Faust vs plain-C decision, the dev loop), read `docs/schwung-dsp-development.md` — it's the canonical workflow guide and is kept in sync with the `schwung-dsp-development` agent skill.
+
 ## Project Purpose
 
 This repo is a local development harness for building custom Schwung modules for Ableton Move. It currently contains two sound-generator modules:
