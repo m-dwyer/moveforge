@@ -15,7 +15,55 @@
     ],
     "stereo_correlation": 1
   },
-  "01-buchla-pluck.wav": {
+  "01-low-pulse.wav": {
+    "sample_rate": 44100,
+    "channels": 2,
+    "frames": 308700,
+    "duration_seconds": 7,
+    "peak": 0.90396,
+    "rms": 0.41059,
+    "dc_offset": -0.001008,
+    "silence_ratio": 0.0003,
+    "clipped_samples": 0,
+    "zero_crossing_rate": [
+      0.0096,
+      0.0096
+    ],
+    "stereo_correlation": 1
+  },
+  "02-rubber-bass.wav": {
+    "sample_rate": 44100,
+    "channels": 2,
+    "frames": 308700,
+    "duration_seconds": 7,
+    "peak": 0.94244,
+    "rms": 0.44029,
+    "dc_offset": -0.001935,
+    "silence_ratio": 0.0001,
+    "clipped_samples": 0,
+    "zero_crossing_rate": [
+      0.02169,
+      0.02169
+    ],
+    "stereo_correlation": 1
+  },
+  "03-hypno-stab.wav": {
+    "sample_rate": 44100,
+    "channels": 2,
+    "frames": 308700,
+    "duration_seconds": 7,
+    "peak": 0.83994,
+    "rms": 0.36252,
+    "dc_offset": -0.003749,
+    "silence_ratio": 0.0017,
+    "clipped_samples": 0,
+    "zero_crossing_rate": [
+      0.04506,
+      0.04507
+    ],
+    "stereo_correlation": 1
+  },
+  "04-strike-pluck.wav": {
     "sample_rate": 44100,
     "channels": 2,
     "frames": 264600,
@@ -31,39 +79,7 @@
     ],
     "stereo_correlation": 1
   },
-  "02-rubber-bass.wav": {
-    "sample_rate": 44100,
-    "channels": 2,
-    "frames": 308700,
-    "duration_seconds": 7,
-    "peak": 0.96564,
-    "rms": 0.48527,
-    "dc_offset": -0.002656,
-    "silence_ratio": 0.0001,
-    "clipped_samples": 0,
-    "zero_crossing_rate": [
-      0.02169,
-      0.02169
-    ],
-    "stereo_correlation": 1
-  },
-  "03-bell-fm.wav": {
-    "sample_rate": 44100,
-    "channels": 2,
-    "frames": 352800,
-    "duration_seconds": 8,
-    "peak": 0.75137,
-    "rms": 0.48842,
-    "dc_offset": -0.00056,
-    "silence_ratio": 0.0002,
-    "clipped_samples": 0,
-    "zero_crossing_rate": [
-      0.11395,
-      0.11397
-    ],
-    "stereo_correlation": 1
-  },
-  "04-lpg-bloom.wav": {
+  "05-lpg-bloom.wav": {
     "sample_rate": 44100,
     "channels": 2,
     "frames": 441000,
@@ -79,7 +95,23 @@
     ],
     "stereo_correlation": 1
   },
-  "05-fold-lead.wav": {
+  "06-bell-fm.wav": {
+    "sample_rate": 44100,
+    "channels": 2,
+    "frames": 352800,
+    "duration_seconds": 8,
+    "peak": 0.75137,
+    "rms": 0.48842,
+    "dc_offset": -0.00056,
+    "silence_ratio": 0.0002,
+    "clipped_samples": 0,
+    "zero_crossing_rate": [
+      0.11395,
+      0.11397
+    ],
+    "stereo_correlation": 1
+  },
+  "07-fold-lead.wav": {
     "sample_rate": 44100,
     "channels": 2,
     "frames": 264600,
@@ -92,6 +124,38 @@
     "zero_crossing_rate": [
       0.07348,
       0.07355
+    ],
+    "stereo_correlation": 1
+  },
+  "08-macro-sweep.wav": {
+    "sample_rate": 44100,
+    "channels": 2,
+    "frames": 352800,
+    "duration_seconds": 8,
+    "peak": 0.82358,
+    "rms": 0.46681,
+    "dc_offset": -0.002933,
+    "silence_ratio": 0.0001,
+    "clipped_samples": 0,
+    "zero_crossing_rate": [
+      0.02371,
+      0.02371
+    ],
+    "stereo_correlation": 1
+  },
+  "09-unhinged-fold.wav": {
+    "sample_rate": 44100,
+    "channels": 2,
+    "frames": 308700,
+    "duration_seconds": 7,
+    "peak": 0.77289,
+    "rms": 0.39693,
+    "dc_offset": 0.002022,
+    "silence_ratio": 0.0029,
+    "clipped_samples": 0,
+    "zero_crossing_rate": [
+      0.05897,
+      0.05897
     ],
     "stereo_correlation": 1
   }

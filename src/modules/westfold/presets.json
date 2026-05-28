@@ -25,33 +25,33 @@
       }
     },
     {
-      "name": "Buchla Pluck",
+      "name": "Low Pulse",
       "params": {
-        "volume": 0.88,
-        "ratio": 1.997,
-        "fm": 0.06,
-        "fold": 0.42,
-        "lpg": 0.98,
+        "volume": 0.78,
+        "ratio": 0.5,
+        "fm": 0.1,
+        "fold": 0.28,
+        "lpg": 0.46,
         "drive": 0.34,
-        "strike": 0.92,
-        "chaos": 0.06,
-        "decay": 0.045,
-        "release": 0.09,
+        "strike": 0.66,
+        "chaos": 0.05,
+        "decay": 0.2,
+        "release": 0.16,
         "bend_range": 2
       },
       "render": {
-        "file": "01-buchla-pluck.wav",
-        "notes": [60, 67, 72, 79, 84, 79, 72, 67, 64, 60],
-        "note_blocks": 46,
-        "gate_blocks": 10,
-        "seconds": 6,
-        "velocity": 118
+        "file": "01-low-pulse.wav",
+        "notes": [36, 36, 36, 43, 36, 39, 36, 31, 36, 36, 43, 36],
+        "note_blocks": 50,
+        "gate_blocks": 32,
+        "seconds": 7,
+        "velocity": 120
       }
     },
     {
       "name": "Rubber Bass",
       "params": {
-        "volume": 0.92,
+        "volume": 0.8,
         "ratio": 0.5,
         "fm": 0.2,
         "fold": 0.68,
@@ -73,27 +73,51 @@
       }
     },
     {
-      "name": "Bell FM",
+      "name": "Hypno Stab",
       "params": {
         "volume": 0.7,
-        "ratio": 2.997,
-        "fm": 0.72,
-        "fold": 0.34,
-        "lpg": 0.76,
-        "drive": 0.24,
-        "strike": 0.54,
-        "chaos": 0.28,
-        "decay": 0.92,
-        "release": 1.8,
+        "ratio": 1.497,
+        "fm": 0.28,
+        "fold": 0.64,
+        "lpg": 0.68,
+        "drive": 0.52,
+        "strike": 0.84,
+        "chaos": 0.24,
+        "decay": 0.16,
+        "release": 0.18,
         "bend_range": 2
       },
       "render": {
-        "file": "03-bell-fm.wav",
-        "notes": [48, 55, 60, 64, 67, 72, 76, 79],
-        "note_blocks": 88,
-        "gate_blocks": 42,
-        "seconds": 8,
-        "velocity": 104
+        "file": "03-hypno-stab.wav",
+        "notes": [48, 48, 55, 48, 46, 48, 55, 48, 48, 58, 48, 43],
+        "note_blocks": 42,
+        "gate_blocks": 18,
+        "seconds": 7,
+        "velocity": 116
+      }
+    },
+    {
+      "name": "Strike Pluck",
+      "params": {
+        "volume": 0.88,
+        "ratio": 1.997,
+        "fm": 0.06,
+        "fold": 0.42,
+        "lpg": 0.98,
+        "drive": 0.34,
+        "strike": 0.92,
+        "chaos": 0.06,
+        "decay": 0.045,
+        "release": 0.09,
+        "bend_range": 2
+      },
+      "render": {
+        "file": "04-strike-pluck.wav",
+        "notes": [60, 67, 72, 79, 84, 79, 72, 67, 64, 60],
+        "note_blocks": 46,
+        "gate_blocks": 10,
+        "seconds": 6,
+        "velocity": 118
       }
     },
     {
@@ -112,12 +136,36 @@
         "bend_range": 2
       },
       "render": {
-        "file": "04-lpg-bloom.wav",
+        "file": "05-lpg-bloom.wav",
         "notes": [45, 57, 52, 64, 48, 60],
         "note_blocks": 132,
         "gate_blocks": 94,
         "seconds": 10,
         "velocity": 96
+      }
+    },
+    {
+      "name": "Bell FM",
+      "params": {
+        "volume": 0.7,
+        "ratio": 2.997,
+        "fm": 0.72,
+        "fold": 0.34,
+        "lpg": 0.76,
+        "drive": 0.24,
+        "strike": 0.54,
+        "chaos": 0.28,
+        "decay": 0.92,
+        "release": 1.8,
+        "bend_range": 2
+      },
+      "render": {
+        "file": "06-bell-fm.wav",
+        "notes": [48, 55, 60, 64, 67, 72, 76, 79],
+        "note_blocks": 88,
+        "gate_blocks": 42,
+        "seconds": 8,
+        "velocity": 104
       }
     },
     {
@@ -136,11 +184,59 @@
         "bend_range": 7
       },
       "render": {
-        "file": "05-fold-lead.wav",
+        "file": "07-fold-lead.wav",
         "notes": [60, 62, 67, 69, 72, 74, 79, 81, 84],
         "note_blocks": 50,
         "gate_blocks": 34,
         "seconds": 6,
+        "velocity": 112
+      }
+    },
+    {
+      "name": "Macro Sweep",
+      "params": {
+        "volume": 0.68,
+        "ratio": 1.25,
+        "fm": 0.22,
+        "fold": 0.46,
+        "lpg": 0.6,
+        "drive": 0.38,
+        "strike": 0.58,
+        "chaos": 0.18,
+        "decay": 0.34,
+        "release": 0.5,
+        "bend_range": 5
+      },
+      "render": {
+        "file": "08-macro-sweep.wav",
+        "notes": [48, 55, 48, 60, 48, 53, 48, 58, 48, 55, 60, 48],
+        "note_blocks": 54,
+        "gate_blocks": 38,
+        "seconds": 8,
+        "velocity": 108
+      }
+    },
+    {
+      "name": "Unhinged Fold",
+      "params": {
+        "volume": 0.58,
+        "ratio": 2.497,
+        "fm": 0.68,
+        "fold": 0.9,
+        "lpg": 0.78,
+        "drive": 0.68,
+        "strike": 0.74,
+        "chaos": 0.68,
+        "decay": 0.28,
+        "release": 0.42,
+        "bend_range": 7
+      },
+      "render": {
+        "file": "09-unhinged-fold.wav",
+        "notes": [48, 48, 55, 48, 60, 48, 43, 48, 58, 48, 55, 46],
+        "note_blocks": 46,
+        "gate_blocks": 28,
+        "seconds": 7,
         "velocity": 112
       }
     }
