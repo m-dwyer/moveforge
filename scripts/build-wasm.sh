@@ -72,6 +72,7 @@ for MODULE_ID in $MODULE_IDS; do
         "$MODULE_DIR/dsp/${MODULE_ID}.c"
         "$MODULE_DIR/dsp/${MODULE_ID}_core.c"
         "$MODULE_DIR/dsp/${MODULE_ID}_core.h"
+        "$MODULE_DIR/dsp/${MODULE_ID}_faust.c"
         "${SHARED_DEPS_SG[@]}"
       )
       ;;
@@ -82,6 +83,7 @@ for MODULE_ID in $MODULE_IDS; do
         "$MODULE_DIR/dsp/${MODULE_ID}.c"
         "$MODULE_DIR/dsp/${MODULE_ID}_core.c"
         "$MODULE_DIR/dsp/${MODULE_ID}_core.h"
+        "$MODULE_DIR/dsp/${MODULE_ID}_faust.c"
         "${SHARED_DEPS_FX[@]}"
       )
       ;;
@@ -92,6 +94,7 @@ for MODULE_ID in $MODULE_IDS; do
         "$MODULE_DIR/dsp/${MODULE_ID}.c"
         "$MODULE_DIR/dsp/${MODULE_ID}_core.c"
         "$MODULE_DIR/dsp/${MODULE_ID}_core.h"
+        "$MODULE_DIR/dsp/${MODULE_ID}_faust.c"
         "${SHARED_DEPS_MIDI_FX[@]}"
       )
       ;;

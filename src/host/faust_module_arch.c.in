@@ -1,0 +1,32 @@
+/* Faust architecture file: library-only output.
+ *
+ * Used by scripts/gen-faust.ts to generate the per-module C from a .dsp
+ * source. Produces only the DSP class definitions (struct + functions like
+ * `new<prefix>`, `init<prefix>`, `compute<prefix>`, `buildUserInterface<prefix>`)
+ * with no `main()`. The moveforge per-module adapter
+ * (`<id>_core.c`) consumes that output.
+ *
+ * Faust replaces <<includeIntrinsic>> and <<includeclass>> at codegen time.
+ * Keep this file small and dependency-light so the generated artifact stays
+ * portable and drops cleanly into the existing Schwung wrapper pipeline.
+ */
+
+#include <math.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include <string.h>
+
+#ifndef FAUSTFLOAT
+#define FAUSTFLOAT float
+#endif
+
+/* The generated `buildUserInterface` walks a UIGlue struct of callbacks.
+ * We don't use Faust's UI to discover params at runtime — the moveforge
+ * adapter knows param indices statically — so we provide a stub type
+ * that satisfies the symbol without pulling in Faust's UI runtime. */
+typedef struct UIGlue UIGlue;
+typedef struct MetaGlue MetaGlue;
+
+<<includeIntrinsic>>
+
+<<includeclass>>

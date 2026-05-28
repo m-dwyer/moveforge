@@ -45,6 +45,8 @@ mkdir -p build "dist/$MODULE_ID"
 cp "$MODULE_DIR/module.json" "dist/$MODULE_ID/module.json"
 cp "$MODULE_DIR/ui.js" "dist/$MODULE_ID/ui.js"
 cp build/dsp.so "dist/$MODULE_ID/dsp.so"
+[ -f "$MODULE_DIR/ui_chain.js" ] && cp "$MODULE_DIR/ui_chain.js" "dist/$MODULE_ID/ui_chain.js"
+[ -f "$MODULE_DIR/presets.json" ] && cp "$MODULE_DIR/presets.json" "dist/$MODULE_ID/presets.json"
 
 (
   cd dist

@@ -17,6 +17,7 @@ for MODULE_ID in $MODULE_IDS; do
     "tests/test_${MODULE_ID}_core.c" \
     "$MODULE_DIR/dsp/${MODULE_ID}_core.c" \
     -o "build/test_${MODULE_ID}_core" \
+    -Isrc \
     -I"$MODULE_DIR/dsp" \
     -lm
 

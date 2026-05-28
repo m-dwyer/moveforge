@@ -1,0 +1,50 @@
+{
+  "00-init.wav": {
+    "sample_rate": 44100,
+    "channels": 2,
+    "frames": 176400,
+    "duration_seconds": 4,
+    "peak": 0.79996,
+    "rms": 0.68791,
+    "dc_offset": 0.000881,
+    "silence_ratio": 0.0002,
+    "clipped_samples": 0,
+    "zero_crossing_rate": [
+      0.07104,
+      0.07104
+    ],
+    "stereo_correlation": 1
+  },
+  "01-crunch.wav": {
+    "sample_rate": 44100,
+    "channels": 2,
+    "frames": 176400,
+    "duration_seconds": 4,
+    "peak": 0.69995,
+    "rms": 0.59114,
+    "dc_offset": 0.000784,
+    "silence_ratio": 0.0008,
+    "clipped_samples": 0,
+    "zero_crossing_rate": [
+      0.07104,
+      0.07104
+    ],
+    "stereo_correlation": 1
+  },
+  "02-fuzz.wav": {
+    "sample_rate": 44100,
+    "channels": 2,
+    "frames": 176400,
+    "duration_seconds": 4,
+    "peak": 0.54996,
+    "rms": 0.35188,
+    "dc_offset": 0.225776,
+    "silence_ratio": 0.0039,
+    "clipped_samples": 0,
+    "zero_crossing_rate": [
+      0.11553,
+      0.11553
+    ],
+    "stereo_correlation": 1
+  }
+}

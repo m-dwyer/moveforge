@@ -156,10 +156,9 @@ def main() -> int:
         component_type = (module_json.get("capabilities") or {}).get("component_type", "")
     except FileNotFoundError:
         component_type = ""
-    if component_type and component_type != "sound_generator":
+    if component_type == "midi_fx":
         print(
-            f"[{MODULE_ID}] skipping plot: component_type='{component_type}' "
-            "(only sound_generator has an offline render path)",
+            f"[{MODULE_ID}] skipping plot: midi_fx renders are text traces, not WAVs",
             file=sys.stderr,
         )
         return 0

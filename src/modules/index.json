@@ -11,6 +11,16 @@
       "kind": "sound_generator"
     },
     {
+      "id": "faust_drive",
+      "name": "Faust Drive",
+      "kind": "audio_fx"
+    },
+    {
+      "id": "faust_voice",
+      "name": "Faust Voice",
+      "kind": "sound_generator"
+    },
+    {
       "id": "trail",
       "name": "Trail Delay",
       "kind": "audio_fx"

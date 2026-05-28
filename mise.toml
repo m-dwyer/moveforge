@@ -14,6 +14,10 @@ run = "pnpm run validate"
 description = "Generate <module>_params.gen.inc files from each module.json"
 run = "pnpm run gen-params"
 
+[tasks.gen-faust]
+description = "Generate <module>_faust.c from <module>.dsp for Faust-backed modules"
+run = "pnpm run gen-faust"
+
 [tasks.web-test]
 description = "Run Vitest browser-mode component tests for the React web UI"
 run = "pnpm test"

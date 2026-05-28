@@ -1,0 +1,20 @@
+{
+  "module_id": "faust_voice",
+  "presets": [
+    {
+      "name": "Init",
+      "params": { "cutoff": 0.6, "resonance": 0.3, "attack": 0.01, "release": 0.3, "level": 0.7 },
+      "render": { "file": "00-init.wav", "seconds": 6, "notes": [48, 55, 60, 67], "note_blocks": 86, "gate_blocks": 64, "velocity": 100 }
+    },
+    {
+      "name": "Plucky",
+      "params": { "cutoff": 0.45, "resonance": 0.55, "attack": 0.002, "release": 0.18, "level": 0.7 },
+      "render": { "file": "01-plucky.wav", "seconds": 6, "notes": [40, 47, 52, 59, 52, 47], "note_blocks": 64, "gate_blocks": 24, "velocity": 110 }
+    },
+    {
+      "name": "Pad",
+      "params": { "cutoff": 0.35, "resonance": 0.2, "attack": 0.25, "release": 1.2, "level": 0.6 },
+      "render": { "file": "02-pad.wav", "seconds": 8, "notes": [36, 43, 48, 50], "note_blocks": 192, "gate_blocks": 160, "velocity": 90 }
+    }
+  ]
+}

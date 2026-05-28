@@ -1,0 +1,35 @@
+{
+  "id": "faust_voice",
+  "name": "Faust Voice",
+  "abbrev": "FVC",
+  "version": "0.1.0",
+  "description": "Faust-authored monophonic sawtooth voice with ADSR and resonant LPF",
+  "author": "Local",
+  "ui": "ui.js",
+  "ui_chain": "ui_chain.js",
+  "dsp": "dsp.so",
+  "api_version": 2,
+  "capabilities": {
+    "audio_out": true,
+    "audio_in": false,
+    "midi_in": true,
+    "midi_out": false,
+    "chainable": true,
+    "component_type": "sound_generator",
+    "ui_hierarchy": {
+      "levels": {
+        "root": {
+          "name": "Faust Voice",
+          "params": [
+            { "key": "cutoff",    "name": "Cutoff",    "type": "float", "min": 0,     "max": 1,    "default": 0.6,  "step": 0.01 },
+            { "key": "resonance", "name": "Resonance", "type": "float", "min": 0,     "max": 1,    "default": 0.3,  "step": 0.01 },
+            { "key": "attack",    "name": "Attack",    "type": "float", "min": 0.001, "max": 1,    "default": 0.01, "step": 0.001 },
+            { "key": "release",   "name": "Release",   "type": "float", "min": 0.01,  "max": 4,    "default": 0.3,  "step": 0.01 },
+            { "key": "level",     "name": "Level",     "type": "float", "min": 0,     "max": 1,    "default": 0.7,  "step": 0.01 }
+          ],
+          "knobs": ["cutoff", "resonance", "attack", "release"]
+        }
+      }
+    }
+  }
+}

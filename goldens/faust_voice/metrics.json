@@ -1,0 +1,50 @@
+{
+  "00-init.wav": {
+    "sample_rate": 44100,
+    "channels": 2,
+    "frames": 264600,
+    "duration_seconds": 6,
+    "peak": 0.67154,
+    "rms": 0.31918,
+    "dc_offset": 0.028398,
+    "silence_ratio": 0.002,
+    "clipped_samples": 0,
+    "zero_crossing_rate": [
+      0.0396,
+      0.0396
+    ],
+    "stereo_correlation": 1
+  },
+  "01-plucky.wav": {
+    "sample_rate": 44100,
+    "channels": 2,
+    "frames": 264600,
+    "duration_seconds": 6,
+    "peak": 0.6893,
+    "rms": 0.35306,
+    "dc_offset": 0.026982,
+    "silence_ratio": 0.0017,
+    "clipped_samples": 0,
+    "zero_crossing_rate": [
+      0.0263,
+      0.0263
+    ],
+    "stereo_correlation": 1
+  },
+  "02-pad.wav": {
+    "sample_rate": 44100,
+    "channels": 2,
+    "frames": 352800,
+    "duration_seconds": 8,
+    "peak": 0.54935,
+    "rms": 0.22589,
+    "dc_offset": 0.014275,
+    "silence_ratio": 0.0075,
+    "clipped_samples": 0,
+    "zero_crossing_rate": [
+      0.01245,
+      0.01245
+    ],
+    "stereo_correlation": 1
+  }
+}
