@@ -88,15 +88,16 @@ console.log(`  3. add presets to ${targetDir}/presets.json`);
 console.log(`  4. mise run validate && mise run test`);
 if (kind === "sound_generator") {
   console.log(`  5. MODULE_ID=${id} mise run suite && MODULE_ID=${id} pnpm run bless-renders`);
-  console.log(`  6. MODULE_ID=${id} mise run wasm && mise run serve  (then choose ${id} in the Module selector)`);
+  console.log(`  6. MODULE_ID=${id} mise run wasm && mise run dev  (then choose ${id} in the Module selector)`);
+  console.log(`  7. deploy with MODULE_ID=${id} ./scripts/install-to-move.sh`);
 } else if (kind === "audio_fx") {
-  console.log(`  5. MODULE_ID=${id} ./scripts/build-host.sh`);
-  console.log(`  6. deploy with MODULE_ID=${id} COMPONENT_TYPE=audio_fx ./scripts/install-to-move.sh`);
-  console.log(`  7. add an FX render/WASM harness before using browser/offline auditioning`);
+  console.log(`  5. MODULE_ID=${id} mise run suite && MODULE_ID=${id} pnpm run bless-renders`);
+  console.log(`  6. MODULE_ID=${id} mise run wasm && mise run dev  (route audio into ${id} in the chain)`);
+  console.log(`  7. deploy with MODULE_ID=${id} ./scripts/install-to-move.sh`);
 } else {
-  console.log(`  5. MODULE_ID=${id} ./scripts/build-host.sh`);
-  console.log(`  6. deploy with MODULE_ID=${id} COMPONENT_TYPE=midi_fx ./scripts/install-to-move.sh`);
-  console.log(`  7. midi_fx has no audio render path — test via on-device chain with a downstream synth`);
+  console.log(`  5. MODULE_ID=${id} mise run suite && MODULE_ID=${id} pnpm run bless-renders  (compares MIDI traces)`);
+  console.log(`  6. MODULE_ID=${id} mise run wasm  (browser audition needs a downstream synth in the chain)`);
+  console.log(`  7. deploy with MODULE_ID=${id} ./scripts/install-to-move.sh`);
 }
 
 function parseArgs(list: string[]): Record<string, string | true> {

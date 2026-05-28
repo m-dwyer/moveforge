@@ -7,7 +7,30 @@ cd "$ROOT"
 
 MODULE_ID="${MODULE_ID:-westfold}"
 MOVE_HOST="${MOVE_HOST:-ableton@move.local}"
-COMPONENT_TYPE="${COMPONENT_TYPE:-sound_generators}"
+
+# COMPONENT_TYPE picks the Schwung modules subdir on the device. By default
+# we read it from src/modules/$MODULE_ID/module.json so the right path is
+# used for sound generators, audio FX, and MIDI FX. Override by setting
+# COMPONENT_TYPE explicitly if you need to.
+if [ -z "${COMPONENT_TYPE:-}" ]; then
+  MODULE_JSON="src/modules/$MODULE_ID/module.json"
+  if [ ! -f "$MODULE_JSON" ]; then
+    echo "install-to-move: $MODULE_JSON not found; cannot infer COMPONENT_TYPE" >&2
+    echo "  pass COMPONENT_TYPE=sound_generators|audio_fx|midi_fx explicitly" >&2
+    exit 2
+  fi
+  MODULE_KIND="$(node -e "console.log(JSON.parse(require('fs').readFileSync('$MODULE_JSON','utf8')).capabilities?.component_type ?? '')")"
+  case "$MODULE_KIND" in
+    sound_generator) COMPONENT_TYPE="sound_generators" ;;
+    audio_fx)        COMPONENT_TYPE="audio_fx" ;;
+    midi_fx)         COMPONENT_TYPE="midi_fx" ;;
+    *)
+      echo "install-to-move: $MODULE_JSON has unrecognized component_type='$MODULE_KIND'" >&2
+      echo "  pass COMPONENT_TYPE=sound_generators|audio_fx|midi_fx explicitly" >&2
+      exit 2
+      ;;
+  esac
+fi
 REMOTE_DIR="/data/UserData/schwung/modules/$COMPONENT_TYPE"
 FORCE=0
 SKIP_BUILD=0
@@ -33,7 +56,9 @@ After scp, the installed dsp.so size on the device is verified against the local
 Environment:
   MODULE_ID         module directory under src/modules/ (default: westfold)
   MOVE_HOST         SSH target (default: ableton@move.local)
-  COMPONENT_TYPE    Schwung modules subdir (default: sound_generators)
+  COMPONENT_TYPE    Schwung modules subdir. Auto-inferred from
+                    src/modules/\$MODULE_ID/module.json by default; override
+                    if needed.
 EOF
       exit 0
       ;;
