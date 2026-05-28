@@ -81,13 +81,38 @@ export async function loadModuleMetadata(moduleId: string): Promise<LoadedModule
 }
 
 export async function loadModuleIndex(): Promise<ModuleIndex> {
-  return loadJson<ModuleIndex>("/modules/index.json");
+  const index = await loadJson<ModuleIndex>("/modules/index.json");
+  const modules = index.modules ?? [];
+  const availability = await Promise.all(modules.map(async (module) => ({
+    module,
+    available: await hasWasmBuild(module.id)
+  })));
+  return {
+    ...index,
+    modules: availability.filter((item) => item.available).map((item) => item.module)
+  };
 }
 
 async function loadJson<T>(path: string): Promise<T> {
   const response = await fetch(path, { cache: "no-store" });
   if (!response.ok) throw new Error(`${path}: ${response.status}`);
   return response.json() as Promise<T>;
+}
+
+async function hasWasmBuild(moduleId: string): Promise<boolean> {
+  try {
+    const response = await fetch(`/wasm/${moduleId}.wasm`, { cache: "no-store" });
+    if (!response.ok) return false;
+    const bytes = await response.arrayBuffer();
+    return looksLikeWasm(bytes);
+  } catch {
+    return false;
+  }
+}
+
+function looksLikeWasm(bytes: ArrayBuffer): boolean {
+  const header = new Uint8Array(bytes, 0, Math.min(bytes.byteLength, 4));
+  return header.length === 4 && header[0] === 0x00 && header[1] === 0x61 && header[2] === 0x73 && header[3] === 0x6d;
 }
 
 function paramsFromModuleJson(moduleJson: ModuleMetadataJson): ParamDefinition[] {

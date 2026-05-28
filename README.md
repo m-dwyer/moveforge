@@ -27,7 +27,7 @@ You can author a module's DSP in either **plain C** or **Faust**. Both produce i
 
 Both paths share the same shape: a public API header (`<id>_core.h`) declaring the contract the Schwung wrapper calls into, a `.c` file implementing that contract, and the standard wrapper/params/manifest files. The difference is **which `.c` implements the contract** and where the actual DSP lives.
 
-### Plain C (default for new modules)
+### Plain C (fallback for synths/FX, default for MIDI FX)
 
 ```
 src/modules/<id>/
@@ -162,9 +162,10 @@ For AI-assisted iteration: ask for small, contained changes (a single filter, a 
 pnpm run new-module -- --id myfx --kind audio_fx
 pnpm run new-module -- --id mysynth --kind sound_generator
 pnpm run new-module -- --id myarp --kind midi_fx
+pnpm run new-module -- --id hand_tuned --kind sound_generator --dsp c
 ```
 
-The scaffolder currently produces plain C templates. For a Faust-backed module, the fastest path today is to copy `src/modules/faust_drive/` (audio_fx) or `src/modules/faust_voice/` (sound_generator), rename, edit the `.dsp`, then run `mise run gen-params && mise run gen-faust`.
+The scaffolder defaults to Faust for audio FX and sound generators, and to plain C for MIDI FX. Use `--dsp c` when a synth or audio effect needs hand-written C for unusual state, performance tuning, or host-specific behavior. Faust scaffolds use dedicated boilerplate templates, generate params, regenerate checked-in Faust C, add the module to `src/modules/index.json`, and create a core smoke test. MIDI FX modules are always plain C.
 
 ## Move Target
 

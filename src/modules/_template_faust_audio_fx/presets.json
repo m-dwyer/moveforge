@@ -1,0 +1,10 @@
+{
+  "module_id": "MODULE_ID",
+  "presets": [
+    {
+      "name": "Init",
+      "params": { "mix": 1.0, "level": 1.0 },
+      "render": { "file": "00-init.wav", "signal": "sweep", "seconds": 4 }
+    }
+  ]
+}

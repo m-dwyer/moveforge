@@ -48,7 +48,7 @@ description = "Promote current suite metrics into goldens/<module>/metrics.json"
 run = "pnpm run bless-renders"
 
 [tasks.new-module]
-description = "Scaffold a new Schwung module (usage: mise run new-module -- --id myfx --kind audio_fx)"
+description = "Scaffold a new Schwung module (Faust by default for synth/FX; use --dsp c for fallback)"
 run = "pnpm run new-module --"
 
 [tasks.host]

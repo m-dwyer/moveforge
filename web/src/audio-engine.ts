@@ -210,12 +210,18 @@ export class AudioEngine {
   }
 
   async #loadWasmInto(entry: SlotEntry): Promise<void> {
-    const wasmResponse = await fetch(`/wasm/${entry.moduleId}.wasm`, { cache: "no-store" });
+    const wasmPath = `/wasm/${entry.moduleId}.wasm`;
+    const wasmResponse = await fetch(wasmPath, { cache: "no-store" });
     if (!wasmResponse.ok) {
       this.#config?.onError(entry.slotId, `Could not load audio module: ${wasmResponse.status}`);
       throw new Error(`Could not load audio module: ${wasmResponse.status}`);
     }
     const wasmBytes = await wasmResponse.arrayBuffer();
+    if (!looksLikeWasm(wasmBytes)) {
+      const message = `Could not load ${entry.moduleId}: missing WASM build. Run MODULE_ID=${entry.moduleId} mise run wasm.`;
+      this.#config?.onError(entry.slotId, message);
+      throw new Error(`${message} ${wasmPath} did not contain a WebAssembly binary.`);
+    }
     entry.ready = false;
     entry.node.port.postMessage({ type: "loadWasm", bytes: wasmBytes }, [wasmBytes]);
   }
@@ -258,4 +264,9 @@ export class AudioEngine {
       if (slot.kind === "midi_fx") slot.node.connect(this.#scheduleSink);
     }
   }
+}
+
+function looksLikeWasm(bytes: ArrayBuffer): boolean {
+  const header = new Uint8Array(bytes, 0, Math.min(bytes.byteLength, 4));
+  return header.length === 4 && header[0] === 0x00 && header[1] === 0x61 && header[2] === 0x73 && header[3] === 0x6d;
 }

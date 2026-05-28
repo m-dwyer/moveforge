@@ -63,7 +63,7 @@ When adding a parameter:
 6. Focused tests in `tests/test_<module-id>_core.c`.
 7. Run `mise run validate` (re-checks both `gen-params` and `gen-faust` drift).
 
-Adding a new module: `pnpm run new-module -- --id <id> --kind sound_generator|audio_fx|midi_fx` scaffolds a plain-C module from the matching `_template*` directory, substitutes MODULE_ID/UPPER/NAME/ABBREV, runs gen-params, and registers in `src/modules/index.json`. For a Faust-backed module, copy a reference (`src/modules/faust_drive/` for audio_fx, `src/modules/faust_voice/` for sound_generator), rename, and re-run gen-params + gen-faust. The scaffolder doesn't yet have a `--dsp faust` flag — see `skills/schwung-dsp-development/SKILL.md` for the step-by-step rename procedure.
+Adding a new module: `pnpm run new-module -- --id <id> --kind sound_generator|audio_fx|midi_fx` scaffolds a module from the matching template directory, substitutes MODULE_ID/UPPER/NAME/ABBREV, runs gen-params, and registers in `src/modules/index.json`. Faust is the default authoring path for `sound_generator` and `audio_fx`, using `src/modules/_template_faust_sound_generator/` or `src/modules/_template_faust_audio_fx/`, and the scaffolder also regenerates checked-in Faust C. Use `--dsp c` for synths or audio FX only when Faust is awkward, too opaque, too slow, or the module needs unusual hand-written state. MIDI FX modules are always plain C.
 
 ## Common Commands
 
@@ -165,6 +165,6 @@ Prioritized improvements to make synth and FX iteration faster and safer:
 5. Add MIDI learn or configurable CC mapping in the web UI, instead of hard-coding CC 20-27.
 6. Add clang-format and a formatting task to keep C changes mechanical and reviewable.
 7. Add GitHub Actions or a local pre-push command for `mise run check`, leaving Move deploy as an explicit local-only step.
-8. Extend `scripts/new-module.ts` with a `--dsp faust` flag so Faust modules don't require the manual copy-rename path documented in `skills/schwung-dsp-development/SKILL.md`.
+8. Generate Faust adapter boilerplate from `module.json` so template adapters do not hard-code param counts.
 
 For the next repo change, the highest-leverage item is probably generated parameter bindings (#1). The current validator catches drift across C, module JSON, and presets; generating the worklet mapping from `module.json` would remove the remaining browser-side duplication entirely.

@@ -7,11 +7,12 @@ import { spawnSync } from "node:child_process";
 const args = parseArgs(argv.slice(2));
 const id = stringArg(args, "id");
 if (!id) {
-  console.error(`Usage: pnpm run new-module -- --id <module-id> [--name <DisplayName>] [--abbrev <ABC>] [--kind sound_generator|audio_fx|midi_fx]
+  console.error(`Usage: pnpm run new-module -- --id <module-id> [--name <DisplayName>] [--abbrev <ABC>] [--kind sound_generator|audio_fx|midi_fx] [--dsp c|faust]
 
 Scaffolds a new Schwung module by copying the matching template and
 substituting MODULE_ID / MODULE_UPPER / MODULE_NAME / MODULE_ABBREV placeholders.
-Also generates the per-module params header from module.json.
+Also generates the per-module params header from module.json. Faust modules
+also regenerate their checked-in generated C.
 
 Arguments:
   --id      kebab/snake_case module id (required). Becomes the directory name
@@ -21,6 +22,9 @@ Arguments:
             (defaults to first 3 letters of id, upper-cased).
   --kind    Module kind: sound_generator, audio_fx, or midi_fx
             (default: sound_generator).
+  --dsp     DSP authoring path: c or faust. Defaults to faust for
+            sound_generator/audio_fx and c for midi_fx. MIDI FX modules are
+            always C.
 `);
   exit(2);
 }
@@ -41,10 +45,16 @@ if (abbrev.length < 3 || abbrev.length > 6) {
   exit(2);
 }
 const kind = moduleKind(stringArg(args, "kind") || "sound_generator");
-const templateDir =
-  kind === "audio_fx" ? "src/modules/_template_audio_fx" :
-  kind === "midi_fx" ? "src/modules/_template_midi_fx" :
-  "src/modules/_template";
+const dsp = dspKind(stringArg(args, "dsp") || (kind === "midi_fx" ? "c" : "faust"));
+if (dsp === "faust" && kind === "midi_fx") {
+  console.error(`--dsp faust is not supported for midi_fx; use --dsp c`);
+  exit(2);
+}
+const templateDir = dsp === "faust"
+  ? (kind === "audio_fx" ? "src/modules/_template_faust_audio_fx" : "src/modules/_template_faust_sound_generator")
+  : kind === "audio_fx" ? "src/modules/_template_audio_fx"
+  : kind === "midi_fx" ? "src/modules/_template_midi_fx"
+  : "src/modules/_template";
 const upper = id.toUpperCase();
 const targetDir = `src/modules/${id}`;
 
@@ -52,17 +62,32 @@ if (await pathExists(targetDir)) {
   console.error(`refusing to overwrite existing directory: ${targetDir}`);
   exit(1);
 }
+if (dsp === "faust" && !hasFaust()) {
+  console.error(`--dsp faust requires \`faust\` on $PATH. Install Faust (e.g. \`brew install faust\`) and retry.`);
+  exit(1);
+}
 
 const replacements = {
+  FAUST_DRIVE: upper,
+  FAUST_VOICE: upper,
   MODULE_UPPER: upper,
   MODULE_ABBREV: abbrev,
   MODULE_NAME: name,
-  MODULE_ID: id
+  MODULE_ID: id,
+  "Faust-Drive": name,
+  "Faust-Voice": name,
+  "Faust Voice": name,
+  "Faust Drive": name,
+  faust_drive: id,
+  faust_voice: id,
+  FDR: abbrev,
+  FVC: abbrev
 };
 
 const filesCopied = [];
 for await (const file of walk(templateDir)) {
   const rel = relative(templateDir, file);
+  if (dsp === "faust" && isGeneratedFaustTemplateFile(rel)) continue;
   const renamed = applySubs(rel, replacements);
 
   const targetPath = rel.startsWith("tests/")
@@ -76,16 +101,22 @@ for await (const file of walk(templateDir)) {
   filesCopied.push(targetPath);
 }
 
-await registerInIndex(id, name);
 runGenParams(id);
+if (dsp === "faust") runGenFaust(id);
+await registerInIndex(id, name);
 
 console.log(`scaffolded ${filesCopied.length} files:`);
 for (const f of filesCopied) console.log(`  ${f}`);
 console.log(`\nnext steps:`);
-console.log(`  1. edit ${targetDir}/dsp/${id}_core.c to implement DSP behavior`);
-console.log(`  2. edit params in ${targetDir}/module.json then re-run \`mise run gen-params\``);
+if (dsp === "faust") {
+  console.log(`  1. edit ${targetDir}/dsp/${id}.dsp to implement DSP behavior`);
+  console.log(`  2. edit params in ${targetDir}/module.json and matching hslider labels, then re-run \`MODULE_ID=${id} mise run gen-params && MODULE_ID=${id} mise run gen-faust\``);
+} else {
+  console.log(`  1. edit ${targetDir}/dsp/${id}_core.c to implement DSP behavior`);
+  console.log(`  2. edit params in ${targetDir}/module.json then re-run \`MODULE_ID=${id} mise run gen-params\``);
+}
 console.log(`  3. add presets to ${targetDir}/presets.json`);
-console.log(`  4. mise run validate && mise run test`);
+console.log(`  4. MODULE_ID=${id} mise run validate && MODULE_ID=${id} mise run test`);
 if (kind === "sound_generator") {
   console.log(`  5. MODULE_ID=${id} mise run suite && MODULE_ID=${id} pnpm run bless-renders`);
   console.log(`  6. MODULE_ID=${id} mise run wasm && mise run dev  (then choose ${id} in the Module selector)`);
@@ -124,6 +155,12 @@ function moduleKind(value: string): "sound_generator" | "audio_fx" | "midi_fx" {
   exit(2);
 }
 
+function dspKind(value: string): "c" | "faust" {
+  if (value === "c" || value === "faust") return value;
+  console.error(`--dsp must be c or faust (got: ${value})`);
+  exit(2);
+}
+
 function runGenParams(moduleId: string): void {
   const result = spawnSync(process.execPath, ["scripts/gen-params.ts"], {
     stdio: "inherit",
@@ -135,12 +172,32 @@ function runGenParams(moduleId: string): void {
   }
 }
 
+function runGenFaust(moduleId: string): void {
+  const result = spawnSync(process.execPath, ["scripts/gen-faust.ts"], {
+    stdio: "inherit",
+    env: { ...env, MODULE_ID: moduleId }
+  });
+  if (result.status !== 0) {
+    console.error(`gen-faust failed for ${moduleId}`);
+    exit(result.status ?? 1);
+  }
+}
+
+function hasFaust(): boolean {
+  const result = spawnSync("faust", ["--version"], { stdio: "ignore" });
+  return result.status === 0;
+}
+
 function applySubs(s: string, subs: Record<string, string>): string {
   let out = s;
   for (const [key, val] of Object.entries(subs)) {
     out = out.split(key).join(val);
   }
   return out;
+}
+
+function isGeneratedFaustTemplateFile(rel: string): boolean {
+  return rel.endsWith("_params.gen.inc") || rel.endsWith("_faust.c");
 }
 
 async function* walk(dir: string): AsyncGenerator<string> {

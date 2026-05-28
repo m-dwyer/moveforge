@@ -17,6 +17,7 @@ export function useKeyboardPlay(): void {
     const onDown = (e: KeyboardEvent) => {
       if (e.repeat) return;
       if (isTypingTarget(e.target)) return;
+      if (hasShortcutModifier(e)) return;
 
       if (e.key === " ") {
         e.preventDefault();
@@ -60,4 +61,8 @@ function isTypingTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
   const tag = target.tagName;
   return tag === "INPUT" || tag === "TEXTAREA" || target.isContentEditable;
+}
+
+function hasShortcutModifier(e: KeyboardEvent): boolean {
+  return e.metaKey || e.ctrlKey || e.altKey;
 }

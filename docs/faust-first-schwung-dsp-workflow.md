@@ -87,7 +87,7 @@ MODULE_ID=<id> ./scripts/install-to-move.sh
 
 ## Scaffolding
 
-Extend module creation with a DSP source option:
+Module creation supports a DSP source option:
 
 ```bash
 pnpm run new-module -- --id shimmer_drive --kind audio_fx --dsp faust
@@ -97,9 +97,9 @@ pnpm run new-module -- --id arper --kind midi_fx --dsp c
 
 Defaults:
 
-- `sound_generator`: allow `c` or `faust`
-- `audio_fx`: allow `c` or `faust`
-- `midi_fx`: default to `c`
+- `sound_generator`: defaults to `faust`, allows `c` fallback
+- `audio_fx`: defaults to `faust`, allows `c` fallback
+- `midi_fx`: defaults to `c`; Faust is rejected
 
 ## C/C++ Fallback Rules
 
