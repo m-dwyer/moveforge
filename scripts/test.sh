@@ -13,9 +13,14 @@ mkdir -p build
 
 for MODULE_ID in $MODULE_IDS; do
   MODULE_DIR="src/modules/$MODULE_ID"
+  if [ -f "$MODULE_DIR/dsp/$MODULE_ID.dsp" ]; then
+    CORE_IMPL="$MODULE_DIR/dsp/${MODULE_ID}_adapter.c"
+  else
+    CORE_IMPL="$MODULE_DIR/dsp/${MODULE_ID}_core.c"
+  fi
   cc -std=c11 -O2 -g \
     "tests/test_${MODULE_ID}_core.c" \
-    "$MODULE_DIR/dsp/${MODULE_ID}_core.c" \
+    "$CORE_IMPL" \
     -o "build/test_${MODULE_ID}_core" \
     -Isrc \
     -I"$MODULE_DIR/dsp" \

@@ -64,13 +64,21 @@ for MODULE_ID in $MODULE_IDS; do
   WASM_OUT="web/wasm/${MODULE_ID}.wasm"
 
   COMPONENT_TYPE="$(component_type_of "$MODULE_DIR/module.json")"
+
+  # Faust-backed modules implement the core API via `<id>_adapter.c`; plain-C
+  # modules via `<id>_core.c`. Detect by presence of `<id>.dsp`.
+  if [ -f "$MODULE_DIR/dsp/${MODULE_ID}.dsp" ]; then
+    CORE_IMPL="$MODULE_DIR/dsp/${MODULE_ID}_adapter.c"
+  else
+    CORE_IMPL="$MODULE_DIR/dsp/${MODULE_ID}_core.c"
+  fi
   case "$COMPONENT_TYPE" in
     sound_generator)
       GLUE="src/host/schwung_wasm_glue_sg.c"
       EXPORTS="$SCH_EXPORTS"
       DEPS=(
         "$MODULE_DIR/dsp/${MODULE_ID}.c"
-        "$MODULE_DIR/dsp/${MODULE_ID}_core.c"
+        "$CORE_IMPL"
         "$MODULE_DIR/dsp/${MODULE_ID}_core.h"
         "$MODULE_DIR/dsp/${MODULE_ID}_faust.c"
         "${SHARED_DEPS_SG[@]}"
@@ -81,7 +89,7 @@ for MODULE_ID in $MODULE_IDS; do
       EXPORTS="$SCH_EXPORTS"
       DEPS=(
         "$MODULE_DIR/dsp/${MODULE_ID}.c"
-        "$MODULE_DIR/dsp/${MODULE_ID}_core.c"
+        "$CORE_IMPL"
         "$MODULE_DIR/dsp/${MODULE_ID}_core.h"
         "$MODULE_DIR/dsp/${MODULE_ID}_faust.c"
         "${SHARED_DEPS_FX[@]}"
@@ -92,7 +100,7 @@ for MODULE_ID in $MODULE_IDS; do
       EXPORTS="$MF_EXPORTS"
       DEPS=(
         "$MODULE_DIR/dsp/${MODULE_ID}.c"
-        "$MODULE_DIR/dsp/${MODULE_ID}_core.c"
+        "$CORE_IMPL"
         "$MODULE_DIR/dsp/${MODULE_ID}_core.h"
         "$MODULE_DIR/dsp/${MODULE_ID}_faust.c"
         "${SHARED_DEPS_MIDI_FX[@]}"
@@ -105,7 +113,7 @@ for MODULE_ID in $MODULE_IDS; do
   esac
 
   if needs_rebuild "$WASM_OUT" "${DEPS[@]}"; then
-    COMMANDS+=("emcc '$MODULE_DIR/dsp/${MODULE_ID}.c' '$MODULE_DIR/dsp/${MODULE_ID}_core.c' '$GLUE' -O3 -I'$MODULE_DIR/dsp' -Isrc -s STANDALONE_WASM=1 -s EXPORTED_FUNCTIONS='[\"${EXPORTS//,/\",\"}\"]' -Wl,--no-entry -o '$WASM_OUT'")
+    COMMANDS+=("emcc '$MODULE_DIR/dsp/${MODULE_ID}.c' '$CORE_IMPL' '$GLUE' -O3 -I'$MODULE_DIR/dsp' -Isrc -s STANDALONE_WASM=1 -s EXPORTED_FUNCTIONS='[\"${EXPORTS//,/\",\"}\"]' -Wl,--no-entry -o '$WASM_OUT'")
     SUMMARY+=("build  $WASM_OUT")
   else
     SUMMARY+=("cached $WASM_OUT")

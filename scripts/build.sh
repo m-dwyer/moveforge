@@ -34,9 +34,18 @@ fi
 
 mkdir -p build "dist/$MODULE_ID"
 
+# Faust-backed modules implement the core API via `<id>_adapter.c` (bridges
+# to the Faust-generated C). Plain-C modules implement it directly in
+# `<id>_core.c`. Detect by presence of `<id>.dsp`.
+if [ -f "$MODULE_DIR/dsp/$MODULE_ID.dsp" ]; then
+  CORE_IMPL="$MODULE_DIR/dsp/${MODULE_ID}_adapter.c"
+else
+  CORE_IMPL="$MODULE_DIR/dsp/${MODULE_ID}_core.c"
+fi
+
 "${CROSS_PREFIX}gcc" -std=c11 -O3 -g -shared -fPIC \
   "$MODULE_DIR/dsp/$MODULE_ID.c" \
-  "$MODULE_DIR/dsp/${MODULE_ID}_core.c" \
+  "$CORE_IMPL" \
   -o build/dsp.so \
   -Isrc \
   -I"$MODULE_DIR/dsp" \
