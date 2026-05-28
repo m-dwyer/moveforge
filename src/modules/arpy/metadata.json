@@ -1,0 +1,7 @@
+{
+  "params": {
+    "pattern": "Selects the arpeggio ordering pattern used to emit notes from the held chord.",
+    "chord": "Sets how many held chord notes are used by the arpeggiator pattern.",
+    "rate": "Controls arpeggiator clock rate. Lower values step more slowly; higher values step faster."
+  }
+}

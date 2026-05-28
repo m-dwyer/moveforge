@@ -1,0 +1,9 @@
+{
+  "params": {
+    "cutoff": "Sets the Faust Voice low-pass filter cutoff. Higher values make the saw oscillator brighter.",
+    "resonance": "Controls emphasis at the filter cutoff. Higher values create a stronger resonant peak.",
+    "attack": "Sets the envelope rise time after note-on. Low values are plucky; higher values create a slower fade-in.",
+    "release": "Sets the envelope fall time after note-off. Higher values produce longer tails.",
+    "level": "Sets the final output level for the voice."
+  }
+}

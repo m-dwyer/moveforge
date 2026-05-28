@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { useStore, selectSelectedSlot, type SlotParamRow } from "@/store";
 import { Slider } from "@/components/ui/slider";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { audioFxParamDefs, midiFxParamDefs, settingsParamDefs, type ScopedParamDefinition } from "@/chain-state";
 import { sendParamToSlot } from "@/audio";
 
@@ -20,6 +21,7 @@ export function Controls() {
         label: p.label,
         min: p.min,
         max: p.max,
+        description: p.description,
         step: p.step ?? 0.01,
         value: p.value
       }));
@@ -33,6 +35,7 @@ export function Controls() {
         label: p.label,
         min: p.min,
         max: p.max,
+        description: p.description,
         step: p.step ?? 0.01,
         value: (slot.params as Record<string, number>)[p.key] ?? p.default
       }));
@@ -64,24 +67,43 @@ export function Controls() {
   };
 
   return (
-    <div data-testid="controls" className="overflow-hidden rounded-md border border-line bg-panel-2">
-      {params.map((p) => (
-        <div
-          key={p.key}
-          className="grid grid-cols-[120px_1fr_auto] items-center gap-3 border-b border-line px-3 py-2 last:border-b-0"
-        >
-          <label className="truncate text-sm font-medium">{p.label}</label>
-          <Slider
-            value={[p.value]}
-            min={p.min}
-            max={p.max}
-            step={p.step}
-            onValueChange={(v) => onChange(p.key, v[0])}
-          />
-          <span className="w-12 text-right font-mono text-xs text-warn">{formatValue(p)}</span>
-        </div>
-      ))}
-    </div>
+    <TooltipProvider delayDuration={250}>
+      <div data-testid="controls" className="overflow-hidden rounded-md border border-line bg-panel-2">
+        {params.map((p) => (
+          <div
+            key={p.key}
+            className="grid grid-cols-[120px_1fr_auto] items-center gap-3 border-b border-line px-3 py-2 last:border-b-0"
+          >
+            <ParamLabel param={p} />
+            <Slider
+              value={[p.value]}
+              min={p.min}
+              max={p.max}
+              step={p.step}
+              onValueChange={(v) => onChange(p.key, v[0])}
+            />
+            <span className="w-12 text-right font-mono text-xs text-warn">{formatValue(p)}</span>
+          </div>
+        ))}
+      </div>
+    </TooltipProvider>
+  );
+}
+
+function ParamLabel({ param }: { param: SlotParamRow }) {
+  const label = <span className="truncate text-sm font-medium">{param.label}</span>;
+  if (!param.description) return <label className="truncate">{label}</label>;
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <label className="cursor-help truncate decoration-dotted underline-offset-4 hover:underline">
+          {label}
+        </label>
+      </TooltipTrigger>
+      <TooltipContent side="right" className="max-w-64 leading-snug">
+        {param.description}
+      </TooltipContent>
+    </Tooltip>
   );
 }
 

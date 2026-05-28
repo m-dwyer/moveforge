@@ -267,6 +267,7 @@ export type SlotParamRow = {
   label: string;
   min: number;
   max: number;
+  description?: string;
   step: number;
   value: number;
 };

@@ -1,0 +1,7 @@
+{
+  "params": {
+    "time": "Sets the delay time. Lower values create slapback and comb-like effects; higher values create longer echoes.",
+    "feedback": "Controls how much delayed signal is fed back into the delay line. Higher values create more repeats and can build level quickly.",
+    "mix": "Sets the wet/dry balance. Low values keep the original signal forward; high values emphasize the delayed signal."
+  }
+}

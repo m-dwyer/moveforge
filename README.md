@@ -19,7 +19,7 @@ See [MODULES.md](MODULES.md) for the module index grouped by component type.
 | `faust_drive` | audio_fx | Faust | Stereo drive/tone/mix — reference Faust FX |
 | `arpy` | midi_fx | plain C | Arpeggiator with clock sync |
 
-Each module lives under `src/modules/<id>/` and is self-contained: `module.json` (metadata + param schema), `presets.json`, `ui.js` / `ui_chain.js` (on-device UI shims), and `dsp/`.
+Each module lives under `src/modules/<id>/` and is self-contained: `module.json` (Schwung manifest + param schema), optional `metadata.json` (local/web help text), `presets.json`, `ui.js` / `ui_chain.js` (on-device UI shims), and `dsp/`.
 
 Shared module-side helpers live under `src/modules/_shared/`. The leading underscore keeps them out of module discovery, matching the template directories.
 
@@ -36,6 +36,7 @@ Both paths share the same shape: a public API header (`<id>_core.h`) declaring t
 ```
 src/modules/<id>/
   module.json
+  metadata.json
   presets.json
   ui.js
   ui_chain.js
@@ -53,6 +54,7 @@ Best for: MIDI FX (event-heavy state machines), unusual signal routing, performa
 ```
 src/modules/<id>/
   module.json
+  metadata.json
   presets.json
   ui.js
   ui_chain.js
@@ -153,8 +155,9 @@ Omitting `MODULE_ID` builds every module. Set `MODULE_ID=<id>` to build one modu
 4. Faust: also run `mise run gen-faust` (regenerates `<id>_faust.c`).
 5. Use the new param in the DSP (the `.c` for plain C, the `.dsp` body for Faust).
 6. Add the key to every preset in `<id>/presets.json`.
-7. Add a focused assertion in `tests/test_<id>_core.c`.
-8. Run `mise run validate` — checks param metadata + that gen files are in sync.
+7. Add a short tooltip description to `<id>/metadata.json` under `params.<key>`.
+8. Add a focused assertion in `tests/test_<id>_core.c`.
+9. Run `mise run validate` — checks param metadata + that gen files are in sync.
 
 ### Iterating on sound
 

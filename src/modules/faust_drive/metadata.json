@@ -1,0 +1,8 @@
+{
+  "params": {
+    "drive": "Controls saturation amount. Higher values add harmonic density and distortion.",
+    "tone": "Shapes the brightness of the driven signal. Lower values are darker; higher values keep more top end.",
+    "mix": "Sets the wet/dry balance between clean input and driven signal.",
+    "level": "Sets output level after the drive stage. Reduce it when high Drive or Mix settings get too hot."
+  }
+}

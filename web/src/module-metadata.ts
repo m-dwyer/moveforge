@@ -15,6 +15,7 @@ export type ParamDefinition = {
   label: string;
   max: number;
   min: number;
+  description?: string;
   step?: number;
   type?: string;
   value: number;
@@ -57,6 +58,10 @@ export type PresetsJson = {
   presets?: Preset[];
 };
 
+export type MetadataJson = {
+  params?: Record<string, string>;
+};
+
 export type LoadedModuleMetadata = {
   moduleJson: ModuleMetadataJson;
   paramIds: Record<string, number>;
@@ -66,11 +71,12 @@ export type LoadedModuleMetadata = {
 };
 
 export async function loadModuleMetadata(moduleId: string): Promise<LoadedModuleMetadata> {
-  const [moduleJson, presetJson] = await Promise.all([
+  const [moduleJson, presetJson, metadataJson] = await Promise.all([
     loadJson<ModuleMetadataJson>(`/modules/${moduleId}/module.json`),
-    loadJson<PresetsJson>(`/modules/${moduleId}/presets.json`)
+    loadJson<PresetsJson>(`/modules/${moduleId}/presets.json`),
+    loadOptionalJson<MetadataJson>(`/modules/${moduleId}/metadata.json`)
   ]);
-  const params = paramsFromModuleJson(moduleJson);
+  const params = paramsFromModuleJson(moduleJson, metadataJson?.params ?? {});
   return {
     moduleJson,
     paramIds: Object.fromEntries(params.map((param) => [param.key, param.id])),
@@ -99,6 +105,13 @@ async function loadJson<T>(path: string): Promise<T> {
   return response.json() as Promise<T>;
 }
 
+async function loadOptionalJson<T>(path: string): Promise<T | null> {
+  const response = await fetch(path, { cache: "no-store" });
+  if (response.status === 404) return null;
+  if (!response.ok) throw new Error(`${path}: ${response.status}`);
+  return response.json() as Promise<T>;
+}
+
 async function hasWasmBuild(moduleId: string): Promise<boolean> {
   try {
     const response = await fetch(`/wasm/${moduleId}.wasm`, { cache: "no-store" });
@@ -115,7 +128,7 @@ function looksLikeWasm(bytes: ArrayBuffer): boolean {
   return header.length === 4 && header[0] === 0x00 && header[1] === 0x61 && header[2] === 0x73 && header[3] === 0x6d;
 }
 
-function paramsFromModuleJson(moduleJson: ModuleMetadataJson): ParamDefinition[] {
+function paramsFromModuleJson(moduleJson: ModuleMetadataJson, descriptions: Record<string, string>): ParamDefinition[] {
   const raw = moduleJson.capabilities?.ui_hierarchy?.levels?.root?.params ?? [];
   return raw.map((item, index) => ({
     default: item.default,
@@ -124,6 +137,7 @@ function paramsFromModuleJson(moduleJson: ModuleMetadataJson): ParamDefinition[]
     label: item.name ?? item.key,
     max: item.max,
     min: item.min,
+    description: descriptions[item.key],
     step: item.step,
     type: item.type,
     value: item.default

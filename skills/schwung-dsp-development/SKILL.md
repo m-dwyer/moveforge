@@ -39,6 +39,7 @@ The `_core.h` header is the **API contract**. Both paths implement the same cont
 ```
 src/modules/<id>/
 ├── module.json              metadata + param schema (single source of truth)
+├── metadata.json            local/web-only help text, including param tooltips
 ├── presets.json             preset values + render directives for the suite
 ├── ui.js                    solo-mode on-device UI shim
 ├── ui_chain.js              chain-mode on-device UI shim
@@ -107,8 +108,9 @@ Both paths share this loop:
 5. **Faust only**: run `mise run gen-faust`.
 6. Use the new param in the DSP.
 7. Add the key to every preset in `<id>/presets.json` with a value inside `[min, max]`.
-8. Add or extend the assertion in `tests/test_<id>_core.c`.
-9. Run `mise run validate` (param drift + gen drift + preset range).
+8. Add a concise tooltip description to `<id>/metadata.json` under `params.<key>`. Do not put local help text in Schwung-facing `module.json` unless Schwung officially supports that field.
+9. Add or extend the assertion in `tests/test_<id>_core.c`.
+10. Run `mise run validate` (param drift + gen drift + preset range).
 
 ## Workflow: iterate on sound
 

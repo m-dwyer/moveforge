@@ -1,0 +1,13 @@
+{
+  "params": {
+    "volume": "Sets the final output level for Dustline. Reduce it when Drive, Resonance, or low notes make the voice too hot.",
+    "wave": "Morphs the oscillator source from saw-like tones toward pulse-like tones. Higher values make the sound narrower and more buzzy.",
+    "noise": "Blends noise into the oscillator source before the filter. Use it for air, grit, percussion-like attacks, or dirty bass texture.",
+    "cutoff": "Sets the resonant low-pass filter cutoff. Lower values darken the voice; higher values expose more oscillator and noise brightness.",
+    "resonance": "Controls the filter peak around the cutoff. Higher values emphasize the cutoff frequency and can become sharper or more nasal.",
+    "attack": "Sets how quickly the amplitude envelope rises after note-on. Low values are immediate; higher values fade the voice in.",
+    "release": "Sets how long the amplitude envelope falls after note-off. Higher values create longer tails and smoother note transitions.",
+    "drive": "Adds saturation after filtering. Use it for louder, denser bass and lead tones, but watch output headroom at high values.",
+    "bend_range": "Sets pitch-bend depth in semitones for incoming MIDI pitch bend."
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "params": {
+    "volume": "Sets the final output level for Westfold before it reaches the chain. Use this to leave headroom when Fold, Drive, or Chaos are high.",
+    "ratio": "Sets the modulator oscillator ratio against the played note. Simple ratios stay grounded; in-between values create clangorous, West Coast sidebands.",
+    "fm": "Controls phase modulation depth from the modulator into the carrier. Higher values add metallic motion and more aggressive harmonic spreading.",
+    "fold": "Controls wavefolder intensity before the low-pass gate. Low values stay sine-like; high values add folded harmonics and sharper edges.",
+    "lpg": "Controls low-pass gate brightness and openness. Higher values let more transient and high-frequency content through.",
+    "drive": "Adds saturation around the folder and output stage. Use it for weight and grit, especially on bass and techno pluck sounds.",
+    "strike": "Shapes the initial LPG hit. Higher values make the attack brighter, sharper, and more percussive.",
+    "chaos": "Adds bounded drift and instability to ratio, folding, and modulation. Higher settings can sound more unhinged while staying level-limited.",
+    "decay": "Sets how quickly the struck envelope falls while the note is held. Short values make tight plucks; longer values make blooming tones.",
+    "release": "Sets how long the voice decays after note-off. Raise it for tails and drones, lower it for tighter rhythmic sequencing.",
+    "bend_range": "Sets pitch-bend depth in semitones for incoming MIDI pitch bend."
+  }
+}

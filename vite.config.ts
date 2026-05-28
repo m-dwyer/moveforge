@@ -48,7 +48,7 @@ export default defineConfig(({ mode }) => {
   };
 });
 
-// Expose src/modules/<id>/{module,presets}.json + src/modules/index.json at
+// Expose src/modules/<id>/{module,presets,metadata}.json + src/modules/index.json at
 // /modules/* — those files live outside the Vite root (web/), so they need
 // an explicit URL mapping rather than Vite's filesystem fallthrough.
 function serveRepoModules(): Plugin {
