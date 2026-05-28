@@ -1,0 +1,6 @@
+{
+  "params": {
+    "volume": "Sets the final output level for MODULE_NAME.",
+    "tone": "Shapes the brightness or character of MODULE_NAME."
+  }
+}

@@ -115,20 +115,23 @@ if (dsp === "faust") {
   console.log(`  1. edit ${targetDir}/dsp/${id}_core.c to implement DSP behavior`);
   console.log(`  2. edit params in ${targetDir}/module.json then re-run \`MODULE_ID=${id} mise run gen-params\``);
 }
-console.log(`  3. add presets to ${targetDir}/presets.json`);
-console.log(`  4. MODULE_ID=${id} mise run validate && MODULE_ID=${id} mise run test`);
+console.log(`  3. add parameter tooltip descriptions to ${targetDir}/metadata.json`);
+console.log(`  4. add presets to ${targetDir}/presets.json`);
+console.log(`  5. MODULE_ID=${id} mise run validate && MODULE_ID=${id} mise run test`);
 if (kind === "sound_generator") {
-  console.log(`  5. MODULE_ID=${id} mise run suite && MODULE_ID=${id} pnpm run bless-renders`);
-  console.log(`  6. MODULE_ID=${id} mise run wasm && mise run dev  (then choose ${id} in the Module selector)`);
-  console.log(`  7. deploy with MODULE_ID=${id} ./scripts/install-to-move.sh`);
+  console.log(`  6. MODULE_ID=${id} mise run suite && MODULE_ID=${id} pnpm run bless-renders`);
+  console.log(`  7. MODULE_ID=${id} mise run stress`);
+  console.log(`  8. MODULE_ID=${id} mise run wasm && mise run dev  (then choose ${id} in the Module selector)`);
+  console.log(`  9. deploy with MODULE_ID=${id} ./scripts/install-to-move.sh`);
 } else if (kind === "audio_fx") {
-  console.log(`  5. MODULE_ID=${id} mise run suite && MODULE_ID=${id} pnpm run bless-renders`);
-  console.log(`  6. MODULE_ID=${id} mise run wasm && mise run dev  (route audio into ${id} in the chain)`);
-  console.log(`  7. deploy with MODULE_ID=${id} ./scripts/install-to-move.sh`);
+  console.log(`  6. MODULE_ID=${id} mise run suite && MODULE_ID=${id} pnpm run bless-renders`);
+  console.log(`  7. MODULE_ID=${id} mise run stress`);
+  console.log(`  8. MODULE_ID=${id} mise run wasm && mise run dev  (route audio into ${id} in the chain)`);
+  console.log(`  9. deploy with MODULE_ID=${id} ./scripts/install-to-move.sh`);
 } else {
-  console.log(`  5. MODULE_ID=${id} mise run suite && MODULE_ID=${id} pnpm run bless-renders  (compares MIDI traces)`);
-  console.log(`  6. MODULE_ID=${id} mise run wasm  (browser audition needs a downstream synth in the chain)`);
-  console.log(`  7. deploy with MODULE_ID=${id} ./scripts/install-to-move.sh`);
+  console.log(`  6. MODULE_ID=${id} mise run suite && MODULE_ID=${id} pnpm run bless-renders  (compares MIDI traces)`);
+  console.log(`  7. MODULE_ID=${id} mise run wasm  (browser audition needs a downstream synth in the chain)`);
+  console.log(`  8. deploy with MODULE_ID=${id} ./scripts/install-to-move.sh`);
 }
 
 function parseArgs(list: string[]): Record<string, string | true> {
