@@ -10,6 +10,7 @@
     "bless-renders": "node scripts/check-renders.ts bless",
     "build:web": "vite build",
     "check-renders": "node scripts/check-renders.ts check",
+    "check-stress": "node scripts/check-stress.ts",
     "dev": "vite",
     "test": "vitest run",
     "gen-faust": "node scripts/gen-faust.ts",

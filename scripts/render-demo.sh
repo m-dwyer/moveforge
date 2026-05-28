@@ -36,6 +36,10 @@ case "$COMPONENT_TYPE" in
       rm -rf "renders/$MODULE_ID-suite"
       mkdir -p "renders/$MODULE_ID-suite"
       RENDER_BIN="./build/render_wav_$MODULE_ID" node scripts/render-suite.ts
+    elif [ "${1:-}" = "--stress" ]; then
+      rm -rf "renders/$MODULE_ID-stress"
+      mkdir -p "renders/$MODULE_ID-stress"
+      RENDER_BIN="./build/render_wav_$MODULE_ID" node scripts/render-stress.ts
     fi
     ;;
 
@@ -55,6 +59,10 @@ case "$COMPONENT_TYPE" in
       rm -rf "renders/$MODULE_ID-suite"
       mkdir -p "renders/$MODULE_ID-suite"
       RENDER_BIN="./build/render_fx_$MODULE_ID" RENDER_KIND=audio_fx node scripts/render-suite.ts
+    elif [ "${1:-}" = "--stress" ]; then
+      rm -rf "renders/$MODULE_ID-stress"
+      mkdir -p "renders/$MODULE_ID-stress"
+      RENDER_BIN="./build/render_fx_$MODULE_ID" RENDER_KIND=audio_fx node scripts/render-stress.ts
     fi
     ;;
 

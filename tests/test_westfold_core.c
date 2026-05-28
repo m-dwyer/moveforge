@@ -5,6 +5,7 @@
 #include "westfold_core.h"
 
 #define FRAMES 4096
+#define TAIL_FRAMES 65536
 
 static void require_true(int condition, const char *message) {
     if (!condition) {
@@ -21,11 +22,16 @@ int main(void) {
     westfold_core_t synth;
     float left[FRAMES];
     float right[FRAMES];
+    float tail_left[TAIL_FRAMES];
+    float tail_right[TAIL_FRAMES];
     westfold_init(&synth);
 
     int volume_id = westfold_param_id("volume");
     int decay_id = westfold_param_id("decay");
     int fold_id = westfold_param_id("fold");
+    int drive_id = westfold_param_id("drive");
+    int strike_id = westfold_param_id("strike");
+    int chaos_id = westfold_param_id("chaos");
 
     westfold_set_param(&synth, volume_id, 2.0f);
     require_true(westfold_get_param(&synth, volume_id) <= 1.0f, "volume clamps high");
@@ -33,8 +39,18 @@ int main(void) {
     westfold_set_param(&synth, decay_id, -1.0f);
     require_true(westfold_get_param(&synth, decay_id) >= 0.02f, "decay clamps low");
 
+    westfold_set_param(&synth, drive_id, 2.0f);
+    westfold_set_param(&synth, strike_id, -1.0f);
+    westfold_set_param(&synth, chaos_id, 2.0f);
+    require_true(westfold_get_param(&synth, drive_id) <= 1.0f, "drive clamps high");
+    require_true(westfold_get_param(&synth, strike_id) >= 0.0f, "strike clamps low");
+    require_true(westfold_get_param(&synth, chaos_id) <= 1.0f, "chaos clamps high");
+
     westfold_set_param(&synth, volume_id, 0.8f);
     westfold_set_param(&synth, fold_id, 0.6f);
+    westfold_set_param(&synth, drive_id, 0.45f);
+    westfold_set_param(&synth, strike_id, 0.7f);
+    westfold_set_param(&synth, chaos_id, 0.35f);
     westfold_note_on(&synth, 60, 1.0f);
     westfold_process_float(&synth, NULL, NULL, left, right, FRAMES);
 
@@ -56,7 +72,20 @@ int main(void) {
     westfold_process_float(&synth, NULL, NULL, left, right, FRAMES);
     require_true(synth.env < before, "release envelope decays after note off");
 
+    westfold_process_float(&synth, NULL, NULL, tail_left, tail_right, TAIL_FRAMES);
+    float tail_peak_l = 0.0f;
+    float tail_peak_r = 0.0f;
+    for (int i = TAIL_FRAMES - 4096; i < TAIL_FRAMES; i++) {
+        float l = absf_local(tail_left[i]);
+        float r = absf_local(tail_right[i]);
+        if (l > tail_peak_l) tail_peak_l = l;
+        if (r > tail_peak_r) tail_peak_r = r;
+    }
+    require_true(tail_peak_l < 0.001f, "left release tail reaches silence");
+    require_true(tail_peak_r < 0.001f, "right release tail reaches silence");
+
     require_true(westfold_param_id("fold") >= 0, "param lookup works");
+    require_true(westfold_param_id("chaos") >= 0, "new param lookup works");
     require_true(westfold_param_id("does_not_exist") < 0, "unknown param lookup fails");
 
     printf("westfold core tests passed\n");

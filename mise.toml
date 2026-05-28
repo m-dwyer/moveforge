@@ -34,6 +34,22 @@ run = "make suite"
 description = "Render the suite and generate waveform/spectrum PNGs"
 run = "make plot"
 
+[tasks.stress]
+description = "Render metadata-generated min/max stress WAVs and check safety metrics"
+run = "make stress"
+
+[tasks.stress-all]
+description = "Render metadata-generated stress WAVs and check safety metrics for all audio modules"
+run = "make stress-all"
+
+[tasks.plot-stress]
+description = "Render stress WAVs and generate waveform/spectrum PNGs"
+run = "make plot-stress"
+
+[tasks.plot-stress-all]
+description = "Render stress WAVs and generate plots for all audio modules"
+run = "make plot-stress-all"
+
 [tasks.metrics]
 description = "Render the suite and emit metrics.json next to WAVs"
 depends = ["suite"]

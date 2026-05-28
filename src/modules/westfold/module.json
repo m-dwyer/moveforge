@@ -26,11 +26,14 @@
             { "key": "fm", "name": "FM", "type": "float", "min": 0, "max": 1, "default": 0.15, "step": 0.01 },
             { "key": "fold", "name": "Fold", "type": "float", "min": 0, "max": 1, "default": 0.35, "step": 0.01 },
             { "key": "lpg", "name": "LPG", "type": "float", "min": 0, "max": 1, "default": 0.55, "step": 0.01 },
+            { "key": "drive", "name": "Drive", "type": "float", "min": 0, "max": 1, "default": 0.28, "step": 0.01 },
+            { "key": "strike", "name": "Strike", "type": "float", "min": 0, "max": 1, "default": 0.45, "step": 0.01 },
+            { "key": "chaos", "name": "Chaos", "type": "float", "min": 0, "max": 1, "default": 0.12, "step": 0.01 },
             { "key": "decay", "name": "Decay", "type": "float", "min": 0.02, "max": 4, "default": 0.45, "step": 0.01 },
             { "key": "release", "name": "Release", "type": "float", "min": 0.02, "max": 6, "default": 0.8, "step": 0.01 },
             { "key": "bend_range", "name": "Bend", "type": "float", "min": 0, "max": 12, "default": 2, "step": 0.1 }
           ],
-          "knobs": ["volume", "ratio", "fm", "fold"]
+          "knobs": ["volume", "ratio", "fm", "fold", "lpg", "drive", "strike", "chaos"]
         }
       }
     }

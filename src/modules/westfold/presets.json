@@ -8,6 +8,9 @@
         "fm": 0.08,
         "fold": 0.22,
         "lpg": 0.5,
+        "drive": 0.22,
+        "strike": 0.42,
+        "chaos": 0.08,
         "decay": 0.38,
         "release": 0.55,
         "bend_range": 2
@@ -29,6 +32,9 @@
         "fm": 0.06,
         "fold": 0.42,
         "lpg": 0.98,
+        "drive": 0.34,
+        "strike": 0.92,
+        "chaos": 0.06,
         "decay": 0.045,
         "release": 0.09,
         "bend_range": 2
@@ -50,6 +56,9 @@
         "fm": 0.2,
         "fold": 0.68,
         "lpg": 0.42,
+        "drive": 0.58,
+        "strike": 0.62,
+        "chaos": 0.18,
         "decay": 0.24,
         "release": 0.22,
         "bend_range": 3
@@ -71,6 +80,9 @@
         "fm": 0.72,
         "fold": 0.34,
         "lpg": 0.76,
+        "drive": 0.24,
+        "strike": 0.54,
+        "chaos": 0.28,
         "decay": 0.92,
         "release": 1.8,
         "bend_range": 2
@@ -92,6 +104,9 @@
         "fm": 0.22,
         "fold": 0.32,
         "lpg": 0.92,
+        "drive": 0.18,
+        "strike": 0.28,
+        "chaos": 0.16,
         "decay": 1.9,
         "release": 2.8,
         "bend_range": 2
@@ -113,6 +128,9 @@
         "fm": 0.38,
         "fold": 0.96,
         "lpg": 0.7,
+        "drive": 0.7,
+        "strike": 0.78,
+        "chaos": 0.52,
         "decay": 0.2,
         "release": 0.48,
         "bend_range": 7

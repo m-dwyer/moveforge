@@ -20,8 +20,9 @@ except ModuleNotFoundError as exc:
 ROOT = Path(__file__).resolve().parents[1]
 MODULE_ID = os.environ.get("MODULE_ID", "westfold")
 PRESETS = ROOT / "src" / "modules" / MODULE_ID / "presets.json"
-RENDER_DIR = ROOT / "renders" / f"{MODULE_ID}-suite"
-OUT_DIR = ROOT / "renders" / "plots" / MODULE_ID
+PLOT_SUITE = os.environ.get("PLOT_SUITE", "suite")
+RENDER_DIR = ROOT / "renders" / f"{MODULE_ID}-{PLOT_SUITE}"
+OUT_DIR = ROOT / "renders" / "plots" / (MODULE_ID if PLOT_SUITE == "suite" else f"{MODULE_ID}-{PLOT_SUITE}")
 
 W = 1400
 H = 720
@@ -163,7 +164,14 @@ def main() -> int:
         )
         return 0
 
-    data = json.loads(PRESETS.read_text())
+    if PLOT_SUITE == "stress":
+        manifest_path = RENDER_DIR / "manifest.json"
+        data = {"presets": [
+            {"name": case["label"], "render": {"file": case["file"]}}
+            for case in json.loads(manifest_path.read_text())["cases"]
+        ]}
+    else:
+        data = json.loads(PRESETS.read_text())
     OUT_DIR.mkdir(parents=True, exist_ok=True)
 
     wrote = 0

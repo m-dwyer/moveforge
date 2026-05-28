@@ -8,6 +8,8 @@ Schwung is unofficial and not supported by Ableton. Treat device deployment as e
 
 ## Included Modules
 
+See [MODULES.md](MODULES.md) for the module index grouped by component type.
+
 | id | kind | authoring | notes |
 |---|---|---|---|
 | `westfold` | sound_generator | plain C | West Coast voice: dual oscillator FM, wavefolder, low-pass gate |
@@ -99,6 +101,15 @@ Render the preset comparison suite:
 
 Writes labeled clips under `renders/<module-id>-suite/`.
 
+Render metadata-generated stress cases:
+
+```bash
+mise run stress
+mise run plot-stress
+```
+
+Stress renders go under `renders/<module-id>-stress/`; plots go under `renders/plots/<module-id>-stress/`.
+
 Build the browser WASM for one module:
 
 ```bash
@@ -152,11 +163,21 @@ Omitting `MODULE_ID` builds every module. Set `MODULE_ID=<id>` to build one modu
 3. `mise run test` — core smoke tests.
 4. `mise run suite` — renders preset WAVs.
 5. `mise run plot` — waveform + log-frequency spectrum PNGs at `renders/plots/<id>/`.
-6. Listen to `renders/<id>-demo.wav` and `renders/<id>-suite/*.wav`.
-7. Browser audition: `mise run dev`.
-8. `mise run check-renders` to confirm no unintended regression against blessed goldens. `pnpm run bless-renders` after an intentional sound change.
+6. `mise run stress` — renders metadata-generated min/max parameter cases and checks safety metrics.
+7. `mise run plot-stress` — waveform + spectrum PNGs for stress cases at `renders/plots/<id>-stress/`.
+8. Listen to `renders/<id>-demo.wav` and `renders/<id>-suite/*.wav`.
+9. Browser audition: `mise run dev`.
+10. `mise run check-renders` to confirm no unintended regression against blessed goldens. `pnpm run bless-renders` after an intentional sound change.
 
 For AI-assisted iteration: ask for small, contained changes (a single filter, a single envelope). Always render and check the plots before judging the sound. Audio bugs are much easier to catch from a deterministic WAV fixture than from code review alone.
+
+### Presets vs stress renders
+
+The preset suite is musical and golden-backed. It answers: did our curated example sounds change unexpectedly?
+
+Stress renders are generated from `module.json`. For each audio module, they render defaults, each parameter at min/max, an all-max case, and a hot/fast combination. Sound generators render note sequences; audio FX render sweep/impulse inputs. MIDI FX are skipped because they output trace files rather than WAV audio.
+
+Stress checks are safety gates, not golden comparisons. They fail on clipped samples, excessive DC offset, unexpected silence, too-hot peaks, or large stereo imbalance. They are useful when adding params because every exposed min/max starts getting exercised automatically.
 
 ### Scaffolding a new module
 
@@ -234,6 +255,10 @@ Individual gates:
 | `mise run plot` | Generate waveform + spectrum PNGs |
 | `mise run check-renders` | Compare current suite metrics against `goldens/<id>/metrics.json` |
 | `pnpm run bless-renders` | Promote current suite metrics into goldens (after intentional change) |
+| `mise run stress` | Render metadata-generated min/max stress WAVs and check safety metrics |
+| `mise run plot-stress` | Generate waveform + spectrum PNGs for stress renders |
+| `mise run stress-all` | Run stress renders/checks across all sound generators and audio FX |
+| `mise run plot-stress-all` | Generate stress plots across all sound generators and audio FX |
 | `mise run host` | Build host-only `.so` for local compile sanity |
 | `mise run move` | Cross-compile aarch64 `.so` + dist tarball for all modules, or one module with `MODULE_ID=<id>` |
 | `mise run wasm` | Emscripten-compile browser `.wasm` |

@@ -12,8 +12,13 @@ typedef struct {
     float target_freq;
     float velocity;
     float env;
+    float strike_env;
     float gate;
     float lp;
+    float hp_x;
+    float hp_y;
+    float chaos_phase;
+    float note_rand;
     int active_note;
     float pitch_bend;
 
@@ -22,6 +27,9 @@ typedef struct {
     float fm;
     float fold;
     float lpg;
+    float drive;
+    float strike;
+    float chaos;
     float decay;
     float release;
     float bend_range;

@@ -10,9 +10,12 @@ enum {
     WESTFOLD_PARAM_FM = 2,
     WESTFOLD_PARAM_FOLD = 3,
     WESTFOLD_PARAM_LPG = 4,
-    WESTFOLD_PARAM_DECAY = 5,
-    WESTFOLD_PARAM_RELEASE = 6,
-    WESTFOLD_PARAM_BEND_RANGE = 7
+    WESTFOLD_PARAM_DRIVE = 5,
+    WESTFOLD_PARAM_STRIKE = 6,
+    WESTFOLD_PARAM_CHAOS = 7,
+    WESTFOLD_PARAM_DECAY = 8,
+    WESTFOLD_PARAM_RELEASE = 9,
+    WESTFOLD_PARAM_BEND_RANGE = 10
 };
 
 static inline float westfold_params_clampf_(float x, float lo, float hi) {
@@ -26,6 +29,9 @@ int westfold_param_id(const char *key) {
     if (strcmp(key, "fm") == 0) return WESTFOLD_PARAM_FM;
     if (strcmp(key, "fold") == 0) return WESTFOLD_PARAM_FOLD;
     if (strcmp(key, "lpg") == 0) return WESTFOLD_PARAM_LPG;
+    if (strcmp(key, "drive") == 0) return WESTFOLD_PARAM_DRIVE;
+    if (strcmp(key, "strike") == 0) return WESTFOLD_PARAM_STRIKE;
+    if (strcmp(key, "chaos") == 0) return WESTFOLD_PARAM_CHAOS;
     if (strcmp(key, "decay") == 0) return WESTFOLD_PARAM_DECAY;
     if (strcmp(key, "release") == 0) return WESTFOLD_PARAM_RELEASE;
     if (strcmp(key, "bend_range") == 0) return WESTFOLD_PARAM_BEND_RANGE;
@@ -40,6 +46,9 @@ void westfold_set_param(westfold_core_t *s, int param_id, float value) {
         case WESTFOLD_PARAM_FM: s->fm = westfold_params_clampf_(value, 0.0f, 1.0f); break;
         case WESTFOLD_PARAM_FOLD: s->fold = westfold_params_clampf_(value, 0.0f, 1.0f); break;
         case WESTFOLD_PARAM_LPG: s->lpg = westfold_params_clampf_(value, 0.0f, 1.0f); break;
+        case WESTFOLD_PARAM_DRIVE: s->drive = westfold_params_clampf_(value, 0.0f, 1.0f); break;
+        case WESTFOLD_PARAM_STRIKE: s->strike = westfold_params_clampf_(value, 0.0f, 1.0f); break;
+        case WESTFOLD_PARAM_CHAOS: s->chaos = westfold_params_clampf_(value, 0.0f, 1.0f); break;
         case WESTFOLD_PARAM_DECAY: s->decay = westfold_params_clampf_(value, 0.02f, 4.0f); break;
         case WESTFOLD_PARAM_RELEASE: s->release = westfold_params_clampf_(value, 0.02f, 6.0f); break;
         case WESTFOLD_PARAM_BEND_RANGE: s->bend_range = westfold_params_clampf_(value, 0.0f, 12.0f); break;
@@ -55,6 +64,9 @@ float westfold_get_param(const westfold_core_t *s, int param_id) {
         case WESTFOLD_PARAM_FM: return s->fm;
         case WESTFOLD_PARAM_FOLD: return s->fold;
         case WESTFOLD_PARAM_LPG: return s->lpg;
+        case WESTFOLD_PARAM_DRIVE: return s->drive;
+        case WESTFOLD_PARAM_STRIKE: return s->strike;
+        case WESTFOLD_PARAM_CHAOS: return s->chaos;
         case WESTFOLD_PARAM_DECAY: return s->decay;
         case WESTFOLD_PARAM_RELEASE: return s->release;
         case WESTFOLD_PARAM_BEND_RANGE: return s->bend_range;
@@ -69,6 +81,9 @@ void westfold_apply_defaults(westfold_core_t *s) {
     s->fm = 0.15f;
     s->fold = 0.35f;
     s->lpg = 0.55f;
+    s->drive = 0.28f;
+    s->strike = 0.45f;
+    s->chaos = 0.12f;
     s->decay = 0.45f;
     s->release = 0.8f;
     s->bend_range = 2.0f;

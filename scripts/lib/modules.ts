@@ -10,6 +10,7 @@ export type ModulePaths = {
   moduleJson: string;
   paramsGenInc: string;
   presets: string;
+  stressDir: string;
   suiteDir: string;
   wasmC: string;
 };
@@ -39,6 +40,7 @@ export function modulePaths(moduleId: string): ModulePaths {
     moduleJson: `${moduleDir}/module.json`,
     paramsGenInc: `${moduleDir}/dsp/${moduleId}_params.gen.inc`,
     presets: `${moduleDir}/presets.json`,
+    stressDir: `renders/${moduleId}-stress`,
     suiteDir: `renders/${moduleId}-suite`,
     wasmC: `${moduleDir}/dsp/${moduleId}_wasm.c`
   };
