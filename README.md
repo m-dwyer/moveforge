@@ -1,5 +1,7 @@
 # Moveforge
 
+![Moveforge synth-module workshop hero](docs/assets/moveforge-hero.png)
+
 Local development harness for building custom Schwung modules for Ableton Move.
 
 Each module compiles to a `dsp.so` (aarch64 Linux for the device) and a `web/wasm/<id>.wasm` (browser, via Emscripten) from the same DSP source. The browser audio path uses the same int16 conversion as Move, so what you hear locally is what plays on device.
