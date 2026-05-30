@@ -63,7 +63,12 @@ for MODULE_ID in $MODULE_IDS; do
 
   cp "$MODULE_DIR/module.json" "dist/$MODULE_ID/module.json"
   cp "$MODULE_DIR/ui.js" "dist/$MODULE_ID/ui.js"
+  # Ship the shared library under two names. The synth chain host dlopens
+  # "<module>/dsp.so"; the audio-FX chain host hardcodes "<module>/<id>.so"
+  # (chain_host.c load_audio_fx, ignoring module.json's "dsp"). Shipping both
+  # satisfies whichever path the host uses for this module's kind.
   cp "build/${MODULE_ID}-dsp.so" "dist/$MODULE_ID/dsp.so"
+  cp "build/${MODULE_ID}-dsp.so" "dist/$MODULE_ID/${MODULE_ID}.so"
   [ -f "$MODULE_DIR/ui_chain.js" ] && cp "$MODULE_DIR/ui_chain.js" "dist/$MODULE_ID/ui_chain.js"
   [ -f "$MODULE_DIR/presets.json" ] && cp "$MODULE_DIR/presets.json" "dist/$MODULE_ID/presets.json"
 
