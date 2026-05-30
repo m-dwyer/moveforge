@@ -3,14 +3,15 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
+. "$ROOT/scripts/lib/module-targets.sh"
 
-MODULE_IDS="$(node scripts/module-targets.ts ids)"
+MODULE_IDS="$(moveforge_module_ids)"
 mkdir -p build-host
 
 for MODULE_ID in $MODULE_IDS; do
-  MODULE_DIR="$(node scripts/module-targets.ts field "$MODULE_ID" moduleDir)"
-  CORE_IMPL="$(node scripts/module-targets.ts field "$MODULE_ID" coreImpl)"
-  WRAPPER_C="$(node scripts/module-targets.ts field "$MODULE_ID" wrapperC)"
+  MODULE_DIR="$(moveforge_module_dir "$MODULE_ID")"
+  CORE_IMPL="$(moveforge_core_impl "$MODULE_ID")"
+  WRAPPER_C="$(moveforge_wrapper_c "$MODULE_ID")"
   HOST_SO="build-host/${MODULE_ID}-dsp.so"
   mkdir -p "dist-host/$MODULE_ID"
 

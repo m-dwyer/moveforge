@@ -4,10 +4,11 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 . "$ROOT/scripts/lib/move-guards.sh"
+. "$ROOT/scripts/lib/module-targets.sh"
 
 MOVE_HOST="${MOVE_HOST:-ableton@move.local}"
 SCHWUNG_DIR="${SCHWUNG_DIR:-/data/UserData/schwung}"
-MODULE_IDS="$(node scripts/module-targets.ts ids)"
+MODULE_IDS="$(moveforge_module_ids)"
 
 usage() {
   cat <<EOF
@@ -42,7 +43,7 @@ component_dir_for() {
   fi
 
   local module_kind
-  module_kind="$(node scripts/module-targets.ts field "$module_id" componentType)"
+  module_kind="$(moveforge_component_type "$module_id")"
   case "$module_kind" in
     sound_generator) echo "sound_generators" ;;
     audio_fx)        echo "audio_fx" ;;

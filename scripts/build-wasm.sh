@@ -3,6 +3,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
+. "$ROOT/scripts/lib/module-targets.sh"
 
 IMAGE_NAME="${EMSCRIPTEN_IMAGE:-emscripten/emsdk:3.1.74}"
 mkdir -p web/wasm
@@ -10,7 +11,7 @@ mkdir -p web/wasm
 if [ -n "${MODULE_ID:-}" ]; then
   MODULE_IDS="$MODULE_ID"
 else
-  MODULE_IDS="$(node scripts/module-targets.ts ids)"
+  MODULE_IDS="$(moveforge_module_ids)"
 fi
 
 FORCE="${FORCE:-0}"
@@ -58,13 +59,13 @@ COMMANDS=()
 SUMMARY=()
 
 for MODULE_ID in $MODULE_IDS; do
-  MODULE_DIR="$(node scripts/module-targets.ts field "$MODULE_ID" moduleDir)"
+  MODULE_DIR="$(moveforge_module_dir "$MODULE_ID")"
   WASM_OUT="web/wasm/${MODULE_ID}.wasm"
-  COMPONENT_TYPE="$(node scripts/module-targets.ts field "$MODULE_ID" componentType)"
-  CORE_IMPL="$(node scripts/module-targets.ts field "$MODULE_ID" coreImpl)"
-  WRAPPER_C="$(node scripts/module-targets.ts field "$MODULE_ID" wrapperC)"
-  CORE_HEADER="$(node scripts/module-targets.ts field "$MODULE_ID" coreHeader)"
-  FAUST_C="$(node scripts/module-targets.ts field "$MODULE_ID" faustC)"
+  COMPONENT_TYPE="$(moveforge_component_type "$MODULE_ID")"
+  CORE_IMPL="$(moveforge_core_impl "$MODULE_ID")"
+  WRAPPER_C="$(moveforge_wrapper_c "$MODULE_ID")"
+  CORE_HEADER="$(moveforge_core_header "$MODULE_ID")"
+  FAUST_C="$(moveforge_faust_c "$MODULE_ID")"
   case "$COMPONENT_TYPE" in
     sound_generator)
       GLUE="src/host/schwung_wasm_glue_sg.c"

@@ -3,16 +3,13 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
+. "$ROOT/scripts/lib/module-targets.sh"
 
 IMAGE_NAME="${IMAGE_NAME:-schwung-module-builder}"
 if [ -n "${MODULE_ID:-}" ]; then
   MODULE_IDS="$MODULE_ID"
 else
-  if command -v node >/dev/null 2>&1; then
-    MODULE_IDS="$(node scripts/module-targets.ts ids)"
-  else
-    MODULE_IDS="$(find src/modules -mindepth 1 -maxdepth 1 -type d ! -name '_*' -exec basename {} \; | sort)"
-  fi
+  MODULE_IDS="$(moveforge_module_ids)"
 fi
 
 if [ -z "${CROSS_PREFIX:-}" ] && [ -z "${SCHWUNG_NO_DOCKER:-}" ] && [ ! -f "/.dockerenv" ]; then
@@ -45,19 +42,9 @@ fi
 mkdir -p build
 
 for MODULE_ID in $MODULE_IDS; do
-  if command -v node >/dev/null 2>&1; then
-    MODULE_DIR="$(node scripts/module-targets.ts field "$MODULE_ID" moduleDir)"
-    CORE_IMPL="$(node scripts/module-targets.ts field "$MODULE_ID" coreImpl)"
-    WRAPPER_C="$(node scripts/module-targets.ts field "$MODULE_ID" wrapperC)"
-  else
-    MODULE_DIR="src/modules/$MODULE_ID"
-    WRAPPER_C="$MODULE_DIR/dsp/$MODULE_ID.c"
-    if [ -f "$MODULE_DIR/dsp/$MODULE_ID.dsp" ]; then
-      CORE_IMPL="$MODULE_DIR/dsp/${MODULE_ID}_adapter.c"
-    else
-      CORE_IMPL="$MODULE_DIR/dsp/${MODULE_ID}_core.c"
-    fi
-  fi
+  MODULE_DIR="$(moveforge_module_dir "$MODULE_ID")"
+  CORE_IMPL="$(moveforge_core_impl "$MODULE_ID")"
+  WRAPPER_C="$(moveforge_wrapper_c "$MODULE_ID")"
   mkdir -p "dist/$MODULE_ID"
 
   "${CROSS_PREFIX}gcc" -std=c11 -O3 -g -shared -fPIC \
