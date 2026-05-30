@@ -26,18 +26,21 @@
           "params": [
             { "key": "volume", "name": "Volume", "type": "float", "min": 0, "max": 1, "default": 0.75, "step": 0.01 },
             { "key": "ratio", "name": "Ratio", "type": "float", "min": 0.25, "max": 4, "default": 1.5, "step": 0.01 },
+            { "key": "snap", "name": "Snap", "type": "float", "min": 0, "max": 1, "default": 0.7, "step": 0.01 },
             { "key": "fm", "name": "FM", "type": "float", "min": 0, "max": 1, "default": 0.15, "step": 0.01 },
             { "key": "fold", "name": "Fold", "type": "float", "min": 0, "max": 1, "default": 0.35, "step": 0.01 },
             { "key": "lpg", "name": "LPG", "type": "float", "min": 0, "max": 1, "default": 0.55, "step": 0.01 },
+            { "key": "tone", "name": "Tone", "type": "float", "min": 0, "max": 1, "default": 0.55, "step": 0.01 },
             { "key": "drive", "name": "Drive", "type": "float", "min": 0, "max": 1, "default": 0.28, "step": 0.01 },
             { "key": "strike", "name": "Strike", "type": "float", "min": 0, "max": 1, "default": 0.45, "step": 0.01 },
             { "key": "chaos", "name": "Chaos", "type": "float", "min": 0, "max": 1, "default": 0.12, "step": 0.01 },
+            { "key": "width", "name": "Width", "type": "float", "min": 0, "max": 1, "default": 0.2, "step": 0.01 },
             { "key": "sustain", "name": "Sustain", "type": "float", "min": 0, "max": 1, "default": 0.25, "step": 0.01 },
-            { "key": "decay", "name": "Decay", "type": "float", "min": 0.02, "max": 4, "default": 0.45, "step": 0.01 },
-            { "key": "release", "name": "Release", "type": "float", "min": 0.02, "max": 6, "default": 0.8, "step": 0.01 },
+            { "key": "decay", "name": "Decay", "type": "float", "min": 0.02, "max": 2.5, "default": 0.45, "step": 0.01 },
+            { "key": "release", "name": "Release", "type": "float", "min": 0.02, "max": 4, "default": 0.8, "step": 0.01 },
             { "key": "bend_range", "name": "Bend", "type": "float", "min": 0, "max": 12, "default": 2, "step": 0.1 }
           ],
-          "knobs": ["volume", "ratio", "fm", "fold", "lpg", "drive", "strike", "chaos", "sustain"]
+          "knobs": ["volume", "ratio", "snap", "fm", "fold", "lpg", "tone", "drive", "strike", "chaos", "width", "sustain"]
         }
       }
     }

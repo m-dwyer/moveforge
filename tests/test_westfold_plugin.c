@@ -37,7 +37,7 @@ int main(void) {
     void *inst = api->create_instance(".", NULL);
     require_true(inst != NULL, "create instance");
 
-    require_true(get_int(api, inst, "preset_count") == 10, "preset_count");
+    require_true(get_int(api, inst, "preset_count") == 12, "preset_count");
     require_true(get_int(api, inst, "preset") == 0, "initial preset");
 
     char name[64];

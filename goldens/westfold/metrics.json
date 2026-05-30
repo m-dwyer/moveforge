@@ -4,14 +4,14 @@
     "channels": 2,
     "frames": 308700,
     "duration_seconds": 7,
-    "peak": 0.64981,
-    "rms": 0.27206,
+    "peak": 0.65204,
+    "rms": 0.27209,
     "dc_offset": 0.00108,
-    "silence_ratio": 0.0031,
+    "silence_ratio": 0.0032,
     "clipped_samples": 0,
     "zero_crossing_rate": [
       0.0437,
-      0.0437
+      0.04371
     ],
     "stereo_correlation": 1
   },
@@ -21,8 +21,8 @@
     "frames": 308700,
     "duration_seconds": 7,
     "peak": 0.90512,
-    "rms": 0.42217,
-    "dc_offset": -0.001069,
+    "rms": 0.42212,
+    "dc_offset": -0.001071,
     "silence_ratio": 0.0003,
     "clipped_samples": 0,
     "zero_crossing_rate": [
@@ -36,14 +36,14 @@
     "channels": 2,
     "frames": 308700,
     "duration_seconds": 7,
-    "peak": 0.94394,
-    "rms": 0.47312,
-    "dc_offset": -0.002426,
+    "peak": 0.94397,
+    "rms": 0.47302,
+    "dc_offset": -0.002433,
     "silence_ratio": 0.0001,
     "clipped_samples": 0,
     "zero_crossing_rate": [
-      0.02222,
-      0.02224
+      0.02204,
+      0.02205
     ],
     "stereo_correlation": 1
   },
@@ -52,30 +52,30 @@
     "channels": 2,
     "frames": 308700,
     "duration_seconds": 7,
-    "peak": 0.8407,
-    "rms": 0.36721,
-    "dc_offset": -0.003881,
+    "peak": 0.83807,
+    "rms": 0.36753,
+    "dc_offset": -0.003744,
     "silence_ratio": 0.0016,
     "clipped_samples": 0,
     "zero_crossing_rate": [
-      0.04528,
-      0.0453
+      0.04538,
+      0.04546
     ],
-    "stereo_correlation": 1
+    "stereo_correlation": 0.9999
   },
   "04-strike-pluck.wav": {
     "sample_rate": 44100,
     "channels": 2,
     "frames": 264600,
     "duration_seconds": 6,
-    "peak": 0.86789,
-    "rms": 0.27475,
-    "dc_offset": -0.000184,
-    "silence_ratio": 0.0023,
+    "peak": 0.8649,
+    "rms": 0.27519,
+    "dc_offset": -0.00018,
+    "silence_ratio": 0.0019,
     "clipped_samples": 0,
     "zero_crossing_rate": [
-      0.04385,
-      0.04386
+      0.04653,
+      0.04655
     ],
     "stereo_correlation": 1
   },
@@ -84,7 +84,7 @@
     "channels": 2,
     "frames": 441000,
     "duration_seconds": 10,
-    "peak": 0.77087,
+    "peak": 0.77206,
     "rms": 0.49713,
     "dc_offset": -0.000465,
     "silence_ratio": 0.0002,
@@ -100,14 +100,14 @@
     "channels": 2,
     "frames": 352800,
     "duration_seconds": 8,
-    "peak": 0.75189,
-    "rms": 0.50611,
-    "dc_offset": -0.000612,
+    "peak": 0.75555,
+    "rms": 0.50683,
+    "dc_offset": -0.000586,
     "silence_ratio": 0.0002,
     "clipped_samples": 0,
     "zero_crossing_rate": [
-      0.11394,
-      0.11396
+      0.1145,
+      0.1146
     ],
     "stereo_correlation": 1
   },
@@ -116,26 +116,26 @@
     "channels": 2,
     "frames": 264600,
     "duration_seconds": 6,
-    "peak": 0.79599,
-    "rms": 0.42928,
-    "dc_offset": 0.003944,
-    "silence_ratio": 0.0076,
+    "peak": 0.7886,
+    "rms": 0.42923,
+    "dc_offset": 0.003882,
+    "silence_ratio": 0.0081,
     "clipped_samples": 0,
     "zero_crossing_rate": [
-      0.07999,
-      0.08
+      0.08274,
+      0.08276
     ],
-    "stereo_correlation": 1
+    "stereo_correlation": 0.9998
   },
   "08-macro-sweep.wav": {
     "sample_rate": 44100,
     "channels": 2,
     "frames": 352800,
     "duration_seconds": 8,
-    "peak": 0.82538,
-    "rms": 0.50629,
-    "dc_offset": -0.003648,
-    "silence_ratio": 0,
+    "peak": 0.82703,
+    "rms": 0.5063,
+    "dc_offset": -0.003645,
+    "silence_ratio": 0.0001,
     "clipped_samples": 0,
     "zero_crossing_rate": [
       0.02371,
@@ -148,14 +148,46 @@
     "channels": 2,
     "frames": 308700,
     "duration_seconds": 7,
-    "peak": 0.77414,
-    "rms": 0.42025,
-    "dc_offset": 0.002358,
-    "silence_ratio": 0.0026,
+    "peak": 0.78726,
+    "rms": 0.42014,
+    "dc_offset": 0.002534,
+    "silence_ratio": 0.0031,
     "clipped_samples": 0,
     "zero_crossing_rate": [
-      0.05904,
-      0.05904
+      0.0596,
+      0.05953
+    ],
+    "stereo_correlation": 0.9996
+  },
+  "10-clean-fold.wav": {
+    "sample_rate": 44100,
+    "channels": 2,
+    "frames": 264600,
+    "duration_seconds": 6,
+    "peak": 0.68268,
+    "rms": 0.33203,
+    "dc_offset": -0.000648,
+    "silence_ratio": 0.0005,
+    "clipped_samples": 0,
+    "zero_crossing_rate": [
+      0.07851,
+      0.07851
+    ],
+    "stereo_correlation": 1
+  },
+  "11-dark-hold.wav": {
+    "sample_rate": 44100,
+    "channels": 2,
+    "frames": 396900,
+    "duration_seconds": 9,
+    "peak": 0.89038,
+    "rms": 0.55036,
+    "dc_offset": -0.003171,
+    "silence_ratio": 0,
+    "clipped_samples": 0,
+    "zero_crossing_rate": [
+      0.01464,
+      0.01464
     ],
     "stereo_correlation": 1
   }

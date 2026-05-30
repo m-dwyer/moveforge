@@ -7,16 +7,19 @@
 enum {
     WESTFOLD_PARAM_VOLUME = 0,
     WESTFOLD_PARAM_RATIO = 1,
-    WESTFOLD_PARAM_FM = 2,
-    WESTFOLD_PARAM_FOLD = 3,
-    WESTFOLD_PARAM_LPG = 4,
-    WESTFOLD_PARAM_DRIVE = 5,
-    WESTFOLD_PARAM_STRIKE = 6,
-    WESTFOLD_PARAM_CHAOS = 7,
-    WESTFOLD_PARAM_SUSTAIN = 8,
-    WESTFOLD_PARAM_DECAY = 9,
-    WESTFOLD_PARAM_RELEASE = 10,
-    WESTFOLD_PARAM_BEND_RANGE = 11
+    WESTFOLD_PARAM_SNAP = 2,
+    WESTFOLD_PARAM_FM = 3,
+    WESTFOLD_PARAM_FOLD = 4,
+    WESTFOLD_PARAM_LPG = 5,
+    WESTFOLD_PARAM_TONE = 6,
+    WESTFOLD_PARAM_DRIVE = 7,
+    WESTFOLD_PARAM_STRIKE = 8,
+    WESTFOLD_PARAM_CHAOS = 9,
+    WESTFOLD_PARAM_WIDTH = 10,
+    WESTFOLD_PARAM_SUSTAIN = 11,
+    WESTFOLD_PARAM_DECAY = 12,
+    WESTFOLD_PARAM_RELEASE = 13,
+    WESTFOLD_PARAM_BEND_RANGE = 14
 };
 
 static inline float westfold_params_clampf_(float x, float lo, float hi) {
@@ -27,12 +30,15 @@ int westfold_param_id(const char *key) {
     if (!key) return -1;
     if (strcmp(key, "volume") == 0) return WESTFOLD_PARAM_VOLUME;
     if (strcmp(key, "ratio") == 0) return WESTFOLD_PARAM_RATIO;
+    if (strcmp(key, "snap") == 0) return WESTFOLD_PARAM_SNAP;
     if (strcmp(key, "fm") == 0) return WESTFOLD_PARAM_FM;
     if (strcmp(key, "fold") == 0) return WESTFOLD_PARAM_FOLD;
     if (strcmp(key, "lpg") == 0) return WESTFOLD_PARAM_LPG;
+    if (strcmp(key, "tone") == 0) return WESTFOLD_PARAM_TONE;
     if (strcmp(key, "drive") == 0) return WESTFOLD_PARAM_DRIVE;
     if (strcmp(key, "strike") == 0) return WESTFOLD_PARAM_STRIKE;
     if (strcmp(key, "chaos") == 0) return WESTFOLD_PARAM_CHAOS;
+    if (strcmp(key, "width") == 0) return WESTFOLD_PARAM_WIDTH;
     if (strcmp(key, "sustain") == 0) return WESTFOLD_PARAM_SUSTAIN;
     if (strcmp(key, "decay") == 0) return WESTFOLD_PARAM_DECAY;
     if (strcmp(key, "release") == 0) return WESTFOLD_PARAM_RELEASE;
@@ -45,15 +51,18 @@ void westfold_set_param(westfold_core_t *s, int param_id, float value) {
     switch (param_id) {
         case WESTFOLD_PARAM_VOLUME: s->volume = westfold_params_clampf_(value, 0.0f, 1.0f); break;
         case WESTFOLD_PARAM_RATIO: s->ratio = westfold_params_clampf_(value, 0.25f, 4.0f); break;
+        case WESTFOLD_PARAM_SNAP: s->snap = westfold_params_clampf_(value, 0.0f, 1.0f); break;
         case WESTFOLD_PARAM_FM: s->fm = westfold_params_clampf_(value, 0.0f, 1.0f); break;
         case WESTFOLD_PARAM_FOLD: s->fold = westfold_params_clampf_(value, 0.0f, 1.0f); break;
         case WESTFOLD_PARAM_LPG: s->lpg = westfold_params_clampf_(value, 0.0f, 1.0f); break;
+        case WESTFOLD_PARAM_TONE: s->tone = westfold_params_clampf_(value, 0.0f, 1.0f); break;
         case WESTFOLD_PARAM_DRIVE: s->drive = westfold_params_clampf_(value, 0.0f, 1.0f); break;
         case WESTFOLD_PARAM_STRIKE: s->strike = westfold_params_clampf_(value, 0.0f, 1.0f); break;
         case WESTFOLD_PARAM_CHAOS: s->chaos = westfold_params_clampf_(value, 0.0f, 1.0f); break;
+        case WESTFOLD_PARAM_WIDTH: s->width = westfold_params_clampf_(value, 0.0f, 1.0f); break;
         case WESTFOLD_PARAM_SUSTAIN: s->sustain = westfold_params_clampf_(value, 0.0f, 1.0f); break;
-        case WESTFOLD_PARAM_DECAY: s->decay = westfold_params_clampf_(value, 0.02f, 4.0f); break;
-        case WESTFOLD_PARAM_RELEASE: s->release = westfold_params_clampf_(value, 0.02f, 6.0f); break;
+        case WESTFOLD_PARAM_DECAY: s->decay = westfold_params_clampf_(value, 0.02f, 2.5f); break;
+        case WESTFOLD_PARAM_RELEASE: s->release = westfold_params_clampf_(value, 0.02f, 4.0f); break;
         case WESTFOLD_PARAM_BEND_RANGE: s->bend_range = westfold_params_clampf_(value, 0.0f, 12.0f); break;
         default: break;
     }
@@ -64,12 +73,15 @@ float westfold_get_param(const westfold_core_t *s, int param_id) {
     switch (param_id) {
         case WESTFOLD_PARAM_VOLUME: return s->volume;
         case WESTFOLD_PARAM_RATIO: return s->ratio;
+        case WESTFOLD_PARAM_SNAP: return s->snap;
         case WESTFOLD_PARAM_FM: return s->fm;
         case WESTFOLD_PARAM_FOLD: return s->fold;
         case WESTFOLD_PARAM_LPG: return s->lpg;
+        case WESTFOLD_PARAM_TONE: return s->tone;
         case WESTFOLD_PARAM_DRIVE: return s->drive;
         case WESTFOLD_PARAM_STRIKE: return s->strike;
         case WESTFOLD_PARAM_CHAOS: return s->chaos;
+        case WESTFOLD_PARAM_WIDTH: return s->width;
         case WESTFOLD_PARAM_SUSTAIN: return s->sustain;
         case WESTFOLD_PARAM_DECAY: return s->decay;
         case WESTFOLD_PARAM_RELEASE: return s->release;
@@ -82,12 +94,15 @@ void westfold_apply_defaults(westfold_core_t *s) {
     if (!s) return;
     s->volume = 0.75f;
     s->ratio = 1.5f;
+    s->snap = 0.7f;
     s->fm = 0.15f;
     s->fold = 0.35f;
     s->lpg = 0.55f;
+    s->tone = 0.55f;
     s->drive = 0.28f;
     s->strike = 0.45f;
     s->chaos = 0.12f;
+    s->width = 0.2f;
     s->sustain = 0.25f;
     s->decay = 0.45f;
     s->release = 0.8f;

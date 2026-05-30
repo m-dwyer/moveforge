@@ -30,13 +30,17 @@ int main(void) {
     int volume_id = westfold_param_id("volume");
     int decay_id = westfold_param_id("decay");
     int fold_id = westfold_param_id("fold");
+    int snap_id = westfold_param_id("snap");
+    int tone_id = westfold_param_id("tone");
     int drive_id = westfold_param_id("drive");
     int strike_id = westfold_param_id("strike");
     int chaos_id = westfold_param_id("chaos");
+    int width_id = westfold_param_id("width");
     int sustain_id = westfold_param_id("sustain");
 
-    require_true(westfold_preset_count() == 10, "preset count is exposed");
+    require_true(westfold_preset_count() == 12, "preset count is exposed");
     require_true(westfold_preset_name(2)[0] == 'R', "preset name is exposed");
+    require_true(westfold_preset_name(11)[0] == 'D', "new preset name is exposed");
     westfold_apply_preset(&synth, 2);
     require_true(westfold_get_param(&synth, volume_id) > 0.79f, "preset applies volume");
     require_true(westfold_get_param(&synth, fold_id) > 0.67f, "preset applies fold");
@@ -48,19 +52,28 @@ int main(void) {
     require_true(westfold_get_param(&synth, decay_id) >= 0.02f, "decay clamps low");
 
     westfold_set_param(&synth, drive_id, 2.0f);
+    westfold_set_param(&synth, snap_id, 2.0f);
+    westfold_set_param(&synth, tone_id, -1.0f);
     westfold_set_param(&synth, strike_id, -1.0f);
     westfold_set_param(&synth, chaos_id, 2.0f);
+    westfold_set_param(&synth, width_id, 2.0f);
     westfold_set_param(&synth, sustain_id, 2.0f);
     require_true(westfold_get_param(&synth, drive_id) <= 1.0f, "drive clamps high");
+    require_true(westfold_get_param(&synth, snap_id) <= 1.0f, "snap clamps high");
+    require_true(westfold_get_param(&synth, tone_id) >= 0.0f, "tone clamps low");
     require_true(westfold_get_param(&synth, strike_id) >= 0.0f, "strike clamps low");
     require_true(westfold_get_param(&synth, chaos_id) <= 1.0f, "chaos clamps high");
+    require_true(westfold_get_param(&synth, width_id) <= 1.0f, "width clamps high");
     require_true(westfold_get_param(&synth, sustain_id) <= 1.0f, "sustain clamps high");
 
     westfold_set_param(&synth, volume_id, 0.8f);
     westfold_set_param(&synth, fold_id, 0.6f);
+    westfold_set_param(&synth, snap_id, 1.0f);
+    westfold_set_param(&synth, tone_id, 0.7f);
     westfold_set_param(&synth, drive_id, 0.45f);
     westfold_set_param(&synth, strike_id, 0.7f);
     westfold_set_param(&synth, chaos_id, 0.35f);
+    westfold_set_param(&synth, width_id, 0.6f);
     westfold_set_param(&synth, sustain_id, 0.55f);
     westfold_note_on(&synth, 60, 1.0f);
     westfold_process_float(&synth, NULL, NULL, left, right, FRAMES);
@@ -77,6 +90,12 @@ int main(void) {
     }
     require_true(peak > 0.001f, "note-on render is not silent");
     require_true(energy > 0.01, "note-on render has energy");
+
+    double stereo_diff = 0.0;
+    for (int i = 0; i < FRAMES; i++) {
+        stereo_diff += (double)absf_local(left[i] - right[i]);
+    }
+    require_true(stereo_diff > 0.001, "width creates a measurable stereo difference");
 
     westfold_process_float(&synth, NULL, NULL, tail_left, tail_right, TAIL_FRAMES);
     float held_peak = 0.0f;
@@ -105,6 +124,8 @@ int main(void) {
 
     require_true(westfold_param_id("fold") >= 0, "param lookup works");
     require_true(westfold_param_id("chaos") >= 0, "new param lookup works");
+    require_true(westfold_param_id("tone") >= 0, "tone param lookup works");
+    require_true(westfold_param_id("width") >= 0, "width param lookup works");
     require_true(westfold_param_id("does_not_exist") < 0, "unknown param lookup fails");
 
     printf("westfold core tests passed\n");

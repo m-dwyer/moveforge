@@ -24,12 +24,15 @@ typedef struct {
 
     float volume;
     float ratio;
+    float snap;
     float fm;
     float fold;
     float lpg;
+    float tone;
     float drive;
     float strike;
     float chaos;
+    float width;
     float sustain;
     float decay;
     float release;
