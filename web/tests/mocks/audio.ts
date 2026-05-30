@@ -7,6 +7,8 @@ export type AudioCall =
   | { kind: "noteOn"; note: number; velocity: number }
   | { kind: "noteOff"; note: number }
   | { kind: "allNotesOff" }
+  | { kind: "hardPanic" }
+  | { kind: "setMasterVolume"; volume: number }
   | { kind: "sendParamToSlot"; slotId: string; key: string; id: number; value: number }
   | { kind: "reloadModuleWasm"; moduleId: string | null };
 
@@ -45,6 +47,14 @@ export function noteOff(note: number): void {
 
 export function allNotesOff(): void {
   record({ kind: "allNotesOff" });
+}
+
+export function hardPanic(): void {
+  record({ kind: "hardPanic" });
+}
+
+export function setMasterVolume(volume: number): void {
+  record({ kind: "setMasterVolume", volume });
 }
 
 export function sendParamToSlot(slotId: string, key: string, id: number, value: number): void {

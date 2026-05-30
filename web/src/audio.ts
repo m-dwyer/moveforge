@@ -65,6 +65,7 @@ function seedParamsForSlot(slotId: string): void {
 async function ensureBooted(): Promise<void> {
   if (booted) return;
   await engine.enableChain(buildSpec(), buildConfig());
+  engine.setMasterVolume(useStore.getState().masterVolume);
   booted = true;
 }
 
@@ -115,6 +116,15 @@ export function allNotesOff(): void {
   if (engine.hasSlot("sound")) {
     engine.sendToSlot("sound", { type: "allNotesOff" });
   }
+}
+
+export function hardPanic(): void {
+  engine.sendToAll({ type: "allNotesOff" });
+  engine.resetAll();
+}
+
+export function setMasterVolume(volume: number): void {
+  engine.setMasterVolume(volume);
 }
 
 export function sendParamToSlot(slotId: string, key: string, id: number, value: number): void {

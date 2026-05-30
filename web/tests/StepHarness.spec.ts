@@ -1,6 +1,8 @@
 import { createElement } from "react";
 import { test, expect } from "vitest";
+import { userEvent } from "vitest/browser";
 import { render, page, useStore, audioCalls } from "./fixtures";
+import { AppRoot } from "@/AppRoot";
 import { StepHarness } from "@/components/StepHarness";
 
 test("audition controls update the persistent sequencer state", async () => {
@@ -13,14 +15,25 @@ test("audition controls update the persistent sequencer state", async () => {
   expect(useStore.getState().audition.length).toBe(8);
 });
 
-test("panic stops playback and sends all-notes-off", async () => {
+test("header panic stops playback and sends hard panic", async () => {
   useStore.getState().setPlaying(true);
-  render(createElement(StepHarness));
+  render(createElement(AppRoot));
 
   await page.getByRole("button", { name: "Panic" }).click();
 
   expect(useStore.getState().playing).toBe(false);
-  expect(audioCalls().some((call) => call.kind === "allNotesOff")).toBe(true);
+  expect(audioCalls().some((call) => call.kind === "hardPanic")).toBe(true);
+});
+
+test("header volume controls persistent master volume", async () => {
+  render(createElement(AppRoot));
+
+  const volume = page.getByRole("slider").first();
+  await volume.click();
+  await userEvent.keyboard("{ArrowLeft}");
+
+  expect(useStore.getState().masterVolume).toBeLessThan(0.55);
+  expect(audioCalls().some((call) => call.kind === "setMasterVolume")).toBe(true);
 });
 
 test("custom steps can still be programmed", async () => {

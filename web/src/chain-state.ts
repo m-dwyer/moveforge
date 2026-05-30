@@ -97,6 +97,7 @@ export type AppState = {
   customCopySteps: StepState[];
   loop: boolean;
   master: MasterState;
+  masterVolume: number;
   mode: "browser" | "chain" | "device" | "seq";
   mute: boolean;
   octave: number;
@@ -169,6 +170,7 @@ export function makeInitialState(moduleId: string, moduleName: string): AppState
     octave: 3,
     tracks: Array.from({ length: 4 }, () => makeSlotState(moduleId, moduleName)),
     master: makeMasterState(),
+    masterVolume: 0.55,
     steps: makeDefaultSteps(false),
     activePads: new Map()
   };

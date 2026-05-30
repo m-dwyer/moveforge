@@ -61,6 +61,7 @@ export type StoreActions = {
   setCustomCopyStepNote: (index: number, note: number) => void;
   setCustomCopyStepVelocity: (index: number, velocity: number) => void;
   setBpm: (bpm: number) => void;
+  setMasterVolume: (volume: number) => void;
   setAuditionPattern: (pattern: AuditionPatternName) => void;
   setAuditionLength: (length: 8 | 16 | 32) => void;
   setAuditionGate: (gate: number) => void;
@@ -351,6 +352,11 @@ export const useStore = create<Store>()(
         draft.bpm = Math.max(40, Math.min(240, Math.round(bpm)));
       }),
 
+    setMasterVolume: (volume) =>
+      set((draft) => {
+        draft.masterVolume = clamp(volume, 0, 1);
+      }),
+
     setAuditionPattern: (pattern) =>
       set((draft) => {
         draft.audition.pattern = pattern;
@@ -399,6 +405,7 @@ export const useStore = create<Store>()(
         audition: state.audition,
         bpm: state.bpm,
         moduleId: state.moduleId,
+        masterVolume: state.masterVolume,
         octave: state.octave,
         padLayout: state.padLayout,
         root: state.root,
@@ -422,6 +429,7 @@ export const useStore = create<Store>()(
           audition: { ...makeDefaultAudition(), ...saved.audition },
           customCopySteps: repairSteps(saved.customCopySteps, current.customCopySteps),
           error: null,
+          masterVolume: clamp(saved.masterVolume ?? current.masterVolume, 0, 1),
           moduleIndex: [],
           playStep: -1,
           playing: false,

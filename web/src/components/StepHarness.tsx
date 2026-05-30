@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useStore } from "@/store";
-import { allNotesOff, noteOff, noteOn } from "@/audio";
+import { noteOff, noteOn } from "@/audio";
 import { Slider } from "@/components/ui/slider";
 import { noteLabel } from "@/lib/pads";
 import { cn } from "@/lib/utils";
@@ -113,16 +113,6 @@ export function StepHarness() {
             )}
           >
             {playing ? "Stop" : "Play"}
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setPlaying(false);
-              allNotesOff();
-            }}
-            className="h-8 shrink-0 rounded border border-line bg-bg px-3 text-xs font-medium transition-colors hover:border-accent/40"
-          >
-            Panic
           </button>
           <label className="flex shrink-0 items-center gap-1.5 text-xs text-muted">
             BPM

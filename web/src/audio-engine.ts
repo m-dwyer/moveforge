@@ -50,6 +50,7 @@ export class AudioEngine {
   #config: AudioEngineConfig | null = null;
   #slots: Map<string, SlotEntry> = new Map();
   #audioOrder: string[] = []; // sound_generator + audio_fx slots, in chain order
+  #masterGain: GainNode | null = null;
   #scheduleSink: GainNode | null = null; // muted sink that keeps midi_fx nodes processing
 
   get ready(): boolean {
@@ -164,6 +165,16 @@ export class AudioEngine {
     for (const slotId of Array.from(this.#slots.keys())) await this.reloadSlot(slotId);
   }
 
+  resetAll(): void {
+    this.sendToAll({ type: "reset" });
+  }
+
+  setMasterVolume(volume: number): void {
+    if (!this.#audio || !this.#masterGain) return;
+    const next = Math.max(0, Math.min(1, Number.isFinite(volume) ? volume : 0));
+    this.#masterGain.gain.setTargetAtTime(next, this.#audio.currentTime, 0.01);
+  }
+
   // -- internals -----------------------------------------------------------
 
   async #startContext(config: AudioEngineConfig): Promise<void> {
@@ -174,6 +185,9 @@ export class AudioEngine {
     this.#audio = audio;
     this.#workletUrl = config.workletUrl;
     this.#processorName = config.processorName;
+    this.#masterGain = audio.createGain();
+    this.#masterGain.gain.value = 0.55;
+    this.#masterGain.connect(audio.destination);
     this.#scheduleSink = audio.createGain();
     this.#scheduleSink.gain.value = 0;
     this.#scheduleSink.connect(audio.destination);
@@ -244,7 +258,7 @@ export class AudioEngine {
   }
 
   #rewireFromCurrentOrder(): void {
-    if (!this.#audio || !this.#scheduleSink) return;
+    if (!this.#audio || !this.#scheduleSink || !this.#masterGain) return;
     // Disconnect everything first so we can rewire from scratch.
     for (const slot of this.#slots.values()) {
       try { slot.node.disconnect(); } catch { /* ignore */ }
@@ -257,7 +271,7 @@ export class AudioEngine {
       a.connect(b);
     }
     if (order.length > 0) {
-      this.#slots.get(order[order.length - 1])!.node.connect(this.#audio.destination);
+      this.#slots.get(order[order.length - 1])!.node.connect(this.#masterGain);
     }
     // midi_fx slots: route to the muted sink so process() keeps running for tick scheduling.
     for (const slot of this.#slots.values()) {

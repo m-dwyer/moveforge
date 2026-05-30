@@ -1,7 +1,8 @@
 import { useEffect } from "react";
 import { useStore, selectSelectedSlot } from "@/store";
-import { syncChain, reloadModuleWasm } from "@/audio";
+import { hardPanic, setMasterVolume, syncChain, reloadModuleWasm } from "@/audio";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { Slider } from "@/components/ui/slider";
 import { Panel } from "@/components/Panel";
 import { PadConfig } from "@/components/PadConfig";
 import { PadGrid } from "@/components/PadGrid";
@@ -16,6 +17,9 @@ export function AppRoot() {
   const slot = useStore(selectSelectedSlot);
   const error = useStore((s) => s.error);
   const resetUiState = useStore((s) => s.resetUiState);
+  const setPlaying = useStore((s) => s.setPlaying);
+  const masterVolume = useStore((s) => s.masterVolume);
+  const setMasterVolumeState = useStore((s) => s.setMasterVolume);
 
   useEffect(() => {
     void initialize(moduleId);
@@ -33,6 +37,10 @@ export function AppRoot() {
       void syncChain();
     });
   }, []);
+
+  useEffect(() => {
+    setMasterVolume(masterVolume);
+  }, [masterVolume]);
 
   useEffect(() => {
     const handler = (event: Event) => {
@@ -56,16 +64,40 @@ export function AppRoot() {
                 Track {selectedTrack + 1} / {slot.type}
               </p>
             </div>
-            <button
-              type="button"
-              onClick={() => {
-                resetUiState();
-                void initialize(initialModuleIdFromStore());
-              }}
-              className="rounded border border-line bg-panel-2 px-3 py-1.5 text-xs font-medium text-muted transition-colors hover:border-accent/40 hover:text-text"
-            >
-              Reset UI
-            </button>
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              <label className="flex w-40 items-center gap-2 text-xs text-muted" title="Browser audition output level">
+                Vol
+                <Slider
+                  value={[masterVolume]}
+                  min={0}
+                  max={1}
+                  step={0.01}
+                  onValueChange={(value) => setMasterVolumeState(value[0])}
+                />
+                <span className="w-8 text-right font-mono text-warn">{Math.round(masterVolume * 100)}</span>
+              </label>
+              <button
+                type="button"
+                onClick={() => {
+                  setPlaying(false);
+                  hardPanic();
+                }}
+                className="rounded border border-line bg-panel-2 px-3 py-1.5 text-xs font-medium text-muted transition-colors hover:border-red-500/60 hover:text-red-200"
+                title="Stop all notes and clear audio FX tails"
+              >
+                Panic
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  resetUiState();
+                  void initialize(initialModuleIdFromStore());
+                }}
+                className="rounded border border-line bg-panel-2 px-3 py-1.5 text-xs font-medium text-muted transition-colors hover:border-accent/40 hover:text-text"
+              >
+                Reset UI
+              </button>
+            </div>
           </header>
 
           {error && (

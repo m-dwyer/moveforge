@@ -94,6 +94,10 @@ class ModuleProcessor extends AudioWorkletProcessor {
 
   handle(message) {
     if (!message || !this.exports) return;
+    if (message.type === "reset") {
+      this.resetInstance();
+      return;
+    }
     if (this.mode === "midi_fx") {
       if (message.type === "param") {
         if (typeof message.key !== "string") return;
@@ -147,6 +151,22 @@ class ModuleProcessor extends AudioWorkletProcessor {
       this.exports.sch_midi(0xE0, b & 0x7F, (b >> 7) & 0x7F);
     } else if (message.type === "soundBypass") {
       this.soundBypassed = Boolean(message.bypassed);
+    }
+  }
+
+  resetInstance() {
+    if (!this.exports || !this.mode) return;
+    try {
+      if (this.mode === "midi_fx" && typeof this.exports.mf_init === "function") {
+        this.exports.mf_init();
+        this.port.postMessage({ type: "ready", mode: this.mode });
+      } else if (this.mode === "audio" && typeof this.exports.sch_init === "function") {
+        this.exports.sch_init();
+        this.soundBypassed = false;
+        this.port.postMessage({ type: "ready", mode: this.mode });
+      }
+    } catch (error) {
+      this.port.postMessage({ type: "error", message: String(error?.message || error) });
     }
   }
 

@@ -4,6 +4,7 @@ import { useStore } from "./fixtures";
 
 test("persists audition, bpm, steps, and params without runtime fields", () => {
   useStore.getState().setBpm(132);
+  useStore.getState().setMasterVolume(0.42);
   useStore.getState().setAuditionPattern("octave_bounce");
   useStore.getState().toggleStep(0);
   useStore.getState().forkAuditionToCustomCopy([{ enabled: true, note: 48, velocity: 0.8, locks: {} }]);
@@ -20,6 +21,7 @@ test("persists audition, bpm, steps, and params without runtime fields", () => {
   expect(raw).toBeTruthy();
   const parsed = JSON.parse(raw!);
   expect(parsed.state.bpm).toBe(132);
+  expect(parsed.state.masterVolume).toBe(0.42);
   expect(parsed.state.audition.pattern).toBe("custom_copy");
   expect(parsed.state.customCopySteps[0].note).toBe(48);
   expect(parsed.state.steps[0].enabled).toBe(true);
