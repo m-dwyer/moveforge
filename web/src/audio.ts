@@ -54,7 +54,7 @@ function seedParamsForSlot(slotId: string): void {
   }
   const slot = state.tracks[state.selectedTrack].chain.find((s) => s.id === slotId);
   if (!slot || slot.kind === "sound_generator" || slot.kind === "settings") return;
-  const meta = state.slotMeta[slot.id];
+  const meta = state.slotMeta[`${state.selectedTrack}:${slot.id}`];
   if (!meta) return;
   for (const p of meta.params) {
     const value = (slot.params as Record<string, number>)[p.key] ?? p.default;

@@ -28,6 +28,7 @@ export type SoundSlot = {
   kind: "sound_generator";
   moduleId: string | null;
   name: string;
+  params: Record<string, number>;
   type: string;
 };
 
@@ -67,8 +68,13 @@ export type LfoState = {
 
 export type TrackState = {
   activeNotes: Map<number, number>;
+  audition: AuditionState;
   chain: ChainSlot[];
+  customCopySteps: StepState[];
   moveEchoEvents: Array<{ at: number; note: number; velocity: number }>;
+  selectedPreset: string;
+  selectedStep: number;
+  steps: StepState[];
 };
 
 export type MasterState = {
@@ -209,7 +215,8 @@ function makeSound(moduleId: string, moduleName: string): SoundSlot {
     type: "Sound",
     name: moduleName,
     moduleId,
-    enabled: true
+    enabled: true,
+    params: {}
   };
 }
 
@@ -249,6 +256,7 @@ function makeSettings(moduleId: string): SettingsSlot {
 
 function makeSlotState(moduleId: string, moduleName: string): TrackState {
   return {
+    audition: makeDefaultAudition(),
     chain: [
       makeMidiFx(),
       makeSound(moduleId, moduleName),
@@ -256,6 +264,10 @@ function makeSlotState(moduleId: string, moduleName: string): TrackState {
       makeAudioFx("audio-fx-2", "Audio FX 2"),
       makeSettings(moduleId)
     ],
+    customCopySteps: makeDefaultSteps(false),
+    selectedPreset: "Init",
+    selectedStep: 0,
+    steps: makeDefaultSteps(false),
     activeNotes: new Map(),
     moveEchoEvents: []
   };

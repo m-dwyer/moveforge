@@ -47,6 +47,7 @@ export function StepHarness() {
   useEffect(() => {
     if (!playing) return;
     const noteOffTimers = new Set<number>();
+    const activeNotes = new Set<number>();
 
     const tick = () => {
       const s = useStore.getState();
@@ -59,10 +60,13 @@ export function StepHarness() {
         velocity: s.audition.velocity
       });
       if (event) {
+        if (activeNotes.has(event.note)) noteOff(event.note);
+        activeNotes.add(event.note);
         void noteOn(event.note, event.velocity);
         const gateMs = Math.max(15, Math.round(intervalMs * Math.min(0.98, s.audition.gate) * event.gateSteps));
         const timer = window.setTimeout(() => {
           noteOff(event.note);
+          activeNotes.delete(event.note);
           noteOffTimers.delete(timer);
         }, gateMs);
         noteOffTimers.add(timer);
@@ -75,8 +79,8 @@ export function StepHarness() {
       clearInterval(id);
       for (const timer of noteOffTimers) clearTimeout(timer);
       noteOffTimers.clear();
-      const s = useStore.getState();
-      for (const step of [...s.steps, ...s.customCopySteps]) noteOff(step.note);
+      for (const note of activeNotes) noteOff(note);
+      activeNotes.clear();
     };
   }, [playing, intervalMs]);
 

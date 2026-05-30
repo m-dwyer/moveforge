@@ -1,9 +1,13 @@
 import { createElement } from "react";
-import { test, expect } from "vitest";
+import { afterEach, test, expect, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 import { render, page, useStore, audioCalls } from "./fixtures";
 import { AppRoot } from "@/AppRoot";
 import { StepHarness } from "@/components/StepHarness";
+
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 test("audition controls update the persistent sequencer state", async () => {
   render(createElement(StepHarness));
@@ -34,6 +38,40 @@ test("header volume controls persistent master volume", async () => {
 
   expect(useStore.getState().masterVolume).toBeLessThan(0.55);
   expect(audioCalls().some((call) => call.kind === "setMasterVolume")).toBe(true);
+});
+
+test("rendered track switch shows each track's own chain and steps", async () => {
+  await useStore.getState().setTopLevelModule("dustline");
+  await useStore.getState().setSlotModule(0, 2, "trail");
+  useStore.getState().toggleStep(0);
+
+  render(createElement(AppRoot));
+
+  await expect.element(page.getByTestId("panel-title")).toHaveTextContent("Dustline");
+  await expect.element(page.getByText("Trail Delay")).toBeVisible();
+  await expect.element(page.getByRole("button", { name: "1", exact: true })).toHaveClass(/border-accent/);
+
+  await page.getByRole("button", { name: "Track 2" }).click();
+
+  await expect.element(page.getByTestId("panel-title")).toHaveTextContent("Westfold");
+  expect(await page.getByText("Trail Delay").elements()).toHaveLength(0);
+  await expect.element(page.getByRole("button", { name: "1", exact: true })).not.toHaveClass(/border-accent/);
+});
+
+test("randomize button is shown with module presets", async () => {
+  render(createElement(AppRoot));
+
+  await expect.element(page.getByRole("button", { name: "Randomize" })).toBeVisible();
+});
+
+test("clicking randomize updates sound params and sends audio param changes", async () => {
+  vi.spyOn(Math, "random").mockReturnValue(0.5);
+  render(createElement(AppRoot));
+
+  await page.getByRole("button", { name: "Randomize" }).click();
+
+  await expect.poll(() => useStore.getState().topLevelParams.find((p) => p.key === "fold")?.value).toBe(0.5);
+  expect(audioCalls().some((call) => call.kind === "sendParamToSlot" && call.key === "fold" && call.value === 0.5)).toBe(true);
 });
 
 test("custom steps can still be programmed", async () => {
@@ -69,4 +107,23 @@ test("32-step length renders all steps even with older 16-step state", async () 
   render(createElement(StepHarness));
 
   await expect.element(page.getByRole("button", { name: "32", exact: true })).toBeVisible();
+});
+
+test("bass pulse note length schedules short note-offs", async () => {
+  vi.useFakeTimers();
+  useStore.setState((state) => {
+    state.audition.pattern = "bass_pulse";
+    state.audition.gate = 0.08;
+    state.bpm = 120;
+  });
+
+  render(createElement(StepHarness));
+  await page.getByRole("button", { name: "Play" }).click();
+
+  expect(audioCalls().some((call) => call.kind === "noteOn")).toBe(true);
+  expect(audioCalls().some((call) => call.kind === "noteOff")).toBe(false);
+
+  vi.advanceTimersByTime(31);
+
+  expect(audioCalls().some((call) => call.kind === "noteOff")).toBe(true);
 });

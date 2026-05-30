@@ -40,7 +40,7 @@ export function ChainSlot({ slot, trackIndex, slotIndex }: Props) {
       data-slot-index={slotIndex}
       onClick={() => selectSlot(slotIndex)}
       className={cn(
-        "grid cursor-pointer grid-cols-[80px_1fr_auto] items-center gap-3 border-b border-line px-3 py-1.5 transition-colors",
+        "grid cursor-pointer grid-cols-[76px_1fr_auto] items-center gap-2 border-b border-line px-2.5 py-1 transition-colors",
         "hover:bg-panel-2/60",
         selected && "bg-[#2c4030] shadow-[inset_4px_0_0_var(--accent)]",
         dim && "opacity-60"
@@ -58,7 +58,7 @@ export function ChainSlot({ slot, trackIndex, slotIndex }: Props) {
         <span className="text-xs text-muted">open</span>
       ) : (
         <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-          <span className="w-16 text-right text-xs text-muted">{slot.enabled ? "enabled" : "bypassed"}</span>
+          <span className="w-14 text-right text-[11px] text-muted">{slot.enabled ? "enabled" : "bypassed"}</span>
           <Tooltip>
             <TooltipTrigger asChild>
               <Switch
@@ -94,7 +94,7 @@ function Picker({
   return (
     <div onClick={(e) => e.stopPropagation()}>
       <Select value={value} onValueChange={onPick}>
-        <SelectTrigger className="h-8" data-testid="slot-picker">
+        <SelectTrigger className="h-7 text-sm" data-testid="slot-picker">
           <SelectValue placeholder="— Empty —" />
         </SelectTrigger>
         <SelectContent>

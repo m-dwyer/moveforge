@@ -37,7 +37,7 @@ export type StoreState = AppState & {
 
 export type StoreActions = {
   initialize: (moduleId: string) => Promise<void>;
-  selectTrack: (index: number) => void;
+  selectTrack: (index: number) => Promise<void>;
   selectSlot: (index: number) => void;
   setTopLevelModule: (moduleId: string) => Promise<void>;
   setSlotModule: (trackIndex: number, slotIndex: number, moduleId: string | null) => Promise<void>;
@@ -50,6 +50,7 @@ export type StoreActions = {
   setOctave: (octave: number) => void;
   applyPreset: (name: string) => void;
   applySlotPreset: (trackIndex: number, slotIndex: number, name: string) => void;
+  randomizeSelectedSlotParams: () => void;
   setPlaying: (playing: boolean) => void;
   setPlayStep: (index: number) => void;
   toggleStep: (index: number) => void;
@@ -92,7 +93,9 @@ export const useStore = create<Store>()(
     initialize: async (moduleId) => {
       try {
         const state = get();
-        const [indexRes, metaRes] = await Promise.all([fetchModuleIndex(), loadModuleMetadata(moduleId)]);
+        const currentSound = soundSlotForTrack(state, state.selectedTrack);
+        const currentModuleId = currentSound?.moduleId ?? moduleId;
+        const [indexRes, metaRes] = await Promise.all([fetchModuleIndex(), loadModuleMetadata(currentModuleId)]);
         const loadedSlotIds = new Set<string>();
         for (const track of state.tracks) {
           for (const slot of track.chain) {
@@ -107,19 +110,25 @@ export const useStore = create<Store>()(
         const metaByModuleId = Object.fromEntries(loadedSlotMeta);
         set((draft) => {
           draft.moduleIndex = indexRes.modules ?? [];
-          draft.moduleId = moduleId;
-          draft.activeModuleName = metaRes.moduleJson.name ?? moduleId;
-          draft.topLevelParams = reconcileParams(metaRes.params, state.topLevelParams);
+          draft.moduleId = currentModuleId;
+          draft.activeModuleName = metaRes.moduleJson.name ?? currentModuleId;
+          draft.topLevelParams = reconcileParamsFromRecord(metaRes.params, currentSound?.params ?? {});
           draft.presets = metaRes.presets;
-          if (!metaRes.presets.some((p) => p.name === draft.selectedPreset)) {
-            draft.selectedPreset = metaRes.presets[0]?.name ?? "Init";
-          }
+          draft.selectedPreset = currentTrack(draft).selectedPreset;
+          if (!metaRes.presets.some((p) => p.name === draft.selectedPreset)) draft.selectedPreset = metaRes.presets[0]?.name ?? "Init";
+          currentTrack(draft).selectedPreset = draft.selectedPreset;
           draft.slotMeta = {};
-          for (const track of draft.tracks) {
+          for (let trackIndex = 0; trackIndex < draft.tracks.length; trackIndex++) {
+            const track = draft.tracks[trackIndex];
             const sound = track.chain.find((s) => s.kind === "sound_generator");
             if (sound) {
-              sound.moduleId = moduleId;
-              sound.name = draft.activeModuleName;
+              if (!sound.moduleId) sound.moduleId = initialModuleId;
+              if (!sound.name) sound.name = sound.moduleId;
+              if (trackIndex === draft.selectedTrack) {
+                sound.moduleId = currentModuleId;
+                sound.name = draft.activeModuleName;
+                sound.params = Object.fromEntries(draft.topLevelParams.map((p) => [p.key, p.value]));
+              }
             }
             for (const slot of track.chain) {
               if (slot.kind !== "midi_fx" && slot.kind !== "audio_fx") continue;
@@ -128,7 +137,7 @@ export const useStore = create<Store>()(
               if (!slotMeta) continue;
               slot.name = slotMeta.moduleJson.name ?? slot.moduleId;
               slot.params = reconcileParamRecord(slotMeta.params, slot.params as Record<string, number>);
-              draft.slotMeta[slot.id] = slotMeta;
+              draft.slotMeta[trackSlotKey(trackIndex, slot.id)] = slotMeta;
             }
           }
           draft.playing = false;
@@ -142,10 +151,36 @@ export const useStore = create<Store>()(
       }
     },
 
-    selectTrack: (index) =>
+    selectTrack: async (index) => {
+      const boundedIndex = Math.max(0, Math.min(get().tracks.length - 1, index));
       set((draft) => {
-        draft.selectedTrack = index;
-      }),
+        syncGlobalSequencerToTrack(draft);
+        draft.selectedTrack = boundedIndex;
+        syncTrackSequencerToGlobal(draft);
+      });
+      const sound = soundSlotForTrack(get(), boundedIndex);
+      if (!sound?.moduleId) return;
+      try {
+        const meta = await loadModuleMetadata(sound.moduleId);
+        set((draft) => {
+          const current = soundSlotForTrack(draft, boundedIndex);
+          if (!current) return;
+          current.name = meta.moduleJson.name ?? sound.moduleId!;
+          current.params = reconcileParamRecord(meta.params, current.params);
+          draft.moduleId = sound.moduleId!;
+          draft.activeModuleName = current.name;
+          draft.topLevelParams = reconcileParamsFromRecord(meta.params, current.params);
+          draft.presets = meta.presets;
+          draft.selectedPreset = draft.tracks[boundedIndex].selectedPreset;
+          if (!meta.presets.some((p) => p.name === draft.selectedPreset)) draft.selectedPreset = meta.presets[0]?.name ?? "Init";
+          draft.tracks[boundedIndex].selectedPreset = draft.selectedPreset;
+        });
+      } catch (err) {
+        set((draft) => {
+          draft.error = err instanceof Error ? err.message : String(err);
+        });
+      }
+    },
 
     selectSlot: (index) =>
       set((draft) => {
@@ -153,7 +188,8 @@ export const useStore = create<Store>()(
       }),
 
     setTopLevelModule: async (moduleId) => {
-      if (moduleId === get().moduleId) return;
+      const selectedTrack = get().selectedTrack;
+      if (moduleId === soundSlotForTrack(get(), selectedTrack)?.moduleId) return;
       try {
         const meta = await loadModuleMetadata(moduleId);
         set((draft) => {
@@ -162,12 +198,13 @@ export const useStore = create<Store>()(
           draft.topLevelParams = meta.params;
           draft.presets = meta.presets;
           draft.selectedPreset = meta.presets[0]?.name ?? "Init";
-          for (const track of draft.tracks) {
-            const sound = track.chain.find((s) => s.kind === "sound_generator");
-            if (sound) {
-              sound.moduleId = moduleId;
-              sound.name = draft.activeModuleName;
-            }
+          const track = draft.tracks[selectedTrack];
+          track.selectedPreset = draft.selectedPreset;
+          const sound = track.chain.find((s) => s.kind === "sound_generator");
+          if (sound) {
+            sound.moduleId = moduleId;
+            sound.name = draft.activeModuleName;
+            sound.params = Object.fromEntries(meta.params.map((p) => [p.key, p.default]));
           }
         });
       } catch (err) {
@@ -190,8 +227,8 @@ export const useStore = create<Store>()(
           target.name = "Empty";
           target.enabled = false;
           target.params = {};
-          delete draft.slotMeta[target.id];
-          delete draft.slotPreset[target.id];
+          delete draft.slotMeta[trackSlotKey(trackIndex, target.id)];
+          delete draft.slotPreset[trackSlotKey(trackIndex, target.id)];
         });
         return;
       }
@@ -205,8 +242,8 @@ export const useStore = create<Store>()(
           target.name = meta.moduleJson.name ?? nextModuleId;
           target.enabled = true;
           target.params = Object.fromEntries(meta.params.map((p) => [p.key, p.default]));
-          draft.slotMeta[target.id] = meta;
-          delete draft.slotPreset[target.id];
+          draft.slotMeta[trackSlotKey(trackIndex, target.id)] = meta;
+          delete draft.slotPreset[trackSlotKey(trackIndex, target.id)];
         });
       } catch (err) {
         set((draft) => {
@@ -225,7 +262,11 @@ export const useStore = create<Store>()(
     setTopLevelParam: (key, value) =>
       set((draft) => {
         const param = draft.topLevelParams.find((p) => p.key === key);
-        if (param) param.value = value;
+        if (param) {
+          param.value = value;
+          const sound = soundSlotForTrack(draft, draft.selectedTrack);
+          if (sound) sound.params[key] = value;
+        }
       }),
 
     setSlotParam: (trackIndex, slotIndex, key, value) =>
@@ -276,11 +317,11 @@ export const useStore = create<Store>()(
     applySlotPreset: (trackIndex, slotIndex, name) => {
       const slot = get().tracks[trackIndex]?.chain[slotIndex];
       if (!slot) return;
-      const meta = get().slotMeta[slot.id];
+      const meta = get().slotMeta[trackSlotKey(trackIndex, slot.id)];
       const preset = meta?.presets.find((p) => p.name === name);
       if (!preset || !preset.params) return;
       set((draft) => {
-        draft.slotPreset[slot.id] = name;
+        draft.slotPreset[trackSlotKey(trackIndex, slot.id)] = name;
         const target = draft.tracks[trackIndex].chain[slotIndex];
         if (target.kind === "sound_generator" || target.kind === "settings") return;
         const params = target.params as Record<string, number>;
@@ -291,6 +332,48 @@ export const useStore = create<Store>()(
       // Push the new values to the audio engine for this slot.
       for (const [key, value] of Object.entries(preset.params)) {
         const p = meta?.params.find((q) => q.key === key);
+        if (p) sendParamToSlot(slot.id, key, p.id, value);
+      }
+    },
+
+    randomizeSelectedSlotParams: () => {
+      const state = get();
+      const trackIndex = state.selectedTrack;
+      const slotIndex = state.selectedSlot;
+      const slot = state.tracks[trackIndex]?.chain[slotIndex];
+      if (!slot || slot.kind === "settings") return;
+
+      if (slot.kind === "sound_generator") {
+        const updates = randomizeParams(state.topLevelParams);
+        set((draft) => {
+          for (const [key, value] of Object.entries(updates)) {
+            const param = draft.topLevelParams.find((p) => p.key === key);
+            if (param) param.value = value;
+          }
+          const sound = soundSlotForTrack(draft, draft.selectedTrack);
+          if (sound) Object.assign(sound.params, updates);
+          draft.selectedPreset = "Random";
+          currentTrack(draft).selectedPreset = "Random";
+        });
+        const params = get().topLevelParams;
+        for (const [key, value] of Object.entries(updates)) {
+          const p = params.find((q) => q.key === key);
+          if (p) sendParamToSlot("sound", key, p.id, value);
+        }
+        return;
+      }
+
+      const meta = state.slotMeta[trackSlotKey(trackIndex, slot.id)];
+      if (!meta) return;
+      const updates = randomizeParams(meta.params);
+      set((draft) => {
+        const target = draft.tracks[trackIndex].chain[slotIndex];
+        if (target.kind !== "audio_fx" && target.kind !== "midi_fx") return;
+        Object.assign(target.params, updates);
+        draft.slotPreset[trackSlotKey(trackIndex, target.id)] = "Random";
+      });
+      for (const [key, value] of Object.entries(updates)) {
+        const p = meta.params.find((q) => q.key === key);
         if (p) sendParamToSlot(slot.id, key, p.id, value);
       }
     },
@@ -309,42 +392,51 @@ export const useStore = create<Store>()(
     toggleStep: (index) =>
       set((draft) => {
         draft.steps[index].enabled = !draft.steps[index].enabled;
+        currentTrack(draft).steps[index].enabled = draft.steps[index].enabled;
       }),
 
     selectStep: (index) =>
       set((draft) => {
         draft.selectedStep = index;
+        currentTrack(draft).selectedStep = index;
       }),
 
     setStepNote: (index, note) =>
       set((draft) => {
         draft.steps[index].note = note;
+        currentTrack(draft).steps[index].note = note;
       }),
 
     setStepVelocity: (index, velocity) =>
       set((draft) => {
         draft.steps[index].velocity = velocity;
+        currentTrack(draft).steps[index].velocity = velocity;
       }),
 
     forkAuditionToCustomCopy: (steps) =>
       set((draft) => {
         draft.customCopySteps = steps.map((step) => ({ ...step, locks: { ...step.locks } }));
         draft.audition.pattern = "custom_copy";
+        currentTrack(draft).customCopySteps = draft.customCopySteps.map((step) => ({ ...step, locks: { ...step.locks } }));
+        currentTrack(draft).audition = { ...draft.audition };
       }),
 
     toggleCustomCopyStep: (index) =>
       set((draft) => {
         draft.customCopySteps[index].enabled = !draft.customCopySteps[index].enabled;
+        currentTrack(draft).customCopySteps[index].enabled = draft.customCopySteps[index].enabled;
       }),
 
     setCustomCopyStepNote: (index, note) =>
       set((draft) => {
         draft.customCopySteps[index].note = note;
+        currentTrack(draft).customCopySteps[index].note = note;
       }),
 
     setCustomCopyStepVelocity: (index, velocity) =>
       set((draft) => {
         draft.customCopySteps[index].velocity = velocity;
+        currentTrack(draft).customCopySteps[index].velocity = velocity;
       }),
 
     setBpm: (bpm) =>
@@ -360,6 +452,7 @@ export const useStore = create<Store>()(
     setAuditionPattern: (pattern) =>
       set((draft) => {
         draft.audition.pattern = pattern;
+        currentTrack(draft).audition.pattern = pattern;
       }),
 
     setAuditionLength: (length) =>
@@ -367,16 +460,20 @@ export const useStore = create<Store>()(
         draft.audition.length = length;
         if (draft.playStep >= length) draft.playStep = -1;
         if (draft.selectedStep >= length) draft.selectedStep = length - 1;
+        currentTrack(draft).audition.length = length;
+        currentTrack(draft).selectedStep = draft.selectedStep;
       }),
 
     setAuditionGate: (gate) =>
       set((draft) => {
         draft.audition.gate = Math.max(0.05, Math.min(1, gate));
+        currentTrack(draft).audition.gate = draft.audition.gate;
       }),
 
     setAuditionVelocity: (velocity) =>
       set((draft) => {
         draft.audition.velocity = Math.max(0.05, Math.min(1, velocity));
+        currentTrack(draft).audition.velocity = draft.audition.velocity;
       }),
 
     resetUiState: () =>
@@ -418,7 +515,14 @@ export const useStore = create<Store>()(
         customCopySteps: state.customCopySteps,
         steps: state.steps,
         topLevelParams: state.topLevelParams,
-        tracks: state.tracks.map((track) => ({ chain: track.chain }))
+        tracks: state.tracks.map((track) => ({
+          audition: track.audition,
+          chain: track.chain,
+          customCopySteps: track.customCopySteps,
+          selectedPreset: track.selectedPreset,
+          selectedStep: track.selectedStep,
+          steps: track.steps
+        }))
       }),
       merge: (persisted, current) => {
         const saved = persisted as Partial<Store> | undefined;
@@ -468,6 +572,13 @@ function reconcileParams(next: ParamDefinition[], saved: ParamDefinition[]): Par
   }));
 }
 
+function reconcileParamsFromRecord(next: ParamDefinition[], saved: Record<string, number>): ParamDefinition[] {
+  return next.map((param) => ({
+    ...param,
+    value: clamp(saved[param.key] ?? param.default, param.min, param.max)
+  }));
+}
+
 function reconcileParamRecord(next: ParamDefinition[], saved: Record<string, number>): Record<string, number> {
   return Object.fromEntries(next.map((param) => [
     param.key,
@@ -484,6 +595,8 @@ function repairTracks(savedTracks: Store["tracks"] | undefined, fallback: Store[
       ...fallbackTrack,
       ...saved,
       activeNotes: new Map(),
+      audition: { ...fallbackTrack.audition, ...saved.audition },
+      customCopySteps: repairSteps(saved.customCopySteps, fallbackTrack.customCopySteps),
       moveEchoEvents: []
     };
   });
@@ -503,7 +616,61 @@ function repairSteps(savedSteps: StepState[] | undefined, fallback: StepState[])
   return repaired;
 }
 
+function randomizeParams(params: ParamDefinition[]): Record<string, number> {
+  return Object.fromEntries(params.map((param) => [param.key, randomParamValue(param)]));
+}
+
+function randomParamValue(param: ParamDefinition): number {
+  const min = Number.isFinite(param.min) ? param.min : 0;
+  const max = Number.isFinite(param.max) ? param.max : min;
+  const raw = min + Math.random() * (max - min);
+  const step = param.step && param.step > 0 ? param.step : 0;
+  if (!step) return clamp(raw, min, max);
+  const stepped = min + Math.round((raw - min) / step) * step;
+  const decimals = Math.max(0, decimalPlaces(step));
+  return Number(clamp(stepped, min, max).toFixed(decimals));
+}
+
+function decimalPlaces(value: number): number {
+  const text = String(value);
+  const dot = text.indexOf(".");
+  return dot === -1 ? 0 : text.length - dot - 1;
+}
+
 function clamp(value: number, min: number, max: number): number {
   if (!Number.isFinite(value)) return min;
   return Math.max(min, Math.min(max, value));
+}
+
+function currentTrack(state: Pick<StoreState, "selectedTrack" | "tracks">): TrackState {
+  return state.tracks[state.selectedTrack];
+}
+
+function syncGlobalSequencerToTrack(state: StoreState): void {
+  const track = currentTrack(state);
+  track.audition = { ...state.audition };
+  track.customCopySteps = state.customCopySteps.map((step) => ({ ...step, locks: { ...step.locks } }));
+  track.selectedPreset = state.selectedPreset;
+  track.selectedStep = state.selectedStep;
+  track.steps = state.steps.map((step) => ({ ...step, locks: { ...step.locks } }));
+}
+
+function syncTrackSequencerToGlobal(state: StoreState): void {
+  const track = currentTrack(state);
+  state.audition = { ...track.audition };
+  state.customCopySteps = repairSteps(track.customCopySteps, state.customCopySteps);
+  state.selectedPreset = track.selectedPreset;
+  state.selectedStep = track.selectedStep;
+  state.steps = repairSteps(track.steps, state.steps);
+  state.playStep = -1;
+  state.playing = false;
+}
+
+function soundSlotForTrack(state: Pick<StoreState, "tracks">, trackIndex: number) {
+  const slot = state.tracks[trackIndex]?.chain.find((s) => s.kind === "sound_generator");
+  return slot?.kind === "sound_generator" ? slot : null;
+}
+
+export function trackSlotKey(trackIndex: number, slotId: string): string {
+  return `${trackIndex}:${slotId}`;
 }

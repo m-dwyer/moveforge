@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { useStore, selectSelectedSlot, type SlotParamRow } from "@/store";
+import { trackSlotKey, useStore, selectSelectedSlot, type SlotParamRow } from "@/store";
 import { Slider } from "@/components/ui/slider";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { audioFxParamDefs, midiFxParamDefs, settingsParamDefs, type ScopedParamDefinition } from "@/chain-state";
@@ -8,8 +8,8 @@ import { sendParamToSlot } from "@/audio";
 export function Controls() {
   const slot = useStore(selectSelectedSlot);
   const topLevelParams = useStore((s) => s.topLevelParams);
-  const slotMetaEntry = useStore((s) => s.slotMeta[slot.id] ?? null);
   const trackIndex = useStore((s) => s.selectedTrack);
+  const slotMetaEntry = useStore((s) => s.slotMeta[trackSlotKey(trackIndex, slot.id)] ?? null);
   const slotIndex = useStore((s) => s.selectedSlot);
   const setTopLevelParam = useStore((s) => s.setTopLevelParam);
   const setSlotParam = useStore((s) => s.setSlotParam);
@@ -68,11 +68,11 @@ export function Controls() {
 
   return (
     <TooltipProvider delayDuration={250}>
-      <div data-testid="controls" className="overflow-hidden rounded-md border border-line bg-panel-2">
+      <div data-testid="controls" className="grid overflow-hidden rounded-md border border-line bg-panel-2 xl:grid-cols-2">
         {params.map((p) => (
           <div
             key={p.key}
-            className="grid grid-cols-[120px_1fr_auto] items-center gap-3 border-b border-line px-3 py-2 last:border-b-0"
+            className="grid min-h-9 grid-cols-[84px_1fr_44px] items-center gap-2 border-b border-line px-2.5 py-1.5 last:border-b-0 xl:[&:nth-last-child(-n+2)]:border-b-0"
           >
             <ParamLabel param={p} />
             <Slider
@@ -82,7 +82,7 @@ export function Controls() {
               step={p.step}
               onValueChange={(v) => onChange(p.key, v[0])}
             />
-            <span className="w-12 text-right font-mono text-xs text-warn">{formatValue(p)}</span>
+            <span className="w-11 text-right font-mono text-xs text-warn">{formatValue(p)}</span>
           </div>
         ))}
       </div>
