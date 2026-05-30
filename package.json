@@ -14,12 +14,13 @@
     "dev": "vite",
     "test": "vitest run",
     "gen-faust": "node scripts/gen-faust.ts",
+    "gen-ui-chain": "node scripts/gen-ui-chain.ts",
     "gen-params": "node scripts/gen-params.ts",
     "metrics": "node scripts/render-metrics.ts",
     "new-module": "node scripts/new-module.ts",
     "serve": "vite",
     "typecheck": "tsc -p tsconfig.json && tsc -p web/tsconfig.json",
-    "validate": "node scripts/gen-params.ts --check && node scripts/gen-faust.ts --check && node scripts/validate-params.ts"
+    "validate": "node scripts/gen-params.ts --check && node scripts/gen-faust.ts --check && node scripts/gen-ui-chain.ts --check && node scripts/validate-params.ts"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",

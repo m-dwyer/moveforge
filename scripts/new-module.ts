@@ -103,6 +103,7 @@ for await (const file of walk(templateDir)) {
 
 runGenParams(id);
 if (dsp === "faust") runGenFaust(id);
+runGenUiChain(id);
 await registerInIndex(id, name);
 
 console.log(`scaffolded ${filesCopied.length} files:`);
@@ -182,6 +183,17 @@ function runGenFaust(moduleId: string): void {
   });
   if (result.status !== 0) {
     console.error(`gen-faust failed for ${moduleId}`);
+    exit(result.status ?? 1);
+  }
+}
+
+function runGenUiChain(moduleId: string): void {
+  const result = spawnSync(process.execPath, ["scripts/gen-ui-chain.ts"], {
+    stdio: "inherit",
+    env: { ...env, MODULE_ID: moduleId }
+  });
+  if (result.status !== 0) {
+    console.error(`gen-ui-chain failed for ${moduleId}`);
     exit(result.status ?? 1);
   }
 }

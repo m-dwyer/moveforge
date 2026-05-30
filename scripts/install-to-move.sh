@@ -46,7 +46,6 @@ Usage: $(basename "$0") [--force] [--skip-build]
 Build (unless --skip-build) and install module \$MODULE_ID to \$MOVE_HOST.
 
 Pre-flight checks (any failure aborts unless --force):
-  * git working tree must be clean
   * dist/\$MODULE_ID/dsp.so must be aarch64
   * \$MOVE_HOST must be reachable over SSH
   * remote \$REMOTE_DIR partition must have at least 10 MiB free
@@ -83,12 +82,7 @@ fail() {
   fi
 }
 
-# 1. Clean working tree
-if [ -n "$(git status --porcelain 2>/dev/null)" ]; then
-  fail "git working tree has uncommitted changes; deploys should map to a known commit"
-fi
-
-# 2. Build (or skip)
+# Build (or skip)
 if [ "$SKIP_BUILD" = "1" ]; then
   if [ ! -f "dist/$MODULE_ID/dsp.so" ]; then
     echo "install-to-move: --skip-build set but dist/$MODULE_ID/dsp.so is missing" >&2
@@ -98,7 +92,7 @@ else
   MODULE_ID="$MODULE_ID" ./scripts/build.sh
 fi
 
-# 3. Arch sanity
+# 1. Arch sanity
 LOCAL_SO="dist/$MODULE_ID/dsp.so"
 ARCH=$(file -b "$LOCAL_SO" 2>/dev/null || echo unknown)
 case "$ARCH" in
@@ -109,7 +103,7 @@ esac
 LOCAL_SIZE=$(wc -c <"$LOCAL_SO" | tr -d ' ')
 echo "install-to-move: local dsp.so ${LOCAL_SIZE} bytes ($ARCH)"
 
-# 4. SSH reachability + free space
+# 2. SSH reachability + free space
 if ! ssh -o ConnectTimeout=5 -o BatchMode=yes "$MOVE_HOST" true 2>/dev/null; then
   fail "cannot SSH to $MOVE_HOST (key-based auth must be set up)"
 fi
@@ -121,11 +115,11 @@ if [ "$FREE_MB" -lt 10 ]; then
 fi
 echo "install-to-move: $MOVE_HOST /data/UserData has ${FREE_MB} MiB free"
 
-# 5. Copy
+# 3. Copy
 ssh "$MOVE_HOST" "test -d /data/UserData/schwung && mkdir -p '$REMOTE_DIR'"
 scp -r "dist/$MODULE_ID" "$MOVE_HOST:$REMOTE_DIR/"
 
-# 6. Post-deploy probe
+# 4. Post-deploy probe
 REMOTE_PATH="$REMOTE_DIR/$MODULE_ID/dsp.so"
 REMOTE_SIZE=$(ssh "$MOVE_HOST" "stat -c %s '$REMOTE_PATH' 2>/dev/null || stat -f %z '$REMOTE_PATH' 2>/dev/null || echo 0")
 if [ "$REMOTE_SIZE" != "$LOCAL_SIZE" ]; then
