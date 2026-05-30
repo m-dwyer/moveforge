@@ -6,6 +6,7 @@ export type AudioCall =
   | { kind: "syncChain" }
   | { kind: "noteOn"; note: number; velocity: number }
   | { kind: "noteOff"; note: number }
+  | { kind: "allNotesOff" }
   | { kind: "sendParamToSlot"; slotId: string; key: string; id: number; value: number }
   | { kind: "reloadModuleWasm"; moduleId: string | null };
 
@@ -40,6 +41,10 @@ export async function noteOn(note: number, velocity = 0.94): Promise<void> {
 
 export function noteOff(note: number): void {
   record({ kind: "noteOff", note });
+}
+
+export function allNotesOff(): void {
+  record({ kind: "allNotesOff" });
 }
 
 export function sendParamToSlot(slotId: string, key: string, id: number, value: number): void {

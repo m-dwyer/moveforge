@@ -1,6 +1,7 @@
 import type { ParamDefinition } from "./module-metadata.js";
 
 export type ScaleName = "major" | "minor" | "pentatonic";
+export type AuditionPatternName = "custom" | "custom_copy" | "bass_pulse" | "octave_bounce" | "drone_hold" | "chord_stab" | "velocity_ramp";
 
 export type ParamScope = "component" | "settings";
 
@@ -81,10 +82,19 @@ export type StepState = {
   velocity: number;
 };
 
+export type AuditionState = {
+  gate: number;
+  length: 8 | 16 | 32;
+  pattern: AuditionPatternName;
+  velocity: number;
+};
+
 export type AppState = {
   activePads: Map<number, number>;
+  audition: AuditionState;
   browserIndex: number;
   context: "master" | "slot";
+  customCopySteps: StepState[];
   loop: boolean;
   master: MasterState;
   mode: "browser" | "chain" | "device" | "seq";
@@ -149,6 +159,8 @@ export function makeInitialState(moduleId: string, moduleName: string): AppState
     playing: false,
     loop: false,
     mute: false,
+    audition: makeDefaultAudition(),
+    customCopySteps: makeDefaultSteps(false),
     selectedStep: 0,
     playStep: -1,
     padLayout: "in-key-octaves",
@@ -157,9 +169,22 @@ export function makeInitialState(moduleId: string, moduleName: string): AppState
     octave: 3,
     tracks: Array.from({ length: 4 }, () => makeSlotState(moduleId, moduleName)),
     master: makeMasterState(),
-    steps: Array.from({ length: 16 }, () => ({ enabled: false, note: 60, velocity: 0.9, locks: {} })),
+    steps: makeDefaultSteps(false),
     activePads: new Map()
   };
+}
+
+export function makeDefaultAudition(): AuditionState {
+  return {
+    pattern: "custom",
+    length: 16,
+    gate: 0.72,
+    velocity: 0.9
+  };
+}
+
+function makeDefaultSteps(enabled: boolean): StepState[] {
+  return Array.from({ length: 32 }, () => ({ enabled, note: 60, velocity: 0.9, locks: {} }));
 }
 
 function makeMidiFx(): MidiFxSlot {

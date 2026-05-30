@@ -35,6 +35,9 @@ export default defineConfig(({ mode }) => {
       emptyOutDir: true,
       target: "es2022"
     },
+    optimizeDeps: {
+      include: ["zustand/middleware"]
+    },
     plugins: [react(), serveRepoModules(), ...(isTest ? [] : [wasmRebuilder()])],
     test: {
       include: ["tests/**/*.spec.ts"],

@@ -15,6 +15,7 @@ export function AppRoot() {
   const selectedTrack = useStore((s) => s.selectedTrack);
   const slot = useStore(selectSelectedSlot);
   const error = useStore((s) => s.error);
+  const resetUiState = useStore((s) => s.resetUiState);
 
   useEffect(() => {
     void initialize(moduleId);
@@ -48,13 +49,23 @@ export function AppRoot() {
     <TooltipProvider delayDuration={200}>
       <main className="h-screen bg-bg text-text">
         <div className="mx-auto flex h-full max-w-[1400px] flex-col gap-3 p-4">
-          <header className="flex items-baseline justify-between">
+          <header className="flex items-baseline justify-between gap-3">
             <div>
               <h1 className="text-lg font-bold tracking-tight" data-testid="panel-title">{activeModuleName}</h1>
               <p className="text-xs text-muted">
                 Track {selectedTrack + 1} / {slot.type}
               </p>
             </div>
+            <button
+              type="button"
+              onClick={() => {
+                resetUiState();
+                void initialize(initialModuleIdFromStore());
+              }}
+              className="rounded border border-line bg-panel-2 px-3 py-1.5 text-xs font-medium text-muted transition-colors hover:border-accent/40 hover:text-text"
+            >
+              Reset UI
+            </button>
           </header>
 
           {error && (
@@ -75,4 +86,8 @@ export function AppRoot() {
       </main>
     </TooltipProvider>
   );
+}
+
+function initialModuleIdFromStore(): string {
+  return useStore.getState().moduleId;
 }

@@ -3,7 +3,7 @@ import { page } from "vitest/browser";
 import { createRoot, type Root } from "react-dom/client";
 import { createElement, type ReactNode } from "react";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { useStore } from "@/store";
+import { STORE_PERSIST_KEY, useStore } from "@/store";
 import { makeInitialState, type ChainSlot, type SettingsSlot, type AudioFxSlot, type MidiFxSlot, type SoundSlot } from "@/chain-state";
 import "@/index.css";
 import type { AudioCall } from "./mocks/audio";
@@ -18,6 +18,7 @@ let root: Root | null = null;
 let container: HTMLElement | null = null;
 
 beforeEach(() => {
+  window.localStorage.removeItem(STORE_PERSIST_KEY);
   useStore.setState({
     ...makeInitialState("westfold", "Westfold"),
     activeModuleName: "Westfold",

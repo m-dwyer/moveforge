@@ -111,6 +111,12 @@ export function noteOff(note: number): void {
   }
 }
 
+export function allNotesOff(): void {
+  if (engine.hasSlot("sound")) {
+    engine.sendToSlot("sound", { type: "allNotesOff" });
+  }
+}
+
 export function sendParamToSlot(slotId: string, key: string, id: number, value: number): void {
   if (!engine.hasSlot(slotId)) return;
   engine.sendToSlot(slotId, { type: "param", key, id, value });
