@@ -1,4 +1,5 @@
 import { readFile, writeFile } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
 import { modulePaths, selectedModuleIds } from "./lib/modules.ts";
 
 type Param = {
@@ -24,40 +25,51 @@ type ModuleJson = {
   id: string;
 };
 
-const mode = process.argv[2] === "--check" ? "check" : "write";
-const moduleIds = await selectedModuleIds();
+export type GenerateOptions = {
+  /** Module ids to process. Defaults to MODULE_ID (or all modules) via selectedModuleIds(). */
+  moduleIds?: string[];
+  /** "write" emits the .gen.inc; "check" only reports drift. Defaults to "write". */
+  mode?: "check" | "write";
+};
 
-let drift = 0;
-for (const moduleId of moduleIds) {
-  const paths = modulePaths(moduleId);
-  const moduleJson = JSON.parse(await readFile(paths.moduleJson, "utf8")) as ModuleJson;
-  const params = moduleJson.capabilities?.ui_hierarchy?.levels?.root?.params;
-  if (!params) {
-    console.warn(`[${moduleId}] no capabilities.ui_hierarchy.levels.root.params — skipping`);
-    continue;
-  }
+/**
+ * Generate (or check) each module's <module>_params.gen.inc from module.json.
+ * Returns the number of modules whose generated output is stale (0 when in sync).
+ */
+export async function generate(options: GenerateOptions = {}): Promise<number> {
+  const mode = options.mode ?? "write";
+  const moduleIds = options.moduleIds ?? (await selectedModuleIds());
 
-  const generated = renderInc(moduleId, params);
-  const existing = await readFile(paths.paramsGenInc, "utf8").catch(() => "");
-
-  if (mode === "check") {
-    if (generated !== existing) {
-      console.error(`[${moduleId}] ${paths.paramsGenInc} is stale — run \`mise run gen-params\``);
-      drift++;
+  let drift = 0;
+  for (const moduleId of moduleIds) {
+    const paths = modulePaths(moduleId);
+    const moduleJson = JSON.parse(await readFile(paths.moduleJson, "utf8")) as ModuleJson;
+    const params = moduleJson.capabilities?.ui_hierarchy?.levels?.root?.params;
+    if (!params) {
+      console.warn(`[${moduleId}] no capabilities.ui_hierarchy.levels.root.params — skipping`);
+      continue;
     }
-    continue;
+
+    const generated = renderInc(moduleId, params);
+    const existing = await readFile(paths.paramsGenInc, "utf8").catch(() => "");
+
+    if (mode === "check") {
+      if (generated !== existing) {
+        console.error(`[${moduleId}] ${paths.paramsGenInc} is stale — run \`mise run gen-params\``);
+        drift++;
+      }
+      continue;
+    }
+
+    if (existing === generated) {
+      console.log(`[${moduleId}] ${paths.paramsGenInc} unchanged`);
+      continue;
+    }
+    await writeFile(paths.paramsGenInc, generated);
+    console.log(`[${moduleId}] wrote ${paths.paramsGenInc} (${params.length} param${params.length === 1 ? "" : "s"})`);
   }
 
-  if (existing === generated) {
-    console.log(`[${moduleId}] ${paths.paramsGenInc} unchanged`);
-    continue;
-  }
-  await writeFile(paths.paramsGenInc, generated);
-  console.log(`[${moduleId}] wrote ${paths.paramsGenInc} (${params.length} param${params.length === 1 ? "" : "s"})`);
-}
-
-if (mode === "check" && drift > 0) {
-  process.exit(1);
+  return drift;
 }
 
 function renderInc(moduleId: string, params: Param[]): string {
@@ -137,4 +149,10 @@ function cf(value: number): string {
   if (!Number.isFinite(value)) throw new Error(`non-finite param value: ${value}`);
   const s = Number(value.toPrecision(9)).toString();
   return s.includes(".") || s.includes("e") || s.includes("E") ? `${s}f` : `${s}.0f`;
+}
+
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  const mode = process.argv[2] === "--check" ? "check" : "write";
+  const drift = await generate({ mode });
+  if (mode === "check" && drift > 0) process.exit(1);
 }

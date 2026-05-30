@@ -15,6 +15,7 @@
  * re-run `mise run gen-ui-chain`.
  */
 import { readFile, writeFile, stat } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
 import { modulePaths, selectedModuleIds } from "./lib/modules.ts";
 
 type Param = { key: string; name?: string; min: number; max: number; default: number; step?: number };
@@ -285,39 +286,59 @@ async function exists(p: string): Promise<boolean> {
   try { await stat(p); return true; } catch { return false; }
 }
 
-const mode = process.argv[2] === "--check" ? "check" : "write";
-const moduleIds = await selectedModuleIds();
-let drift = 0;
+export type GenerateOptions = {
+  /** Module ids to process. Defaults to MODULE_ID (or all modules) via selectedModuleIds(). */
+  moduleIds?: string[];
+  /** "write" emits ui_chain.js; "check" only reports drift. Defaults to "write". */
+  mode?: "check" | "write";
+};
 
-for (const id of moduleIds) {
-  const paths = modulePaths(id);
-  const json: ModuleJson = JSON.parse(await readFile(paths.moduleJson, "utf8"));
-  const ct = json.capabilities?.component_type;
-  const params = json.capabilities?.ui_hierarchy?.levels?.root?.params ?? [];
+/**
+ * Generate (or check) each editable module's ui_chain.js from module.json.
+ * Modules without editable params (e.g. settings/tool modules) are skipped.
+ * Returns the number of modules whose generated output is stale (0 when in sync).
+ */
+export async function generate(options: GenerateOptions = {}): Promise<number> {
+  const mode = options.mode ?? "write";
+  const moduleIds = options.moduleIds ?? (await selectedModuleIds());
 
-  const outPath = `${paths.moduleDir}/ui_chain.js`;
+  let drift = 0;
+  for (const id of moduleIds) {
+    const paths = modulePaths(id);
+    const json: ModuleJson = JSON.parse(await readFile(paths.moduleJson, "utf8"));
+    const ct = json.capabilities?.component_type;
+    const params = json.capabilities?.ui_hierarchy?.levels?.root?.params ?? [];
 
-  if (!ct || !EDITABLE_TYPES.has(ct) || params.length === 0) {
-    continue; // nothing to render (e.g. settings/tool modules)
-  }
+    const outPath = `${paths.moduleDir}/ui_chain.js`;
 
-  const generated = renderUiChain(id, json, params);
-  const existing = await exists(outPath) ? await readFile(outPath, "utf8") : "";
-
-  if (mode === "check") {
-    if (generated !== existing) {
-      console.error(`[${id}] ${outPath} is stale — run \`mise run gen-ui-chain\``);
-      drift++;
+    if (!ct || !EDITABLE_TYPES.has(ct) || params.length === 0) {
+      continue; // nothing to render (e.g. settings/tool modules)
     }
-    continue;
+
+    const generated = renderUiChain(id, json, params);
+    const existing = (await exists(outPath)) ? await readFile(outPath, "utf8") : "";
+
+    if (mode === "check") {
+      if (generated !== existing) {
+        console.error(`[${id}] ${outPath} is stale — run \`mise run gen-ui-chain\``);
+        drift++;
+      }
+      continue;
+    }
+
+    if (existing === generated) {
+      console.log(`[${id}] ${outPath} unchanged`);
+    } else {
+      await writeFile(outPath, generated);
+      console.log(`[${id}] wrote ${outPath} (${params.length} params)`);
+    }
   }
 
-  if (existing === generated) {
-    console.log(`[${id}] ${outPath} unchanged`);
-  } else {
-    await writeFile(outPath, generated);
-    console.log(`[${id}] wrote ${outPath} (${params.length} params)`);
-  }
+  return drift;
 }
 
-if (mode === "check" && drift > 0) process.exit(1);
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  const mode = process.argv[2] === "--check" ? "check" : "write";
+  const drift = await generate({ mode });
+  if (mode === "check" && drift > 0) process.exit(1);
+}

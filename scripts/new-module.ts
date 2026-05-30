@@ -1,9 +1,13 @@
 #!/usr/bin/env node
 import { readFile, writeFile, stat } from "node:fs/promises";
 import { join } from "node:path";
-import { argv, env, exit } from "node:process";
+import { argv, exit } from "node:process";
 import { spawnSync } from "node:child_process";
 import { renderTemplateTree, type TemplateContext } from "./lib/templates.ts";
+import { generate as generateParams } from "./gen-params.ts";
+import { generate as generatePresets } from "./gen-presets.ts";
+import { generate as generateFaust } from "./gen-faust.ts";
+import { generate as generateUiChain } from "./gen-ui-chain.ts";
 
 const args = parseArgs(argv.slice(2));
 const id = stringArg(args, "id");
@@ -90,10 +94,10 @@ const renderedFiles = await renderTemplateTree({
 });
 
 if (!dryRun) {
-  runGenParams(id);
-  runGenPresets(id);
-  if (dsp === "faust") runGenFaust(id);
-  runGenUiChain(id);
+  await generateParams({ moduleIds: [id], mode: "write" });
+  await generatePresets({ moduleIds: [id], mode: "write" });
+  if (dsp === "faust") await generateFaust({ moduleIds: [id], mode: "write" });
+  await generateUiChain({ moduleIds: [id], mode: "write" });
   await registerInIndex(id, name);
 }
 
@@ -155,50 +159,6 @@ function dspKind(value: string): "c" | "faust" {
   if (value === "c" || value === "faust") return value;
   console.error(`--dsp must be c or faust (got: ${value})`);
   exit(2);
-}
-
-function runGenParams(moduleId: string): void {
-  const result = spawnSync(process.execPath, ["scripts/gen-params.ts"], {
-    stdio: "inherit",
-    env: { ...env, MODULE_ID: moduleId }
-  });
-  if (result.status !== 0) {
-    console.error(`gen-params failed for ${moduleId}`);
-    exit(result.status ?? 1);
-  }
-}
-
-function runGenFaust(moduleId: string): void {
-  const result = spawnSync(process.execPath, ["scripts/gen-faust.ts"], {
-    stdio: "inherit",
-    env: { ...env, MODULE_ID: moduleId }
-  });
-  if (result.status !== 0) {
-    console.error(`gen-faust failed for ${moduleId}`);
-    exit(result.status ?? 1);
-  }
-}
-
-function runGenPresets(moduleId: string): void {
-  const result = spawnSync(process.execPath, ["scripts/gen-presets.ts"], {
-    stdio: "inherit",
-    env: { ...env, MODULE_ID: moduleId }
-  });
-  if (result.status !== 0) {
-    console.error(`gen-presets failed for ${moduleId}`);
-    exit(result.status ?? 1);
-  }
-}
-
-function runGenUiChain(moduleId: string): void {
-  const result = spawnSync(process.execPath, ["scripts/gen-ui-chain.ts"], {
-    stdio: "inherit",
-    env: { ...env, MODULE_ID: moduleId }
-  });
-  if (result.status !== 0) {
-    console.error(`gen-ui-chain failed for ${moduleId}`);
-    exit(result.status ?? 1);
-  }
 }
 
 function hasFaust(): boolean {

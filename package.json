@@ -21,7 +21,7 @@
     "new-module": "node scripts/new-module.ts",
     "serve": "vite",
     "typecheck": "tsc -p tsconfig.json && tsc -p web/tsconfig.json",
-    "validate": "node scripts/gen-params.ts --check && node scripts/gen-faust.ts --check && node scripts/gen-presets.ts --check && node scripts/gen-ui-chain.ts --check && node scripts/validate-params.ts && node scripts/check-module-targets.ts"
+    "validate": "node scripts/validate.ts"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
