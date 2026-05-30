@@ -6,7 +6,7 @@ This index lists the checked-in Schwung modules by component type. Each module i
 
 | id | name | authoring | description |
 |---|---|---|---|
-| `westfold` | Westfold | plain C | West Coast synth voice with dual-oscillator phase modulation, wavefolder, low-pass gate, drive/strike/chaos macros, and techno-oriented pluck/bass behavior. |
+| `westfold` | Westfold | plain C | West Coast synth voice with dual-oscillator phase modulation, snap-assisted ratio, wavefolder, low-pass gate, tone/width controls, drive/strike/chaos macros, and techno-oriented pluck/bass/lead presets. |
 | `dustline` | Dustline | plain C | Compact subtractive voice with oscillator blend, noise, resonant filter, drive, and simple performance controls. |
 | `faust_voice` | Faust Voice | Faust | Reference Faust monophonic saw voice with ADSR-style envelope, resonant low-pass filter, and saturation. |
 

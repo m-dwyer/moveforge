@@ -129,8 +129,9 @@ void westfold_process_float(westfold_core_t *s,
     float strike_time = 0.012f + (1.0f - s->strike) * 0.18f;
     float strike_coeff = 1.0f - expf(-1.0f / (strike_time * MOVEFORGE_SAMPLE_RATE));
     float ratio_base = s->ratio + (snap_ratio(s->ratio) - s->ratio) * s->snap;
-    float tone_scale = 0.45f + s->tone * 1.35f;
-    float tone_floor = 28.0f + s->tone * 34.0f;
+    float tone_curve = s->tone * s->tone;
+    float tone_scale = 0.16f + tone_curve * 2.95f;
+    float tone_floor = 18.0f + tone_curve * 92.0f;
 
     for (int i = 0; i < frames; i++)
     {
@@ -174,20 +175,24 @@ void westfold_process_float(westfold_core_t *s,
 
         float amp_env = s->env * s->env;
         float bright_env = moveforge_clampf(amp_env * (0.35f + s->lpg) + s->strike_env * (0.18f + s->strike * 1.2f), 0.0f, 1.35f);
-        float cutoff = tone_floor + powf(moveforge_clampf(bright_env, 0.0f, 1.0f), 1.8f) * (2200.0f + s->lpg * 11200.0f) * tone_scale;
-        cutoff += s->drive * (280.0f + s->tone * 620.0f) + s->chaos * chaos_fast * 1200.0f * bright_env * tone_scale;
+        float cutoff = tone_floor + powf(moveforge_clampf(bright_env, 0.0f, 1.0f), 1.85f) * (1450.0f + s->lpg * 8800.0f) * tone_scale;
+        cutoff += s->drive * (120.0f + tone_curve * 1180.0f) + s->chaos * chaos_fast * 1500.0f * bright_env * tone_scale;
         float alpha = one_pole_coeff(moveforge_clampf(cutoff, 30.0f, 17000.0f));
         s->lp += alpha * (shaped - s->lp);
 
+        float color = s->tone * s->tone * s->tone;
+        float direct = color * (0.12f + s->lpg * 0.42f);
+        float colored = s->lp * (1.0f - direct * 0.25f) + shaped * direct;
         float amp = s->volume * (0.12f + 0.88f * s->velocity) * amp_env;
-        float driven = tanhf(s->lp * (1.1f + s->drive * 5.5f));
+        float driven = tanhf(colored * (1.1f + s->drive * 5.5f));
         float y = driven * amp * (1.0f + s->drive * 0.3f);
 
         float hp = y - s->hp_x + 0.995f * s->hp_y;
         s->hp_x = y;
         s->hp_y = hp;
-        float side = (shaped - s->lp) * (s->chaos * 0.18f + s->width * 0.08f) + tri_mod * s->strike_env * s->strike * 0.05f;
-        float spread = s->width * amp_env * side;
+        float bass_safe = moveforge_clampf((s->freq - 55.0f) / 220.0f, 0.18f, 1.0f);
+        float side = (shaped - colored) * (s->chaos * 0.45f + s->width * 1.35f) + tri_mod * s->strike_env * s->strike * 0.32f;
+        float spread = s->width * amp_env * bass_safe * side;
         left[i] = tanhf((hp - spread) * 1.18f);
         right[i] = tanhf((hp + spread) * 1.18f);
     }
