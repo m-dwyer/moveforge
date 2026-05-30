@@ -75,21 +75,20 @@ import {
 
 import { decodeDelta } from '/data/UserData/schwung/shared/input_filter.mjs';
 
-import { drawMenuHeader as drawHeader } from '/data/UserData/schwung/shared/menu_layout.mjs';
+import {
+    drawMenuFooter as drawFooter,
+    drawMenuHeader as drawHeader,
+    drawMenuList,
+    FOOTER_RULE_Y,
+    LIST_TOP_Y
+} from '/data/UserData/schwung/shared/menu_layout.mjs';
 
-const SCREEN_WIDTH = 128;
 const KNOBS = [MoveKnob1, MoveKnob2, MoveKnob3, MoveKnob4, MoveKnob5, MoveKnob6];
 
 const PARAMS = [
 ${rows}
 ];
 
-const VISIBLE = Math.min(PARAMS.length, ${VISIBLE});
-const LIST_Y = 14;
-const LINE_H = 8;
-const MAX_SCROLL = Math.max(0, PARAMS.length - VISIBLE);
-
-let scrollTop = 0;
 let selectedIndex = 0;
 let paramValues = PARAMS.map((p) => p.def);
 let presetCount = 0;
@@ -99,18 +98,8 @@ let mode = "params";
 let editMode = false;
 let needsRedraw = true;
 
-function clampScroll(v) {
-    return Math.max(0, Math.min(MAX_SCROLL, v));
-}
-
 function clampSelected(v) {
     return Math.max(0, Math.min(Math.max(0, PARAMS.length - 1), v));
-}
-
-function ensureSelectedVisible() {
-    if (selectedIndex < scrollTop) scrollTop = selectedIndex;
-    if (selectedIndex >= scrollTop + VISIBLE) scrollTop = selectedIndex - VISIBLE + 1;
-    scrollTop = clampScroll(scrollTop);
 }
 
 function fetchParams() {
@@ -169,13 +158,12 @@ function toggleMode() {
 function toggleEditMode() {
     if (mode !== "params" || PARAMS.length === 0) return;
     editMode = !editMode;
-    ensureSelectedVisible();
     needsRedraw = true;
 }
 
 function drawCentered(y, text) {
     const s = String(text || "");
-    const x = Math.max(0, Math.floor((SCREEN_WIDTH - s.length * 5) / 2));
+    const x = Math.max(0, Math.floor((128 - s.length * 5) / 2));
     print(x, y, s, 1);
 }
 
@@ -188,10 +176,11 @@ function drawPresetUI() {
         drawCentered(24, String(presetIndex + 1) + " / " + String(presetCount));
         drawCentered(36, presetName || "Preset " + String(presetIndex + 1));
         print(4, 32, "<", 1);
-        print(SCREEN_WIDTH - 10, 32, ">", 1);
-        print(2, 56, "Click: params", 1);
+        print(118, 32, ">", 1);
+        drawFooter({left: "Back: done", right: "Click: params"});
     } else {
         drawCentered(32, "No presets");
+        drawFooter("Back: done");
     }
 
     needsRedraw = false;
@@ -206,20 +195,20 @@ function drawUI() {
     clear_screen();
     drawHeader(${JSON.stringify(name)});
 
-    const end = Math.min(scrollTop + VISIBLE, PARAMS.length);
-    for (let i = scrollTop; i < end; i++) {
-        const y = LIST_Y + (i - scrollTop) * LINE_H;
-        const param = PARAMS[i];
-        const marker = i === selectedIndex ? (editMode ? "*" : ">") : " ";
-        print(2, y, marker + param.name, 1);
-        const valueStr = paramValues[i].toFixed(param.dec);
-        print(SCREEN_WIDTH - valueStr.length * 6 - 8, y, valueStr, 1);
-    }
-
-    /* Scroll indicators when the list overflows the screen. */
-    if (scrollTop > 0) print(SCREEN_WIDTH - 6, LIST_Y, "^", 1);
-    if (end < PARAMS.length) print(SCREEN_WIDTH - 6, LIST_Y + (VISIBLE - 1) * LINE_H, "v", 1);
-    print(2, 56, editMode ? "Click: done" : "Click: edit", 1);
+    drawMenuList({
+        items: PARAMS,
+        selectedIndex,
+        listArea: { topY: LIST_TOP_Y, bottomY: FOOTER_RULE_Y },
+        getLabel: (p) => p.name,
+        getValue: (_p, i) => paramValues[i].toFixed(PARAMS[i].dec),
+        valueAlignRight: true,
+        editMode,
+        keepOffLastRow: false,
+        scrollSelectedValue: true,
+        prioritizeSelectedValue: true,
+        selectedMinLabelChars: 6
+    });
+    drawFooter(editMode ? {left: "Click: done", right: "Jog: adjust"} : {left: "Back: done", right: "Click: edit"});
 
     needsRedraw = false;
 }
@@ -229,7 +218,6 @@ function init() {
     fetchPreset();
     mode = presetCount > 0 ? "preset" : "params";
     editMode = false;
-    scrollTop = 0;
     selectedIndex = 0;
     needsRedraw = true;
 }
@@ -265,7 +253,6 @@ function onMidiMessageInternal(data) {
             const next = clampSelected(selectedIndex + delta);
             if (next !== selectedIndex) {
                 selectedIndex = next;
-                ensureSelectedVisible();
                 needsRedraw = true;
             }
         }
@@ -276,7 +263,7 @@ function onMidiMessageInternal(data) {
     for (let k = 0; k < VISIBLE; k++) {
         if (d1 === KNOBS[k]) {
             const delta = decodeDelta(d2);
-            if (delta !== 0) adjustParam(scrollTop + k, delta);
+            if (delta !== 0 && k < PARAMS.length) adjustParam(k, delta);
             return;
         }
     }
