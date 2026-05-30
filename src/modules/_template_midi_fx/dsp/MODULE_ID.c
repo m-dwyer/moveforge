@@ -1,19 +1,26 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "host/midi_fx_api_v1.h"
 #include "MODULE_ID_core.h"
+#include "MODULE_ID_presets.gen.inc"
 
 typedef struct {
     MODULE_ID_core_t core;
+    int current_preset;
 } MODULE_ID_plugin_t;
 
 static void* create_instance(const char *module_dir, const char *config_json) {
     (void)module_dir;
     (void)config_json;
     MODULE_ID_plugin_t *p = (MODULE_ID_plugin_t*)calloc(1, sizeof(MODULE_ID_plugin_t));
-    if (p) MODULE_ID_init(&p->core);
+    if (p) {
+        MODULE_ID_init(&p->core);
+        p->current_preset = MODULE_ID_clamp_preset_index(0);
+        MODULE_ID_apply_preset(&p->core, p->current_preset);
+    }
     return p;
 }
 
@@ -37,12 +44,27 @@ static int tick(void *instance,
 
 static void set_param(void *instance, const char *key, const char *val) {
     MODULE_ID_plugin_t *p = (MODULE_ID_plugin_t*)instance;
-    if (p && key && val) MODULE_ID_set_param(&p->core, MODULE_ID_param_id(key), (float)atof(val));
+    if (!p || !key || !val) return;
+    if (strcmp(key, "preset") == 0) {
+        p->current_preset = MODULE_ID_clamp_preset_index(atoi(val));
+        MODULE_ID_apply_preset(&p->core, p->current_preset);
+        return;
+    }
+    MODULE_ID_set_param(&p->core, MODULE_ID_param_id(key), (float)atof(val));
 }
 
 static int get_param(void *instance, const char *key, char *buf, int buf_len) {
     MODULE_ID_plugin_t *p = (MODULE_ID_plugin_t*)instance;
     if (!p || !key || !buf || buf_len <= 0) return -1;
+    if (strcmp(key, "preset_count") == 0) {
+        return snprintf(buf, (size_t)buf_len, "%d", MODULE_ID_preset_count());
+    }
+    if (strcmp(key, "preset") == 0) {
+        return snprintf(buf, (size_t)buf_len, "%d", p->current_preset);
+    }
+    if (strcmp(key, "preset_name") == 0) {
+        return snprintf(buf, (size_t)buf_len, "%s", MODULE_ID_preset_name(p->current_preset));
+    }
     int id = MODULE_ID_param_id(key);
     if (id < 0) return -1;
     return snprintf(buf, (size_t)buf_len, "%.6f", MODULE_ID_get_param(&p->core, id));

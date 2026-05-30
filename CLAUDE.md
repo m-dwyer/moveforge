@@ -50,7 +50,7 @@ The main rule: keep musical DSP behavior in the shared core.
 - `src/modules/<module-id>/module.json` is the **single source of truth** for the module's metadata (id, name, abbrev 3-6 chars, capabilities, component_type, api_version) AND its parameter schema. The `capabilities.ui_hierarchy.levels.root.params` array (each entry: `key`, `name`, `type`, `min`, `max`, `default`, `step`) drives both Move's chain host and the codegen above.
 - `src/modules/<module-id>/presets.json` drives local preset buttons, render-suite clips, and generated Move-facing preset helpers in `dsp/<module-id>_presets.gen.inc`. Keys must be subset of params declared in `module.json`; values must be within `[min, max]`. Wrappers that include the generated file can expose Schwung's preset convention: `preset_count`, `preset`, and `preset_name`.
 - `src/modules/<module-id>/ui.js` is the on-device Schwung UI entry point (solo mode).
-- `src/modules/<module-id>/ui_chain.js` is the Signal Chain UI shim (chain mode), **generated** from `module.json` by `scripts/gen-ui-chain.ts` (run via `mise run gen-ui-chain`). It sets `globalThis.chain_ui = { init, tick, onMidiMessageInternal }` to a scrollable parameter editor (top knobs adjust visible params, jog wheel scrolls). A module is openable in a chain slot (wheel press) **only if it ships a `ui_chain.js` whose `chain_ui.tick` actually draws** — an empty/no-op `chain_ui` renders nothing and the slot appears dead. The host decides a module has a custom chain UI purely from the non-empty `"ui_chain"` field in `module.json`; there is no generic fallback editor. Do not hand-edit `ui_chain.js` (re-run gen-ui-chain) and do not override `globalThis.init` or `globalThis.tick`.
+- `src/modules/<module-id>/ui_chain.js` is the Signal Chain UI shim (chain mode), **generated** from `module.json` by `scripts/gen-ui-chain.ts` (run via `mise run gen-ui-chain`). It sets `globalThis.chain_ui = { init, tick, onMidiMessageInternal }` to a native-style chain editor: if presets are exposed, the first screen browses presets with the jog wheel; pressing the wheel enters the param list; pressing again toggles editing for the highlighted param. A module is openable in a chain slot (wheel press) **only if it ships a `ui_chain.js` whose `chain_ui.tick` actually draws** — an empty/no-op `chain_ui` renders nothing and the slot appears dead. The host decides a module has a custom chain UI purely from the non-empty `"ui_chain"` field in `module.json`; there is no generic fallback editor. Do not hand-edit `ui_chain.js` (re-run gen-ui-chain) and do not override `globalThis.init` or `globalThis.tick`.
 - `src/modules/index.json` is the browser-visible module discovery list.
 - `web/` contains the local browser UI. It reads `src/modules/<module-id>/module.json`, `src/modules/<module-id>/presets.json`, and `web/wasm/<module-id>.wasm`. Param metadata is read from the same `ui_hierarchy.levels.root.params` block.
 
@@ -62,10 +62,11 @@ When adding a parameter:
 4. Use the new param in the DSP — `<module-id>_core.c` (plain C) or the `.dsp` body (Faust).
 5. Add the key to every preset in `src/modules/<module-id>/presets.json`.
 6. Run `mise run gen-presets` (regenerates the preset helper include).
-7. Focused tests in `tests/test_<module-id>_core.c`.
-8. Run `mise run validate` (re-checks gen-params, gen-faust, and gen-presets drift).
+7. Run `mise run gen-ui-chain` if the chain-mode parameter surface changed.
+8. Focused tests in `tests/test_<module-id>_core.c`.
+9. Run `mise run validate` (re-checks gen-params, gen-faust, gen-presets, and gen-ui-chain drift).
 
-Adding a new module: `pnpm run new-module -- --id <id> --kind sound_generator|audio_fx|midi_fx` scaffolds a module from the matching template directory, substitutes MODULE_ID/UPPER/NAME/ABBREV, runs gen-params and gen-presets, and registers in `src/modules/index.json`. Faust is the default authoring path for `sound_generator` and `audio_fx`, using `src/modules/_template_faust_sound_generator/` or `src/modules/_template_faust_audio_fx/`, and the scaffolder also regenerates checked-in Faust C. Use `--dsp c` for audio DSP only as a documented exception when Faust creates a concrete implementation, performance, or debugging problem. MIDI FX modules are always plain C.
+Adding a new module: `pnpm run new-module -- --id <id> --kind sound_generator|audio_fx|midi_fx` scaffolds a module from the matching template directory, substitutes MODULE_ID/UPPER/NAME/ABBREV, runs gen-params, gen-presets, and gen-ui-chain, and registers in `src/modules/index.json`. Faust is the default authoring path for `sound_generator` and `audio_fx`, using `src/modules/_template_faust_sound_generator/` or `src/modules/_template_faust_audio_fx/`, and the scaffolder also regenerates checked-in Faust C. Use `--dsp c` for audio DSP only as a documented exception when Faust creates a concrete implementation, performance, or debugging problem. MIDI FX modules are always plain C.
 
 ## Common Commands
 
@@ -77,7 +78,7 @@ mise run test    # compile and run DSP core smoke tests
 mise run gen-params # regenerate <module-id>_params.gen.inc from module.json
 mise run gen-faust  # regenerate <module-id>_faust.c from <module-id>.dsp (Faust modules only)
 mise run gen-presets # regenerate <module-id>_presets.gen.inc from presets.json
-mise run validate # validate module metadata + check gen-params/gen-faust/gen-presets drift
+mise run validate # validate module metadata + check gen-params/gen-faust/gen-presets/gen-ui-chain drift
 mise run render  # render renders/<module-id>-demo.wav (sound_generator only)
 mise run suite   # render preset WAVs under renders/<module-id>-suite/
 mise run plot    # render suite and generate waveform/spectrum PNGs

@@ -143,7 +143,9 @@ fixtures + browser preset row + on-device preset list all read it.
 3. Move's Schwung runtime loads the same wrapper + core via the
    `plugin_api_v2_t` / `audio_fx_api_v2_t` / `midi_fx_api_v1_t` ABI.
 4. UI on the OLED comes from `src/modules/<id>/ui.js` (solo mode) and
-   `ui_chain.js` (chain mode); both read the same param keys.
+   generated `ui_chain.js` (chain mode). Chain UI uses the root hierarchy's
+   preset list/count/name metadata when present, then lets the wheel enter and
+   edit the same param keys.
 
 The browser harness is a fidelity stand-in: it runs the same `<module>.c`
 wrapper code through the same Schwung ABI shape, with int16 audio conversion

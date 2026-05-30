@@ -42,10 +42,11 @@ src/modules/<id>/
 ├── metadata.json            local/web-only help text, including param tooltips
 ├── presets.json             preset values + render directives for the suite
 ├── ui.js                    solo-mode on-device UI shim
-├── ui_chain.js              chain-mode on-device UI shim
+├── ui_chain.js              GENERATED chain-mode UI: preset browser, then param editor
 └── dsp/
     ├── <id>_core.h          public API contract (shared)
     ├── <id>_params.gen.inc  GENERATED from module.json — never edit by hand
+    ├── <id>_presets.gen.inc GENERATED from presets.json — never edit by hand
     ├── <id>.c               Schwung wrapper (plugin_api_v2 / audio_fx_api_v2 / midi_fx_api_v1)
     │
     ├── <id>_core.c          PLAIN C: the DSP implementation
@@ -66,7 +67,7 @@ pnpm run new-module -- --id myfx --kind audio_fx
 # kinds: sound_generator | audio_fx | midi_fx
 ```
 
-The scaffolder copies the matching `_template*`, substitutes id/name/abbrev, runs `gen-params`, registers in `src/modules/index.json`, and prints next steps tailored to the kind.
+The scaffolder copies the matching `_template*`, substitutes id/name/abbrev, runs `gen-params`, `gen-presets`, and `gen-ui-chain`, registers in `src/modules/index.json`, and prints next steps tailored to the kind.
 
 ### Faust
 
@@ -93,6 +94,7 @@ Then regenerate:
 
 ```bash
 MODULE_ID=myfx pnpm run gen-params
+MODULE_ID=myfx pnpm run gen-presets
 MODULE_ID=myfx pnpm run gen-faust
 mise run validate          # confirms the rename worked
 ```
@@ -105,12 +107,12 @@ Both paths share this loop:
 2. **Plain C only**: add a matching `float <key>;` field to the state struct in `<id>_core.h`. The generated `set_param`/`get_param` will write/read it directly.
 3. **Faust only**: add a matching `hslider("<key>", default, min, max, step)` declaration to `<id>.dsp`. The adapter captures it by label via `buildUserInterface`.
 4. Run `mise run gen-params`.
-5. **Faust only**: run `mise run gen-faust`.
-6. Use the new param in the DSP.
-7. Add the key to every preset in `<id>/presets.json` with a value inside `[min, max]`.
+5. Add the key to every preset in `<id>/presets.json` with a value inside `[min, max]`, then run `mise run gen-presets`.
+6. **Faust only**: run `mise run gen-faust`.
+7. Use the new param in the DSP.
 8. Add a concise tooltip description to `<id>/metadata.json` under `params.<key>`. Do not put local help text in Schwung-facing `module.json` unless Schwung officially supports that field.
 9. Add or extend the assertion in `tests/test_<id>_core.c`.
-10. Run `mise run validate` (param drift + gen drift + preset range).
+10. Run `mise run validate` (param drift + gen drift + preset/UI range).
 
 ## Workflow: iterate on sound
 
@@ -174,9 +176,9 @@ Run `mise run check` (or `mise run check-all` for every module) before suggestin
 
 These are load-bearing — violating them causes real bugs or wastes time:
 
-1. **Never edit generated files by hand.** `_params.gen.inc` and `_faust.c` are produced by `gen-params` and `gen-faust`. Hand edits will be silently overwritten the next time those run, and `validate` will flag drift in CI. If you want different output, edit the source (`module.json` or `.dsp`).
+1. **Never edit generated files by hand.** `_params.gen.inc`, `_presets.gen.inc`, `ui_chain.js`, and `_faust.c` are produced by `gen-params`, `gen-presets`, `gen-ui-chain`, and `gen-faust`. Hand edits will be silently overwritten the next time those run, and `validate` will flag drift in CI. If you want different output, edit the source (`module.json`, `presets.json`, or `.dsp`) or the generator.
 
-2. **Always re-run `gen-params` after editing `module.json`.** `pnpm run validate` includes a `--check` step that fails if the include is stale. Same for `gen-faust` after editing `.dsp`.
+2. **Always re-run generators after editing their sources.** Run `gen-params` and `gen-ui-chain` after editing `module.json`, `gen-presets` after editing `presets.json`, and `gen-faust` after editing `.dsp`. `pnpm run validate` includes check steps that fail on stale generated output.
 
 3. **Don't deploy from a dirty working tree.** `scripts/install-to-move.sh` refuses by default. The point is that every device build maps to a known commit — if it sounds wrong on the device, you need to be able to reproduce the source.
 
@@ -210,7 +212,7 @@ When you need a concrete pattern to copy:
 
 When a module misbehaves:
 
-1. **`mise run validate` fails?** Run the named gen script. Usually `gen-params` (after editing `module.json`) or `gen-faust` (after editing `.dsp`).
+1. **`mise run validate` fails?** Run the named gen script. Usually `gen-params`/`gen-ui-chain` (after editing `module.json`), `gen-presets` (after editing `presets.json`), or `gen-faust` (after editing `.dsp`).
 2. **`mise run test` fails?** The core smoke test exercises init, param clamping, processing finite/bounded output. Read the assertion that failed first, not the whole test.
 3. **Renders sound wrong?** `mise run plot` → look at `renders/plots/<id>/`. Spectrum tells you cutoff frequency, harmonic content, and noise floor at a glance. Waveform tells you envelope shape, clipping, and DC offset.
 4. **A parameter extreme misbehaves?** `MODULE_ID=<id> mise run plot-stress` → inspect `renders/plots/<id>-stress/`. The generated stress cases come from `module.json`, so if a new param has unsafe min/max behavior this is where it should show up.
