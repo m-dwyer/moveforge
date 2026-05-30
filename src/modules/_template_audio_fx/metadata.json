@@ -1,7 +1,0 @@
-{
-  "params": {
-    "mix": "Sets the wet/dry balance for MODULE_NAME.",
-    "drive": "Controls the amount of saturation or nonlinear character.",
-    "tone": "Shapes the brightness of the processed signal."
-  }
-}

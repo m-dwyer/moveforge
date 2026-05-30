@@ -1,6 +1,0 @@
-{
-  "params": {
-    "mix": "Sets the wet/dry balance for MODULE_NAME.",
-    "level": "Sets output level after processing."
-  }
-}
