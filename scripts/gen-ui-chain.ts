@@ -28,7 +28,7 @@ type ModuleJson = {
 };
 
 const EDITABLE_TYPES = new Set(["sound_generator", "audio_fx", "midi_fx"]);
-const VISIBLE = 6; // rows on screen / knobs mapped at once
+const VISIBLE = 5; // rows on screen / knobs mapped at once, leaving footer space
 
 /* Knob detents across a param's range. Respect module.json step when it gives a
  * reasonable detent count (e.g. integer selectors like trail's "sync"),
@@ -69,7 +69,7 @@ function renderUiChain(id: string, json: ModuleJson, params: Param[]): string {
  */
 
 import {
-    MoveMainKnob,
+    MoveMainButton, MoveMainKnob,
     MoveKnob1, MoveKnob2, MoveKnob3, MoveKnob4, MoveKnob5, MoveKnob6
 } from '/data/UserData/schwung/shared/constants.mjs';
 
@@ -90,11 +90,27 @@ const LINE_H = 8;
 const MAX_SCROLL = Math.max(0, PARAMS.length - VISIBLE);
 
 let scrollTop = 0;
+let selectedIndex = 0;
 let paramValues = PARAMS.map((p) => p.def);
+let presetCount = 0;
+let presetIndex = 0;
+let presetName = "";
+let mode = "params";
+let editMode = false;
 let needsRedraw = true;
 
 function clampScroll(v) {
     return Math.max(0, Math.min(MAX_SCROLL, v));
+}
+
+function clampSelected(v) {
+    return Math.max(0, Math.min(Math.max(0, PARAMS.length - 1), v));
+}
+
+function ensureSelectedVisible() {
+    if (selectedIndex < scrollTop) scrollTop = selectedIndex;
+    if (selectedIndex >= scrollTop + VISIBLE) scrollTop = selectedIndex - VISIBLE + 1;
+    scrollTop = clampScroll(scrollTop);
 }
 
 function fetchParams() {
@@ -105,6 +121,18 @@ function fetchParams() {
             if (!isNaN(f)) paramValues[i] = f;
         }
     }
+}
+
+function fetchPreset() {
+    const count = host_module_get_param("preset_count");
+    const parsedCount = count !== null && count !== undefined ? parseInt(count) : 0;
+    presetCount = isNaN(parsedCount) ? 0 : Math.max(0, parsedCount);
+
+    const preset = host_module_get_param("preset");
+    const parsedPreset = preset !== null && preset !== undefined ? parseInt(preset) : 0;
+    presetIndex = isNaN(parsedPreset) ? 0 : Math.max(0, Math.min(Math.max(0, presetCount - 1), parsedPreset));
+
+    presetName = host_module_get_param("preset_name") || "";
 }
 
 function setParam(index, value) {
@@ -119,7 +147,62 @@ function adjustParam(index, delta) {
     needsRedraw = true;
 }
 
+function changePreset(delta) {
+    if (presetCount <= 0) return;
+    let next = presetIndex + delta;
+    if (next < 0) next = presetCount - 1;
+    if (next >= presetCount) next = 0;
+    presetIndex = next;
+    host_module_set_param("preset", String(presetIndex));
+    fetchPreset();
+    fetchParams();
+    needsRedraw = true;
+}
+
+function toggleMode() {
+    if (presetCount <= 0) return;
+    mode = mode === "preset" ? "params" : "preset";
+    editMode = false;
+    needsRedraw = true;
+}
+
+function toggleEditMode() {
+    if (mode !== "params" || PARAMS.length === 0) return;
+    editMode = !editMode;
+    ensureSelectedVisible();
+    needsRedraw = true;
+}
+
+function drawCentered(y, text) {
+    const s = String(text || "");
+    const x = Math.max(0, Math.floor((SCREEN_WIDTH - s.length * 5) / 2));
+    print(x, y, s, 1);
+}
+
+function drawPresetUI() {
+    clear_screen();
+    drawHeader(${JSON.stringify(name)});
+
+    fetchPreset();
+    if (presetCount > 0) {
+        drawCentered(24, String(presetIndex + 1) + " / " + String(presetCount));
+        drawCentered(36, presetName || "Preset " + String(presetIndex + 1));
+        print(4, 32, "<", 1);
+        print(SCREEN_WIDTH - 10, 32, ">", 1);
+        print(2, 56, "Click: params", 1);
+    } else {
+        drawCentered(32, "No presets");
+    }
+
+    needsRedraw = false;
+}
+
 function drawUI() {
+    if (mode === "preset") {
+        drawPresetUI();
+        return;
+    }
+
     clear_screen();
     drawHeader(${JSON.stringify(name)});
 
@@ -127,7 +210,8 @@ function drawUI() {
     for (let i = scrollTop; i < end; i++) {
         const y = LIST_Y + (i - scrollTop) * LINE_H;
         const param = PARAMS[i];
-        print(2, y, param.name, 1);
+        const marker = i === selectedIndex ? (editMode ? "*" : ">") : " ";
+        print(2, y, marker + param.name, 1);
         const valueStr = paramValues[i].toFixed(param.dec);
         print(SCREEN_WIDTH - valueStr.length * 6 - 8, y, valueStr, 1);
     }
@@ -135,13 +219,18 @@ function drawUI() {
     /* Scroll indicators when the list overflows the screen. */
     if (scrollTop > 0) print(SCREEN_WIDTH - 6, LIST_Y, "^", 1);
     if (end < PARAMS.length) print(SCREEN_WIDTH - 6, LIST_Y + (VISIBLE - 1) * LINE_H, "v", 1);
+    print(2, 56, editMode ? "Click: done" : "Click: edit", 1);
 
     needsRedraw = false;
 }
 
 function init() {
     fetchParams();
+    fetchPreset();
+    mode = presetCount > 0 ? "preset" : "params";
+    editMode = false;
     scrollTop = 0;
+    selectedIndex = 0;
     needsRedraw = true;
 }
 
@@ -155,12 +244,30 @@ function onMidiMessageInternal(data) {
     const d2 = data[2];
     if ((status & 0xF0) !== 0xB0) return;
 
+    if (d1 === MoveMainButton && d2 > 0) {
+        if (mode === "params") toggleEditMode();
+        else toggleMode();
+        return;
+    }
+
     /* Jog wheel scrolls the visible window. */
     if (d1 === MoveMainKnob) {
         const delta = decodeDelta(d2);
+        if (mode === "preset") {
+            if (delta !== 0) changePreset(delta);
+            return;
+        }
+        if (editMode) {
+            if (delta !== 0) adjustParam(selectedIndex, delta);
+            return;
+        }
         if (delta !== 0) {
-            const next = clampScroll(scrollTop + delta);
-            if (next !== scrollTop) { scrollTop = next; needsRedraw = true; }
+            const next = clampSelected(selectedIndex + delta);
+            if (next !== selectedIndex) {
+                selectedIndex = next;
+                ensureSelectedVisible();
+                needsRedraw = true;
+            }
         }
         return;
     }

@@ -6,9 +6,11 @@
 #include "host/plugin_api_v1.h"
 #include "modules/_shared/dsp_runtime.h"
 #include "westfold_core.h"
+#include "westfold_presets.gen.inc"
 
 typedef struct {
     westfold_core_t core;
+    int current_preset;
 } westfold_plugin_t;
 
 static const host_api_v1_t *g_host = NULL;
@@ -19,6 +21,8 @@ static void* create_instance(const char *module_dir, const char *json_defaults) 
     westfold_plugin_t *p = (westfold_plugin_t*)calloc(1, sizeof(westfold_plugin_t));
     if (!p) return NULL;
     westfold_init(&p->core);
+    p->current_preset = westfold_clamp_preset_index(0);
+    westfold_apply_preset(&p->core, p->current_preset);
     return p;
 }
 
@@ -48,12 +52,27 @@ static void set_param(void *instance, const char *key, const char *val) {
         westfold_all_notes_off(&p->core);
         return;
     }
+    if (strcmp(key, "preset") == 0) {
+        p->current_preset = westfold_clamp_preset_index(atoi(val));
+        westfold_all_notes_off(&p->core);
+        westfold_apply_preset(&p->core, p->current_preset);
+        return;
+    }
     westfold_set_param(&p->core, westfold_param_id(key), (float)atof(val));
 }
 
 static int get_param(void *instance, const char *key, char *buf, int buf_len) {
     westfold_plugin_t *p = (westfold_plugin_t*)instance;
     if (!p || !key || !buf || buf_len <= 0) return -1;
+    if (strcmp(key, "preset_count") == 0) {
+        return snprintf(buf, (size_t)buf_len, "%d", westfold_preset_count());
+    }
+    if (strcmp(key, "preset") == 0) {
+        return snprintf(buf, (size_t)buf_len, "%d", p->current_preset);
+    }
+    if (strcmp(key, "preset_name") == 0) {
+        return snprintf(buf, (size_t)buf_len, "%s", westfold_preset_name(p->current_preset));
+    }
     int param_id = westfold_param_id(key);
     if (param_id < 0) return -1;
     return snprintf(buf, (size_t)buf_len, "%.6f", westfold_get_param(&p->core, param_id));

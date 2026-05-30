@@ -102,6 +102,7 @@ for await (const file of walk(templateDir)) {
 }
 
 runGenParams(id);
+runGenPresets(id);
 if (dsp === "faust") runGenFaust(id);
 runGenUiChain(id);
 await registerInIndex(id, name);
@@ -111,10 +112,10 @@ for (const f of filesCopied) console.log(`  ${f}`);
 console.log(`\nnext steps:`);
 if (dsp === "faust") {
   console.log(`  1. edit ${targetDir}/dsp/${id}.dsp to implement DSP behavior`);
-  console.log(`  2. edit params in ${targetDir}/module.json and matching hslider labels, then re-run \`MODULE_ID=${id} mise run gen-params && MODULE_ID=${id} mise run gen-faust\``);
+  console.log(`  2. edit params in ${targetDir}/module.json and matching hslider labels, then re-run \`MODULE_ID=${id} mise run gen-params && MODULE_ID=${id} mise run gen-faust && MODULE_ID=${id} mise run gen-presets\``);
 } else {
   console.log(`  1. edit ${targetDir}/dsp/${id}_core.c to implement DSP behavior`);
-  console.log(`  2. edit params in ${targetDir}/module.json then re-run \`MODULE_ID=${id} mise run gen-params\``);
+  console.log(`  2. edit params in ${targetDir}/module.json then re-run \`MODULE_ID=${id} mise run gen-params && MODULE_ID=${id} mise run gen-presets\``);
 }
 console.log(`  3. add parameter tooltip descriptions to ${targetDir}/metadata.json`);
 console.log(`  4. add presets to ${targetDir}/presets.json`);
@@ -183,6 +184,17 @@ function runGenFaust(moduleId: string): void {
   });
   if (result.status !== 0) {
     console.error(`gen-faust failed for ${moduleId}`);
+    exit(result.status ?? 1);
+  }
+}
+
+function runGenPresets(moduleId: string): void {
+  const result = spawnSync(process.execPath, ["scripts/gen-presets.ts"], {
+    stdio: "inherit",
+    env: { ...env, MODULE_ID: moduleId }
+  });
+  if (result.status !== 0) {
+    console.error(`gen-presets failed for ${moduleId}`);
     exit(result.status ?? 1);
   }
 }

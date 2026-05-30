@@ -29,13 +29,13 @@ MAXDELAY = 131072;
 sm(x) = x : si.smooth(ba.tau2pole(0.02));
 
 // --- user params (1:1 with module.json) ---
-fb    = hslider("feedback", 0.45, 0, 0.95, 0.01) : sm;
+fb    = hslider("feedback", 0.22, 0, 0.88, 0.01) : sm;
 tone  = hslider("tone", 0.55, 0, 1, 0.01) : sm;
-modd  = hslider("mod", 0.2, 0, 1, 0.01) : sm;
+modd  = hslider("mod", 0.12, 0, 1, 0.01) : sm;
 width = hslider("width", 0.5, 0, 1, 0.01) : sm;
-drive = hslider("drive", 0.15, 0, 1, 0.01) : sm;
-space = hslider("space", 0.25, 0, 1, 0.01) : sm;
-mix   = hslider("mix", 0.35, 0, 1, 0.01) : sm;
+drive = hslider("drive", 0.12, 0, 1, 0.01) : sm;
+space = hslider("space", 0.05, 0, 1, 0.01) : sm;
+mix   = hslider("mix", 0.18, 0, 1, 0.01) : sm;
 
 // --- internal control (delay length in samples), written by the adapter.
 //     Deliberately NOT smoothed: smoothing the read position would glide the

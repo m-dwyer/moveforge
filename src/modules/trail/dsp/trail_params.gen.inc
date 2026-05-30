@@ -39,7 +39,7 @@ void trail_set_param(trail_core_t *s, int param_id, float value) {
     switch (param_id) {
         case TRAIL_PARAM_TIME: s->time = trail_params_clampf_(value, 0.0f, 1.0f); break;
         case TRAIL_PARAM_SYNC: s->sync = trail_params_clampf_(value, 0.0f, 9.0f); break;
-        case TRAIL_PARAM_FEEDBACK: s->feedback = trail_params_clampf_(value, 0.0f, 0.95f); break;
+        case TRAIL_PARAM_FEEDBACK: s->feedback = trail_params_clampf_(value, 0.0f, 0.88f); break;
         case TRAIL_PARAM_TONE: s->tone = trail_params_clampf_(value, 0.0f, 1.0f); break;
         case TRAIL_PARAM_MOD: s->mod = trail_params_clampf_(value, 0.0f, 1.0f); break;
         case TRAIL_PARAM_WIDTH: s->width = trail_params_clampf_(value, 0.0f, 1.0f); break;
@@ -68,15 +68,15 @@ float trail_get_param(const trail_core_t *s, int param_id) {
 
 void trail_apply_defaults(trail_core_t *s) {
     if (!s) return;
-    s->time = 0.3f;
+    s->time = 0.12f;
     s->sync = 0.0f;
-    s->feedback = 0.45f;
+    s->feedback = 0.22f;
     s->tone = 0.55f;
     s->mod = 0.2f;
     s->width = 0.5f;
     s->drive = 0.15f;
-    s->space = 0.25f;
-    s->mix = 0.35f;
+    s->space = 0.05f;
+    s->mix = 0.18f;
 }
 
 #endif

@@ -11,6 +11,7 @@
         "drive": 0.22,
         "strike": 0.42,
         "chaos": 0.08,
+        "sustain": 0.35,
         "decay": 0.38,
         "release": 0.55,
         "bend_range": 2
@@ -35,6 +36,7 @@
         "drive": 0.34,
         "strike": 0.66,
         "chaos": 0.05,
+        "sustain": 0.08,
         "decay": 0.2,
         "release": 0.16,
         "bend_range": 2
@@ -59,6 +61,7 @@
         "drive": 0.58,
         "strike": 0.62,
         "chaos": 0.18,
+        "sustain": 0.18,
         "decay": 0.24,
         "release": 0.22,
         "bend_range": 3
@@ -83,6 +86,7 @@
         "drive": 0.52,
         "strike": 0.84,
         "chaos": 0.24,
+        "sustain": 0.04,
         "decay": 0.16,
         "release": 0.18,
         "bend_range": 2
@@ -107,6 +111,7 @@
         "drive": 0.34,
         "strike": 0.92,
         "chaos": 0.06,
+        "sustain": 0.0,
         "decay": 0.045,
         "release": 0.09,
         "bend_range": 2
@@ -131,6 +136,7 @@
         "drive": 0.18,
         "strike": 0.28,
         "chaos": 0.16,
+        "sustain": 0.55,
         "decay": 1.9,
         "release": 2.8,
         "bend_range": 2
@@ -155,6 +161,7 @@
         "drive": 0.24,
         "strike": 0.54,
         "chaos": 0.28,
+        "sustain": 0.28,
         "decay": 0.92,
         "release": 1.8,
         "bend_range": 2
@@ -179,6 +186,7 @@
         "drive": 0.7,
         "strike": 0.78,
         "chaos": 0.52,
+        "sustain": 0.45,
         "decay": 0.2,
         "release": 0.48,
         "bend_range": 7
@@ -203,6 +211,7 @@
         "drive": 0.38,
         "strike": 0.58,
         "chaos": 0.18,
+        "sustain": 0.32,
         "decay": 0.34,
         "release": 0.5,
         "bend_range": 5
@@ -227,6 +236,7 @@
         "drive": 0.68,
         "strike": 0.74,
         "chaos": 0.68,
+        "sustain": 0.22,
         "decay": 0.28,
         "release": 0.42,
         "bend_range": 7

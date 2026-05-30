@@ -30,6 +30,7 @@ typedef struct {
     float drive;
     float strike;
     float chaos;
+    float sustain;
     float decay;
     float release;
     float bend_range;

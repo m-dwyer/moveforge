@@ -27,4 +27,18 @@ for MODULE_ID in $MODULE_IDS; do
     -lm
 
   "./build/test_${MODULE_ID}_core"
+
+  PLUGIN_TEST="tests/test_${MODULE_ID}_plugin.c"
+  if [ -f "$PLUGIN_TEST" ]; then
+    cc -std=c11 -O2 -g \
+      "$PLUGIN_TEST" \
+      "$MODULE_DIR/dsp/$MODULE_ID.c" \
+      "$CORE_IMPL" \
+      -o "build/test_${MODULE_ID}_plugin" \
+      -Isrc \
+      -I"$MODULE_DIR/dsp" \
+      -lm
+
+    "./build/test_${MODULE_ID}_plugin"
+  fi
 done

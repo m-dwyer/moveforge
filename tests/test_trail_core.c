@@ -3,6 +3,7 @@
 #include <stdlib.h>
 
 #include "trail_core.h"
+#include "trail_presets.gen.inc"
 
 #define FRAMES 32768
 
@@ -41,13 +42,19 @@ int main(void) {
     int drive_id = trail_param_id("drive");
     int space_id = trail_param_id("space");
 
+    require_true(trail_preset_count() == 6, "preset count is exposed");
+    require_true(trail_preset_name(3)[0] == 'H', "preset name is exposed");
+    trail_apply_preset(&fx, 3);
+    require_true(trail_get_param(&fx, sync_id) >= 5.0f, "preset applies sync");
+    require_true(trail_get_param(&fx, feedback_id) > 0.6f, "preset applies feedback");
+
     /* Param clamping. */
     trail_set_param(&fx, mix_id, 2.0f);
     require_true(trail_get_param(&fx, mix_id) <= 1.0f, "mix clamps high");
     trail_set_param(&fx, feedback_id, -1.0f);
     require_true(trail_get_param(&fx, feedback_id) >= 0.0f, "feedback clamps low");
     trail_set_param(&fx, feedback_id, 2.0f);
-    require_true(trail_get_param(&fx, feedback_id) <= 0.95f, "feedback clamps high");
+    require_true(trail_get_param(&fx, feedback_id) <= 0.88f, "feedback clamps high");
     trail_set_param(&fx, sync_id, 20.0f);
     require_true(trail_get_param(&fx, sync_id) <= 9.0f, "sync clamps high");
     trail_set_param(&fx, sync_id, -3.0f);

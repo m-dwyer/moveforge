@@ -8,6 +8,7 @@
     "drive": "Adds saturation around the folder and output stage. Use it for weight and grit, especially on bass and techno pluck sounds.",
     "strike": "Shapes the initial LPG hit. Higher values make the attack brighter, sharper, and more percussive.",
     "chaos": "Adds bounded drift and instability to ratio, folding, and modulation. Higher settings can sound more unhinged while staying level-limited.",
+    "sustain": "Sets the held-note envelope floor while a pad or key remains pressed. Low values keep LPG plucks; higher values hold basses, leads, and drones.",
     "decay": "Sets how quickly the struck envelope falls while the note is held. Short values make tight plucks; longer values make blooming tones.",
     "release": "Sets how long the voice decays after note-off. Raise it for tails and drones, lower it for tighter rhythmic sequencing.",
     "bend_range": "Sets pitch-bend depth in semitones for incoming MIDI pitch bend."

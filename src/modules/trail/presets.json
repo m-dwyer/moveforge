@@ -3,33 +3,33 @@
   "presets": [
     {
       "name": "Init",
-      "params": { "time": 0.3, "sync": 0, "feedback": 0.45, "tone": 0.55, "mod": 0.2, "width": 0.5, "drive": 0.15, "space": 0.25, "mix": 0.35 },
-      "render": { "file": "00-init.wav", "signal": "impulse", "seconds": 5 }
+      "params": { "time": 0.12, "sync": 0, "feedback": 0.22, "tone": 0.55, "mod": 0.12, "width": 0.45, "drive": 0.12, "space": 0.05, "mix": 0.18 },
+      "render": { "file": "00-init.wav", "signal": "impulse", "seconds": 4 }
     },
     {
       "name": "Slap",
-      "params": { "time": 0.06, "sync": 0, "feedback": 0.18, "tone": 0.85, "mod": 0.05, "width": 0.2, "drive": 0.1, "space": 0.1, "mix": 0.5 },
+      "params": { "time": 0.05, "sync": 0, "feedback": 0.12, "tone": 0.85, "mod": 0.03, "width": 0.18, "drive": 0.08, "space": 0.03, "mix": 0.28 },
       "render": { "file": "01-slap.wav", "signal": "impulse", "seconds": 3 }
     },
     {
       "name": "Dub",
-      "params": { "time": 0.55, "sync": 0, "feedback": 0.78, "tone": 0.2, "mod": 0.25, "width": 0.6, "drive": 0.4, "space": 0.3, "mix": 0.45 },
-      "render": { "file": "02-dub.wav", "signal": "impulse", "seconds": 7 }
+      "params": { "time": 0.32, "sync": 0, "feedback": 0.52, "tone": 0.22, "mod": 0.18, "width": 0.55, "drive": 0.32, "space": 0.12, "mix": 0.25 },
+      "render": { "file": "02-dub.wav", "signal": "impulse", "seconds": 5 }
     },
     {
       "name": "Hypno Dub",
-      "params": { "time": 0.3, "sync": 7, "feedback": 0.85, "tone": 0.18, "mod": 0.15, "width": 0.98, "drive": 0.2, "space": 0.5, "mix": 0.5 },
-      "render": { "file": "03-hypno-dub.wav", "signal": "impulse", "seconds": 9 }
+      "params": { "time": 0.3, "sync": 5, "feedback": 0.62, "tone": 0.2, "mod": 0.15, "width": 0.9, "drive": 0.2, "space": 0.18, "mix": 0.28 },
+      "render": { "file": "03-hypno-dub.wav", "signal": "impulse", "seconds": 6 }
     },
     {
       "name": "Tape Wobble",
-      "params": { "time": 0.18, "sync": 0, "feedback": 0.62, "tone": 0.5, "mod": 0.9, "width": 0.25, "drive": 0.8, "space": 0.12, "mix": 0.4 },
-      "render": { "file": "04-tape-wobble.wav", "signal": "impulse", "seconds": 5 }
+      "params": { "time": 0.18, "sync": 0, "feedback": 0.42, "tone": 0.48, "mod": 0.75, "width": 0.24, "drive": 0.45, "space": 0.08, "mix": 0.24 },
+      "render": { "file": "04-tape-wobble.wav", "signal": "impulse", "seconds": 4 }
     },
     {
       "name": "Cavern",
-      "params": { "time": 0.3, "sync": 7, "feedback": 0.5, "tone": 0.7, "mod": 0.2, "width": 0.7, "drive": 0.2, "space": 0.85, "mix": 0.5 },
-      "render": { "file": "05-cavern.wav", "signal": "impulse", "seconds": 8 }
+      "params": { "time": 0.3, "sync": 6, "feedback": 0.34, "tone": 0.7, "mod": 0.2, "width": 0.7, "drive": 0.16, "space": 0.85, "mix": 0.25 },
+      "render": { "file": "05-cavern.wav", "signal": "impulse", "seconds": 6 }
     }
   ]
 }

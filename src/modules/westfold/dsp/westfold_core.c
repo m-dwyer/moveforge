@@ -115,7 +115,8 @@ void westfold_process_float(westfold_core_t *s,
         float strike_coeff = 1.0f - expf(-1.0f / (strike_time * MOVEFORGE_SAMPLE_RATE));
         if (s->gate > 0.5f)
         {
-            float hold = 0.015f + (1.0f - s->strike) * 0.18f;
+            float base_hold = 0.015f + (1.0f - s->strike) * 0.18f;
+            float hold = base_hold + s->sustain * (0.9f - base_hold);
             s->env += (hold - s->env) * decay_coeff;
         }
         else

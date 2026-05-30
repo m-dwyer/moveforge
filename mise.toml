@@ -18,6 +18,10 @@ run = "pnpm run gen-params"
 description = "Generate <module>_faust.c from <module>.dsp for Faust-backed modules"
 run = "pnpm run gen-faust"
 
+[tasks.gen-presets]
+description = "Generate <module>_presets.gen.inc files from presets.json"
+run = "pnpm run gen-presets"
+
 [tasks.gen-ui-chain]
 description = "Generate <module>/ui_chain.js (chain-slot param editor) from each module.json"
 run = "pnpm run gen-ui-chain"

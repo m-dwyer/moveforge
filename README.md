@@ -46,6 +46,7 @@ src/modules/<id>/
     <id>_core.h            ← public API contract
     <id>_core.c            ← implementation: hand-written DSP
     <id>_params.gen.inc    ← generated from module.json by gen-params
+    <id>_presets.gen.inc   ← generated from presets.json by gen-presets
     <id>.c                 ← Schwung wrapper (plugin_api_v2 / audio_fx_api_v2 / midi_fx_api_v1)
 ```
 
@@ -66,6 +67,7 @@ src/modules/<id>/
     <id>_core.h            ← public API contract (same shape as plain C)
     <id>_adapter.c         ← implementation: captures Faust param zones, drives compute()
     <id>_params.gen.inc    ← still generated from module.json
+    <id>_presets.gen.inc   ← generated from presets.json by gen-presets
     <id>.c                 ← Schwung wrapper (same shape as plain C)
 ```
 
@@ -157,9 +159,10 @@ Omitting `MODULE_ID` builds every module. Set `MODULE_ID=<id>` to build one modu
 4. Faust: also run `mise run gen-faust` (regenerates `<id>_faust.c`).
 5. Use the new param in the DSP (the `.c` for plain C, the `.dsp` body for Faust).
 6. Add the key to every preset in `<id>/presets.json`.
-7. Add a short tooltip description to `<id>/metadata.json` under `params.<key>`.
-8. Add a focused assertion in `tests/test_<id>_core.c`.
-9. Run `mise run validate` — checks param metadata + that gen files are in sync.
+7. Run `mise run gen-presets` so Move-facing preset helpers stay in sync.
+8. Add a short tooltip description to `<id>/metadata.json` under `params.<key>`.
+9. Add a focused assertion in `tests/test_<id>_core.c`.
+10. Run `mise run validate` — checks param metadata + that gen files are in sync.
 
 ### Iterating on sound
 
@@ -244,7 +247,7 @@ mise run setup     # or: make dev-deps
 Run everything CI would run:
 
 ```bash
-mise run check     # typecheck, validate (params + faust drift), test, suite, check-renders, plot, host
+mise run check     # typecheck, validate (params + faust + presets drift), test, suite, check-renders, plot, host
 mise run check-all # same, across every module
 ```
 
@@ -254,7 +257,8 @@ Individual gates:
 |---|---|
 | `mise run gen-params` | Regenerate `<id>_params.gen.inc` from `module.json` |
 | `mise run gen-faust` | Regenerate `<id>_faust.c` from `<id>.dsp` (Faust modules only) |
-| `mise run validate` | Param metadata + gen-params drift + gen-faust drift + presets in range |
+| `mise run gen-presets` | Regenerate `<id>_presets.gen.inc` from `presets.json` |
+| `mise run validate` | Param metadata + gen-params/gen-faust/gen-presets drift + presets in range |
 | `mise run test` | Core DSP smoke tests in `tests/test_<id>_core.c` |
 | `mise run suite` | Render all preset WAVs |
 | `mise run plot` | Generate waveform + spectrum PNGs |
