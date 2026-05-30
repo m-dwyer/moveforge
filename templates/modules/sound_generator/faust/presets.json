@@ -1,0 +1,10 @@
+{
+  "module_id": "{{moduleId}}",
+  "presets": [
+    {
+      "name": "Init",
+      "params": { "level": 0.7 },
+      "render": { "file": "00-init.wav", "seconds": 6, "notes": [48, 55, 60, 67], "note_blocks": 86, "gate_blocks": 64, "velocity": 100 }
+    }
+  ]
+}

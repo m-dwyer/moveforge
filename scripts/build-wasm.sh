@@ -10,7 +10,7 @@ mkdir -p web/wasm
 if [ -n "${MODULE_ID:-}" ]; then
   MODULE_IDS="$MODULE_ID"
 else
-  MODULE_IDS="$(find src/modules -mindepth 1 -maxdepth 1 -type d ! -name '_*' -exec basename {} \; | sort)"
+  MODULE_IDS="$(node scripts/module-targets.ts ids)"
 fi
 
 FORCE="${FORCE:-0}"
@@ -42,10 +42,6 @@ SCH_EXPORTS='_sch_init,_sch_set_param,_sch_midi,_sch_render,_sch_in_left_ptr,_sc
 # (3 bytes per message, status/d1/d2).
 MF_EXPORTS='_mf_init,_mf_set_param,_mf_process_midi_byte,_mf_tick,_mf_out_buf_ptr,_mf_out_buf_size,_mf_key_buf,_mf_val_buf,_mf_key_buf_size,_mf_val_buf_size'
 
-component_type_of() {
-  node -e "console.log(JSON.parse(require('fs').readFileSync('$1','utf8')).capabilities?.component_type ?? '')"
-}
-
 needs_rebuild() {
   local out="$1"; shift
   [ "$FORCE" = "1" ] && return 0
@@ -62,27 +58,22 @@ COMMANDS=()
 SUMMARY=()
 
 for MODULE_ID in $MODULE_IDS; do
-  MODULE_DIR="src/modules/$MODULE_ID"
+  MODULE_DIR="$(node scripts/module-targets.ts field "$MODULE_ID" moduleDir)"
   WASM_OUT="web/wasm/${MODULE_ID}.wasm"
-
-  COMPONENT_TYPE="$(component_type_of "$MODULE_DIR/module.json")"
-
-  # Faust-backed modules implement the core API via `<id>_adapter.c`; plain-C
-  # modules via `<id>_core.c`. Detect by presence of `<id>.dsp`.
-  if [ -f "$MODULE_DIR/dsp/${MODULE_ID}.dsp" ]; then
-    CORE_IMPL="$MODULE_DIR/dsp/${MODULE_ID}_adapter.c"
-  else
-    CORE_IMPL="$MODULE_DIR/dsp/${MODULE_ID}_core.c"
-  fi
+  COMPONENT_TYPE="$(node scripts/module-targets.ts field "$MODULE_ID" componentType)"
+  CORE_IMPL="$(node scripts/module-targets.ts field "$MODULE_ID" coreImpl)"
+  WRAPPER_C="$(node scripts/module-targets.ts field "$MODULE_ID" wrapperC)"
+  CORE_HEADER="$(node scripts/module-targets.ts field "$MODULE_ID" coreHeader)"
+  FAUST_C="$(node scripts/module-targets.ts field "$MODULE_ID" faustC)"
   case "$COMPONENT_TYPE" in
     sound_generator)
       GLUE="src/host/schwung_wasm_glue_sg.c"
       EXPORTS="$SCH_EXPORTS"
       DEPS=(
-        "$MODULE_DIR/dsp/${MODULE_ID}.c"
+        "$WRAPPER_C"
         "$CORE_IMPL"
-        "$MODULE_DIR/dsp/${MODULE_ID}_core.h"
-        "$MODULE_DIR/dsp/${MODULE_ID}_faust.c"
+        "$CORE_HEADER"
+        "$FAUST_C"
         "${SHARED_DEPS_SG[@]}"
       )
       ;;
@@ -90,10 +81,10 @@ for MODULE_ID in $MODULE_IDS; do
       GLUE="src/host/schwung_wasm_glue_fx.c"
       EXPORTS="$SCH_EXPORTS"
       DEPS=(
-        "$MODULE_DIR/dsp/${MODULE_ID}.c"
+        "$WRAPPER_C"
         "$CORE_IMPL"
-        "$MODULE_DIR/dsp/${MODULE_ID}_core.h"
-        "$MODULE_DIR/dsp/${MODULE_ID}_faust.c"
+        "$CORE_HEADER"
+        "$FAUST_C"
         "${SHARED_DEPS_FX[@]}"
       )
       ;;
@@ -101,10 +92,10 @@ for MODULE_ID in $MODULE_IDS; do
       GLUE="src/host/midi_fx_wasm_glue.c"
       EXPORTS="$MF_EXPORTS"
       DEPS=(
-        "$MODULE_DIR/dsp/${MODULE_ID}.c"
+        "$WRAPPER_C"
         "$CORE_IMPL"
-        "$MODULE_DIR/dsp/${MODULE_ID}_core.h"
-        "$MODULE_DIR/dsp/${MODULE_ID}_faust.c"
+        "$CORE_HEADER"
+        "$FAUST_C"
         "${SHARED_DEPS_MIDI_FX[@]}"
       )
       ;;
@@ -115,7 +106,7 @@ for MODULE_ID in $MODULE_IDS; do
   esac
 
   if needs_rebuild "$WASM_OUT" "${DEPS[@]}"; then
-    COMMANDS+=("emcc '$MODULE_DIR/dsp/${MODULE_ID}.c' '$CORE_IMPL' '$GLUE' -O3 -I'$MODULE_DIR/dsp' -Isrc -s STANDALONE_WASM=1 -s EXPORTED_FUNCTIONS='[\"${EXPORTS//,/\",\"}\"]' -Wl,--no-entry -o '$WASM_OUT'")
+    COMMANDS+=("emcc '$WRAPPER_C' '$CORE_IMPL' '$GLUE' -O3 -I'$MODULE_DIR/dsp' -Isrc -s STANDALONE_WASM=1 -s EXPORTED_FUNCTIONS='[\"${EXPORTS//,/\",\"}\"]' -Wl,--no-entry -o '$WASM_OUT'")
     SUMMARY+=("build  $WASM_OUT")
   else
     SUMMARY+=("cached $WASM_OUT")

@@ -60,44 +60,27 @@ A module is Faust-backed if and only if `<id>.dsp` exists. The build scripts det
 
 ## Workflow: create a new module
 
-### Plain C
-
 ```bash
 pnpm run new-module -- --id myfx --kind audio_fx
-# kinds: sound_generator | audio_fx | midi_fx
+pnpm run new-module -- --id mysynth --kind sound_generator
+pnpm run new-module -- --id myarp --kind midi_fx
+pnpm run new-module -- --id hand_tuned --kind sound_generator --dsp c
 ```
 
-The scaffolder copies the matching `_template*`, substitutes id/name/abbrev, runs `gen-params`, `gen-presets`, and `gen-ui-chain`, registers in `src/modules/index.json`, and prints next steps tailored to the kind.
+The scaffolder renders the matching template pack from
+`templates/modules/<component_type>/<dsp>/`, renders
+`{{moduleId}}`/`{{moduleUpper}}`/`{{moduleName}}`/`{{moduleAbbrev}}`
+placeholders, runs `gen-params`, `gen-presets`, `gen-ui-chain`, registers in
+`src/modules/index.json`, and prints next steps tailored to the kind.
 
-### Faust
+Defaults:
 
-The scaffolder doesn't have a Faust template yet. The fastest path is to copy a reference and rename:
+- `sound_generator`: Faust
+- `audio_fx`: Faust
+- `midi_fx`: C
 
-```bash
-cd ~/src/moveforge
-cp -r src/modules/faust_drive src/modules/myfx       # for audio_fx
-# OR
-cp -r src/modules/faust_voice src/modules/myfx       # for sound_generator
-```
-
-Then rename inside the copy:
-
-1. `mv dsp/faust_drive.dsp dsp/myfx.dsp` (and similar for `_core.h`, `_adapter.c`, `<id>.c`)
-2. Delete `dsp/faust_drive_faust.c` and `dsp/faust_drive_params.gen.inc` — they'll regenerate
-3. Replace every `faust_drive` with `myfx` inside the files (struct names, function names, `#include`s, prefix in `gen-faust` output naming)
-4. Update `module.json`: `id`, `name`, `abbrev` (3–6 chars)
-5. Update `presets.json`: `module_id`
-6. Add an entry to `src/modules/index.json`
-7. Copy `tests/test_faust_drive_core.c` → `tests/test_myfx_core.c` and rename inside
-
-Then regenerate:
-
-```bash
-MODULE_ID=myfx pnpm run gen-params
-MODULE_ID=myfx pnpm run gen-presets
-MODULE_ID=myfx pnpm run gen-faust
-mise run validate          # confirms the rename worked
-```
+Use `--dsp c` for audio DSP only as a documented exception. Use `--dry-run` to
+inspect the template pack and rendered file list without writing files.
 
 ## Workflow: add or change a parameter
 

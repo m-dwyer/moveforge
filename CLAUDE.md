@@ -66,7 +66,7 @@ When adding a parameter:
 8. Focused tests in `tests/test_<module-id>_core.c`.
 9. Run `mise run validate` (re-checks gen-params, gen-faust, gen-presets, and gen-ui-chain drift).
 
-Adding a new module: `pnpm run new-module -- --id <id> --kind sound_generator|audio_fx|midi_fx` scaffolds a module from the matching template directory, substitutes MODULE_ID/UPPER/NAME/ABBREV, runs gen-params, gen-presets, and gen-ui-chain, and registers in `src/modules/index.json`. Faust is the default authoring path for `sound_generator` and `audio_fx`, using `src/modules/_template_faust_sound_generator/` or `src/modules/_template_faust_audio_fx/`, and the scaffolder also regenerates checked-in Faust C. Use `--dsp c` for audio DSP only as a documented exception when Faust creates a concrete implementation, performance, or debugging problem. MIDI FX modules are always plain C.
+Adding a new module: `pnpm run new-module -- --id <id> --kind sound_generator|audio_fx|midi_fx` scaffolds a module from `templates/modules/<component_type>/<dsp>/`, renders `{{moduleId}}`/`{{moduleUpper}}`/`{{moduleName}}`/`{{moduleAbbrev}}` placeholders, runs gen-params, gen-presets, and gen-ui-chain, and registers in `src/modules/index.json`. Faust is the default authoring path for `sound_generator` and `audio_fx`, and the scaffolder also regenerates checked-in Faust C. Use `--dsp c` for audio DSP only as a documented exception when Faust creates a concrete implementation, performance, or debugging problem. MIDI FX modules are always plain C.
 
 ## Common Commands
 
@@ -98,7 +98,7 @@ mise run check   # run non-device checks: validate, test, suite, plot, host
 mise run check-all # run non-device checks for all included modules
 ```
 
-Native/device `make` targets exist for `make test`, `make render`, `make suite`, `make plot`, `make host`, `make wasm`, `make move`, `make move-health`, `make move-logs`, `make move-cache`, `make move-restart`, `make move-screen`, `make check`, `make check-all`, and `make clean`. Node, TypeScript, and browser tasks live in `package.json` (`pnpm run validate`, `pnpm run serve`, `pnpm test`, `pnpm run typecheck`). Keep Move shell operations out of `package.json`; use direct scripts, `make`, or `mise` tasks instead. Module-aware commands default to `MODULE_ID=westfold`; set `MODULE_ID=<id>` to target any of the other modules (e.g. `MODULE_ID=faust_drive mise run suite`, `MODULE_ID=arpy mise run wasm`).
+Native/device `make` targets exist for `make test`, `make render`, `make suite`, `make plot`, `make host`, `make wasm`, `make move`, `make move-health`, `make move-logs`, `make move-cache`, `make move-restart`, `make move-screen`, `make check`, `make check-all`, and `make clean`. Node, TypeScript, and browser tasks live in `package.json` (`pnpm run validate`, `pnpm run serve`, `pnpm test`, `pnpm run typecheck`). Keep Move shell operations out of `package.json`; use direct scripts, `make`, or `mise` tasks instead. Module-aware commands run for all modules when `MODULE_ID` is omitted; set `MODULE_ID=<id>` to target one module (e.g. `MODULE_ID=faust_drive mise run suite`, `MODULE_ID=arpy mise run wasm`).
 
 The web UI is served at:
 

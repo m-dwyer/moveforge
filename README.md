@@ -23,9 +23,9 @@ See [MODULES.md](MODULES.md) for the module index grouped by component type.
 
 Each module lives under `src/modules/<id>/` and is self-contained: `module.json` (Schwung manifest + param schema, including root preset list metadata), optional `metadata.json` (local/web help text), `presets.json`, `ui.js`, generated `ui_chain.js` (preset browser + param editor in chain mode), and `dsp/`.
 
-Shared module-side helpers live under `src/modules/_shared/`. The leading underscore keeps them out of module discovery, matching the template directories.
+Shared module-side helpers live under `src/modules/_shared/`. Module scaffolding templates live under `templates/modules/<component_type>/<dsp>/`.
 
-The default module for module-aware commands is `westfold`. Set `MODULE_ID=<id>` on any command to target a different module.
+Module-aware commands run for all modules when `MODULE_ID` is omitted. Set `MODULE_ID=<id>` on any command to target one module.
 
 ## Authoring Paths
 

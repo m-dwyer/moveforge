@@ -1,13 +1,14 @@
 #!/usr/bin/env node
-import { mkdir, readdir, readFile, writeFile, stat } from "node:fs/promises";
-import { dirname, join, relative } from "node:path";
+import { readFile, writeFile, stat } from "node:fs/promises";
+import { join } from "node:path";
 import { argv, env, exit } from "node:process";
 import { spawnSync } from "node:child_process";
+import { renderTemplateTree, type TemplateContext } from "./lib/templates.ts";
 
 const args = parseArgs(argv.slice(2));
 const id = stringArg(args, "id");
 if (!id) {
-  console.error(`Usage: pnpm run new-module -- --id <module-id> [--name <DisplayName>] [--abbrev <ABC>] [--kind sound_generator|audio_fx|midi_fx] [--dsp c|faust]
+  console.error(`Usage: pnpm run new-module -- --id <module-id> [--name <DisplayName>] [--abbrev <ABC>] [--kind sound_generator|audio_fx|midi_fx] [--dsp c|faust] [--dry-run]
 
 Scaffolds a new Schwung module by copying the matching template and
 substituting MODULE_ID / MODULE_UPPER / MODULE_NAME / MODULE_ABBREV placeholders.
@@ -25,6 +26,8 @@ Arguments:
   --dsp     DSP authoring path: c or faust. Defaults to faust for
             sound_generator/audio_fx and c for midi_fx. MIDI FX modules are
             always C.
+  --dry-run Print the template pack and files that would be rendered, without
+            writing files, running generators, or updating src/modules/index.json.
 `);
   exit(2);
 }
@@ -46,15 +49,16 @@ if (abbrev.length < 3 || abbrev.length > 6) {
 }
 const kind = moduleKind(stringArg(args, "kind") || "sound_generator");
 const dsp = dspKind(stringArg(args, "dsp") || (kind === "midi_fx" ? "c" : "faust"));
+const dryRun = args["dry-run"] === true;
 if (dsp === "faust" && kind === "midi_fx") {
   console.error(`--dsp faust is not supported for midi_fx; use --dsp c`);
   exit(2);
 }
 const templateDir = dsp === "faust"
-  ? (kind === "audio_fx" ? "src/modules/_template_faust_audio_fx" : "src/modules/_template_faust_sound_generator")
-  : kind === "audio_fx" ? "src/modules/_template_audio_fx"
-  : kind === "midi_fx" ? "src/modules/_template_midi_fx"
-  : "src/modules/_template";
+  ? (kind === "audio_fx" ? "templates/modules/audio_fx/faust" : "templates/modules/sound_generator/faust")
+  : kind === "audio_fx" ? "templates/modules/audio_fx/c"
+  : kind === "midi_fx" ? "templates/modules/midi_fx/c"
+  : "templates/modules/sound_generator/c";
 const upper = id.toUpperCase();
 const targetDir = `src/modules/${id}`;
 
@@ -62,53 +66,40 @@ if (await pathExists(targetDir)) {
   console.error(`refusing to overwrite existing directory: ${targetDir}`);
   exit(1);
 }
-if (dsp === "faust" && !hasFaust()) {
+if (!dryRun && dsp === "faust" && !hasFaust()) {
   console.error(`--dsp faust requires \`faust\` on $PATH. Install Faust (e.g. \`brew install faust\`) and retry.`);
   exit(1);
 }
 
-const replacements = {
-  FAUST_DRIVE: upper,
-  FAUST_VOICE: upper,
-  MODULE_UPPER: upper,
-  MODULE_ABBREV: abbrev,
-  MODULE_NAME: name,
-  MODULE_ID: id,
-  "Faust-Drive": name,
-  "Faust-Voice": name,
-  "Faust Voice": name,
-  "Faust Drive": name,
-  faust_drive: id,
-  faust_voice: id,
-  FDR: abbrev,
-  FVC: abbrev
+const context: TemplateContext = {
+  componentType: kind,
+  dspAuthoring: dsp,
+  moduleAbbrev: abbrev,
+  moduleId: id,
+  moduleName: name,
+  moduleUpper: upper
 };
 
-const filesCopied = [];
-for await (const file of walk(templateDir)) {
-  const rel = relative(templateDir, file);
-  if (dsp === "faust" && isGeneratedFaustTemplateFile(rel)) continue;
-  const renamed = applySubs(rel, replacements);
+const renderedFiles = await renderTemplateTree({
+  context,
+  dryRun,
+  sourceDir: templateDir,
+  targetForRelativePath: (rel) => rel.startsWith("tests/")
+    ? join("tests", rel.slice("tests/".length))
+    : join(targetDir, rel)
+});
 
-  const targetPath = rel.startsWith("tests/")
-    ? join("tests", applySubs(rel.slice("tests/".length), replacements))
-    : join(targetDir, renamed);
-
-  const content = await readFile(file, "utf8");
-  const transformed = applySubs(content, replacements);
-  await mkdir(dirname(targetPath), { recursive: true });
-  await writeFile(targetPath, transformed);
-  filesCopied.push(targetPath);
+if (!dryRun) {
+  runGenParams(id);
+  runGenPresets(id);
+  if (dsp === "faust") runGenFaust(id);
+  runGenUiChain(id);
+  await registerInIndex(id, name);
 }
 
-runGenParams(id);
-runGenPresets(id);
-if (dsp === "faust") runGenFaust(id);
-runGenUiChain(id);
-await registerInIndex(id, name);
-
-console.log(`scaffolded ${filesCopied.length} files:`);
-for (const f of filesCopied) console.log(`  ${f}`);
+console.log(`${dryRun ? "would scaffold" : "scaffolded"} ${renderedFiles.length} files from ${templateDir}:`);
+for (const f of renderedFiles) console.log(`  ${f.targetPath}`);
+if (dryRun) exit(0);
 console.log(`\nnext steps:`);
 if (dsp === "faust") {
   console.log(`  1. edit ${targetDir}/dsp/${id}.dsp to implement DSP behavior`);
@@ -213,26 +204,6 @@ function runGenUiChain(moduleId: string): void {
 function hasFaust(): boolean {
   const result = spawnSync("faust", ["--version"], { stdio: "ignore" });
   return result.status === 0;
-}
-
-function applySubs(s: string, subs: Record<string, string>): string {
-  let out = s;
-  for (const [key, val] of Object.entries(subs)) {
-    out = out.split(key).join(val);
-  }
-  return out;
-}
-
-function isGeneratedFaustTemplateFile(rel: string): boolean {
-  return rel.endsWith("_params.gen.inc") || rel.endsWith("_faust.c");
-}
-
-async function* walk(dir: string): AsyncGenerator<string> {
-  for (const entry of await readdir(dir, { withFileTypes: true })) {
-    const full = join(dir, entry.name);
-    if (entry.isDirectory()) yield* walk(full);
-    else yield full;
-  }
 }
 
 async function pathExists(path: string): Promise<boolean> {

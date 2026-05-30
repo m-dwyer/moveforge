@@ -4,89 +4,86 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
-MODULE_ID="${MODULE_ID:-westfold}"
-MODULE_DIR="src/modules/$MODULE_ID"
-
-COMPONENT_TYPE="$(node -e "console.log(JSON.parse(require('fs').readFileSync('$MODULE_DIR/module.json','utf8')).capabilities?.component_type ?? '')")"
-
-# Faust-backed modules implement the core API via `<id>_adapter.c`; plain-C
-# modules implement it in `<id>_core.c`. Detect by presence of `<id>.dsp`.
-if [ -f "$MODULE_DIR/dsp/$MODULE_ID.dsp" ]; then
-  CORE_IMPL="$MODULE_DIR/dsp/${MODULE_ID}_adapter.c"
-else
-  CORE_IMPL="$MODULE_DIR/dsp/${MODULE_ID}_core.c"
-fi
+MODULE_IDS="$(node scripts/module-targets.ts ids)"
 
 mkdir -p build renders
 
-case "$COMPONENT_TYPE" in
-  sound_generator)
-    cc -std=c11 -O2 -g \
-      tools/render_wav.c \
-      "$MODULE_DIR/dsp/$MODULE_ID.c" \
-      "$CORE_IMPL" \
-      -o "build/render_wav_$MODULE_ID" \
-      -Isrc \
-      -I"$MODULE_DIR/dsp" \
-      -lm
+for MODULE_ID in $MODULE_IDS; do
+  MODULE_DIR="$(node scripts/module-targets.ts field "$MODULE_ID" moduleDir)"
+  COMPONENT_TYPE="$(node scripts/module-targets.ts field "$MODULE_ID" componentType)"
+  CORE_IMPL="$(node scripts/module-targets.ts field "$MODULE_ID" coreImpl)"
+  WRAPPER_C="$(node scripts/module-targets.ts field "$MODULE_ID" wrapperC)"
+  RENDER_BIN="$(node scripts/module-targets.ts field "$MODULE_ID" renderBin)"
+  RENDER_DEMO_OUT="$(node scripts/module-targets.ts field "$MODULE_ID" renderDemoOut)"
 
-    "./build/render_wav_$MODULE_ID" "renders/$MODULE_ID-demo.wav"
+  case "$COMPONENT_TYPE" in
+    sound_generator)
+      cc -std=c11 -O2 -g \
+        tools/render_wav.c \
+        "$WRAPPER_C" \
+        "$CORE_IMPL" \
+        -o "$RENDER_BIN" \
+        -Isrc \
+        -I"$MODULE_DIR/dsp" \
+        -lm
 
-    if [ "${1:-}" = "--suite" ]; then
-      rm -rf "renders/$MODULE_ID-suite"
-      mkdir -p "renders/$MODULE_ID-suite"
-      RENDER_BIN="./build/render_wav_$MODULE_ID" node scripts/render-suite.ts
-    elif [ "${1:-}" = "--stress" ]; then
-      rm -rf "renders/$MODULE_ID-stress"
-      mkdir -p "renders/$MODULE_ID-stress"
-      RENDER_BIN="./build/render_wav_$MODULE_ID" node scripts/render-stress.ts
-    fi
-    ;;
+      "$RENDER_BIN" "$RENDER_DEMO_OUT"
 
-  audio_fx)
-    cc -std=c11 -O2 -g \
-      tools/render_fx.c \
-      "$MODULE_DIR/dsp/$MODULE_ID.c" \
-      "$CORE_IMPL" \
-      -o "build/render_fx_$MODULE_ID" \
-      -Isrc \
-      -I"$MODULE_DIR/dsp" \
-      -lm
+      if [ "${1:-}" = "--suite" ]; then
+        rm -rf "renders/$MODULE_ID-suite"
+        mkdir -p "renders/$MODULE_ID-suite"
+        MODULE_ID="$MODULE_ID" RENDER_BIN="$RENDER_BIN" node scripts/render-suite.ts
+      elif [ "${1:-}" = "--stress" ]; then
+        rm -rf "renders/$MODULE_ID-stress"
+        mkdir -p "renders/$MODULE_ID-stress"
+        MODULE_ID="$MODULE_ID" RENDER_BIN="$RENDER_BIN" node scripts/render-stress.ts
+      fi
+      ;;
 
-    "./build/render_fx_$MODULE_ID" "renders/$MODULE_ID-demo.wav"
+    audio_fx)
+      cc -std=c11 -O2 -g \
+        tools/render_fx.c \
+        "$WRAPPER_C" \
+        "$CORE_IMPL" \
+        -o "$RENDER_BIN" \
+        -Isrc \
+        -I"$MODULE_DIR/dsp" \
+        -lm
 
-    if [ "${1:-}" = "--suite" ]; then
-      rm -rf "renders/$MODULE_ID-suite"
-      mkdir -p "renders/$MODULE_ID-suite"
-      RENDER_BIN="./build/render_fx_$MODULE_ID" RENDER_KIND=audio_fx node scripts/render-suite.ts
-    elif [ "${1:-}" = "--stress" ]; then
-      rm -rf "renders/$MODULE_ID-stress"
-      mkdir -p "renders/$MODULE_ID-stress"
-      RENDER_BIN="./build/render_fx_$MODULE_ID" RENDER_KIND=audio_fx node scripts/render-stress.ts
-    fi
-    ;;
+      "$RENDER_BIN" "$RENDER_DEMO_OUT"
 
-  midi_fx)
-    cc -std=c11 -O2 -g \
-      tools/trace_midi_fx.c \
-      "$MODULE_DIR/dsp/$MODULE_ID.c" \
-      "$CORE_IMPL" \
-      -o "build/trace_midi_fx_$MODULE_ID" \
-      -Isrc \
-      -I"$MODULE_DIR/dsp" \
-      -lm
+      if [ "${1:-}" = "--suite" ]; then
+        rm -rf "renders/$MODULE_ID-suite"
+        mkdir -p "renders/$MODULE_ID-suite"
+        MODULE_ID="$MODULE_ID" RENDER_BIN="$RENDER_BIN" RENDER_KIND=audio_fx node scripts/render-suite.ts
+      elif [ "${1:-}" = "--stress" ]; then
+        rm -rf "renders/$MODULE_ID-stress"
+        mkdir -p "renders/$MODULE_ID-stress"
+        MODULE_ID="$MODULE_ID" RENDER_BIN="$RENDER_BIN" RENDER_KIND=audio_fx node scripts/render-stress.ts
+      fi
+      ;;
 
-    "./build/trace_midi_fx_$MODULE_ID" "renders/$MODULE_ID-demo.trace"
+    midi_fx)
+      cc -std=c11 -O2 -g \
+        tools/trace_midi_fx.c \
+        "$WRAPPER_C" \
+        "$CORE_IMPL" \
+        -o "$RENDER_BIN" \
+        -Isrc \
+        -I"$MODULE_DIR/dsp" \
+        -lm
 
-    if [ "${1:-}" = "--suite" ]; then
-      rm -rf "renders/$MODULE_ID-suite"
-      mkdir -p "renders/$MODULE_ID-suite"
-      RENDER_BIN="./build/trace_midi_fx_$MODULE_ID" RENDER_KIND=midi_fx node scripts/render-suite.ts
-    fi
-    ;;
+      "$RENDER_BIN" "$RENDER_DEMO_OUT"
 
-  *)
-    echo "[$MODULE_ID] skipping render: component_type='$COMPONENT_TYPE' (no offline harness for this kind)" >&2
-    exit 0
-    ;;
-esac
+      if [ "${1:-}" = "--suite" ]; then
+        rm -rf "renders/$MODULE_ID-suite"
+        mkdir -p "renders/$MODULE_ID-suite"
+        MODULE_ID="$MODULE_ID" RENDER_BIN="$RENDER_BIN" RENDER_KIND=midi_fx node scripts/render-suite.ts
+      fi
+      ;;
+
+    *)
+      echo "[$MODULE_ID] skipping render: component_type='$COMPONENT_TYPE' (no offline harness for this kind)" >&2
+      ;;
+  esac
+done

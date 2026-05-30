@@ -1,7 +1,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
 import { join } from "node:path";
-import { modulePaths, selectedModuleId } from "./lib/modules.ts";
+import { modulePaths, readModuleTarget, selectedModuleIds } from "./lib/modules.ts";
 
 type Param = {
   key: string;
@@ -38,46 +38,47 @@ type StressManifest = {
   cases: StressCase[];
 };
 
-const moduleId = selectedModuleId();
-const paths = modulePaths(moduleId);
-const moduleJson = JSON.parse(await readFile(paths.moduleJson, "utf8")) as ModuleJson;
-const componentType = moduleJson.capabilities?.component_type ?? "";
-const params = moduleJson.capabilities?.ui_hierarchy?.levels?.root?.params ?? [];
+for (const moduleId of await selectedModuleIds()) {
+  const paths = modulePaths(moduleId);
+  const target = await readModuleTarget(moduleId);
+  const moduleJson = JSON.parse(await readFile(paths.moduleJson, "utf8")) as ModuleJson;
+  const componentType = target.componentType;
+  const params = moduleJson.capabilities?.ui_hierarchy?.levels?.root?.params ?? [];
 
-if (componentType !== "sound_generator" && componentType !== "audio_fx") {
-  console.log(`[${moduleId}] skipping stress render: component_type='${componentType}'`);
-  process.exit(0);
-}
-
-const renderBin = process.env.RENDER_BIN ||
-  (componentType === "audio_fx" ? `./build/render_fx_${moduleId}` : `./build/render_wav_${moduleId}`);
-const stressDir = paths.stressDir;
-await mkdir(stressDir, { recursive: true });
-
-const defaults = Object.fromEntries(params.map((param) => [param.key, param.default]));
-const cases = buildCases(params, defaults, componentType);
-
-for (const stressCase of cases) {
-  const outPath = join(stressDir, stressCase.file);
-  const args = componentType === "audio_fx"
-    ? [outPath, "--signal", stressCase.file.includes("impulse") ? "impulse" : "sweep", "--seconds", "4"]
-    : ["--render", outPath, "5", "36", "18", "127", "36,43,48,55,60"];
-
-  for (const [key, value] of Object.entries(stressCase.params)) {
-    args.push(`${key}=${value}`);
+  if (componentType !== "sound_generator" && componentType !== "audio_fx") {
+    console.log(`[${moduleId}] skipping stress render: component_type='${componentType}'`);
+    continue;
   }
 
-  const result = spawnSync(renderBin, args, { stdio: "inherit" });
-  if (result.status !== 0) process.exit(result.status ?? 1);
-}
+  const renderBin = process.env.RENDER_BIN || target.renderBin;
+  const stressDir = paths.stressDir;
+  await mkdir(stressDir, { recursive: true });
 
-const manifest: StressManifest = {
-  module_id: moduleId,
-  component_type: componentType,
-  cases
-};
-await writeFile(join(stressDir, "manifest.json"), JSON.stringify(manifest, null, 2) + "\n");
-console.log(`[${moduleId}] wrote ${cases.length} stress render(s) to ${stressDir}`);
+  const defaults = Object.fromEntries(params.map((param) => [param.key, param.default]));
+  const cases = buildCases(params, defaults, componentType);
+
+  for (const stressCase of cases) {
+    const outPath = join(stressDir, stressCase.file);
+    const args = componentType === "audio_fx"
+      ? [outPath, "--signal", stressCase.file.includes("impulse") ? "impulse" : "sweep", "--seconds", "4"]
+      : ["--render", outPath, "5", "36", "18", "127", "36,43,48,55,60"];
+
+    for (const [key, value] of Object.entries(stressCase.params)) {
+      args.push(`${key}=${value}`);
+    }
+
+    const result = spawnSync(renderBin, args, { stdio: "inherit" });
+    if (result.status !== 0) process.exit(result.status ?? 1);
+  }
+
+  const manifest: StressManifest = {
+    module_id: moduleId,
+    component_type: componentType,
+    cases
+  };
+  await writeFile(join(stressDir, "manifest.json"), JSON.stringify(manifest, null, 2) + "\n");
+  console.log(`[${moduleId}] wrote ${cases.length} stress render(s) to ${stressDir}`);
+}
 
 function buildCases(params: Param[], defaults: Record<string, number>, kind: string): StressCase[] {
   const cases: StressCase[] = [];

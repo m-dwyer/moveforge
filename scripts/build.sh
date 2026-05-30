@@ -8,7 +8,11 @@ IMAGE_NAME="${IMAGE_NAME:-schwung-module-builder}"
 if [ -n "${MODULE_ID:-}" ]; then
   MODULE_IDS="$MODULE_ID"
 else
-  MODULE_IDS="$(find src/modules -mindepth 1 -maxdepth 1 -type d ! -name '_*' -exec basename {} \; | sort)"
+  if command -v node >/dev/null 2>&1; then
+    MODULE_IDS="$(node scripts/module-targets.ts ids)"
+  else
+    MODULE_IDS="$(find src/modules -mindepth 1 -maxdepth 1 -type d ! -name '_*' -exec basename {} \; | sort)"
+  fi
 fi
 
 if [ -z "${CROSS_PREFIX:-}" ] && [ -z "${SCHWUNG_NO_DOCKER:-}" ] && [ ! -f "/.dockerenv" ]; then
@@ -41,20 +45,23 @@ fi
 mkdir -p build
 
 for MODULE_ID in $MODULE_IDS; do
-  MODULE_DIR="src/modules/$MODULE_ID"
+  if command -v node >/dev/null 2>&1; then
+    MODULE_DIR="$(node scripts/module-targets.ts field "$MODULE_ID" moduleDir)"
+    CORE_IMPL="$(node scripts/module-targets.ts field "$MODULE_ID" coreImpl)"
+    WRAPPER_C="$(node scripts/module-targets.ts field "$MODULE_ID" wrapperC)"
+  else
+    MODULE_DIR="src/modules/$MODULE_ID"
+    WRAPPER_C="$MODULE_DIR/dsp/$MODULE_ID.c"
+    if [ -f "$MODULE_DIR/dsp/$MODULE_ID.dsp" ]; then
+      CORE_IMPL="$MODULE_DIR/dsp/${MODULE_ID}_adapter.c"
+    else
+      CORE_IMPL="$MODULE_DIR/dsp/${MODULE_ID}_core.c"
+    fi
+  fi
   mkdir -p "dist/$MODULE_ID"
 
-  # Faust-backed modules implement the core API via `<id>_adapter.c` (bridges
-  # to the Faust-generated C). Plain-C modules implement it directly in
-  # `<id>_core.c`. Detect by presence of `<id>.dsp`.
-  if [ -f "$MODULE_DIR/dsp/$MODULE_ID.dsp" ]; then
-    CORE_IMPL="$MODULE_DIR/dsp/${MODULE_ID}_adapter.c"
-  else
-    CORE_IMPL="$MODULE_DIR/dsp/${MODULE_ID}_core.c"
-  fi
-
   "${CROSS_PREFIX}gcc" -std=c11 -O3 -g -shared -fPIC \
-    "$MODULE_DIR/dsp/$MODULE_ID.c" \
+    "$WRAPPER_C" \
     "$CORE_IMPL" \
     -o "build/${MODULE_ID}-dsp.so" \
     -Isrc \

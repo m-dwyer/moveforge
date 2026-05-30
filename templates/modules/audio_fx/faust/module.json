@@ -1,0 +1,35 @@
+{
+  "id": "{{moduleId}}",
+  "name": "{{moduleName}}",
+  "abbrev": "{{moduleAbbrev}}",
+  "version": "0.1.0",
+  "description": "{{moduleName}} Faust audio effect",
+  "author": "Local",
+  "ui": "ui.js",
+  "ui_chain": "ui_chain.js",
+  "dsp": "dsp.so",
+  "api_version": 2,
+  "capabilities": {
+    "audio_out": true,
+    "audio_in": true,
+    "midi_in": false,
+    "midi_out": false,
+    "chainable": true,
+    "component_type": "audio_fx",
+    "ui_hierarchy": {
+      "levels": {
+        "root": {
+          "name": "{{moduleName}}",
+          "list_param": "preset",
+          "count_param": "preset_count",
+          "name_param": "preset_name",
+          "params": [
+            { "key": "mix", "name": "Mix", "type": "float", "min": 0, "max": 1, "default": 1.0, "step": 0.01 },
+            { "key": "level", "name": "Level", "type": "float", "min": 0, "max": 1, "default": 1.0, "step": 0.01 }
+          ],
+          "knobs": ["mix", "level"]
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "params": {
+    "mix": "Sets the wet/dry balance for {{moduleName}}.",
+    "level": "Sets output level after processing."
+  }
+}

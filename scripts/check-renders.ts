@@ -1,7 +1,7 @@
 import { readFile, readdir, writeFile, mkdir, copyFile } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
 import { join } from "node:path";
-import { modulePaths, selectedModuleIds } from "./lib/modules.ts";
+import { modulePaths, readModuleTarget, selectedModuleIds } from "./lib/modules.ts";
 import { metricsForWavFile, type WavMetrics } from "./wav-metrics.ts";
 import { readWav, writeWav } from "./wav-io.ts";
 
@@ -255,10 +255,8 @@ async function readMetrics(path: string): Promise<RenderMetricsByFile> {
 }
 
 async function componentTypeFor(moduleId: string): Promise<string | null> {
-  const { moduleJson } = modulePaths(moduleId);
   try {
-    const json = JSON.parse(await readFile(moduleJson, "utf8")) as { capabilities?: { component_type?: string } };
-    return json.capabilities?.component_type ?? null;
+    return (await readModuleTarget(moduleId)).componentType || null;
   } catch {
     return null;
   }
