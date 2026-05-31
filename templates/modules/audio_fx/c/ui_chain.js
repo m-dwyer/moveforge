@@ -1,6 +1,6 @@
-// Chain-mode UI shim. Loaded by the Signal Chain host instead of ui.js
-// when this module is placed in a chain slot. Do not override globalThis.init
-// or globalThis.tick — those belong to the chain host.
+// Placeholder chain-mode UI shim.
+// `pnpm run new-module` and `mise run gen-ui-chain` replace this with the
+// generated preset browser + 8-encoder paged parameter editor.
 globalThis.chain_ui = {
   init() {},
   tick() {},

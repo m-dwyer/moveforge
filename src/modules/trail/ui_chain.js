@@ -3,13 +3,14 @@
  * Do not edit by hand: change module.json and re-run `mise run gen-ui-chain`.
  *
  * Scrollable parameter editor shown when this module is opened (wheel press)
- * in a chain slot. Top knobs (Knob 1..5) adjust the visible params; the
- * jog wheel scrolls when there are more than 5. Sets globalThis.chain_ui.
+ * in a chain slot. Knob 1..8 adjust the current encoder page;
+ * the jog wheel scrolls/selects/edits the focused param. Sets globalThis.chain_ui.
  */
 
 import {
     MoveMainButton, MoveMainKnob,
-    MoveKnob1, MoveKnob2, MoveKnob3, MoveKnob4, MoveKnob5, MoveKnob6
+    MoveKnob1, MoveKnob2, MoveKnob3, MoveKnob4,
+    MoveKnob5, MoveKnob6, MoveKnob7, MoveKnob8
 } from '/data/UserData/schwung/shared/constants.mjs';
 
 import { decodeDelta } from '/data/UserData/schwung/shared/input_filter.mjs';
@@ -22,7 +23,11 @@ import {
     LIST_TOP_Y
 } from '/data/UserData/schwung/shared/menu_layout.mjs';
 
-const KNOBS = [MoveKnob1, MoveKnob2, MoveKnob3, MoveKnob4, MoveKnob5, MoveKnob6];
+const ENCODER_COUNT = 8;
+const KNOBS = [
+    MoveKnob1, MoveKnob2, MoveKnob3, MoveKnob4,
+    MoveKnob5, MoveKnob6, MoveKnob7, MoveKnob8
+];
 
 const PARAMS = [
     { key: "time", name: "Time", min: 0, max: 1, step: 0.01, dec: 2, def: 0.12 },
@@ -47,6 +52,22 @@ let needsRedraw = true;
 
 function clampSelected(v) {
     return Math.max(0, Math.min(Math.max(0, PARAMS.length - 1), v));
+}
+
+function pageCount() {
+    return Math.max(1, Math.ceil(PARAMS.length / ENCODER_COUNT));
+}
+
+function pageForIndex(index) {
+    return Math.floor(clampSelected(index) / ENCODER_COUNT);
+}
+
+function pageStart() {
+    return pageForIndex(selectedIndex) * ENCODER_COUNT;
+}
+
+function pageLabel() {
+    return String(pageForIndex(selectedIndex) + 1) + "/" + String(pageCount());
 }
 
 function fetchParams() {
@@ -140,7 +161,7 @@ function drawUI() {
     }
 
     clear_screen();
-    drawHeader("Trail Delay");
+    drawHeader("Trail Delay" + " " + pageLabel());
 
     drawMenuList({
         items: PARAMS,
@@ -155,7 +176,7 @@ function drawUI() {
         prioritizeSelectedValue: true,
         selectedMinLabelChars: 6
     });
-    drawFooter(editMode ? {left: "Click: done", right: "Jog: adjust"} : {left: "Back: done", right: "Click: edit"});
+    drawFooter(editMode ? {left: "Click: done", right: "Jog: adjust"} : {left: "Back: done", right: "Knobs: page"});
 
     needsRedraw = false;
 }
@@ -185,7 +206,7 @@ function onMidiMessageInternal(data) {
         return;
     }
 
-    /* Jog wheel scrolls the visible window. */
+    /* Jog wheel scrolls/selects, or adjusts the selected param in edit mode. */
     if (d1 === MoveMainKnob) {
         const delta = decodeDelta(d2);
         if (mode === "preset") {
@@ -206,11 +227,16 @@ function onMidiMessageInternal(data) {
         return;
     }
 
-    /* Each visible row is adjusted by its corresponding top knob. */
-    for (let k = 0; k < VISIBLE; k++) {
+    /* The 8 parameter encoders adjust the current page of params. */
+    const start = pageStart();
+    for (let k = 0; k < ENCODER_COUNT; k++) {
         if (d1 === KNOBS[k]) {
+            const paramIndex = start + k;
             const delta = decodeDelta(d2);
-            if (delta !== 0 && k < PARAMS.length) adjustParam(k, delta);
+            if (delta !== 0 && paramIndex < PARAMS.length) {
+                selectedIndex = paramIndex;
+                adjustParam(paramIndex, delta);
+            }
             return;
         }
     }

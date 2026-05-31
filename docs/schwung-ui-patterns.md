@@ -18,8 +18,8 @@ metadata.
 
 ## Controls
 
-- Keep the eight device encoders mapped to visible parameters or visible page
-  controls.
+- Keep the eight device encoders mapped to the current visible/page-level
+  parameter bank.
 - Prefer page navigation over hidden controls once a module has more than eight
   meaningful parameters.
 - Ensure external MIDI, internal MIDI, and all-notes-off behavior still pass

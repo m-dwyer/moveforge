@@ -42,7 +42,7 @@ src/modules/<id>/
 ├── metadata.json            local/web-only help text, including param tooltips
 ├── presets.json             preset values + render directives for the suite
 ├── ui.js                    solo-mode on-device UI shim
-├── ui_chain.js              GENERATED chain-mode UI: preset browser, then param editor
+├── ui_chain.js              GENERATED chain-mode UI: preset browser, then 8-encoder paged param editor
 └── dsp/
     ├── <id>_core.h          public API contract (shared)
     ├── <id>_params.gen.inc  GENERATED from module.json — never edit by hand
@@ -93,9 +93,10 @@ Both paths share this loop:
 5. Add the key to every preset in `<id>/presets.json` with a value inside `[min, max]`, then run `mise run gen-presets`.
 6. **Faust only**: run `mise run gen-faust`.
 7. Use the new param in the DSP.
-8. Add local audition metadata to `<id>/metadata.json`: a concise tooltip under `params.<key>` and a musical randomization hint under `randomize.<key>`. Keep these ranges inside the legal `module.json` min/max, but narrower when full extremes are only useful for stress testing. Use `mode: "bounded"` for a useful fixed range, `mode: "around_default"` when randomization should stay near the default/current setting, and `mode: "full"` only when the whole legal range is musically useful. Do not put local help text or audition-only randomize hints in Schwung-facing `module.json` unless Schwung officially supports those fields.
-9. Add or extend the assertion in `tests/test_<id>_core.c`.
-10. Run `mise run validate` (param drift + gen drift + preset/UI range).
+8. If the parameter surface changed, run `mise run gen-ui-chain`. Generated chain UIs expose a preset browser first, then a scrollable param editor where the jog wheel selects/edits the focused parameter and Move encoders 1-8 control the current page of up to eight params.
+9. Add local audition metadata to `<id>/metadata.json`: a concise tooltip under `params.<key>` and a musical randomization hint under `randomize.<key>`. Keep these ranges inside the legal `module.json` min/max, but narrower when full extremes are only useful for stress testing. Use `mode: "bounded"` for a useful fixed range, `mode: "around_default"` when randomization should stay near the default/current setting, and `mode: "full"` only when the whole legal range is musically useful. Do not put local help text or audition-only randomize hints in Schwung-facing `module.json` unless Schwung officially supports those fields.
+10. Add or extend the assertion in `tests/test_<id>_core.c`.
+11. Run `mise run validate` (param drift + gen drift + preset/UI range).
 
 ## Workflow: iterate on sound
 
