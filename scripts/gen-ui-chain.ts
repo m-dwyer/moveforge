@@ -18,7 +18,15 @@ import { readFile, writeFile, stat } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { modulePaths, selectedModuleIds } from "./lib/modules.ts";
 
-type Param = { key: string; name?: string; min: number; max: number; default: number; step?: number };
+type Param = {
+  key: string;
+  name?: string;
+  type?: string;
+  min: number;
+  max: number;
+  default: number;
+  step?: number;
+};
 type ModuleJson = {
   name?: string;
   ui_chain?: string;
@@ -31,15 +39,20 @@ type ModuleJson = {
 const EDITABLE_TYPES = new Set(["sound_generator", "audio_fx", "midi_fx"]);
 const ENCODER_COUNT = 8; // Move parameter encoders, CC 71-78
 
-/* Knob detents across a param's range. Respect module.json step when it gives a
- * reasonable detent count (e.g. integer selectors like trail's "sync"),
- * otherwise spread ~50 detents across the range for a good knob feel. */
+/* Knob detents across a param's range. Continuous controls use normalized
+ * full-range travel; discrete selectors keep their declared step. */
 function editStep(p: Param): number {
   const range = p.max - p.min;
   if (range <= 0) return 0.01;
   const declared = p.step ?? 0;
-  if (declared > 0 && range / declared <= 100) return declared;
-  return range / 50;
+  if (isDiscreteParam(p)) return declared > 0 ? declared : 1;
+  return range / 100;
+}
+
+function isDiscreteParam(p: Param): boolean {
+  const type = (p.type ?? "").toLowerCase();
+  if (type === "int" || type === "enum" || type === "bool") return true;
+  return (p.step ?? 0) >= 1;
 }
 
 function decimalsFor(step: number): number {

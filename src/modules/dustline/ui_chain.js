@@ -48,11 +48,11 @@ const PARAMS = [
     { key: "wave", name: "Wave", min: 0, max: 1, step: 0.01, dec: 2, def: 0.35 },
     { key: "noise", name: "Noise", min: 0, max: 1, step: 0.01, dec: 2, def: 0.18 },
     { key: "cutoff", name: "Cutoff", min: 0, max: 1, step: 0.01, dec: 2, def: 0.42 },
-    { key: "resonance", name: "Reso", min: 0, max: 0.95, step: 0.01, dec: 2, def: 0.18 },
-    { key: "attack", name: "Attack", min: 0.001, max: 2, step: 0.03998, dec: 2, def: 0.008 },
-    { key: "release", name: "Release", min: 0.02, max: 6, step: 0.1196, dec: 1, def: 0.55 },
+    { key: "resonance", name: "Reso", min: 0, max: 0.95, step: 0.0095, dec: 2, def: 0.18 },
+    { key: "attack", name: "Attack", min: 0.001, max: 2, step: 0.01999, dec: 2, def: 0.008 },
+    { key: "release", name: "Release", min: 0.02, max: 6, step: 0.0598, dec: 2, def: 0.55 },
     { key: "drive", name: "Drive", min: 0, max: 1, step: 0.01, dec: 2, def: 0.22 },
-    { key: "bend_range", name: "Bend", min: 0, max: 12, step: 0.24, dec: 1, def: 2 }
+    { key: "bend_range", name: "Bend", min: 0, max: 12, step: 0.12, dec: 1, def: 2 }
 ];
 
 const KNOB_PARAM_INDEXES = [

@@ -46,8 +46,8 @@ const KNOB_TOUCHES = [
 const PARAMS = [
     { key: "cutoff", name: "Cutoff", min: 0, max: 1, step: 0.01, dec: 2, def: 0.6 },
     { key: "resonance", name: "Resonance", min: 0, max: 1, step: 0.01, dec: 2, def: 0.3 },
-    { key: "attack", name: "Attack", min: 0.001, max: 1, step: 0.01998, dec: 2, def: 0.01 },
-    { key: "release", name: "Release", min: 0.01, max: 4, step: 0.0798, dec: 2, def: 0.3 },
+    { key: "attack", name: "Attack", min: 0.001, max: 1, step: 0.00999, dec: 2, def: 0.01 },
+    { key: "release", name: "Release", min: 0.01, max: 4, step: 0.0399, dec: 2, def: 0.3 },
     { key: "level", name: "Level", min: 0, max: 1, step: 0.01, dec: 2, def: 0.7 }
 ];
 

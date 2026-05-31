@@ -45,7 +45,7 @@ const KNOB_TOUCHES = [
 
 const PARAMS = [
     { key: "volume", name: "Volume", min: 0, max: 1, step: 0.01, dec: 2, def: 0.75 },
-    { key: "ratio", name: "Ratio", min: 0.25, max: 4, step: 0.075, dec: 2, def: 1.5 },
+    { key: "ratio", name: "Ratio", min: 0.25, max: 4, step: 0.0375, dec: 2, def: 1.5 },
     { key: "snap", name: "Snap", min: 0, max: 1, step: 0.01, dec: 2, def: 0.7 },
     { key: "fm", name: "FM", min: 0, max: 1, step: 0.01, dec: 2, def: 0.15 },
     { key: "fold", name: "Fold", min: 0, max: 1, step: 0.01, dec: 2, def: 0.35 },
@@ -56,9 +56,9 @@ const PARAMS = [
     { key: "chaos", name: "Chaos", min: 0, max: 1, step: 0.01, dec: 2, def: 0.12 },
     { key: "width", name: "Width", min: 0, max: 1, step: 0.01, dec: 2, def: 0.2 },
     { key: "sustain", name: "Sustain", min: 0, max: 1, step: 0.01, dec: 2, def: 0.25 },
-    { key: "decay", name: "Decay", min: 0.02, max: 2.5, step: 0.0496, dec: 2, def: 0.45 },
-    { key: "release", name: "Release", min: 0.02, max: 4, step: 0.0796, dec: 2, def: 0.8 },
-    { key: "bend_range", name: "Bend", min: 0, max: 12, step: 0.24, dec: 1, def: 2 }
+    { key: "decay", name: "Decay", min: 0.02, max: 2.5, step: 0.0248, dec: 2, def: 0.45 },
+    { key: "release", name: "Release", min: 0.02, max: 4, step: 0.0398, dec: 2, def: 0.8 },
+    { key: "bend_range", name: "Bend", min: 0, max: 12, step: 0.12, dec: 1, def: 2 }
 ];
 
 const KNOB_PARAM_INDEXES = [

@@ -46,7 +46,7 @@ const KNOB_TOUCHES = [
 const PARAMS = [
     { key: "time", name: "Time", min: 0, max: 1, step: 0.01, dec: 2, def: 0.12 },
     { key: "sync", name: "Sync", min: 0, max: 9, step: 1, dec: 0, def: 0 },
-    { key: "feedback", name: "Feedback", min: 0, max: 0.88, step: 0.01, dec: 2, def: 0.22 },
+    { key: "feedback", name: "Feedback", min: 0, max: 0.88, step: 0.0088, dec: 2, def: 0.22 },
     { key: "tone", name: "Tone", min: 0, max: 1, step: 0.01, dec: 2, def: 0.55 },
     { key: "mod", name: "Mod", min: 0, max: 1, step: 0.01, dec: 2, def: 0.2 },
     { key: "width", name: "Width", min: 0, max: 1, step: 0.01, dec: 2, def: 0.5 },
