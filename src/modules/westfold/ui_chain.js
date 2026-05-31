@@ -23,9 +23,13 @@ import { decodeDelta } from '/data/UserData/schwung/shared/input_filter.mjs';
 import {
     drawMenuFooter as drawFooter,
     drawMenuHeader as drawHeader,
+    drawOverlay,
     drawMenuList,
     FOOTER_RULE_Y,
-    LIST_TOP_Y
+    LIST_TOP_Y,
+    hideOverlay,
+    showOverlay,
+    tickOverlay
 } from '/data/UserData/schwung/shared/menu_layout.mjs';
 
 const ENCODER_COUNT = 8;
@@ -83,7 +87,6 @@ let presetName = "";
 let mode = "params";
 let editMode = false;
 let encoderPage = 0;
-let lastEncoderLabel = "";
 let needsRedraw = true;
 
 function clampSelected(v) {
@@ -151,7 +154,6 @@ function pageLabel() {
 function selectIndex(index) {
     selectedIndex = clampSelected(index);
     editMode = false;
-    lastEncoderLabel = "";
     needsRedraw = true;
 }
 
@@ -160,7 +162,6 @@ function setEncoderPage(page) {
     if (next === encoderPage) return;
     encoderPage = next;
     selectedIndex = 0;
-    lastEncoderLabel = "";
     needsRedraw = true;
 }
 
@@ -213,12 +214,11 @@ function formatParamValue(index) {
     return paramValues[index].toFixed(PARAMS[index].dec);
 }
 
-function setEncoderHint(k, paramIndex, includeValue) {
+function showEncoderOverlay(k, paramIndex) {
     if (paramIndex !== undefined && paramIndex < PARAMS.length) {
-        lastEncoderLabel = "K" + String(k + 1) + " " + PARAMS[paramIndex].name;
-        if (includeValue) lastEncoderLabel += " " + formatParamValue(paramIndex);
+        showOverlay("K" + String(k + 1) + " " + PARAMS[paramIndex].name, formatParamValue(paramIndex));
     } else {
-        lastEncoderLabel = "K" + String(k + 1) + " --";
+        showOverlay("K" + String(k + 1), "Unmapped");
     }
     needsRedraw = true;
 }
@@ -278,6 +278,7 @@ function drawPresetUI() {
         drawCentered(32, "No presets");
         drawFooter("Back: done");
     }
+    drawOverlay();
 
     needsRedraw = false;
 }
@@ -308,9 +309,10 @@ function drawUI() {
         prioritizeSelectedValue: true,
         selectedMinLabelChars: 6
     });
-    drawFooter(lastEncoderLabel || (isBankRow(selectedIndex)
+    drawFooter(isBankRow(selectedIndex)
         ? "Click: bank"
-        : (editMode ? {left: "Click: done", right: "Jog: adjust"} : "Click: edit")));
+        : (editMode ? {left: "Click: done", right: "Jog: adjust"} : "Click: edit"));
+    drawOverlay();
 
     needsRedraw = false;
 }
@@ -322,11 +324,11 @@ function init() {
     editMode = false;
     selectedIndex = 0;
     encoderPage = 0;
-    lastEncoderLabel = "";
     needsRedraw = true;
 }
 
 function tick() {
+    if (tickOverlay()) needsRedraw = true;
     if (needsRedraw) drawUI();
 }
 
@@ -342,7 +344,7 @@ function onMidiMessageInternal(data) {
                 const touchOn = statusType === MidiNoteOn && d2 > 0;
                 const touchOff = statusType === MidiNoteOff || (statusType === MidiNoteOn && d2 === 0);
                 if (touchOn) {
-                    setEncoderHint(k, encoderParamIndex(k), true);
+                    showEncoderOverlay(k, encoderParamIndex(k));
                 } else if (touchOff) {
                     needsRedraw = true;
                 }
@@ -354,6 +356,7 @@ function onMidiMessageInternal(data) {
     if (statusType !== 0xB0) return;
 
     if (d1 === MoveMainButton && d2 > 0) {
+        hideOverlay();
         if (mode === "params") toggleEditMode();
         else toggleMode();
         return;
@@ -363,15 +366,22 @@ function onMidiMessageInternal(data) {
     if (d1 === MoveMainKnob) {
         const delta = decodeDelta(d2);
         if (mode === "preset") {
-            if (delta !== 0) changePreset(delta);
+            if (delta !== 0) {
+                hideOverlay();
+                changePreset(delta);
+            }
             return;
         }
         if (editMode) {
             const paramIndex = selectedParamIndex();
-            if (delta !== 0 && paramIndex >= 0) adjustParam(paramIndex, delta);
+            if (delta !== 0 && paramIndex >= 0) {
+                hideOverlay();
+                adjustParam(paramIndex, delta);
+            }
             return;
         }
         if (delta !== 0) {
+            hideOverlay();
             const next = clampSelected(selectedIndex + delta);
             if (next !== selectedIndex) {
                 selectIndex(next);
@@ -391,9 +401,9 @@ function onMidiMessageInternal(data) {
                 }
                 editMode = false;
                 adjustParam(paramIndex, delta);
-                setEncoderHint(k, paramIndex, true);
+                showEncoderOverlay(k, paramIndex);
             } else if (delta !== 0) {
-                setEncoderHint(k, paramIndex, false);
+                showEncoderOverlay(k, paramIndex);
             }
             return;
         }
