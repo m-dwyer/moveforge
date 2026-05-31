@@ -40,7 +40,7 @@
             { "key": "release", "name": "Release", "type": "float", "min": 0.02, "max": 4, "default": 0.8, "step": 0.01 },
             { "key": "bend_range", "name": "Bend", "type": "float", "min": 0, "max": 12, "default": 2, "step": 0.1 }
           ],
-          "knobs": ["volume", "ratio", "snap", "fm", "fold", "lpg", "tone", "drive", "strike", "chaos", "width", "sustain"]
+          "knobs": ["volume", "ratio", "fm", "fold", "lpg", "tone", "drive", "strike", "snap", "chaos", "width", "sustain", "decay", "release", "bend_range"]
         }
       }
     }

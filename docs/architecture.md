@@ -109,6 +109,8 @@ For every module, **one file** declares everything else needs to know:
 - Identity: `id`, `name`, abbrev, `component_type`, `api_version`
 - Parameter schema: `capabilities.ui_hierarchy.levels.root.params` —
   `{ key, name, type, min, max, default, step }` per param
+- Encoder priority: `capabilities.ui_hierarchy.levels.root.knobs` — param keys
+  grouped into banks of 8 by the generated chain UI
 
 From this one file, `scripts/gen-params.ts` emits
 `src/modules/<id>/dsp/<id>_params.gen.inc` which gives the C core a typed
@@ -145,7 +147,9 @@ fixtures + browser preset row + on-device preset list all read it.
 4. UI on the OLED comes from `src/modules/<id>/ui.js` (solo mode) and
    generated `ui_chain.js` (chain mode). Chain UI uses the root hierarchy's
    preset list/count/name metadata when present, then lets the wheel enter and
-   edit the same param keys.
+   edit the same param keys. Move encoders follow the root `knobs` order; more
+   than 8 entries are exposed through an explicit `Encoder Bank` row inside the
+   module params screen.
 
 The browser harness is a fidelity stand-in: it runs the same `<module>.c`
 wrapper code through the same Schwung ABI shape, with int16 audio conversion

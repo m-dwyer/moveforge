@@ -3,8 +3,9 @@
  * Do not edit by hand: change module.json and re-run `mise run gen-ui-chain`.
  *
  * Scrollable parameter editor shown when this module is opened (wheel press)
- * in a chain slot. Knob 1..8 adjust the page containing the
- * selected param, and the jog wheel scrolls/selects/edits the focused param.
+ * in a chain slot. Knob 1..8 adjust the active encoder bank
+ * declared by module.json's root.knobs order, and the jog wheel
+ * scrolls/selects/edits focused rows. Press the Encoder Bank row to switch banks.
  * Sets globalThis.chain_ui.
  */
 
@@ -37,6 +38,13 @@ const PARAMS = [
     { key: "level", name: "Level", min: 0, max: 1, step: 0.01, dec: 2, def: 0.8 }
 ];
 
+const KNOB_PARAM_INDEXES = [
+    0,
+    1,
+    2,
+    3
+];
+
 let selectedIndex = 0;
 let paramValues = PARAMS.map((p) => p.def);
 let presetCount = 0;
@@ -45,26 +53,65 @@ let presetName = "";
 let mode = "params";
 let editMode = false;
 let encoderPage = 0;
+let lastEncoderLabel = "";
 let needsRedraw = true;
 
 function clampSelected(v) {
-    return Math.max(0, Math.min(Math.max(0, PARAMS.length - 1), v));
+    return Math.max(0, Math.min(Math.max(0, displayItemCount() - 1), v));
+}
+
+function hasEncoderBankRow() {
+    return pageCount() > 1;
+}
+
+function displayItemCount() {
+    return hasEncoderBankRow() ? (1 + bankParamIndexes().length) : PARAMS.length;
+}
+
+function selectedParamIndex() {
+    if (hasEncoderBankRow()) {
+        if (selectedIndex === 0) return -1;
+        return bankParamIndexes()[selectedIndex - 1] ?? -1;
+    }
+    return selectedIndex;
+}
+
+function displayIndexForParam(paramIndex) {
+    if (!hasEncoderBankRow()) return paramIndex;
+    const slot = bankParamIndexes().indexOf(paramIndex);
+    if (slot >= 0) return slot + 1;
+    return 0;
+}
+
+function displayItems() {
+    if (!hasEncoderBankRow()) return PARAMS;
+    return [{ bank: true, name: "Encoder Bank" }, ...bankParamIndexes().map((index) => PARAMS[index])];
+}
+
+function isBankRow(index) {
+    return hasEncoderBankRow() && index === 0;
 }
 
 function pageCount() {
-    return Math.max(1, Math.ceil(PARAMS.length / ENCODER_COUNT));
-}
-
-function pageForIndex(index) {
-    return Math.floor(clampSelected(index) / ENCODER_COUNT);
+    return Math.max(1, Math.ceil(Math.max(1, KNOB_PARAM_INDEXES.length) / ENCODER_COUNT));
 }
 
 function clampPage(v) {
     return Math.max(0, Math.min(pageCount() - 1, v));
 }
 
+function wrapPage(v) {
+    const count = pageCount();
+    return ((v % count) + count) % count;
+}
+
 function pageStart() {
     return encoderPage * ENCODER_COUNT;
+}
+
+function bankParamIndexes() {
+    const start = pageStart();
+    return KNOB_PARAM_INDEXES.slice(start, start + ENCODER_COUNT).filter((index) => index !== undefined && index < PARAMS.length);
 }
 
 function pageLabel() {
@@ -73,15 +120,17 @@ function pageLabel() {
 
 function selectIndex(index) {
     selectedIndex = clampSelected(index);
-    encoderPage = pageForIndex(selectedIndex);
+    editMode = false;
+    lastEncoderLabel = "";
     needsRedraw = true;
 }
 
 function setEncoderPage(page) {
     const next = clampPage(page);
-    if (next === encoderPage && selectedIndex >= next * ENCODER_COUNT && selectedIndex < (next + 1) * ENCODER_COUNT) return;
+    if (next === encoderPage) return;
     encoderPage = next;
-    selectedIndex = clampSelected(encoderPage * ENCODER_COUNT);
+    selectedIndex = 0;
+    lastEncoderLabel = "";
     needsRedraw = true;
 }
 
@@ -138,8 +187,17 @@ function toggleMode() {
     needsRedraw = true;
 }
 
+function toggleEncoderPage() {
+    if (mode !== "params" || pageCount() <= 1) return;
+    setEncoderPage(wrapPage(encoderPage + 1));
+}
+
 function toggleEditMode() {
     if (mode !== "params" || PARAMS.length === 0) return;
+    if (isBankRow(selectedIndex)) {
+        toggleEncoderPage();
+        return;
+    }
     editMode = !editMode;
     needsRedraw = true;
 }
@@ -179,11 +237,15 @@ function drawUI() {
     drawHeader("Faust Drive" + " " + pageLabel());
 
     drawMenuList({
-        items: PARAMS,
+        items: displayItems(),
         selectedIndex,
         listArea: { topY: LIST_TOP_Y, bottomY: FOOTER_RULE_Y },
         getLabel: (p) => p.name,
-        getValue: (_p, i) => paramValues[i].toFixed(PARAMS[i].dec),
+        getValue: (p, i) => {
+            if (p.bank) return pageLabel();
+            const paramIndex = hasEncoderBankRow() ? bankParamIndexes()[i - 1] : i;
+            return paramValues[paramIndex].toFixed(PARAMS[paramIndex].dec);
+        },
         valueAlignRight: true,
         editMode,
         keepOffLastRow: false,
@@ -191,7 +253,9 @@ function drawUI() {
         prioritizeSelectedValue: true,
         selectedMinLabelChars: 6
     });
-    drawFooter(editMode ? {left: "Click: done", right: "Jog: adjust"} : {left: "Jog: select", right: "Knobs: adjust"});
+    drawFooter(isBankRow(selectedIndex)
+        ? {left: "Click: bank", right: lastEncoderLabel || "Knobs: adjust"}
+        : (editMode ? {left: "Click: done", right: "Jog: adjust"} : {left: "Click: edit", right: lastEncoderLabel || "Knobs: adjust"}));
 
     needsRedraw = false;
 }
@@ -203,6 +267,7 @@ function init() {
     editMode = false;
     selectedIndex = 0;
     encoderPage = 0;
+    lastEncoderLabel = "";
     needsRedraw = true;
 }
 
@@ -230,7 +295,8 @@ function onMidiMessageInternal(data) {
             return;
         }
         if (editMode) {
-            if (delta !== 0) adjustParam(selectedIndex, delta);
+            const paramIndex = selectedParamIndex();
+            if (delta !== 0 && paramIndex >= 0) adjustParam(paramIndex, delta);
             return;
         }
         if (delta !== 0) {
@@ -242,15 +308,23 @@ function onMidiMessageInternal(data) {
         return;
     }
 
-    /* The 8 parameter encoders adjust the current page of params. */
+    /* The 8 parameter encoders adjust the active module.json knob bank. */
     const start = pageStart();
     for (let k = 0; k < ENCODER_COUNT; k++) {
         if (d1 === KNOBS[k]) {
-            const paramIndex = start + k;
+            const knobIndex = start + k;
+            const paramIndex = KNOB_PARAM_INDEXES[knobIndex];
             const delta = decodeDelta(d2);
-            if (delta !== 0 && paramIndex < PARAMS.length) {
-                selectedIndex = paramIndex;
+            if (delta !== 0 && paramIndex !== undefined && paramIndex < PARAMS.length) {
+                lastEncoderLabel = "K" + String(k + 1) + " " + PARAMS[paramIndex].name;
+                if (!isBankRow(selectedIndex)) {
+                    selectedIndex = displayIndexForParam(paramIndex);
+                }
+                editMode = false;
                 adjustParam(paramIndex, delta);
+            } else if (delta !== 0) {
+                lastEncoderLabel = "K" + String(k + 1) + " --";
+                needsRedraw = true;
             }
             return;
         }

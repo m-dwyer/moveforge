@@ -21,7 +21,7 @@ See [MODULES.md](MODULES.md) for the module index grouped by component type.
 | `faust_drive` | audio_fx | Faust | Stereo drive/tone/mix — reference Faust FX |
 | `arpy` | midi_fx | plain C | Arpeggiator with clock sync |
 
-Each module lives under `src/modules/<id>/` and is self-contained: `module.json` (Schwung manifest + param schema, including root preset list metadata), optional `metadata.json` (local/web help text), `presets.json`, `ui.js`, generated `ui_chain.js` (preset browser + 8-encoder paged param editor in chain mode), and `dsp/`.
+Each module lives under `src/modules/<id>/` and is self-contained: `module.json` (Schwung manifest + param schema, including root preset list metadata and root `knobs` encoder priority), optional `metadata.json` (local/web help text), `presets.json`, `ui.js`, generated `ui_chain.js` (preset browser + knob-bank param editor in chain mode), and `dsp/`.
 
 Shared module-side helpers live under `src/modules/_shared/`. Module scaffolding templates live under `templates/modules/<component_type>/<dsp>/`.
 
@@ -160,10 +160,11 @@ Omitting `MODULE_ID` builds every module. Set `MODULE_ID=<id>` to build one modu
 5. Use the new param in the DSP (the `.c` for plain C, the `.dsp` body for Faust).
 6. Add the key to every preset in `<id>/presets.json`.
 7. Run `mise run gen-presets` so Move-facing preset helpers stay in sync.
-8. Run `mise run gen-ui-chain` if the chain-mode parameter surface changed.
-9. Add a short tooltip description to `<id>/metadata.json` under `params.<key>`.
-10. Add a focused assertion in `tests/test_<id>_core.c`.
-11. Run `mise run validate` — checks param metadata + that gen files are in sync.
+8. Update `capabilities.ui_hierarchy.levels.root.knobs` if the param should be on the Move encoders. Entries are grouped into banks of 8 in the generated chain UI; the first 8 are the parent Schwung screen's main encoder mapping.
+9. Run `mise run gen-ui-chain` if the chain-mode parameter surface changed.
+10. Add a short tooltip description to `<id>/metadata.json` under `params.<key>`.
+11. Add a focused assertion in `tests/test_<id>_core.c`.
+12. Run `mise run validate` — checks param metadata + that gen files are in sync.
 
 ### Iterating on sound
 
