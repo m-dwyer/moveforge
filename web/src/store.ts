@@ -21,11 +21,17 @@ import type { Preset } from "./module-metadata";
 import { sendParamToSlot } from "@/audio";
 import type { ParamDefinition } from "./module-metadata";
 
+export const PARAM_SNAPSHOT_LABELS = ["A", "B", "C", "D"] as const;
+export type ParamSnapshotLabel = typeof PARAM_SNAPSHOT_LABELS[number];
+export type ParamSnapshotBank = Partial<Record<ParamSnapshotLabel, Record<string, number>>>;
+
 export type StoreState = AppState & {
   activeModuleName: string;
   moduleId: string;
   moduleIndex: ModuleIndexItem[];
+  paramSnapshots: Record<string, ParamSnapshotBank>;
   slotMeta: Record<string, LoadedModuleMetadata>;
+  selectedParamSnapshot: Record<string, ParamSnapshotLabel>;
   topLevelParams: ParamDefinition[];
   presets: Preset[];
   /* Selected preset name per chain slot id (for audio_fx / midi_fx slots).
@@ -51,6 +57,11 @@ export type StoreActions = {
   applyPreset: (name: string) => void;
   applySlotPreset: (trackIndex: number, slotIndex: number, name: string) => void;
   randomizeSelectedSlotParams: () => void;
+  selectParamSnapshot: (label: ParamSnapshotLabel) => void;
+  captureParamSnapshot: (label: ParamSnapshotLabel) => void;
+  recallParamSnapshot: (label: ParamSnapshotLabel) => void;
+  swapParamSnapshot: (label: ParamSnapshotLabel) => void;
+  clearParamSnapshot: (label: ParamSnapshotLabel) => void;
   setPlaying: (playing: boolean) => void;
   setPlayStep: (index: number) => void;
   toggleStep: (index: number) => void;
@@ -83,7 +94,9 @@ export const useStore = create<Store>()(
     activeModuleName: initialModuleName,
     moduleId: initialModuleId,
     moduleIndex: [],
+    paramSnapshots: {},
     slotMeta: {},
+    selectedParamSnapshot: {},
     topLevelParams: [],
     presets: [],
     slotPreset: {},
@@ -378,6 +391,57 @@ export const useStore = create<Store>()(
       }
     },
 
+    selectParamSnapshot: (label) =>
+      set((draft) => {
+        const key = currentParamSnapshotKey(draft);
+        if (key) draft.selectedParamSnapshot[key] = label;
+      }),
+
+    captureParamSnapshot: (label) =>
+      set((draft) => {
+        const key = currentParamSnapshotKey(draft);
+        if (!key) return;
+        draft.paramSnapshots[key] = draft.paramSnapshots[key] ?? {};
+        draft.paramSnapshots[key][label] = liveParamRecord(draft);
+        draft.selectedParamSnapshot[key] = label;
+      }),
+
+    recallParamSnapshot: (label) => {
+      const state = get();
+      const key = currentParamSnapshotKey(state);
+      const snapshot = key ? state.paramSnapshots[key]?.[label] : null;
+      if (!snapshot) return;
+      const updates = paramUpdatesForSnapshot(state, snapshot);
+      set((draft) => {
+        applyParamUpdatesToDraft(draft, updates);
+        if (key) draft.selectedParamSnapshot[key] = label;
+      });
+      for (const update of updates) sendParamToSlot(update.slotId, update.key, update.id, update.value);
+    },
+
+    swapParamSnapshot: (label) => {
+      const state = get();
+      const key = currentParamSnapshotKey(state);
+      const snapshot = key ? state.paramSnapshots[key]?.[label] : null;
+      if (!key || !snapshot) return;
+      const live = liveParamRecord(state);
+      const updates = paramUpdatesForSnapshot(state, snapshot);
+      set((draft) => {
+        applyParamUpdatesToDraft(draft, updates);
+        draft.paramSnapshots[key] = draft.paramSnapshots[key] ?? {};
+        draft.paramSnapshots[key][label] = live;
+        draft.selectedParamSnapshot[key] = label;
+      });
+      for (const update of updates) sendParamToSlot(update.slotId, update.key, update.id, update.value);
+    },
+
+    clearParamSnapshot: (label) =>
+      set((draft) => {
+        const key = currentParamSnapshotKey(draft);
+        if (!key) return;
+        delete draft.paramSnapshots[key]?.[label];
+      }),
+
     setPlaying: (playing) =>
       set((draft) => {
         draft.playing = playing;
@@ -483,7 +547,9 @@ export const useStore = create<Store>()(
           activeModuleName: initialModuleName,
           moduleId: initialModuleId,
           moduleIndex: draft.moduleIndex,
+          paramSnapshots: {},
           slotMeta: {},
+          selectedParamSnapshot: {},
           topLevelParams: [],
           presets: [],
           slotPreset: {},
@@ -504,10 +570,12 @@ export const useStore = create<Store>()(
         moduleId: state.moduleId,
         masterVolume: state.masterVolume,
         octave: state.octave,
+        paramSnapshots: state.paramSnapshots,
         padLayout: state.padLayout,
         root: state.root,
         scale: state.scale,
         selectedPreset: state.selectedPreset,
+        selectedParamSnapshot: state.selectedParamSnapshot,
         selectedSlot: state.selectedSlot,
         selectedStep: state.selectedStep,
         selectedTrack: state.selectedTrack,
@@ -535,6 +603,7 @@ export const useStore = create<Store>()(
           error: null,
           masterVolume: clamp(saved.masterVolume ?? current.masterVolume, 0, 1),
           moduleIndex: [],
+          paramSnapshots: repairParamSnapshots(saved.paramSnapshots),
           playStep: -1,
           playing: false,
           steps: repairSteps(saved.steps, current.steps),
@@ -613,6 +682,99 @@ function repairSteps(savedSteps: StepState[] | undefined, fallback: StepState[])
       velocity: clamp(saved.velocity, 0, 1)
     };
   });
+  return repaired;
+}
+
+type ParamUpdate = {
+  id: number;
+  key: string;
+  slotId: string;
+  slotIndex: number;
+  trackIndex: number;
+  value: number;
+};
+
+function currentParamSnapshotKey(state: Pick<StoreState, "selectedSlot" | "selectedTrack" | "tracks">): string | null {
+  const slot = state.tracks[state.selectedTrack]?.chain[state.selectedSlot];
+  if (!slot || slot.kind === "settings" || !slot.moduleId) return null;
+  return `${state.selectedTrack}:${slot.id}:${slot.moduleId}`;
+}
+
+function liveParamRecord(state: Pick<StoreState, "selectedSlot" | "selectedTrack" | "tracks" | "topLevelParams">): Record<string, number> {
+  const slot = state.tracks[state.selectedTrack]?.chain[state.selectedSlot];
+  if (!slot || slot.kind === "settings") return {};
+  if (slot.kind === "sound_generator") {
+    return Object.fromEntries(state.topLevelParams.map((param) => [param.key, param.value]));
+  }
+  return { ...(slot.params as Record<string, number>) };
+}
+
+function paramUpdatesForSnapshot(
+  state: Pick<StoreState, "selectedSlot" | "selectedTrack" | "slotMeta" | "topLevelParams" | "tracks">,
+  snapshot: Record<string, number>
+): ParamUpdate[] {
+  const trackIndex = state.selectedTrack;
+  const slotIndex = state.selectedSlot;
+  const slot = state.tracks[trackIndex]?.chain[slotIndex];
+  if (!slot || slot.kind === "settings") return [];
+
+  if (slot.kind === "sound_generator") {
+    return state.topLevelParams
+      .filter((param) => snapshot[param.key] !== undefined)
+      .map((param) => ({
+        id: param.id,
+        key: param.key,
+        slotId: "sound",
+        slotIndex,
+        trackIndex,
+        value: clamp(snapshot[param.key], param.min, param.max)
+      }));
+  }
+
+  const meta = state.slotMeta[trackSlotKey(trackIndex, slot.id)];
+  if (!meta) return [];
+  return meta.params
+    .filter((param) => snapshot[param.key] !== undefined)
+    .map((param) => ({
+      id: param.id,
+      key: param.key,
+      slotId: slot.id,
+      slotIndex,
+      trackIndex,
+      value: clamp(snapshot[param.key], param.min, param.max)
+    }));
+}
+
+function applyParamUpdatesToDraft(state: StoreState, updates: ParamUpdate[]): void {
+  for (const update of updates) {
+    const slot = state.tracks[update.trackIndex]?.chain[update.slotIndex];
+    if (!slot || slot.kind === "settings") continue;
+    if (slot.kind === "sound_generator") {
+      const param = state.topLevelParams.find((p) => p.key === update.key);
+      if (param) param.value = update.value;
+      slot.params[update.key] = update.value;
+    } else {
+      (slot.params as Record<string, number>)[update.key] = update.value;
+    }
+  }
+}
+
+function repairParamSnapshots(saved: Store["paramSnapshots"] | undefined): Store["paramSnapshots"] {
+  if (!saved || typeof saved !== "object") return {};
+  const repaired: Store["paramSnapshots"] = {};
+  for (const [key, bank] of Object.entries(saved)) {
+    if (!bank || typeof bank !== "object") continue;
+    for (const label of PARAM_SNAPSHOT_LABELS) {
+      const snapshot = bank[label];
+      if (!snapshot || typeof snapshot !== "object") continue;
+      const params = Object.fromEntries(
+        Object.entries(snapshot).filter(([, value]) => Number.isFinite(value))
+      );
+      if (Object.keys(params).length === 0) continue;
+      repaired[key] = repaired[key] ?? {};
+      repaired[key][label] = params;
+    }
+  }
   return repaired;
 }
 

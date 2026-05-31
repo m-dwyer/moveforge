@@ -1,6 +1,6 @@
 import { afterEach, test, expect, vi } from "vitest";
 import { STORE_PERSIST_KEY, trackSlotKey } from "@/store";
-import { useStore } from "./fixtures";
+import { audioCalls, useStore } from "./fixtures";
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -143,6 +143,43 @@ test("randomizes selected audio fx slot params independently", async () => {
   expect(slot.params.mix).toBeGreaterThanOrEqual(0);
   expect(slot.params.mix).toBeLessThanOrEqual(1);
   expect(useStore.getState().slotPreset[trackSlotKey(0, "audio-fx-1")]).toBe("Random");
+});
+
+test("captures and recalls selected sound param snapshots", () => {
+  useStore.setState({
+    selectedSlot: 1,
+    topLevelParams: [
+      { key: "fold", label: "Fold", id: 0, value: 0.25, min: 0, max: 1, step: 0.01, default: 0.35, type: "float" },
+      { key: "tone", label: "Tone", id: 1, value: 0.7, min: 0, max: 1, step: 0.01, default: 0.5, type: "float" }
+    ]
+  });
+
+  useStore.getState().captureParamSnapshot("A");
+  useStore.getState().setTopLevelParam("fold", 0.8);
+  useStore.getState().setTopLevelParam("tone", 0.2);
+  useStore.getState().recallParamSnapshot("A");
+
+  expect(useStore.getState().topLevelParams.find((p) => p.key === "fold")?.value).toBe(0.25);
+  expect(useStore.getState().topLevelParams.find((p) => p.key === "tone")?.value).toBe(0.7);
+  expect(audioCalls()).toContainEqual({ kind: "sendParamToSlot", slotId: "sound", key: "fold", id: 0, value: 0.25 });
+  expect(audioCalls()).toContainEqual({ kind: "sendParamToSlot", slotId: "sound", key: "tone", id: 1, value: 0.7 });
+});
+
+test("swaps live sound params with a snapshot", () => {
+  useStore.setState({
+    selectedSlot: 1,
+    topLevelParams: [
+      { key: "fold", label: "Fold", id: 0, value: 0.25, min: 0, max: 1, step: 0.01, default: 0.35, type: "float" }
+    ]
+  });
+
+  useStore.getState().captureParamSnapshot("B");
+  useStore.getState().setTopLevelParam("fold", 0.9);
+  useStore.getState().swapParamSnapshot("B");
+
+  expect(useStore.getState().topLevelParams.find((p) => p.key === "fold")?.value).toBe(0.25);
+  useStore.getState().recallParamSnapshot("B");
+  expect(useStore.getState().topLevelParams.find((p) => p.key === "fold")?.value).toBe(0.9);
 });
 
 function audioFxModuleId(trackIndex: number, slotIndex: number): string | null {

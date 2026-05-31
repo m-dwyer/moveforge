@@ -29,7 +29,9 @@ beforeEach(() => {
       { id: "trail", name: "Trail Delay", kind: "audio_fx" },
       { id: "westfold", name: "Westfold", kind: "sound_generator" }
     ],
+    paramSnapshots: {},
     slotMeta: {},
+    selectedParamSnapshot: {},
     topLevelParams: [],
     presets: [],
     bpm: 120,
