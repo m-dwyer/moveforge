@@ -182,6 +182,25 @@ test("swaps live sound params with a snapshot", () => {
   expect(useStore.getState().topLevelParams.find((p) => p.key === "fold")?.value).toBe(0.9);
 });
 
+test("captures and recalls selected audio fx param snapshots", async () => {
+  await useStore.getState().setSlotModule(0, 2, "trail");
+  useStore.setState({ selectedSlot: 2 });
+  useStore.getState().setSlotParam(0, 2, "feedback", 0.12);
+  useStore.getState().setSlotParam(0, 2, "mix", 0.33);
+
+  useStore.getState().captureParamSnapshot("C");
+  useStore.getState().setSlotParam(0, 2, "feedback", 0.8);
+  useStore.getState().setSlotParam(0, 2, "mix", 0.9);
+  useStore.getState().recallParamSnapshot("C");
+
+  const slot = useStore.getState().tracks[0].chain[2];
+  if (slot.kind !== "audio_fx") throw new Error("Expected audio FX slot");
+  expect(slot.params.feedback).toBe(0.12);
+  expect(slot.params.mix).toBe(0.33);
+  expect(audioCalls()).toContainEqual({ kind: "sendParamToSlot", slotId: "audio-fx-1", key: "feedback", id: 2, value: 0.12 });
+  expect(audioCalls()).toContainEqual({ kind: "sendParamToSlot", slotId: "audio-fx-1", key: "mix", id: 8, value: 0.33 });
+});
+
 function audioFxModuleId(trackIndex: number, slotIndex: number): string | null {
   const slot = useStore.getState().tracks[trackIndex].chain[slotIndex];
   if (slot.kind !== "audio_fx") throw new Error("Expected audio FX slot");

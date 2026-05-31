@@ -34,3 +34,19 @@ test("clears the selected snapshot", async () => {
 
   expect(Object.keys(useStore.getState().paramSnapshots["0:sound:westfold"] ?? {})).toHaveLength(0);
 });
+
+test("captures and recalls snapshot buttons for a selected audio fx slot", async () => {
+  await useStore.getState().setSlotModule(0, 2, "trail");
+  useStore.setState({ selectedSlot: 2 });
+  useStore.getState().setSlotParam(0, 2, "feedback", 0.2);
+  render(createElement(ParamSnapshots));
+
+  await page.getByRole("button", { name: "Capture" }).click();
+  useStore.getState().setSlotParam(0, 2, "feedback", 0.75);
+
+  await page.getByRole("button", { name: "A", exact: true }).click();
+
+  const slot = useStore.getState().tracks[0].chain[2];
+  if (slot.kind !== "audio_fx") throw new Error("Expected audio FX slot");
+  expect(slot.params.feedback).toBe(0.2);
+});
