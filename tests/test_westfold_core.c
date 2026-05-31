@@ -28,9 +28,12 @@ int main(void) {
     westfold_init(&synth);
 
     int volume_id = westfold_param_id("volume");
+    int ratio_id = westfold_param_id("ratio");
     int decay_id = westfold_param_id("decay");
     int fold_id = westfold_param_id("fold");
     int snap_id = westfold_param_id("snap");
+    int fm_id = westfold_param_id("fm");
+    int lpg_id = westfold_param_id("lpg");
     int tone_id = westfold_param_id("tone");
     int drive_id = westfold_param_id("drive");
     int strike_id = westfold_param_id("strike");
@@ -96,6 +99,35 @@ int main(void) {
         stereo_diff += (double)absf_local(left[i] - right[i]);
     }
     require_true(stereo_diff > 0.001, "width creates a measurable stereo difference");
+
+    for (int block = 0; block < 16; block++) {
+        float hot = (block & 1) ? 1.0f : 0.0f;
+        westfold_set_param(&synth, volume_id, hot ? 1.0f : 0.35f);
+        westfold_set_param(&synth, ratio_id, hot ? 4.0f : 0.25f);
+        westfold_set_param(&synth, fm_id, hot);
+        westfold_set_param(&synth, fold_id, hot);
+        westfold_set_param(&synth, lpg_id, hot);
+        westfold_set_param(&synth, tone_id, hot);
+        westfold_set_param(&synth, drive_id, hot);
+        westfold_set_param(&synth, chaos_id, hot);
+        westfold_set_param(&synth, width_id, hot);
+        westfold_process_float(&synth, NULL, NULL, left + block * 256, right + block * 256, 256);
+    }
+
+    float automation_peak = 0.0f;
+    double automation_energy = 0.0;
+    for (int i = 0; i < FRAMES; i++) {
+        require_true(isfinite(left[i]) && isfinite(right[i]), "automation output is finite");
+        require_true(left[i] <= 1.0f && left[i] >= -1.0f, "automation left output remains normalized");
+        require_true(right[i] <= 1.0f && right[i] >= -1.0f, "automation right output remains normalized");
+        float l = absf_local(left[i]);
+        float r = absf_local(right[i]);
+        if (l > automation_peak) automation_peak = l;
+        if (r > automation_peak) automation_peak = r;
+        automation_energy += (double)left[i] * (double)left[i] + (double)right[i] * (double)right[i];
+    }
+    require_true(automation_peak > 0.001f, "automation render is not silent");
+    require_true(automation_energy > 0.01, "automation render has energy");
 
     westfold_process_float(&synth, NULL, NULL, tail_left, tail_right, TAIL_FRAMES);
     float held_peak = 0.0f;

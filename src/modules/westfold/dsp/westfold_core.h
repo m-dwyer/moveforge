@@ -22,6 +22,16 @@ typedef struct {
     int active_note;
     float pitch_bend;
 
+    float volume_sm;
+    float ratio_sm;
+    float fm_sm;
+    float fold_sm;
+    float lpg_sm;
+    float tone_sm;
+    float drive_sm;
+    float chaos_sm;
+    float width_sm;
+
     float volume;
     float ratio;
     float snap;
