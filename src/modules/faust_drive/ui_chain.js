@@ -3,13 +3,13 @@
  * Do not edit by hand: change module.json and re-run `mise run gen-ui-chain`.
  *
  * Scrollable parameter editor shown when this module is opened (wheel press)
- * in a chain slot. Left/right switch encoder pages, Knob 1..8
+ * in a chain slot. Shift+jog switches encoder pages, Knob 1..8
  * adjust the current page, and the jog wheel scrolls/selects/edits the
  * focused param. Sets globalThis.chain_ui.
  */
 
 import {
-    MoveLeft, MoveMainButton, MoveMainKnob, MoveRight,
+    MoveMainButton, MoveMainKnob, MoveShift,
     MoveKnob1, MoveKnob2, MoveKnob3, MoveKnob4,
     MoveKnob5, MoveKnob6, MoveKnob7, MoveKnob8
 } from '/data/UserData/schwung/shared/constants.mjs';
@@ -45,6 +45,7 @@ let presetName = "";
 let mode = "params";
 let editMode = false;
 let encoderPage = 0;
+let shiftHeld = false;
 let needsRedraw = true;
 
 function clampSelected(v) {
@@ -191,7 +192,7 @@ function drawUI() {
         prioritizeSelectedValue: true,
         selectedMinLabelChars: 6
     });
-    drawFooter(editMode ? {left: "Click: done", right: "Jog: adjust"} : {left: "L/R: page", right: "Knobs: adjust"});
+    drawFooter(editMode ? {left: "Click: done", right: "Jog: adjust"} : {left: "Shift+Jog: page", right: "Knobs: adjust"});
 
     needsRedraw = false;
 }
@@ -216,14 +217,14 @@ function onMidiMessageInternal(data) {
     const d2 = data[2];
     if ((status & 0xF0) !== 0xB0) return;
 
-    if (d1 === MoveMainButton && d2 > 0) {
-        if (mode === "params") toggleEditMode();
-        else toggleMode();
+    if (d1 === MoveShift) {
+        shiftHeld = d2 > 0;
         return;
     }
 
-    if (mode === "params" && !editMode && d2 > 0 && (d1 === MoveLeft || d1 === MoveRight)) {
-        setEncoderPage(encoderPage + (d1 === MoveRight ? 1 : -1));
+    if (d1 === MoveMainButton && d2 > 0) {
+        if (mode === "params") toggleEditMode();
+        else toggleMode();
         return;
     }
 
@@ -232,6 +233,10 @@ function onMidiMessageInternal(data) {
         const delta = decodeDelta(d2);
         if (mode === "preset") {
             if (delta !== 0) changePreset(delta);
+            return;
+        }
+        if (shiftHeld && !editMode) {
+            if (delta !== 0) setEncoderPage(encoderPage + delta);
             return;
         }
         if (editMode) {
