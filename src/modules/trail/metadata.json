@@ -9,5 +9,16 @@
     "drive": "Tape-style saturation in the feedback path. Higher values warm and compress the repeats, good for driven dub sustains.",
     "space": "Blends a reverb tail into the wet signal. Low = pure delay; high = the repeats smear into a lush reverberant wash.",
     "mix": "Wet/dry balance. Low keeps the original signal forward for insert use; high emphasizes the delayed/reverberant signal."
+  },
+  "randomize": {
+    "time": { "min": 0.03, "max": 0.55, "mode": "around_default" },
+    "sync": { "min": 0, "max": 8, "mode": "bounded" },
+    "feedback": { "min": 0.08, "max": 0.68, "mode": "bounded" },
+    "tone": { "min": 0.18, "max": 0.82, "mode": "bounded" },
+    "mod": { "min": 0, "max": 0.55, "mode": "bounded" },
+    "width": { "min": 0.15, "max": 0.95, "mode": "bounded" },
+    "drive": { "min": 0, "max": 0.62, "mode": "bounded" },
+    "space": { "min": 0, "max": 0.58, "mode": "bounded" },
+    "mix": { "min": 0.08, "max": 0.72, "mode": "bounded" }
   }
 }

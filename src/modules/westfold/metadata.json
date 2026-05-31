@@ -15,5 +15,22 @@
     "decay": "Sets how quickly the struck envelope falls while the note is held. Short values make tight plucks; longer values make blooming tones.",
     "release": "Sets how long the voice decays after note-off. Raise it for tails and drones, lower it for tighter rhythmic sequencing.",
     "bend_range": "Sets pitch-bend depth in semitones for incoming MIDI pitch bend."
+  },
+  "randomize": {
+    "volume": { "min": 0.45, "max": 0.85, "mode": "around_default" },
+    "ratio": { "min": 0.5, "max": 3.25, "mode": "around_default" },
+    "snap": { "min": 0.15, "max": 1, "mode": "bounded" },
+    "fm": { "min": 0, "max": 0.72, "mode": "bounded" },
+    "fold": { "min": 0.05, "max": 0.82, "mode": "bounded" },
+    "lpg": { "min": 0.18, "max": 0.9, "mode": "bounded" },
+    "tone": { "min": 0.18, "max": 0.9, "mode": "bounded" },
+    "drive": { "min": 0, "max": 0.72, "mode": "bounded" },
+    "strike": { "min": 0.08, "max": 0.85, "mode": "bounded" },
+    "chaos": { "min": 0, "max": 0.48, "mode": "bounded" },
+    "width": { "min": 0, "max": 0.65, "mode": "bounded" },
+    "sustain": { "min": 0, "max": 0.75, "mode": "bounded" },
+    "decay": { "min": 0.08, "max": 1.6, "mode": "around_default" },
+    "release": { "min": 0.08, "max": 2.5, "mode": "around_default" },
+    "bend_range": { "min": 0, "max": 7, "mode": "around_default" }
   }
 }

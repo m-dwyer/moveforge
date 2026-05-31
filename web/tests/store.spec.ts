@@ -9,6 +9,7 @@ afterEach(() => {
 test("persists audition, bpm, steps, and params without runtime fields", () => {
   useStore.getState().setBpm(132);
   useStore.getState().setMasterVolume(0.42);
+  useStore.getState().setRandomizeAmount("subtle");
   useStore.getState().setAuditionPattern("octave_bounce");
   useStore.getState().toggleStep(0);
   useStore.getState().forkAuditionToCustomCopy([{ enabled: true, note: 48, velocity: 0.8, locks: {} }]);
@@ -26,6 +27,7 @@ test("persists audition, bpm, steps, and params without runtime fields", () => {
   const parsed = JSON.parse(raw!);
   expect(parsed.state.bpm).toBe(132);
   expect(parsed.state.masterVolume).toBe(0.42);
+  expect(parsed.state.randomizeAmount).toBe("subtle");
   expect(parsed.state.audition.pattern).toBe("custom_copy");
   expect(parsed.state.customCopySteps[0].note).toBe(48);
   expect(parsed.state.steps[0].enabled).toBe(true);
@@ -118,17 +120,47 @@ test("persists distinct multi-track sound and sequencer state", async () => {
   expect(parsed.state.tracks[1].steps[3].note).toBe(72);
 });
 
-test("randomizes selected sound params within declared bounds and step", async () => {
+test("randomizes selected sound params within musical metadata bounds and step", async () => {
   vi.spyOn(Math, "random").mockReturnValue(0.5);
   await useStore.getState().initialize("westfold");
 
   useStore.getState().randomizeSelectedSlotParams();
 
   const fold = useStore.getState().topLevelParams.find((p) => p.key === "fold");
-  expect(fold?.value).toBe(0.5);
+  expect(fold?.value).toBe(0.35);
   const sound = useStore.getState().tracks[0].chain[1];
   if (sound.kind !== "sound_generator") throw new Error("Expected sound slot");
-  expect(sound.params.fold).toBe(0.5);
+  expect(sound.params.fold).toBe(0.35);
+});
+
+test("randomize amount controls how far params move from current values", () => {
+  vi.spyOn(Math, "random").mockReturnValue(1);
+  useStore.setState({
+    selectedSlot: 1,
+    topLevelParams: [
+      {
+        key: "fold",
+        label: "Fold",
+        id: 0,
+        value: 0.5,
+        min: 0,
+        max: 1,
+        step: 0.01,
+        default: 0.5,
+        type: "float",
+        randomize: { min: 0, max: 1, mode: "bounded" }
+      }
+    ]
+  });
+
+  useStore.getState().setRandomizeAmount("subtle");
+  useStore.getState().randomizeSelectedSlotParams();
+  expect(useStore.getState().topLevelParams[0].value).toBe(0.59);
+
+  useStore.getState().setTopLevelParam("fold", 0.5);
+  useStore.getState().setRandomizeAmount("wild");
+  useStore.getState().randomizeSelectedSlotParams();
+  expect(useStore.getState().topLevelParams[0].value).toBe(1);
 });
 
 test("randomizes selected audio fx slot params independently", async () => {

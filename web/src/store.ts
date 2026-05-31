@@ -24,6 +24,8 @@ import type { ParamDefinition } from "./module-metadata";
 export const PARAM_SNAPSHOT_LABELS = ["A", "B", "C", "D"] as const;
 export type ParamSnapshotLabel = typeof PARAM_SNAPSHOT_LABELS[number];
 export type ParamSnapshotBank = Partial<Record<ParamSnapshotLabel, Record<string, number>>>;
+export const RANDOMIZE_AMOUNTS = ["subtle", "medium", "wild"] as const;
+export type RandomizeAmount = typeof RANDOMIZE_AMOUNTS[number];
 
 export type StoreState = AppState & {
   activeModuleName: string;
@@ -34,6 +36,7 @@ export type StoreState = AppState & {
   selectedParamSnapshot: Record<string, ParamSnapshotLabel>;
   topLevelParams: ParamDefinition[];
   presets: Preset[];
+  randomizeAmount: RandomizeAmount;
   /* Selected preset name per chain slot id (for audio_fx / midi_fx slots).
    * The sound_generator slot uses the top-level `selectedPreset` instead. */
   slotPreset: Record<string, string>;
@@ -57,6 +60,7 @@ export type StoreActions = {
   applyPreset: (name: string) => void;
   applySlotPreset: (trackIndex: number, slotIndex: number, name: string) => void;
   randomizeSelectedSlotParams: () => void;
+  setRandomizeAmount: (amount: RandomizeAmount) => void;
   selectParamSnapshot: (label: ParamSnapshotLabel) => void;
   captureParamSnapshot: (label: ParamSnapshotLabel) => void;
   recallParamSnapshot: (label: ParamSnapshotLabel) => void;
@@ -99,6 +103,7 @@ export const useStore = create<Store>()(
     selectedParamSnapshot: {},
     topLevelParams: [],
     presets: [],
+    randomizeAmount: "medium",
     slotPreset: {},
     bpm: 120,
     error: null,
@@ -357,7 +362,7 @@ export const useStore = create<Store>()(
       if (!slot || slot.kind === "settings") return;
 
       if (slot.kind === "sound_generator") {
-        const updates = randomizeParams(state.topLevelParams);
+        const updates = randomizeParams(state.topLevelParams, Object.fromEntries(state.topLevelParams.map((p) => [p.key, p.value])), state.randomizeAmount);
         set((draft) => {
           for (const [key, value] of Object.entries(updates)) {
             const param = draft.topLevelParams.find((p) => p.key === key);
@@ -378,7 +383,7 @@ export const useStore = create<Store>()(
 
       const meta = state.slotMeta[trackSlotKey(trackIndex, slot.id)];
       if (!meta) return;
-      const updates = randomizeParams(meta.params);
+      const updates = randomizeParams(meta.params, slot.params as Record<string, number>, state.randomizeAmount);
       set((draft) => {
         const target = draft.tracks[trackIndex].chain[slotIndex];
         if (target.kind !== "audio_fx" && target.kind !== "midi_fx") return;
@@ -390,6 +395,11 @@ export const useStore = create<Store>()(
         if (p) sendParamToSlot(slot.id, key, p.id, value);
       }
     },
+
+    setRandomizeAmount: (amount) =>
+      set((draft) => {
+        draft.randomizeAmount = RANDOMIZE_AMOUNTS.includes(amount) ? amount : "medium";
+      }),
 
     selectParamSnapshot: (label) =>
       set((draft) => {
@@ -552,6 +562,7 @@ export const useStore = create<Store>()(
           selectedParamSnapshot: {},
           topLevelParams: [],
           presets: [],
+          randomizeAmount: "medium",
           slotPreset: {},
           bpm: 120,
           error: null
@@ -572,6 +583,7 @@ export const useStore = create<Store>()(
         octave: state.octave,
         paramSnapshots: state.paramSnapshots,
         padLayout: state.padLayout,
+        randomizeAmount: state.randomizeAmount,
         root: state.root,
         scale: state.scale,
         selectedPreset: state.selectedPreset,
@@ -606,6 +618,7 @@ export const useStore = create<Store>()(
           paramSnapshots: repairParamSnapshots(saved.paramSnapshots),
           playStep: -1,
           playing: false,
+          randomizeAmount: repairRandomizeAmount(saved.randomizeAmount),
           steps: repairSteps(saved.steps, current.steps),
           slotMeta: {},
           tracks: repairTracks(saved.tracks, current.tracks)
@@ -778,19 +791,41 @@ function repairParamSnapshots(saved: Store["paramSnapshots"] | undefined): Store
   return repaired;
 }
 
-function randomizeParams(params: ParamDefinition[]): Record<string, number> {
-  return Object.fromEntries(params.map((param) => [param.key, randomParamValue(param)]));
+function randomizeParams(params: ParamDefinition[], current: Record<string, number>, amount: RandomizeAmount): Record<string, number> {
+  return Object.fromEntries(params.map((param) => [param.key, randomParamValue(param, current[param.key], amount)]));
 }
 
-function randomParamValue(param: ParamDefinition): number {
-  const min = Number.isFinite(param.min) ? param.min : 0;
-  const max = Number.isFinite(param.max) ? param.max : min;
-  const raw = min + Math.random() * (max - min);
+function randomParamValue(param: ParamDefinition, currentValue: number | undefined, amount: RandomizeAmount): number {
+  const declaredMin = Number.isFinite(param.min) ? param.min : 0;
+  const declaredMax = Number.isFinite(param.max) ? param.max : declaredMin;
+  const hint = param.randomize;
+  const hintedMin = Number.isFinite(hint?.min) ? hint!.min! : declaredMin;
+  const hintedMax = Number.isFinite(hint?.max) ? hint!.max! : declaredMax;
+  const min = clamp(hintedMin, declaredMin, declaredMax);
+  const max = clamp(Math.max(hintedMin, hintedMax), min, declaredMax);
+  const baseWidth = Math.max(0, max - min);
+  const centerSource = hint?.mode === "around_default" ? param.default : currentValue ?? param.default;
+  const center = clamp(centerSource, min, max);
+  const amountScale = randomizeScale(amount, hint?.amount);
+  const rangeWidth = hint?.mode === "full" ? baseWidth : baseWidth * amountScale;
+  const lo = rangeWidth >= baseWidth ? min : clamp(center - rangeWidth / 2, min, max);
+  const hi = rangeWidth >= baseWidth ? max : clamp(center + rangeWidth / 2, min, max);
+  const value = lo + Math.random() * Math.max(0, hi - lo);
   const step = param.step && param.step > 0 ? param.step : 0;
-  if (!step) return clamp(raw, min, max);
-  const stepped = min + Math.round((raw - min) / step) * step;
+  if (!step) return clamp(value, min, max);
+  const stepped = declaredMin + Math.round((value - declaredMin) / step) * step;
   const decimals = Math.max(0, decimalPlaces(step));
   return Number(clamp(stepped, min, max).toFixed(decimals));
+}
+
+function randomizeScale(amount: RandomizeAmount, hintAmount?: number): number {
+  const base = amount === "subtle" ? 0.18 : amount === "medium" ? 0.45 : 1;
+  if (!Number.isFinite(hintAmount)) return base;
+  return clamp(base * hintAmount!, 0.01, 1);
+}
+
+function repairRandomizeAmount(value: unknown): RandomizeAmount {
+  return RANDOMIZE_AMOUNTS.includes(value as RandomizeAmount) ? value as RandomizeAmount : "medium";
 }
 
 function decimalPlaces(value: number): number {

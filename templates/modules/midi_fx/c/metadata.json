@@ -1,5 +1,8 @@
 {
   "params": {
     "scale": "Controls the amount or intensity of the MIDI transformation."
+  },
+  "randomize": {
+    "scale": { "min": 0.25, "max": 1.75, "mode": "around_default" }
   }
 }

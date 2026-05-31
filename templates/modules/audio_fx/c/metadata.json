@@ -3,5 +3,10 @@
     "mix": "Sets the wet/dry balance for {{moduleName}}.",
     "drive": "Controls the amount of saturation or nonlinear character.",
     "tone": "Shapes the brightness of the processed signal."
+  },
+  "randomize": {
+    "mix": { "min": 0.15, "max": 0.8, "mode": "bounded" },
+    "drive": { "min": 0, "max": 0.7, "mode": "bounded" },
+    "tone": { "min": 0.15, "max": 0.9, "mode": "bounded" }
   }
 }

@@ -34,6 +34,7 @@ beforeEach(() => {
     selectedParamSnapshot: {},
     topLevelParams: [],
     presets: [],
+    randomizeAmount: "medium",
     bpm: 120,
     error: null
   });

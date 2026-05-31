@@ -93,7 +93,7 @@ Both paths share this loop:
 5. Add the key to every preset in `<id>/presets.json` with a value inside `[min, max]`, then run `mise run gen-presets`.
 6. **Faust only**: run `mise run gen-faust`.
 7. Use the new param in the DSP.
-8. Add a concise tooltip description to `<id>/metadata.json` under `params.<key>`. Do not put local help text in Schwung-facing `module.json` unless Schwung officially supports that field.
+8. Add local audition metadata to `<id>/metadata.json`: a concise tooltip under `params.<key>` and a musical randomization hint under `randomize.<key>`. Keep these ranges inside the legal `module.json` min/max, but narrower when full extremes are only useful for stress testing. Use `mode: "bounded"` for a useful fixed range, `mode: "around_default"` when randomization should stay near the default/current setting, and `mode: "full"` only when the whole legal range is musically useful. Do not put local help text or audition-only randomize hints in Schwung-facing `module.json` unless Schwung officially supports those fields.
 9. Add or extend the assertion in `tests/test_<id>_core.c`.
 10. Run `mise run validate` (param drift + gen drift + preset/UI range).
 
@@ -135,7 +135,7 @@ mise run dev
 
 For AI-assisted iteration: ask for small, contained changes (one filter, one envelope). **Always render and check the plots before judging the sound** — audio bugs are much easier to catch from a deterministic WAV fixture than from code review alone.
 
-Stress renders are generated from `module.json` and cover default, each exposed param at min/max, all-max, and hot/fast cases. They cover sound generators and audio FX; MIDI FX are skipped because they render traces, not WAVs. Stress checks are safety gates, not golden comparisons: clipped samples, excessive DC, unexpected silence, too-hot peaks, and stereo imbalance fail. Use `mise run stress-all` or `mise run plot-stress-all` when auditing the whole audio-module set; expect these commands to expose older modules that need headroom/DC fixes.
+Stress renders are generated from `module.json` and cover default, each exposed param at min/max, all-max, and hot/fast cases. Browser audition randomize is intentionally different: it uses local `metadata.json` randomize hints and a Subtle/Medium/Wild amount to explore musical ranges quickly. Stress still exercises the full legal range. They cover sound generators and audio FX; MIDI FX are skipped because they render traces, not WAVs. Stress checks are safety gates, not golden comparisons: clipped samples, excessive DC, unexpected silence, too-hot peaks, and stereo imbalance fail. Use `mise run stress-all` or `mise run plot-stress-all` when auditing the whole audio-module set; expect these commands to expose older modules that need headroom/DC fixes.
 
 ## Build, package, deploy
 

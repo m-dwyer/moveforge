@@ -3,5 +3,10 @@
     "pattern": "Selects the arpeggio ordering pattern used to emit notes from the held chord.",
     "chord": "Sets how many held chord notes are used by the arpeggiator pattern.",
     "rate": "Controls arpeggiator clock rate. Lower values step more slowly; higher values step faster."
+  },
+  "randomize": {
+    "pattern": { "min": 0, "max": 3, "mode": "bounded" },
+    "chord": { "min": 1, "max": 4, "mode": "bounded" },
+    "rate": { "min": 0.18, "max": 0.75, "mode": "bounded" }
   }
 }

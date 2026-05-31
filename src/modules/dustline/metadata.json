@@ -9,5 +9,16 @@
     "release": "Sets how long the amplitude envelope falls after note-off. Higher values create longer tails and smoother note transitions.",
     "drive": "Adds saturation after filtering. Use it for louder, denser bass and lead tones, but watch output headroom at high values.",
     "bend_range": "Sets pitch-bend depth in semitones for incoming MIDI pitch bend."
+  },
+  "randomize": {
+    "volume": { "min": 0.45, "max": 0.85, "mode": "bounded" },
+    "wave": { "min": 0.05, "max": 0.9, "mode": "bounded" },
+    "noise": { "min": 0, "max": 0.55, "mode": "bounded" },
+    "cutoff": { "min": 0.12, "max": 0.85, "mode": "bounded" },
+    "resonance": { "min": 0, "max": 0.62, "mode": "bounded" },
+    "attack": { "min": 0.001, "max": 0.35, "mode": "around_default" },
+    "release": { "min": 0.08, "max": 2.8, "mode": "around_default" },
+    "drive": { "min": 0, "max": 0.72, "mode": "bounded" },
+    "bend_range": { "min": 0, "max": 7, "mode": "around_default" }
   }
 }

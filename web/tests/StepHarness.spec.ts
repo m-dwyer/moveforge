@@ -70,8 +70,8 @@ test("clicking randomize updates sound params and sends audio param changes", as
 
   await page.getByRole("button", { name: "Randomize" }).click();
 
-  await expect.poll(() => useStore.getState().topLevelParams.find((p) => p.key === "fold")?.value).toBe(0.5);
-  expect(audioCalls().some((call) => call.kind === "sendParamToSlot" && call.key === "fold" && call.value === 0.5)).toBe(true);
+  await expect.poll(() => useStore.getState().topLevelParams.find((p) => p.key === "fold")?.value).toBe(0.35);
+  expect(audioCalls().some((call) => call.kind === "sendParamToSlot" && call.key === "fold" && call.value === 0.35)).toBe(true);
 });
 
 test("custom steps can still be programmed", async () => {

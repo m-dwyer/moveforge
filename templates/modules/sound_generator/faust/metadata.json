@@ -1,5 +1,8 @@
 {
   "params": {
     "level": "Sets the final output level for {{moduleName}}."
+  },
+  "randomize": {
+    "level": { "min": 0.45, "max": 0.85, "mode": "around_default" }
   }
 }

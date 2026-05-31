@@ -2,5 +2,9 @@
   "params": {
     "volume": "Sets the final output level for {{moduleName}}.",
     "tone": "Shapes the brightness or character of {{moduleName}}."
+  },
+  "randomize": {
+    "volume": { "min": 0.45, "max": 0.85, "mode": "around_default" },
+    "tone": { "min": 0.15, "max": 0.9, "mode": "bounded" }
   }
 }

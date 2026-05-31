@@ -1,4 +1,4 @@
-import { trackSlotKey, useStore, selectSelectedSlot } from "@/store";
+import { RANDOMIZE_AMOUNTS, trackSlotKey, useStore, selectSelectedSlot, type RandomizeAmount } from "@/store";
 import { cn } from "@/lib/utils";
 
 export function Presets() {
@@ -15,7 +15,9 @@ export function Presets() {
   const selectedSlot = useStore((s) => s.slotPreset[trackSlotKey(trackIndex, slot.id)]);
   const applyTopLevel = useStore((s) => s.applyPreset);
   const applySlot = useStore((s) => s.applySlotPreset);
+  const randomizeAmount = useStore((s) => s.randomizeAmount);
   const randomizeSelectedSlotParams = useStore((s) => s.randomizeSelectedSlotParams);
+  const setRandomizeAmount = useStore((s) => s.setRandomizeAmount);
 
   const presets = isSound ? topLevelPresets : slotPresets ?? [];
   const selected = isSound ? selectedTopLevel : selectedSlot;
@@ -37,6 +39,19 @@ export function Presets() {
       >
         Randomize
       </button>
+      <select
+        aria-label="Randomize amount"
+        value={randomizeAmount}
+        onChange={(e) => setRandomizeAmount(e.target.value as RandomizeAmount)}
+        className="h-[26px] rounded border border-line bg-panel-2 px-2 text-xs font-medium text-muted focus:outline-none focus:ring-1 focus:ring-accent"
+        title="Controls how far audition randomize moves from the current sound"
+      >
+        {RANDOMIZE_AMOUNTS.map((amount) => (
+          <option key={amount} value={amount}>
+            {amountLabel(amount)}
+          </option>
+        ))}
+      </select>
       {presets.map((p) => (
         <button
           key={p.name}
@@ -53,4 +68,10 @@ export function Presets() {
       ))}
     </div>
   );
+}
+
+function amountLabel(amount: RandomizeAmount): string {
+  if (amount === "subtle") return "Subtle";
+  if (amount === "wild") return "Wild";
+  return "Medium";
 }

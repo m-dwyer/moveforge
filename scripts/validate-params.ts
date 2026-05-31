@@ -46,6 +46,16 @@ type PresetsJson = {
   }>;
 };
 
+type MetadataJson = {
+  params?: Record<string, string>;
+  randomize?: Record<string, {
+    amount?: number;
+    max?: number;
+    min?: number;
+    mode?: string;
+  }>;
+};
+
 type ValidationGroup = {
   errors: string[];
   moduleId: string;
@@ -59,6 +69,7 @@ const VALID_COMPONENT_TYPES = new Set([
   "tool",
   "overtake"
 ]);
+const VALID_RANDOMIZE_MODES = new Set(["around_default", "bounded", "full"]);
 
 const moduleIds = await selectedModuleIds();
 const allErrors: ValidationGroup[] = [];
@@ -97,6 +108,7 @@ async function validateIndex(moduleIds: string[]): Promise<void> {
 async function validateModule(moduleId: string, errors: string[]): Promise<void> {
   const paths = modulePaths(moduleId);
   const moduleJson = await readJson<ModuleJson>(paths.moduleJson);
+  const metadataJson = await readJson<MetadataJson>(`${paths.moduleDir}/metadata.json`).catch(() => ({}));
   const presetsJson = await readJson<PresetsJson>(paths.presets).catch(() => ({ presets: [] }) as PresetsJson);
 
   if (moduleJson.id !== moduleId) {
@@ -132,6 +144,7 @@ async function validateModule(moduleId: string, errors: string[]): Promise<void>
     validateParams(moduleId, params, errors);
     validateGenInc(moduleId, errors);
     validatePresets(presetsJson, params, errors);
+    validateMetadata(moduleId, metadataJson, params, errors);
     validateCoreStruct(moduleId, params, await readFile(paths.coreHeader, "utf8"), errors);
     const knobs = caps.ui_hierarchy?.levels?.root?.knobs || [];
     const paramKeys = new Set(params.map((p) => p.key));
@@ -140,6 +153,47 @@ async function validateModule(moduleId: string, errors: string[]): Promise<void>
     }
   } else if (caps.component_type === "sound_generator" || caps.component_type === "audio_fx") {
     errors.push(`module.json is missing capabilities.ui_hierarchy.levels.root.params`);
+  }
+}
+
+function validateMetadata(moduleId: string, metadataJson: MetadataJson, params: Param[], errors: string[]): void {
+  const paramKeys = new Set(params.map((p) => p.key));
+  const paramByKey = new Map(params.map((p) => [p.key, p]));
+  for (const key of Object.keys(metadataJson.params || {})) {
+    if (!paramKeys.has(key)) errors.push(`metadata.json params.${key} is not a declared param`);
+  }
+
+  const randomize = metadataJson.randomize || {};
+  for (const param of params) {
+    if (!randomize[param.key]) {
+      errors.push(`metadata.json randomize.${param.key} is missing`);
+    }
+  }
+  for (const [key, hint] of Object.entries(randomize)) {
+    const param = paramByKey.get(key);
+    if (!param) {
+      errors.push(`metadata.json randomize.${key} is not a declared param`);
+      continue;
+    }
+    if (hint.mode !== undefined && !VALID_RANDOMIZE_MODES.has(hint.mode)) {
+      errors.push(`metadata.json randomize.${key}.mode must be around_default, bounded, or full`);
+    }
+    const min = hint.min;
+    const max = hint.max;
+    if (min !== undefined && typeof min !== "number") errors.push(`metadata.json randomize.${key}.min must be a number`);
+    if (max !== undefined && typeof max !== "number") errors.push(`metadata.json randomize.${key}.max must be a number`);
+    if (typeof min === "number" && (min < param.min || min > param.max)) {
+      errors.push(`metadata.json randomize.${key}.min ${min} outside param range [${param.min}, ${param.max}]`);
+    }
+    if (typeof max === "number" && (max < param.min || max > param.max)) {
+      errors.push(`metadata.json randomize.${key}.max ${max} outside param range [${param.min}, ${param.max}]`);
+    }
+    if (typeof min === "number" && typeof max === "number" && min >= max) {
+      errors.push(`metadata.json randomize.${key}: min ${min} must be < max ${max}`);
+    }
+    if (hint.amount !== undefined && (typeof hint.amount !== "number" || hint.amount <= 0 || hint.amount > 1)) {
+      errors.push(`metadata.json randomize.${key}.amount must be > 0 and <= 1`);
+    }
   }
 }
 

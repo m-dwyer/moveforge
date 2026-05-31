@@ -16,9 +16,17 @@ export type ParamDefinition = {
   max: number;
   min: number;
   description?: string;
+  randomize?: RandomizeHint;
   step?: number;
   type?: string;
   value: number;
+};
+
+export type RandomizeHint = {
+  amount?: number;
+  max?: number;
+  min?: number;
+  mode?: "around_default" | "bounded" | "full";
 };
 
 type RawParam = {
@@ -60,6 +68,7 @@ export type PresetsJson = {
 
 export type MetadataJson = {
   params?: Record<string, string>;
+  randomize?: Record<string, RandomizeHint>;
 };
 
 export type LoadedModuleMetadata = {
@@ -76,7 +85,7 @@ export async function loadModuleMetadata(moduleId: string): Promise<LoadedModule
     loadJson<PresetsJson>(`/modules/${moduleId}/presets.json`),
     loadOptionalJson<MetadataJson>(`/modules/${moduleId}/metadata.json`)
   ]);
-  const params = paramsFromModuleJson(moduleJson, metadataJson?.params ?? {});
+  const params = paramsFromModuleJson(moduleJson, metadataJson?.params ?? {}, metadataJson?.randomize ?? {});
   return {
     moduleJson,
     paramIds: Object.fromEntries(params.map((param) => [param.key, param.id])),
@@ -128,7 +137,11 @@ function looksLikeWasm(bytes: ArrayBuffer): boolean {
   return header.length === 4 && header[0] === 0x00 && header[1] === 0x61 && header[2] === 0x73 && header[3] === 0x6d;
 }
 
-function paramsFromModuleJson(moduleJson: ModuleMetadataJson, descriptions: Record<string, string>): ParamDefinition[] {
+function paramsFromModuleJson(
+  moduleJson: ModuleMetadataJson,
+  descriptions: Record<string, string>,
+  randomizeHints: Record<string, RandomizeHint>
+): ParamDefinition[] {
   const raw = moduleJson.capabilities?.ui_hierarchy?.levels?.root?.params ?? [];
   return raw.map((item, index) => ({
     default: item.default,
@@ -138,6 +151,7 @@ function paramsFromModuleJson(moduleJson: ModuleMetadataJson, descriptions: Reco
     max: item.max,
     min: item.min,
     description: descriptions[item.key],
+    randomize: randomizeHints[item.key],
     step: item.step,
     type: item.type,
     value: item.default
