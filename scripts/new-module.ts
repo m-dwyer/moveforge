@@ -87,11 +87,18 @@ const context: TemplateContext = {
 const renderedFiles = await renderTemplateTree({
   context,
   dryRun,
+  includeRelativePath: (rel) => rel !== "ui_chain.js",
   sourceDir: templateDir,
   targetForRelativePath: (rel) => rel.startsWith("tests/")
     ? join("tests", rel.slice("tests/".length))
     : join(targetDir, rel)
 });
+const generatedFiles = [
+  `${targetDir}/dsp/${id}_params.gen.inc`,
+  `${targetDir}/dsp/${id}_presets.gen.inc`,
+  ...(dsp === "faust" ? [`${targetDir}/dsp/${id}_faust.c`] : []),
+  `${targetDir}/ui_chain.js`
+];
 
 if (!dryRun) {
   await generateParams({ moduleIds: [id], mode: "write" });
@@ -103,6 +110,8 @@ if (!dryRun) {
 
 console.log(`${dryRun ? "would scaffold" : "scaffolded"} ${renderedFiles.length} files from ${templateDir}:`);
 for (const f of renderedFiles) console.log(`  ${f.targetPath}`);
+console.log(`${dryRun ? "would generate" : "generated"} ${generatedFiles.length} files from module metadata:`);
+for (const f of generatedFiles) console.log(`  ${f}`);
 if (dryRun) exit(0);
 console.log(`\nnext steps:`);
 if (dsp === "faust") {

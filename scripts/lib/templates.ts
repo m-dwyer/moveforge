@@ -13,12 +13,14 @@ const TOKEN = /\{\{\s*([a-zA-Z0-9_]+)\s*\}\}/g;
 export async function renderTemplateTree(options: {
   context: TemplateContext;
   dryRun?: boolean;
+  includeRelativePath?: (relativePath: string) => boolean;
   sourceDir: string;
   targetForRelativePath: (relativePath: string) => string;
 }): Promise<RenderedTemplateFile[]> {
   const rendered: RenderedTemplateFile[] = [];
   for await (const sourcePath of walk(options.sourceDir)) {
     const rel = relative(options.sourceDir, sourcePath);
+    if (options.includeRelativePath && !options.includeRelativePath(rel)) continue;
     const renderedRel = renderTemplateString(rel, options.context);
     const targetPath = options.targetForRelativePath(renderedRel);
     const content = await readFile(sourcePath, "utf8");
