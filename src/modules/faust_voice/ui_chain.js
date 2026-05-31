@@ -317,7 +317,7 @@ function onMidiMessageInternal(data) {
     const d1 = data[1];
     const d2 = data[2];
 
-    if (mode === "params" && (statusType === MidiNoteOn || statusType === MidiNoteOff)) {
+    if (statusType === MidiNoteOn || statusType === MidiNoteOff) {
         for (let k = 0; k < ENCODER_COUNT; k++) {
             if (d1 === KNOB_TOUCHES[k]) {
                 const touchOn = statusType === MidiNoteOn && d2 > 0;
