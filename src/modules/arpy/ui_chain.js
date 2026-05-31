@@ -10,9 +10,12 @@
  */
 
 import {
+    MidiNoteOff, MidiNoteOn,
     MoveMainButton, MoveMainKnob,
     MoveKnob1, MoveKnob2, MoveKnob3, MoveKnob4,
-    MoveKnob5, MoveKnob6, MoveKnob7, MoveKnob8
+    MoveKnob5, MoveKnob6, MoveKnob7, MoveKnob8,
+    MoveKnob1Touch, MoveKnob2Touch, MoveKnob3Touch, MoveKnob4Touch,
+    MoveKnob5Touch, MoveKnob6Touch, MoveKnob7Touch, MoveKnob8Touch
 } from '/data/UserData/schwung/shared/constants.mjs';
 
 import { decodeDelta } from '/data/UserData/schwung/shared/input_filter.mjs';
@@ -29,6 +32,11 @@ const ENCODER_COUNT = 8;
 const KNOBS = [
     MoveKnob1, MoveKnob2, MoveKnob3, MoveKnob4,
     MoveKnob5, MoveKnob6, MoveKnob7, MoveKnob8
+];
+
+const KNOB_TOUCHES = [
+    MoveKnob1Touch, MoveKnob2Touch, MoveKnob3Touch, MoveKnob4Touch,
+    MoveKnob5Touch, MoveKnob6Touch, MoveKnob7Touch, MoveKnob8Touch
 ];
 
 const PARAMS = [
@@ -134,11 +142,16 @@ function setEncoderPage(page) {
 
 function fetchParams() {
     for (let i = 0; i < PARAMS.length; i++) {
-        const val = host_module_get_param(PARAMS[i].key);
-        if (val !== null && val !== undefined) {
-            const f = parseFloat(val);
-            if (!isNaN(f)) paramValues[i] = f;
-        }
+        fetchParam(i);
+    }
+}
+
+function fetchParam(index) {
+    if (index < 0 || index >= PARAMS.length) return;
+    const val = host_module_get_param(PARAMS[index].key);
+    if (val !== null && val !== undefined) {
+        const f = parseFloat(val);
+        if (!isNaN(f)) paramValues[index] = f;
     }
 }
 
@@ -163,6 +176,26 @@ function setParam(index, value) {
 
 function adjustParam(index, delta) {
     setParam(index, paramValues[index] + delta * PARAMS[index].step);
+    needsRedraw = true;
+}
+
+function encoderParamIndex(k) {
+    const knobIndex = pageStart() + k;
+    return KNOB_PARAM_INDEXES[knobIndex];
+}
+
+function formatParamValue(index) {
+    fetchParam(index);
+    return paramValues[index].toFixed(PARAMS[index].dec);
+}
+
+function setEncoderHint(k, paramIndex, includeValue) {
+    if (paramIndex !== undefined && paramIndex < PARAMS.length) {
+        lastEncoderLabel = "K" + String(k + 1) + " " + PARAMS[paramIndex].name;
+        if (includeValue) lastEncoderLabel += " " + formatParamValue(paramIndex);
+    } else {
+        lastEncoderLabel = "K" + String(k + 1) + " --";
+    }
     needsRedraw = true;
 }
 
@@ -251,9 +284,9 @@ function drawUI() {
         prioritizeSelectedValue: true,
         selectedMinLabelChars: 6
     });
-    drawFooter(isBankRow(selectedIndex)
-        ? {left: "Click: bank", right: lastEncoderLabel || "Knobs: adjust"}
-        : (editMode ? {left: "Click: done", right: "Jog: adjust"} : {left: "Click: edit", right: lastEncoderLabel || "Knobs: adjust"}));
+    drawFooter(lastEncoderLabel || (isBankRow(selectedIndex)
+        ? "Click: bank"
+        : (editMode ? {left: "Click: done", right: "Jog: adjust"} : "Click: edit")));
 
     needsRedraw = false;
 }
@@ -275,9 +308,26 @@ function tick() {
 
 function onMidiMessageInternal(data) {
     const status = data[0];
+    const statusType = status & 0xF0;
     const d1 = data[1];
     const d2 = data[2];
-    if ((status & 0xF0) !== 0xB0) return;
+
+    if (mode === "params" && (statusType === MidiNoteOn || statusType === MidiNoteOff)) {
+        for (let k = 0; k < ENCODER_COUNT; k++) {
+            if (d1 === KNOB_TOUCHES[k]) {
+                const touchOn = statusType === MidiNoteOn && d2 > 0;
+                const touchOff = statusType === MidiNoteOff || (statusType === MidiNoteOn && d2 === 0);
+                if (touchOn) {
+                    setEncoderHint(k, encoderParamIndex(k), true);
+                } else if (touchOff) {
+                    needsRedraw = true;
+                }
+                return;
+            }
+        }
+    }
+
+    if (statusType !== 0xB0) return;
 
     if (d1 === MoveMainButton && d2 > 0) {
         if (mode === "params") toggleEditMode();
@@ -307,22 +357,19 @@ function onMidiMessageInternal(data) {
     }
 
     /* The 8 parameter encoders adjust the active module.json knob bank. */
-    const start = pageStart();
     for (let k = 0; k < ENCODER_COUNT; k++) {
         if (d1 === KNOBS[k]) {
-            const knobIndex = start + k;
-            const paramIndex = KNOB_PARAM_INDEXES[knobIndex];
+            const paramIndex = encoderParamIndex(k);
             const delta = decodeDelta(d2);
             if (delta !== 0 && paramIndex !== undefined && paramIndex < PARAMS.length) {
-                lastEncoderLabel = "K" + String(k + 1) + " " + PARAMS[paramIndex].name;
                 if (!isBankRow(selectedIndex)) {
                     selectedIndex = displayIndexForParam(paramIndex);
                 }
                 editMode = false;
                 adjustParam(paramIndex, delta);
+                setEncoderHint(k, paramIndex, true);
             } else if (delta !== 0) {
-                lastEncoderLabel = "K" + String(k + 1) + " --";
-                needsRedraw = true;
+                setEncoderHint(k, paramIndex, false);
             }
             return;
         }
