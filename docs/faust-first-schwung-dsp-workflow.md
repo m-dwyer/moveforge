@@ -82,7 +82,7 @@ MODULE_ID=<id> ./scripts/build.sh
 And eventually:
 
 ```bash
-MODULE_ID=<id> ./scripts/install-to-move.sh
+MODULE_ID=<id> mise run install
 ```
 
 ## Scaffolding

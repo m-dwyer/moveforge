@@ -212,7 +212,7 @@ where `<kind>` is `sound_generators`, `audio_fx`, or `midi_fx` matching the modu
 Once you have a Move with Schwung installed:
 
 ```bash
-./scripts/install-to-move.sh
+mise run install
 ```
 
 The script builds first, then copies `dist/<id>/` to `ableton@move.local`.
@@ -271,6 +271,7 @@ Individual gates:
 | `mise run plot-stress-all` | Generate stress plots across all sound generators and audio FX |
 | `mise run host` | Build host-only `.so` for local compile sanity |
 | `mise run move` | Cross-compile aarch64 `.so` + dist tarball for all modules, or one module with `MODULE_ID=<id>` |
+| `mise run install` | Build and install module package(s) to Ableton Move |
 | `mise run wasm` | Emscripten-compile browser `.wasm` |
 | `mise run web` / `mise run dev` | WASM + Vite browser UI at `http://localhost:8765/` |
 | `mise run clean` | Remove build outputs, rendered plots, and browser WASM artifacts |

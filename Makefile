@@ -1,4 +1,4 @@
-.PHONY: render suite stress stress-all plot plot-stress plot-stress-all test host move wasm deploy gen-params gen-presets move-health move-logs move-cache move-restart move-screen check check-all dev-deps clean
+.PHONY: render suite stress stress-all plot plot-stress plot-stress-all test host move wasm install deploy gen-params gen-presets move-health move-logs move-cache move-restart move-screen check check-all dev-deps clean
 
 render:
 	./scripts/render-demo.sh
@@ -32,6 +32,9 @@ host:
 
 move:
 	./scripts/build.sh
+
+install:
+	./scripts/install-to-move.sh
 
 wasm:
 	./scripts/build-wasm.sh

@@ -137,7 +137,7 @@ dist/<module-id>-module.tar.gz
 Device install loop:
 
 ```bash
-./scripts/install-to-move.sh
+mise run install
 ```
 
 By default this builds first, then copies `dist/<module-id>/` to `ableton@move.local:/data/UserData/schwung/modules/<kind>/` where `<kind>` is inferred from `module.json` (`sound_generators`, `audio_fx`, or `midi_fx`).
@@ -145,7 +145,7 @@ By default this builds first, then copies `dist/<module-id>/` to `ableton@move.l
 Override the target with `MOVE_HOST`, for example:
 
 ```bash
-MOVE_HOST=ableton@192.168.1.42 ./scripts/install-to-move.sh
+MOVE_HOST=ableton@192.168.1.42 mise run install
 ```
 
 ## Development Conventions

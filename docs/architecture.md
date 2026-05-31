@@ -139,7 +139,7 @@ fixtures + browser preset row + on-device preset list all read it.
 ### Move device deploy
 
 1. `mise run move` builds the aarch64 module (`dist/<id>/`).
-2. `./scripts/install-to-move.sh` copies to `ableton@move.local:/data/UserData/schwung/modules/...`
+2. `mise run install` copies to `ableton@move.local:/data/UserData/schwung/modules/...`
 3. Move's Schwung runtime loads the same wrapper + core via the
    `plugin_api_v2_t` / `audio_fx_api_v2_t` / `midi_fx_api_v1_t` ABI.
 4. UI on the OLED comes from `src/modules/<id>/ui.js` (solo mode) and

@@ -119,16 +119,16 @@ if (kind === "sound_generator") {
   console.log(`  6. MODULE_ID=${id} mise run suite && MODULE_ID=${id} pnpm run bless-renders`);
   console.log(`  7. MODULE_ID=${id} mise run stress`);
   console.log(`  8. MODULE_ID=${id} mise run wasm && mise run dev  (then choose ${id} in the Module selector)`);
-  console.log(`  9. deploy with MODULE_ID=${id} ./scripts/install-to-move.sh`);
+  console.log(`  9. deploy with MODULE_ID=${id} mise run install`);
 } else if (kind === "audio_fx") {
   console.log(`  6. MODULE_ID=${id} mise run suite && MODULE_ID=${id} pnpm run bless-renders`);
   console.log(`  7. MODULE_ID=${id} mise run stress`);
   console.log(`  8. MODULE_ID=${id} mise run wasm && mise run dev  (route audio into ${id} in the chain)`);
-  console.log(`  9. deploy with MODULE_ID=${id} ./scripts/install-to-move.sh`);
+  console.log(`  9. deploy with MODULE_ID=${id} mise run install`);
 } else {
   console.log(`  6. MODULE_ID=${id} mise run suite && MODULE_ID=${id} pnpm run bless-renders  (compares MIDI traces)`);
   console.log(`  7. MODULE_ID=${id} mise run wasm  (browser audition needs a downstream synth in the chain)`);
-  console.log(`  8. deploy with MODULE_ID=${id} ./scripts/install-to-move.sh`);
+  console.log(`  8. deploy with MODULE_ID=${id} mise run install`);
 }
 
 function parseArgs(list: string[]): Record<string, string | true> {

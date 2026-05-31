@@ -48,7 +48,7 @@ Use this loop for quick sound-design changes before building a Move package.
 mise run deploy
 ```
 
-This runs the core DSP tests, renders the preset suite, builds the host library, then builds and installs the Move package via `scripts/install-to-move.sh`.
+This runs the core DSP tests, renders the preset suite, builds the host library, then builds and installs the Move package.
 
 Set the target with:
 

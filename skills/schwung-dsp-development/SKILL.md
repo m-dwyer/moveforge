@@ -150,7 +150,7 @@ MODULE_ID=<id> mise run move
 # The tarball includes module.json, ui.js, ui_chain.js, presets.json, dsp.so
 
 # Deploy to a real device (only when the user has hardware and asks)
-MODULE_ID=<id> ./scripts/install-to-move.sh
+MODULE_ID=<id> mise run install
 # COMPONENT_TYPE is inferred from module.json. Override with COMPONENT_TYPE=...
 ```
 

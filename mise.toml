@@ -83,6 +83,10 @@ run = "make host"
 description = "Build aarch64 Move-target module package"
 run = "make move"
 
+[tasks.install]
+description = "Build and install module package to Ableton Move"
+run = "make install"
+
 [tasks.wasm]
 description = "Build browser WASM synth"
 run = "make wasm"
