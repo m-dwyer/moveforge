@@ -49,6 +49,15 @@ static float smooth_param(float current, float target)
     return current + (target - current) * 0.0045f;
 }
 
+static float smooth_volume(float current, float target)
+{
+    float coeff = target <= 0.000001f ? 0.08f : 0.0045f;
+    float next = current + (target - current) * coeff;
+    if (target <= 0.000001f && next < 0.000001f)
+        return 0.0f;
+    return next;
+}
+
 static int state_is_bad(float x)
 {
     return !(x == x) || x > 1.0e6f || x < -1.0e6f;
@@ -184,7 +193,7 @@ void westfold_process_float(westfold_core_t *s,
 
     for (int i = 0; i < frames; i++)
     {
-        s->volume_sm = smooth_param(s->volume_sm, s->volume);
+        s->volume_sm = smooth_volume(s->volume_sm, s->volume);
         s->ratio_sm = smooth_param(s->ratio_sm, s->ratio);
         s->fm_sm = smooth_param(s->fm_sm, s->fm);
         s->fold_sm = smooth_param(s->fold_sm, s->fold);
@@ -246,7 +255,8 @@ void westfold_process_float(westfold_core_t *s,
         float color = s->tone_sm * s->tone_sm * s->tone_sm;
         float direct = color * (0.12f + s->lpg_sm * 0.42f);
         float colored = s->lp * (1.0f - direct * 0.25f) + shaped * direct;
-        float amp = s->volume_sm * (0.12f + 0.88f * s->velocity) * amp_env;
+        float output_gain = s->volume_sm;
+        float amp = (0.12f + 0.88f * s->velocity) * amp_env;
         float driven = tanhf(colored * (1.1f + s->drive_sm * 5.5f));
         float y = driven * amp * (1.0f + s->drive_sm * 0.3f);
 
@@ -255,8 +265,8 @@ void westfold_process_float(westfold_core_t *s,
         s->hp_y = hp;
         float bass_safe = moveforge_clampf((s->freq - 55.0f) / 220.0f, 0.18f, 1.0f);
         float side = (shaped - colored) * (s->chaos_sm * 0.45f + s->width_sm * 1.35f) + tri_mod * s->strike_env * s->strike * 0.32f;
-        float spread = s->width_sm * amp_env * bass_safe * side;
-        left[i] = tanhf((hp - spread) * 1.18f);
-        right[i] = tanhf((hp + spread) * 1.18f);
+        float spread = output_gain * s->width_sm * amp_env * bass_safe * side;
+        left[i] = tanhf(((hp * output_gain) - spread) * 1.18f);
+        right[i] = tanhf(((hp * output_gain) + spread) * 1.18f);
     }
 }

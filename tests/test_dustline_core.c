@@ -51,6 +51,24 @@ int main(void) {
     require_true(peak > 0.001f, "note-on render is not silent");
     require_true(energy > 0.01, "note-on render has energy");
 
+    dustline_set_param(&synth, volume_id, 0.0f);
+    dustline_process_float(&synth, NULL, NULL, left, right, FRAMES);
+    float muted_peak = 0.0f;
+    double muted_energy = 0.0;
+    for (int i = 0; i < FRAMES; i++) {
+        require_true(isfinite(left[i]) && isfinite(right[i]), "muted output is finite");
+        float l = absf_local(left[i]);
+        float r = absf_local(right[i]);
+        if (l > muted_peak) muted_peak = l;
+        if (r > muted_peak) muted_peak = r;
+        muted_energy += (double)left[i] * (double)left[i] + (double)right[i] * (double)right[i];
+    }
+    require_true(muted_peak < 0.0001f, "volume zero mutes held note output");
+    require_true(muted_energy < 0.000001, "volume zero removes held note energy");
+
+    dustline_set_param(&synth, volume_id, 0.8f);
+    dustline_process_float(&synth, NULL, NULL, left, right, FRAMES);
+
     dustline_note_off(&synth, 60);
     float before = synth.env;
     dustline_process_float(&synth, NULL, NULL, left, right, FRAMES);

@@ -1,6 +1,6 @@
 {
   "params": {
-    "volume": "Sets the final output level for {{moduleName}}.",
+    "volume": "Sets the final output level for {{moduleName}}. At 0.00 it mutes the voice.",
     "tone": "Shapes the brightness or character of {{moduleName}}."
   },
   "randomize": {

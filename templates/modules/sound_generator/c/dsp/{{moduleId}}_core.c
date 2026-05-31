@@ -59,9 +59,10 @@ void {{moduleId}}_process_float({{moduleId}}_core_t *s,
 
         float carrier = sinf(MOVEFORGE_TWO_PI * s->phase);
         float shaped = carrier * (1.0f - s->tone) + tanhf(carrier * (1.0f + s->tone * 4.0f)) * s->tone;
-        float amp = s->volume * (0.2f + 0.8f * s->velocity) * s->env;
+        float output_gain = s->volume;
+        float amp = (0.2f + 0.8f * s->velocity) * s->env;
         float y = shaped * amp;
-        out_left[i] = y;
-        out_right[i] = y;
+        out_left[i] = y * output_gain;
+        out_right[i] = y * output_gain;
     }
 }

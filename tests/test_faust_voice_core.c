@@ -54,6 +54,14 @@ int main(void) {
     double r1 = rms(out_l, FRAMES);
     require_true(r1 > 0.01, "signal present while gate is open");
 
+    faust_voice_set_param(&v, faust_voice_param_id("level"), 0.0f);
+    faust_voice_process_float(&v, in_l, in_r, out_l, out_r, FRAMES);
+    require_true(rms(out_l, FRAMES) < 1e-4, "level zero mutes held note output");
+    require_true(rms(out_r, FRAMES) < 1e-4, "level zero mutes held note right output");
+
+    faust_voice_set_param(&v, faust_voice_param_id("level"), 0.8f);
+    faust_voice_process_float(&v, in_l, in_r, out_l, out_r, FRAMES);
+
     for (int i = 0; i < FRAMES; i++) {
         require_true(isfinite(out_l[i]) && isfinite(out_r[i]), "output finite");
         require_true(out_l[i] <= 1.5f && out_l[i] >= -1.5f, "output bounded");

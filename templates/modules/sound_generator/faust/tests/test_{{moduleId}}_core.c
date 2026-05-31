@@ -50,6 +50,14 @@ int main(void) {
     double r1 = rms(out_l, FRAMES);
     require_true(r1 > 0.01, "signal present while gate is open");
 
+    {{moduleId}}_set_param(&v, level_id, 0.0f);
+    {{moduleId}}_process_float(&v, NULL, NULL, out_l, out_r, FRAMES);
+    require_true(rms(out_l, FRAMES) < 1e-4, "level zero mutes held note output");
+    require_true(rms(out_r, FRAMES) < 1e-4, "level zero mutes held note right output");
+
+    {{moduleId}}_set_param(&v, level_id, 0.8f);
+    {{moduleId}}_process_float(&v, NULL, NULL, out_l, out_r, FRAMES);
+
     for (int i = 0; i < FRAMES; i++) {
         require_true(isfinite(out_l[i]) && isfinite(out_r[i]), "output finite");
         require_true(out_l[i] <= 1.0f && out_l[i] >= -1.0f, "left output bounded");

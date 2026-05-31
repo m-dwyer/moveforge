@@ -142,6 +142,7 @@ async function validateModule(moduleId: string, errors: string[]): Promise<void>
   const params = caps.ui_hierarchy?.levels?.root?.params;
   if (params) {
     validateParams(moduleId, params, errors);
+    validateSoundGeneratorLevelParams(caps.component_type, params, errors);
     validateGenInc(moduleId, errors);
     validatePresets(presetsJson, params, errors);
     validateMetadata(moduleId, metadataJson, params, errors);
@@ -153,6 +154,16 @@ async function validateModule(moduleId: string, errors: string[]): Promise<void>
     }
   } else if (caps.component_type === "sound_generator" || caps.component_type === "audio_fx") {
     errors.push(`module.json is missing capabilities.ui_hierarchy.levels.root.params`);
+  }
+}
+
+function validateSoundGeneratorLevelParams(componentType: string | undefined, params: Param[], errors: string[]): void {
+  if (componentType !== "sound_generator") return;
+  for (const param of params) {
+    if (!/^(volume|level)$/i.test(param.key)) continue;
+    if (param.min !== 0) {
+      errors.push(`sound generator param ${param.key}: min must be 0 so stress renders can treat it as silence-capable`);
+    }
   }
 }
 
