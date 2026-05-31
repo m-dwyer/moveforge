@@ -54,6 +54,7 @@ export type StoreActions = {
   setTopLevelParam: (key: string, value: number) => void;
   setSlotParam: (trackIndex: number, slotIndex: number, key: string, value: number) => void;
   setPadLayout: (layout: AppState["padLayout"]) => void;
+  setPadActive: (padIndex: number, active: boolean) => void;
   setRoot: (root: number) => void;
   setScale: (scale: ScaleName) => void;
   setOctave: (octave: number) => void;
@@ -81,6 +82,7 @@ export type StoreActions = {
   setAuditionPattern: (pattern: AuditionPatternName) => void;
   setAuditionLength: (length: 8 | 16 | 32) => void;
   setAuditionGate: (gate: number) => void;
+  setAuditionTranspose: (transpose: number) => void;
   setAuditionVelocity: (velocity: number) => void;
   resetUiState: () => void;
 };
@@ -298,6 +300,21 @@ export const useStore = create<Store>()(
       set((draft) => {
         draft.padLayout = layout;
       }),
+
+    setPadActive: (padIndex, active) => {
+      const next = new Map(get().activePads);
+      const count = next.get(padIndex) ?? 0;
+      if (active) {
+        next.set(padIndex, count + 1);
+      } else if (count <= 1) {
+        next.delete(padIndex);
+      } else {
+        next.set(padIndex, count - 1);
+      }
+      set((draft) => {
+        draft.activePads = next;
+      });
+    },
 
     setRoot: (root) =>
       set((draft) => {
@@ -544,6 +561,12 @@ export const useStore = create<Store>()(
         currentTrack(draft).audition.gate = draft.audition.gate;
       }),
 
+    setAuditionTranspose: (transpose) =>
+      set((draft) => {
+        draft.audition.transpose = clamp(Math.round(transpose), -24, 24);
+        currentTrack(draft).audition.transpose = draft.audition.transpose;
+      }),
+
     setAuditionVelocity: (velocity) =>
       set((draft) => {
         draft.audition.velocity = Math.max(0.05, Math.min(1, velocity));
@@ -610,7 +633,8 @@ export const useStore = create<Store>()(
         return {
           ...current,
           ...saved,
-          audition: { ...makeDefaultAudition(), ...saved.audition },
+          audition: repairAudition(saved.audition),
+          activePads: new Map(),
           customCopySteps: repairSteps(saved.customCopySteps, current.customCopySteps),
           error: null,
           masterVolume: clamp(saved.masterVolume ?? current.masterVolume, 0, 1),
@@ -619,6 +643,7 @@ export const useStore = create<Store>()(
           playStep: -1,
           playing: false,
           randomizeAmount: repairRandomizeAmount(saved.randomizeAmount),
+          scale: repairScaleName(saved.scale),
           steps: repairSteps(saved.steps, current.steps),
           slotMeta: {},
           tracks: repairTracks(saved.tracks, current.tracks)
@@ -677,7 +702,7 @@ function repairTracks(savedTracks: Store["tracks"] | undefined, fallback: Store[
       ...fallbackTrack,
       ...saved,
       activeNotes: new Map(),
-      audition: { ...fallbackTrack.audition, ...saved.audition },
+      audition: repairAudition(saved.audition, fallbackTrack.audition),
       customCopySteps: repairSteps(saved.customCopySteps, fallbackTrack.customCopySteps),
       moveEchoEvents: []
     };
@@ -696,6 +721,61 @@ function repairSteps(savedSteps: StepState[] | undefined, fallback: StepState[])
     };
   });
   return repaired;
+}
+
+function repairAudition(saved: Partial<Store["audition"]> | undefined, fallback = makeDefaultAudition()): Store["audition"] {
+  return {
+    ...fallback,
+    ...saved,
+    gate: clamp(saved?.gate ?? fallback.gate, 0.05, 1),
+    length: repairAuditionLength(saved?.length, fallback.length),
+    pattern: repairAuditionPattern(saved?.pattern, fallback.pattern),
+    transpose: clamp(Math.round(saved?.transpose ?? fallback.transpose), -24, 24),
+    velocity: clamp(saved?.velocity ?? fallback.velocity, 0.05, 1)
+  };
+}
+
+function repairAuditionLength(value: unknown, fallback: 8 | 16 | 32): 8 | 16 | 32 {
+  return value === 8 || value === 16 || value === 32 ? value : fallback;
+}
+
+function repairAuditionPattern(value: unknown, fallback: AuditionPatternName): AuditionPatternName {
+  const allowed: AuditionPatternName[] = [
+    "custom",
+    "custom_copy",
+    "bass_pulse",
+    "octave_bounce",
+    "drone_hold",
+    "chord_stab",
+    "velocity_ramp",
+    "acid_line",
+    "minor_hook",
+    "fifths",
+    "syncopated_stab"
+  ];
+  return allowed.includes(value as AuditionPatternName) ? value as AuditionPatternName : fallback;
+}
+
+function repairScaleName(value: unknown): ScaleName {
+  if (value === "minor") return "natural_minor";
+  if (value === "pentatonic") return "major_pentatonic";
+  const allowed: ScaleName[] = [
+    "major",
+    "natural_minor",
+    "harmonic_minor",
+    "melodic_minor",
+    "major_pentatonic",
+    "minor_pentatonic",
+    "blues",
+    "dorian",
+    "phrygian",
+    "lydian",
+    "mixolydian",
+    "locrian",
+    "whole_tone",
+    "diminished"
+  ];
+  return allowed.includes(value as ScaleName) ? value as ScaleName : "major";
 }
 
 type ParamUpdate = {

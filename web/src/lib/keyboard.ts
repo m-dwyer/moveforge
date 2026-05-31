@@ -3,31 +3,32 @@ import { useStore } from "@/store";
 import { noteOff, noteOn } from "@/audio";
 import { noteForPad } from "@/lib/pads";
 
-// QWERTY → pad index (matches the legacy mapping). Lower row + top row mirror
-// piano white/black keys for the first 16 pads.
-export const KEY_TO_PAD: Record<string, number> = {
-  a: 0, w: 1, s: 2, d: 3, r: 4, f: 5, t: 6, g: 7,
-  h: 8, u: 9, j: 10, i: 11, k: 12, o: 13, l: 14, ";": 15
+// QWERTY → pad index (matches the legacy mapping). Use physical key codes so
+// shifted punctuation or layout-specific key labels do not orphan note-offs.
+export const KEY_CODE_TO_PAD: Record<string, number> = {
+  KeyA: 0, KeyW: 1, KeyS: 2, KeyD: 3, KeyR: 4, KeyF: 5, KeyT: 6, KeyG: 7,
+  KeyH: 8, KeyU: 9, KeyJ: 10, KeyI: 11, KeyK: 12, KeyO: 13, KeyL: 14, Semicolon: 15
 };
 
 export function useKeyboardPlay(): void {
   useEffect(() => {
-    const held = new Map<string, number>();
+    const held = new Map<string, { note: number; padIndex: number }>();
 
     const onDown = (e: KeyboardEvent) => {
-      if (e.repeat) return;
       if (isTypingTarget(e.target)) return;
       if (hasShortcutModifier(e)) return;
 
-      if (e.key === " ") {
+      if (e.code === "Space") {
         e.preventDefault();
+        if (e.repeat) return;
         useStore.getState().setPlaying(!useStore.getState().playing);
         return;
       }
 
-      const padIndex = KEY_TO_PAD[e.key.toLowerCase()];
+      const padIndex = KEY_CODE_TO_PAD[e.code];
       if (padIndex === undefined) return;
       e.preventDefault();
+      if (held.has(e.code)) return;
 
       const s = useStore.getState();
       const note = noteForPad(padIndex, {
@@ -36,23 +37,41 @@ export function useKeyboardPlay(): void {
         scale: s.scale,
         octave: s.octave
       });
-      held.set(e.key, note);
+      held.set(e.code, { note, padIndex });
+      useStore.getState().setPadActive(padIndex, true);
       void noteOn(note, 0.94);
     };
 
     const onUp = (e: KeyboardEvent) => {
-      const note = held.get(e.key);
-      if (note === undefined) return;
-      held.delete(e.key);
-      noteOff(note);
+      const heldNote = held.get(e.code);
+      if (heldNote === undefined) return;
+      held.delete(e.code);
+      useStore.getState().setPadActive(heldNote.padIndex, false);
+      noteOff(heldNote.note);
+    };
+
+    const releaseHeld = () => {
+      for (const heldNote of held.values()) {
+        useStore.getState().setPadActive(heldNote.padIndex, false);
+        noteOff(heldNote.note);
+      }
+      held.clear();
+    };
+
+    const onVisibilityChange = () => {
+      if (document.hidden) releaseHeld();
     };
 
     window.addEventListener("keydown", onDown);
     window.addEventListener("keyup", onUp);
+    window.addEventListener("blur", releaseHeld);
+    document.addEventListener("visibilitychange", onVisibilityChange);
     return () => {
       window.removeEventListener("keydown", onDown);
       window.removeEventListener("keyup", onUp);
-      for (const note of held.values()) noteOff(note);
+      window.removeEventListener("blur", releaseHeld);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      releaseHeld();
     };
   }, []);
 }

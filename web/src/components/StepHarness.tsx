@@ -13,7 +13,11 @@ const patternLabels: Record<AuditionPatternName, string> = {
   octave_bounce: "Octave Bounce",
   drone_hold: "Drone Hold",
   chord_stab: "Chord/Stab",
-  velocity_ramp: "Velocity Ramp"
+  velocity_ramp: "Velocity Ramp",
+  acid_line: "Acid Line",
+  minor_hook: "Minor Hook",
+  fifths: "Fifths",
+  syncopated_stab: "Syncopated Stab"
 };
 
 export function StepHarness() {
@@ -31,6 +35,7 @@ export function StepHarness() {
   const setAuditionPattern = useStore((s) => s.setAuditionPattern);
   const setAuditionLength = useStore((s) => s.setAuditionLength);
   const setAuditionGate = useStore((s) => s.setAuditionGate);
+  const setAuditionTranspose = useStore((s) => s.setAuditionTranspose);
   const setAuditionVelocity = useStore((s) => s.setAuditionVelocity);
   const toggleStep = useStore((s) => s.toggleStep);
   const selectStep = useStore((s) => s.selectStep);
@@ -57,6 +62,7 @@ export function StepHarness() {
         steps: s.audition.pattern === "custom_copy" ? s.customCopySteps : s.steps,
         root: s.root,
         octave: s.octave,
+        transpose: s.audition.transpose,
         velocity: s.audition.velocity
       });
       if (event) {
@@ -97,6 +103,7 @@ export function StepHarness() {
       steps,
       root,
       octave,
+      transpose: audition.transpose,
       velocity: audition.velocity
     });
     forkAuditionToCustomCopy(forked);
@@ -151,6 +158,17 @@ export function StepHarness() {
             <option value={16}>16 steps</option>
             <option value={32}>32 steps</option>
           </select>
+          <label className="flex shrink-0 items-center gap-1.5 text-xs text-muted" title="Transpose generated audition patterns in semitones. Custom steps keep their programmed notes.">
+            Trans
+            <input
+              type="number"
+              min={-24}
+              max={24}
+              value={audition.transpose}
+              onChange={(e) => setAuditionTranspose(Number(e.target.value) || 0)}
+              className="h-8 w-14 rounded border border-line bg-bg px-1.5 text-center text-text focus:outline-none focus:ring-1 focus:ring-accent"
+            />
+          </label>
           <label className="flex min-w-[140px] flex-1 items-center gap-2 text-muted" title="Note length as a percentage of each sequencer step. Lower values are shorter and more staccato.">
             Note Len
             <Slider value={[audition.gate]} min={0.05} max={1} step={0.01} onValueChange={(v) => setAuditionGate(v[0])} />
@@ -181,14 +199,14 @@ export function StepHarness() {
                 : `Step ${i + 1} · ${patternLabels[audition.pattern]} · click to make Custom Copy`}
               className={cn(
                 "relative h-12 overflow-hidden rounded-sm border text-sm font-mono transition-colors sm:h-10",
-                stepHasEvent(editablePattern, audition.pattern, i, s, { steps, root, octave, velocity: audition.velocity })
+                stepHasEvent(editablePattern, audition.pattern, i, s, { steps, root, octave, transpose: audition.transpose, velocity: audition.velocity })
                   ? "border-accent bg-[#243527] text-text"
                   : "border-line bg-panel-2 text-muted",
                 selectedStep === i && "ring-2 ring-warn ring-inset",
                 playStep === i && "bg-accent text-bg"
               )}
             >
-              {stepHasEvent(editablePattern, audition.pattern, i, s, { steps, root, octave, velocity: audition.velocity }) && (
+              {stepHasEvent(editablePattern, audition.pattern, i, s, { steps, root, octave, transpose: audition.transpose, velocity: audition.velocity }) && (
                 <span
                   aria-hidden="true"
                   className="absolute inset-x-0 bottom-0 h-1 bg-accent/80"
@@ -201,7 +219,7 @@ export function StepHarness() {
         </div>
         <p className="text-[11px] text-muted">
           {editablePattern ? "Click step to toggle · shift-click to select for editing" : "Click a generated step to fork it into Custom Copy"}
-          {" · "}16ths at {bpm} BPM ({intervalMs}ms) · note length {(audition.gate * 100).toFixed(0)}%
+          {" · "}16ths at {bpm} BPM ({intervalMs}ms) · note length {(audition.gate * 100).toFixed(0)}% · transpose {audition.transpose}
         </p>
       </div>
 
@@ -242,6 +260,7 @@ type PatternContext = {
   octave: number;
   root: number;
   steps: StepState[];
+  transpose: number;
   velocity: number;
 };
 
@@ -267,7 +286,7 @@ function auditionEvent(pattern: AuditionPatternName, index: number, context: Pat
     return step?.enabled ? { note: step.note, velocity: step.velocity, gateSteps: 1 } : null;
   }
 
-  const rootNote = 12 * (context.octave + 1) + context.root;
+  const rootNote = 12 * (context.octave + 1) + context.root + context.transpose;
   const velocity = context.velocity;
 
   if (pattern === "bass_pulse") {
@@ -293,6 +312,30 @@ function auditionEvent(pattern: AuditionPatternName, index: number, context: Pat
     if (index % 2 !== 0) return null;
     const ramp = 0.35 + (index % 16) / 15 * 0.65;
     return { note: rootNote - 12, velocity: Math.min(1, velocity * ramp), gateSteps: 2 };
+  }
+  if (pattern === "acid_line") {
+    const phrase = [0, null, 12, 10, null, 7, 3, null, 0, 3, null, 7, 10, null, 12, 7] as const;
+    const offset = phrase[index % phrase.length];
+    if (offset === null) return null;
+    const accent = index % 8 === 0 || index % 16 === 14 ? 1 : 0.78;
+    return { note: rootNote - 12 + offset, velocity: Math.min(1, velocity * accent), gateSteps: 1 };
+  }
+  if (pattern === "minor_hook") {
+    const phrase = [0, 3, 5, 7, 10, 7, 5, 3] as const;
+    if (index % 2 !== 0) return null;
+    return { note: rootNote - 12 + phrase[(index / 2) % phrase.length], velocity, gateSteps: 2 };
+  }
+  if (pattern === "fifths") {
+    const phrase = [0, 7, 12, 7] as const;
+    if (index % 4 !== 0) return null;
+    return { note: rootNote - 12 + phrase[(index / 4) % phrase.length], velocity, gateSteps: 4 };
+  }
+  if (pattern === "syncopated_stab") {
+    const position = index % 16;
+    const hits = [0, 5, 7, 11, 14];
+    if (!hits.includes(position)) return null;
+    const offset = position === 11 ? 10 : position === 14 ? 7 : 0;
+    return { note: rootNote + offset, velocity, gateSteps: 1 };
   }
   return null;
 }

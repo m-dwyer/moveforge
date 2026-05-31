@@ -127,3 +127,24 @@ test("bass pulse note length schedules short note-offs", async () => {
 
   expect(audioCalls().some((call) => call.kind === "noteOff")).toBe(true);
 });
+
+test("new generated audition patterns produce notes with transpose", async () => {
+  vi.useFakeTimers();
+  useStore.getState().setAuditionPattern("acid_line");
+  useStore.getState().setAuditionTranspose(12);
+
+  render(createElement(StepHarness));
+  await page.getByRole("button", { name: "Play" }).click();
+
+  const noteOn = audioCalls().find((call): call is Extract<typeof call, { kind: "noteOn" }> => call.kind === "noteOn");
+  expect(noteOn?.note).toBe(48);
+});
+
+test("new generated pattern options are available", async () => {
+  render(createElement(StepHarness));
+
+  const patternSelect = page.getByRole("combobox").first();
+  await patternSelect.selectOptions("syncopated_stab");
+
+  expect(useStore.getState().audition.pattern).toBe("syncopated_stab");
+});

@@ -11,6 +11,7 @@ test("persists audition, bpm, steps, and params without runtime fields", () => {
   useStore.getState().setMasterVolume(0.42);
   useStore.getState().setRandomizeAmount("subtle");
   useStore.getState().setAuditionPattern("octave_bounce");
+  useStore.getState().setAuditionTranspose(7);
   useStore.getState().toggleStep(0);
   useStore.getState().forkAuditionToCustomCopy([{ enabled: true, note: 48, velocity: 0.8, locks: {} }]);
   useStore.setState({
@@ -29,6 +30,7 @@ test("persists audition, bpm, steps, and params without runtime fields", () => {
   expect(parsed.state.masterVolume).toBe(0.42);
   expect(parsed.state.randomizeAmount).toBe("subtle");
   expect(parsed.state.audition.pattern).toBe("custom_copy");
+  expect(parsed.state.audition.transpose).toBe(7);
   expect(parsed.state.customCopySteps[0].note).toBe(48);
   expect(parsed.state.steps[0].enabled).toBe(true);
   expect(parsed.state.topLevelParams[0].value).toBe(0.64);
@@ -39,6 +41,19 @@ test("persists audition, bpm, steps, and params without runtime fields", () => {
   expect(parsed.state.slotMeta).toBeUndefined();
   expect(parsed.state.tracks[0].activeNotes).toBeUndefined();
   expect(parsed.state.tracks[0].moveEchoEvents).toBeUndefined();
+});
+
+test("migrates legacy persisted scale names", async () => {
+  window.localStorage.setItem(STORE_PERSIST_KEY, JSON.stringify({
+    state: {
+      scale: "pentatonic"
+    },
+    version: 1
+  }));
+
+  await (useStore as typeof useStore & { persist: { rehydrate: () => Promise<void> } }).persist.rehydrate();
+
+  expect(useStore.getState().scale).toBe("major_pentatonic");
 });
 
 test("tracks keep independent sequencer state", async () => {

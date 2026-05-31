@@ -1,7 +1,32 @@
 import type { ParamDefinition } from "./module-metadata.js";
 
-export type ScaleName = "major" | "minor" | "pentatonic";
-export type AuditionPatternName = "custom" | "custom_copy" | "bass_pulse" | "octave_bounce" | "drone_hold" | "chord_stab" | "velocity_ramp";
+export type ScaleName =
+  | "major"
+  | "natural_minor"
+  | "harmonic_minor"
+  | "melodic_minor"
+  | "major_pentatonic"
+  | "minor_pentatonic"
+  | "blues"
+  | "dorian"
+  | "phrygian"
+  | "lydian"
+  | "mixolydian"
+  | "locrian"
+  | "whole_tone"
+  | "diminished";
+export type AuditionPatternName =
+  | "custom"
+  | "custom_copy"
+  | "bass_pulse"
+  | "octave_bounce"
+  | "drone_hold"
+  | "chord_stab"
+  | "velocity_ramp"
+  | "acid_line"
+  | "minor_hook"
+  | "fifths"
+  | "syncopated_stab";
 
 export type ParamScope = "component" | "settings";
 
@@ -92,6 +117,7 @@ export type AuditionState = {
   gate: number;
   length: 8 | 16 | 32;
   pattern: AuditionPatternName;
+  transpose: number;
   velocity: number;
 };
 
@@ -126,8 +152,19 @@ export type AppState = {
 
 export const scales: Record<ScaleName, number[]> = {
   major: [0, 2, 4, 5, 7, 9, 11],
-  minor: [0, 2, 3, 5, 7, 8, 10],
-  pentatonic: [0, 2, 4, 7, 9]
+  natural_minor: [0, 2, 3, 5, 7, 8, 10],
+  harmonic_minor: [0, 2, 3, 5, 7, 8, 11],
+  melodic_minor: [0, 2, 3, 5, 7, 9, 11],
+  major_pentatonic: [0, 2, 4, 7, 9],
+  minor_pentatonic: [0, 3, 5, 7, 10],
+  blues: [0, 3, 5, 6, 7, 10],
+  dorian: [0, 2, 3, 5, 7, 9, 10],
+  phrygian: [0, 1, 3, 5, 7, 8, 10],
+  lydian: [0, 2, 4, 6, 7, 9, 11],
+  mixolydian: [0, 2, 4, 5, 7, 9, 10],
+  locrian: [0, 1, 3, 5, 6, 8, 10],
+  whole_tone: [0, 2, 4, 6, 8, 10],
+  diminished: [0, 2, 3, 5, 6, 8, 9, 11]
 };
 
 export const midiFxParamDefs: ScopedParamDefinition[] = [
@@ -187,6 +224,7 @@ export function makeDefaultAudition(): AuditionState {
     pattern: "custom",
     length: 16,
     gate: 0.72,
+    transpose: 0,
     velocity: 0.9
   };
 }

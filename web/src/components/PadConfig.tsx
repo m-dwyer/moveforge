@@ -1,6 +1,7 @@
 import { useStore } from "@/store";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { NOTE_NAMES } from "@/lib/pads";
+import type { ScaleName } from "@/chain-state";
 
 const LAYOUTS: Array<{ value: "in-key-octaves" | "in-key-fourths" | "chromatic"; label: string }> = [
   { value: "in-key-octaves", label: "In-Key Octaves" },
@@ -8,11 +9,22 @@ const LAYOUTS: Array<{ value: "in-key-octaves" | "in-key-fourths" | "chromatic";
   { value: "chromatic", label: "Chromatic" }
 ];
 
-const SCALES = [
+export const SCALE_OPTIONS: Array<{ value: ScaleName; label: string }> = [
   { value: "major", label: "Major" },
-  { value: "minor", label: "Minor" },
-  { value: "pentatonic", label: "Pentatonic" }
-] as const;
+  { value: "natural_minor", label: "Natural Minor" },
+  { value: "harmonic_minor", label: "Harmonic Minor" },
+  { value: "melodic_minor", label: "Melodic Minor" },
+  { value: "major_pentatonic", label: "Major Pentatonic" },
+  { value: "minor_pentatonic", label: "Minor Pentatonic" },
+  { value: "blues", label: "Blues" },
+  { value: "dorian", label: "Dorian" },
+  { value: "phrygian", label: "Phrygian" },
+  { value: "lydian", label: "Lydian" },
+  { value: "mixolydian", label: "Mixolydian" },
+  { value: "locrian", label: "Locrian" },
+  { value: "whole_tone", label: "Whole Tone" },
+  { value: "diminished", label: "Diminished" }
+];
 
 export function PadConfig() {
   const padLayout = useStore((s) => s.padLayout);
@@ -62,7 +74,7 @@ export function PadConfig() {
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {SCALES.map((s) => (
+            {SCALE_OPTIONS.map((s) => (
               <SelectItem key={s.value} value={s.value}>
                 {s.label}
               </SelectItem>

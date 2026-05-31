@@ -3,6 +3,7 @@ import { useStore } from "@/store";
 import { isInScale, isRoot, noteForPad, noteLabel, noteShortLabel } from "@/lib/pads";
 import { noteOff, noteOn } from "@/audio";
 import { cn } from "@/lib/utils";
+import type { ScaleName } from "@/chain-state";
 
 export function PadGrid() {
   const padLayout = useStore((s) => s.padLayout);
@@ -19,7 +20,7 @@ export function PadGrid() {
     <div className="space-y-2">
       <div className="grid w-full grid-cols-8 gap-1.5">
         {notes.map((note, i) => (
-          <Pad key={i} note={note} root={root} scale={scale} />
+          <Pad key={i} index={i} note={note} root={root} scale={scale} />
         ))}
       </div>
       <p className="text-[11px] text-muted">
@@ -30,7 +31,9 @@ export function PadGrid() {
   );
 }
 
-function Pad({ note, root, scale }: { note: number; root: number; scale: "major" | "minor" | "pentatonic" }) {
+function Pad({ index, note, root, scale }: { index: number; note: number; root: number; scale: ScaleName }) {
+  const active = useStore((s) => (s.activePads.get(index) ?? 0) > 0);
+  const setPadActive = useStore((s) => s.setPadActive);
   const root_ = isRoot(note, root);
   const inScale = isInScale(note, root, scale);
   return (
@@ -38,26 +41,27 @@ function Pad({ note, root, scale }: { note: number; root: number; scale: "major"
       type="button"
       data-testid="pad"
       data-note={note}
+      data-active={active ? "true" : undefined}
       title={noteLabel(note)}
       onPointerDown={(e) => {
         e.preventDefault();
         e.currentTarget.setPointerCapture(e.pointerId);
         const vel = e.pressure > 0 ? Math.max(0.25, Math.min(1, e.pressure)) : 0.94;
+        setPadActive(index, true);
         void noteOn(note, vel);
-        e.currentTarget.dataset.active = "1";
       }}
       onPointerUp={(e) => {
         noteOff(note);
-        delete e.currentTarget.dataset.active;
+        setPadActive(index, false);
       }}
       onPointerCancel={(e) => {
         noteOff(note);
-        delete e.currentTarget.dataset.active;
+        setPadActive(index, false);
       }}
       onPointerLeave={(e) => {
-        if (e.currentTarget.dataset.active) {
+        if (active) {
           noteOff(note);
-          delete e.currentTarget.dataset.active;
+          setPadActive(index, false);
         }
       }}
       className={cn(
