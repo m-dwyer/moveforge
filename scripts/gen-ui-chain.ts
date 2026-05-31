@@ -15,10 +15,11 @@
  * re-run `mise run gen-ui-chain`.
  */
 import { readFileSync } from "node:fs";
-import { readFile, writeFile, stat } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { renderTemplateString } from "./lib/templates.ts";
 import { modulePaths, selectedModuleIds } from "./lib/modules.ts";
+import { type GenerateOptions, writeGeneratedFile } from "./lib/generated-files.ts";
 
 const TEMPLATE_PATH = "templates/generated/ui_chain.js.tmpl";
 
@@ -105,17 +106,6 @@ function round(n: number): number {
   return Math.round(n * 1e6) / 1e6;
 }
 
-async function exists(p: string): Promise<boolean> {
-  try { await stat(p); return true; } catch { return false; }
-}
-
-export type GenerateOptions = {
-  /** Module ids to process. Defaults to MODULE_ID (or all modules) via selectedModuleIds(). */
-  moduleIds?: string[];
-  /** "write" emits ui_chain.js; "check" only reports drift. Defaults to "write". */
-  mode?: "check" | "write";
-};
-
 /**
  * Generate (or check) each editable module's ui_chain.js from module.json.
  * Modules without editable params (e.g. settings/tool modules) are skipped.
@@ -139,22 +129,14 @@ export async function generate(options: GenerateOptions = {}): Promise<number> {
     }
 
     const generated = renderUiChain(id, json, params);
-    const existing = (await exists(outPath)) ? await readFile(outPath, "utf8") : "";
-
-    if (mode === "check") {
-      if (generated !== existing) {
-        console.error(`[${id}] ${outPath} is stale — run \`mise run gen-ui-chain\``);
-        drift++;
-      }
-      continue;
-    }
-
-    if (existing === generated) {
-      console.log(`[${id}] ${outPath} unchanged`);
-    } else {
-      await writeFile(outPath, generated);
-      console.log(`[${id}] wrote ${outPath} (${params.length} params)`);
-    }
+    drift += await writeGeneratedFile({
+      generated,
+      mode,
+      moduleId: id,
+      outPath,
+      staleMessage: "run `mise run gen-ui-chain`",
+      writeMessage: `wrote ${outPath} (${params.length} params)`
+    });
   }
 
   return drift;
