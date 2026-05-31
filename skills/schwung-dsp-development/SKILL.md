@@ -93,7 +93,7 @@ Both paths share this loop:
 5. Add the key to every preset in `<id>/presets.json` with a value inside `[min, max]`, then run `mise run gen-presets`.
 6. **Faust only**: run `mise run gen-faust`.
 7. Use the new param in the DSP.
-8. If the parameter surface changed, run `mise run gen-ui-chain`. Generated chain UIs expose a preset browser first, then a scrollable param editor where Shift+jog switches encoder pages, the jog wheel selects/edits the focused parameter, and Move encoders 1-8 control the current page of up to eight params.
+8. If the parameter surface changed, run `mise run gen-ui-chain`. Generated chain UIs expose a preset browser first, then a scrollable param editor where the jog wheel selects/edits the focused parameter and Move encoders 1-8 control the page containing that selected param.
 9. Add local audition metadata to `<id>/metadata.json`: a concise tooltip under `params.<key>` and a musical randomization hint under `randomize.<key>`. Keep these ranges inside the legal `module.json` min/max, but narrower when full extremes are only useful for stress testing. Use `mode: "bounded"` for a useful fixed range, `mode: "around_default"` when randomization should stay near the default/current setting, and `mode: "full"` only when the whole legal range is musically useful. Do not put local help text or audition-only randomize hints in Schwung-facing `module.json` unless Schwung officially supports those fields.
 10. Add or extend the assertion in `tests/test_<id>_core.c`.
 11. Run `mise run validate` (param drift + gen drift + preset/UI range).
