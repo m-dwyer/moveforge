@@ -3,12 +3,13 @@
  * Do not edit by hand: change module.json and re-run `mise run gen-ui-chain`.
  *
  * Scrollable parameter editor shown when this module is opened (wheel press)
- * in a chain slot. Knob 1..8 adjust the current encoder page;
- * the jog wheel scrolls/selects/edits the focused param. Sets globalThis.chain_ui.
+ * in a chain slot. Left/right switch encoder pages, Knob 1..8
+ * adjust the current page, and the jog wheel scrolls/selects/edits the
+ * focused param. Sets globalThis.chain_ui.
  */
 
 import {
-    MoveMainButton, MoveMainKnob,
+    MoveLeft, MoveMainButton, MoveMainKnob, MoveRight,
     MoveKnob1, MoveKnob2, MoveKnob3, MoveKnob4,
     MoveKnob5, MoveKnob6, MoveKnob7, MoveKnob8
 } from '/data/UserData/schwung/shared/constants.mjs';
@@ -42,6 +43,7 @@ let presetIndex = 0;
 let presetName = "";
 let mode = "params";
 let editMode = false;
+let encoderPage = 0;
 let needsRedraw = true;
 
 function clampSelected(v) {
@@ -56,12 +58,30 @@ function pageForIndex(index) {
     return Math.floor(clampSelected(index) / ENCODER_COUNT);
 }
 
+function clampPage(v) {
+    return Math.max(0, Math.min(pageCount() - 1, v));
+}
+
 function pageStart() {
-    return pageForIndex(selectedIndex) * ENCODER_COUNT;
+    return encoderPage * ENCODER_COUNT;
 }
 
 function pageLabel() {
-    return String(pageForIndex(selectedIndex) + 1) + "/" + String(pageCount());
+    return String(encoderPage + 1) + "/" + String(pageCount());
+}
+
+function selectIndex(index) {
+    selectedIndex = clampSelected(index);
+    encoderPage = pageForIndex(selectedIndex);
+    needsRedraw = true;
+}
+
+function setEncoderPage(page) {
+    const next = clampPage(page);
+    if (next === encoderPage && selectedIndex >= next * ENCODER_COUNT && selectedIndex < (next + 1) * ENCODER_COUNT) return;
+    encoderPage = next;
+    selectedIndex = clampSelected(encoderPage * ENCODER_COUNT);
+    needsRedraw = true;
 }
 
 function fetchParams() {
@@ -170,7 +190,7 @@ function drawUI() {
         prioritizeSelectedValue: true,
         selectedMinLabelChars: 6
     });
-    drawFooter(editMode ? {left: "Click: done", right: "Jog: adjust"} : {left: "Back: done", right: "Knobs: page"});
+    drawFooter(editMode ? {left: "Click: done", right: "Jog: adjust"} : {left: "L/R: page", right: "Knobs: adjust"});
 
     needsRedraw = false;
 }
@@ -181,6 +201,7 @@ function init() {
     mode = presetCount > 0 ? "preset" : "params";
     editMode = false;
     selectedIndex = 0;
+    encoderPage = 0;
     needsRedraw = true;
 }
 
@@ -200,6 +221,11 @@ function onMidiMessageInternal(data) {
         return;
     }
 
+    if (mode === "params" && !editMode && d2 > 0 && (d1 === MoveLeft || d1 === MoveRight)) {
+        setEncoderPage(encoderPage + (d1 === MoveRight ? 1 : -1));
+        return;
+    }
+
     /* Jog wheel scrolls/selects, or adjusts the selected param in edit mode. */
     if (d1 === MoveMainKnob) {
         const delta = decodeDelta(d2);
@@ -214,8 +240,7 @@ function onMidiMessageInternal(data) {
         if (delta !== 0) {
             const next = clampSelected(selectedIndex + delta);
             if (next !== selectedIndex) {
-                selectedIndex = next;
-                needsRedraw = true;
+                selectIndex(next);
             }
         }
         return;
