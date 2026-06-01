@@ -47,6 +47,10 @@ export async function selectedModuleIds(): Promise<string[]> {
   return process.env.MODULE_ID ? [process.env.MODULE_ID] : listModuleIds();
 }
 
+export async function selectedModuleTargets(): Promise<ModuleBuildTarget[]> {
+  return Promise.all((await selectedModuleIds()).map((moduleId) => readModuleTarget(moduleId)));
+}
+
 export async function listModuleIds(): Promise<string[]> {
   return (await readdir("src/modules", { withFileTypes: true }))
     .filter((entry) => entry.isDirectory() && !entry.name.startsWith("_"))

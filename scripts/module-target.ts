@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { fileURLToPath } from "node:url";
-import { listModuleIds, modulePaths, readModuleTarget, selectedModuleIds } from "./lib/modules.ts";
+import { modulePaths, readModuleTarget, selectedModuleIds } from "./lib/modules.ts";
 
 type Command =
   | "ids"
@@ -27,8 +27,7 @@ async function main(args: string[]): Promise<void> {
   if (!command) usage();
 
   if (command === "ids") {
-    const ids = process.env.MODULE_ID ? await selectedModuleIds() : await listModuleIds();
-    console.log(ids.join(" "));
+    console.log((await selectedModuleIds()).join(" "));
     return;
   }
 

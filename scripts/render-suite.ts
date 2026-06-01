@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
-import { modulePaths, readModuleTarget, selectedModuleIds } from "./lib/modules.ts";
+import { selectedModuleTargets } from "./lib/modules.ts";
 
 type SoundGenRender = {
   file: string;
@@ -33,9 +33,9 @@ type PresetSuite = {
   }>;
 };
 
-for (const moduleId of await selectedModuleIds()) {
-  const paths = modulePaths(moduleId);
-  const target = await readModuleTarget(moduleId);
+for (const target of await selectedModuleTargets()) {
+  const moduleId = target.id;
+  const paths = target.paths;
   const envKind = process.env.RENDER_KIND;
   const kind: "sound_generator" | "audio_fx" | "midi_fx" =
     envKind === "audio_fx" ? "audio_fx" :

@@ -1,7 +1,7 @@
 import { readFile, readdir, writeFile, mkdir, copyFile } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
 import { join } from "node:path";
-import { modulePaths, readModuleTarget, selectedModuleIds } from "./lib/modules.ts";
+import { selectedModuleTargets, type ModuleBuildTarget } from "./lib/modules.ts";
 import { metricsForWavFile, type WavMetrics } from "./wav-metrics.ts";
 import { readWav, writeWav } from "./wav-io.ts";
 
@@ -27,17 +27,14 @@ if (!["check", "bless"].includes(mode)) {
   process.exit(2);
 }
 
-const moduleIds = await selectedModuleIds();
-
 let failures = 0;
-for (const moduleId of moduleIds) {
-  const kind = await componentTypeFor(moduleId);
-  if (kind === "sound_generator" || kind === "audio_fx") {
-    if (await checkWavSuite(moduleId)) failures++;
-  } else if (kind === "midi_fx") {
-    if (await checkTraceSuite(moduleId)) failures++;
+for (const target of await selectedModuleTargets()) {
+  if (target.componentType === "sound_generator" || target.componentType === "audio_fx") {
+    if (await checkWavSuite(target)) failures++;
+  } else if (target.componentType === "midi_fx") {
+    if (await checkTraceSuite(target)) failures++;
   } else {
-    console.log(`[${moduleId}] skipping (component_type='${kind ?? "?"}' has no offline harness)`);
+    console.log(`[${target.id}] skipping (component_type='${target.componentType || "?"}' has no offline harness)`);
   }
 }
 
@@ -46,8 +43,9 @@ if (failures > 0) {
   process.exit(1);
 }
 
-async function checkWavSuite(moduleId: string): Promise<boolean> {
-  const { goldenMetrics: goldenPath, suiteDir } = modulePaths(moduleId);
+async function checkWavSuite(target: ModuleBuildTarget): Promise<boolean> {
+  const moduleId = target.id;
+  const { goldenMetrics: goldenPath, suiteDir } = target.paths;
   const wavs = (await readdir(suiteDir, { withFileTypes: true }).catch(() => []))
     .filter((e) => e.isFile() && e.name.endsWith(".wav") && !e.name.endsWith(".diff.wav"))
     .map((e) => e.name)
@@ -120,15 +118,16 @@ async function checkWavSuite(moduleId: string): Promise<boolean> {
   if (moduleErrors.length) {
     console.error(`[${moduleId}] ${moduleErrors.length} drift(s):`);
     for (const err of moduleErrors) console.error(`  - ${err}`);
-    if (driftedFiles.size > 0) await writeDiffArtifacts(moduleId, [...driftedFiles].sort());
+    if (driftedFiles.size > 0) await writeDiffArtifacts(target, [...driftedFiles].sort());
     return true;
   }
   console.log(`[${moduleId}] ${wavs.length} render(s) within tolerance of ${goldenPath}`);
   return false;
 }
 
-async function writeDiffArtifacts(moduleId: string, files: string[]): Promise<void> {
-  const { suiteDir } = modulePaths(moduleId);
+async function writeDiffArtifacts(target: ModuleBuildTarget, files: string[]): Promise<void> {
+  const moduleId = target.id;
+  const { suiteDir } = target.paths;
   const goldenDir = `goldens/${moduleId}`;
   const plotDir = `renders/plots/${moduleId}`;
   await mkdir(plotDir, { recursive: true });
@@ -189,8 +188,9 @@ function stem(name: string): string {
   return i < 0 ? name : name.slice(0, i);
 }
 
-async function checkTraceSuite(moduleId: string): Promise<boolean> {
-  const { suiteDir, moduleDir } = modulePaths(moduleId);
+async function checkTraceSuite(target: ModuleBuildTarget): Promise<boolean> {
+  const moduleId = target.id;
+  const { suiteDir } = target.paths;
   const traces = (await readdir(suiteDir, { withFileTypes: true }).catch(() => []))
     .filter((e) => e.isFile() && e.name.endsWith(".trace"))
     .map((e) => e.name)
@@ -236,7 +236,6 @@ async function checkTraceSuite(moduleId: string): Promise<boolean> {
   if (moduleErrors.length) {
     console.error(`[${moduleId}] ${moduleErrors.length} trace drift(s):`);
     for (const err of moduleErrors) console.error(`  - ${err}`);
-    void moduleDir;
     return true;
   }
   console.log(`[${moduleId}] ${traces.length} trace(s) match goldens in ${goldenDir}/`);
@@ -252,12 +251,4 @@ function within(golden: number, current: number, tol: Tolerance): boolean {
 
 async function readMetrics(path: string): Promise<RenderMetricsByFile> {
   return JSON.parse(await readFile(path, "utf8"));
-}
-
-async function componentTypeFor(moduleId: string): Promise<string | null> {
-  try {
-    return (await readModuleTarget(moduleId)).componentType || null;
-  } catch {
-    return null;
-  }
 }

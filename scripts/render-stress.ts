@@ -1,7 +1,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
 import { join } from "node:path";
-import { modulePaths, readModuleTarget, selectedModuleIds } from "./lib/modules.ts";
+import { selectedModuleTargets } from "./lib/modules.ts";
 
 type Param = {
   key: string;
@@ -38,9 +38,9 @@ type StressManifest = {
   cases: StressCase[];
 };
 
-for (const moduleId of await selectedModuleIds()) {
-  const paths = modulePaths(moduleId);
-  const target = await readModuleTarget(moduleId);
+for (const target of await selectedModuleTargets()) {
+  const moduleId = target.id;
+  const paths = target.paths;
   const moduleJson = JSON.parse(await readFile(paths.moduleJson, "utf8")) as ModuleJson;
   const componentType = target.componentType;
   const params = moduleJson.capabilities?.ui_hierarchy?.levels?.root?.params ?? [];
