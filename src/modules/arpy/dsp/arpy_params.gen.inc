@@ -4,6 +4,8 @@
 #ifndef ARPY_PARAMS_GEN_INC
 #define ARPY_PARAMS_GEN_INC
 
+#define ARPY_PARAM_COUNT 3
+
 enum {
     ARPY_PARAM_PATTERN = 0,
     ARPY_PARAM_CHORD = 1,

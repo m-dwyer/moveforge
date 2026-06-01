@@ -19,12 +19,14 @@ static void capture_slider(void *ui, const char *label, FAUSTFLOAT *zone,
     if (strcmp(label, "gain") == 0) { core->zone_gain = (void*)zone; return; }
 
     int id = {{moduleId}}_param_id(label);
-    if (id >= 0 && id < 1) core->zones[id] = (void*)zone;
+    if (id >= 0 && id < {{moduleUpper}}_PARAM_COUNT) core->zones[id] = (void*)zone;
 }
 
 static void push_params_to_faust({{moduleId}}_core_t *s) {
-    FAUSTFLOAT *level_zone = (FAUSTFLOAT*)s->zones[0];
-    if (level_zone) *level_zone = (FAUSTFLOAT)s->level;
+    for (int i = 0; i < {{moduleUpper}}_PARAM_COUNT; i++) {
+        FAUSTFLOAT *zone = (FAUSTFLOAT*)s->zones[i];
+        if (zone) *zone = (FAUSTFLOAT){{moduleId}}_get_param(s, i);
+    }
     if (s->zone_gate) *(FAUSTFLOAT*)s->zone_gate = (FAUSTFLOAT)s->gate;
     if (s->zone_freq) *(FAUSTFLOAT*)s->zone_freq = (FAUSTFLOAT)s->current_freq;
     if (s->zone_gain) *(FAUSTFLOAT*)s->zone_gain = (FAUSTFLOAT)s->current_gain;

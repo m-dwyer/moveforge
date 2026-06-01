@@ -23,18 +23,6 @@ export type AudioEngineConfig = {
   onMidiOut: (event: MidiOutEvent) => void;
 };
 
-// Legacy single-module options, retained for the current app.ts code path.
-// Internally wraps a one-slot chain ({ slotId: "sound", kind: "sound_generator" }).
-export type AudioEngineOptions = {
-  moduleId: string;
-  processorName: string;
-  workletUrl: string;
-  onReady: () => void;
-  onError: (message: string) => void;
-};
-
-const SOUND_SLOT_ID = "sound";
-
 type SlotEntry = {
   slotId: string;
   moduleId: string;
@@ -45,7 +33,6 @@ type SlotEntry = {
 
 export class AudioEngine {
   #audio: AudioContext | null = null;
-  #workletUrl: string | null = null;
   #processorName: string | null = null;
   #config: AudioEngineConfig | null = null;
   #slots: Map<string, SlotEntry> = new Map();
@@ -59,46 +46,9 @@ export class AudioEngine {
     return true;
   }
 
-  // Legacy accessor. Returns the sound_generator's moduleId, or null.
-  get moduleId(): string | null {
-    return this.#slots.get(SOUND_SLOT_ID)?.moduleId ?? null;
-  }
-
-  getSlotModuleId(slotId: string): string | null {
-    return this.#slots.get(slotId)?.moduleId ?? null;
-  }
-
   hasSlot(slotId: string): boolean {
     return this.#slots.has(slotId);
   }
-
-  // -- legacy single-module surface (used by the current app.ts) -----------
-
-  async enable(options: AudioEngineOptions): Promise<void> {
-    const config: AudioEngineConfig = {
-      workletUrl: options.workletUrl,
-      processorName: options.processorName,
-      onError: (_slotId, message) => options.onError(message),
-      onSlotReady: (slotId) => {
-        if (slotId === SOUND_SLOT_ID && this.ready) options.onReady();
-      },
-      onMidiOut: () => {}
-    };
-    await this.enableChain(
-      [{ slotId: SOUND_SLOT_ID, moduleId: options.moduleId, kind: "sound_generator" }],
-      config
-    );
-  }
-
-  send(message: WorkletMessage): void {
-    this.sendToSlot(SOUND_SLOT_ID, message);
-  }
-
-  async reload(): Promise<void> {
-    await this.reloadSlot(SOUND_SLOT_ID);
-  }
-
-  // -- chain surface -------------------------------------------------------
 
   async enableChain(slots: ChainSlotSpec[], config: AudioEngineConfig): Promise<void> {
     if (!this.#audio) await this.#startContext(config);
@@ -120,32 +70,6 @@ export class AudioEngine {
     this.#rewire(slots);
   }
 
-  async replaceSlot(slotId: string, spec: ChainSlotSpec): Promise<void> {
-    if (slotId !== spec.slotId) throw new Error(`replaceSlot id mismatch: ${slotId} vs ${spec.slotId}`);
-    if (!this.#audio || !this.#config) throw new Error("AudioEngine not enabled yet");
-    const existing = this.#slots.get(slotId);
-    if (existing && existing.moduleId === spec.moduleId && existing.kind === spec.kind) return;
-    if (existing) this.#disposeSlot(slotId);
-    await this.#createSlot(spec);
-    this.#rewireFromCurrentOrder();
-  }
-
-  removeSlot(slotId: string): void {
-    if (!this.#slots.has(slotId)) return;
-    this.#disposeSlot(slotId);
-    this.#rewireFromCurrentOrder();
-  }
-
-  setChainOrder(slotIds: string[]): void {
-    // Reorder existing audio slots without recreating them.
-    const known = slotIds.filter((id) => {
-      const slot = this.#slots.get(id);
-      return slot && (slot.kind === "sound_generator" || slot.kind === "audio_fx");
-    });
-    this.#audioOrder = known;
-    this.#rewireFromCurrentOrder();
-  }
-
   sendToSlot(slotId: string, message: WorkletMessage): void {
     const slot = this.#slots.get(slotId);
     slot?.node.port.postMessage(message);
@@ -159,10 +83,6 @@ export class AudioEngine {
     const slot = this.#slots.get(slotId);
     if (!slot) return;
     await this.#loadWasmInto(slot);
-  }
-
-  async reloadAll(): Promise<void> {
-    for (const slotId of Array.from(this.#slots.keys())) await this.reloadSlot(slotId);
   }
 
   resetAll(): void {
@@ -183,7 +103,6 @@ export class AudioEngine {
     loadedWorkletUrl.searchParams.set("v", String(Date.now()));
     await audio.audioWorklet.addModule(loadedWorkletUrl.toString());
     this.#audio = audio;
-    this.#workletUrl = config.workletUrl;
     this.#processorName = config.processorName;
     this.#masterGain = audio.createGain();
     this.#masterGain.gain.value = 0.55;

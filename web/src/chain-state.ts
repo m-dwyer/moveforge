@@ -71,32 +71,30 @@ export type SettingsSlot = {
   enabled: boolean;
   id: string;
   kind: "settings";
-  lfos: LfoState[];
   name: string;
-  params: Record<"forward_ch" | "lfo1_depth" | "lfo2_depth" | "midi_fx_output" | "receive_ch" | "slot_volume", number>;
+  params: Record<SettingsParamKey, number>;
   type: string;
 };
 
 export type ChainSlot = MidiFxSlot | SoundSlot | AudioFxSlot | SettingsSlot;
 
-export type LfoState = {
-  depth: number;
-  enabled: boolean;
-  phase: number;
-  polarity: "bipolar" | "unipolar";
-  rate: number;
-  retrigger: boolean;
-  shape: "sine" | "tri";
-  targetComponent: string;
-  targetParam: string;
-};
+export type SettingsParamKey =
+  | "lfo1:depth"
+  | "lfo1:enabled"
+  | "lfo2:depth"
+  | "lfo2:enabled"
+  | "midi_fx_pre_mode"
+  | "slot:forward_channel"
+  | "slot:muted"
+  | "slot:receive_channel"
+  | "slot:soloed"
+  | "slot:volume";
 
 export type TrackState = {
   activeNotes: Map<number, number>;
   audition: AuditionState;
   chain: ChainSlot[];
   customCopySteps: StepState[];
-  moveEchoEvents: Array<{ at: number; note: number; velocity: number }>;
   selectedPreset: string;
   selectedStep: number;
   steps: StepState[];
@@ -124,29 +122,21 @@ export type AuditionState = {
 export type AppState = {
   activePads: Map<number, number>;
   audition: AuditionState;
-  browserIndex: number;
-  context: "master" | "slot";
   customCopySteps: StepState[];
-  loop: boolean;
   master: MasterState;
   masterVolume: number;
   mode: "browser" | "chain" | "device" | "seq";
-  mute: boolean;
   octave: number;
   padLayout: "chromatic" | "in-key-fourths" | "in-key-octaves";
-  page: number;
   playStep: number;
   playing: boolean;
-  record: boolean;
   root: number;
   scale: ScaleName;
   selectedPreset: string;
   selectedSlot: number;
   selectedStep: number;
   selectedTrack: number;
-  shift: boolean;
   steps: StepState[];
-  touchedParam: unknown;
   tracks: TrackState[];
 };
 
@@ -167,42 +157,35 @@ export const scales: Record<ScaleName, number[]> = {
   diminished: [0, 2, 3, 5, 6, 8, 9, 11]
 };
 
-export const midiFxParamDefs: ScopedParamDefinition[] = [
-  { scope: "component", key: "transpose", label: "Transpose", min: -24, max: 24, default: 0, step: 1 },
-  { scope: "component", key: "chance", label: "Chance", min: 0, max: 1, default: 1, step: 0.01 },
-  { scope: "component", key: "velocity", label: "Velocity", min: 0.1, max: 1.5, default: 1, step: 0.01 }
-];
-
-export const audioFxParamDefs: ScopedParamDefinition[] = [
-  { scope: "component", key: "drive", label: "Drive", min: 0, max: 1, default: 0.35, step: 0.01 },
-  { scope: "component", key: "tone", label: "Tone", min: 0, max: 1, default: 0.72, step: 0.01 },
-  { scope: "component", key: "wet", label: "Wet", min: 0, max: 1, default: 0.55, step: 0.01 }
-];
-
 export const settingsParamDefs: ScopedParamDefinition[] = [
-  { scope: "settings", key: "slot_volume", label: "Slot Vol", min: 0, max: 1, default: 1, step: 0.01 },
-  { scope: "settings", key: "receive_ch", label: "Recv Ch", min: 0, max: 16, default: 0, step: 1 },
-  { scope: "settings", key: "forward_ch", label: "Fwd Ch", min: 0, max: 17, default: 0, step: 1 },
-  { scope: "settings", key: "midi_fx_output", label: "MIDI Out", min: 0, max: 1, default: 0, step: 1 },
-  { scope: "settings", key: "lfo1_depth", label: "LFO 1", min: 0, max: 1, default: 0, step: 0.01 },
-  { scope: "settings", key: "lfo2_depth", label: "LFO 2", min: 0, max: 1, default: 0, step: 0.01 }
+  {
+    scope: "settings",
+    key: "slot:volume",
+    label: "Slot Vol",
+    min: 0,
+    max: 4,
+    default: 1,
+    step: 0.05,
+    description: "Schwung slot gain. Browser audition does not yet route this into the audio graph."
+  },
+  { scope: "settings", key: "slot:muted", label: "Muted", min: 0, max: 1, default: 0, step: 1 },
+  { scope: "settings", key: "slot:soloed", label: "Soloed", min: 0, max: 1, default: 0, step: 1 },
+  { scope: "settings", key: "slot:receive_channel", label: "Recv Ch", min: 0, max: 16, default: 0, step: 1 },
+  { scope: "settings", key: "slot:forward_channel", label: "Fwd Ch", min: -2, max: 15, default: -1, step: 1 },
+  { scope: "settings", key: "midi_fx_pre_mode", label: "MIDI Pre", min: 0, max: 1, default: 0, step: 1 },
+  { scope: "settings", key: "lfo1:enabled", label: "LFO 1 On", min: 0, max: 1, default: 0, step: 1 },
+  { scope: "settings", key: "lfo1:depth", label: "LFO 1", min: -1, max: 1, default: 0, step: 0.01 },
+  { scope: "settings", key: "lfo2:enabled", label: "LFO 2 On", min: 0, max: 1, default: 0, step: 1 },
+  { scope: "settings", key: "lfo2:depth", label: "LFO 2", min: -1, max: 1, default: 0, step: 0.01 }
 ];
 
 export function makeInitialState(moduleId: string, moduleName: string): AppState {
   return {
     mode: "device",
-    context: "slot",
-    page: 0,
     selectedTrack: 0,
     selectedSlot: 1,
     selectedPreset: "Init",
-    browserIndex: 0,
-    touchedParam: null,
-    shift: false,
-    record: false,
     playing: false,
-    loop: false,
-    mute: false,
     audition: makeDefaultAudition(),
     customCopySteps: makeDefaultSteps(false),
     selectedStep: 0,
@@ -278,17 +261,17 @@ function makeSettings(moduleId: string): SettingsSlot {
     name: "Slot Settings",
     enabled: true,
     params: {
-      slot_volume: 1,
-      receive_ch: 0,
-      forward_ch: 0,
-      midi_fx_output: 0,
-      lfo1_depth: 0,
-      lfo2_depth: 0
-    },
-    lfos: [
-      { enabled: false, targetComponent: "sound", targetParam: "fold", shape: "sine", depth: 0, rate: 0.25, phase: 0, polarity: "bipolar", retrigger: false },
-      { enabled: false, targetComponent: "audio-fx-1", targetParam: "wet", shape: "tri", depth: 0, rate: 0.125, phase: 0, polarity: "unipolar", retrigger: false }
-    ]
+      "slot:volume": 1,
+      "slot:muted": 0,
+      "slot:soloed": 0,
+      "slot:receive_channel": 0,
+      "slot:forward_channel": -1,
+      midi_fx_pre_mode: 0,
+      "lfo1:enabled": 0,
+      "lfo1:depth": 0,
+      "lfo2:enabled": 0,
+      "lfo2:depth": 0
+    }
   };
 }
 
@@ -306,18 +289,17 @@ function makeSlotState(moduleId: string, moduleName: string): TrackState {
     selectedPreset: "Init",
     selectedStep: 0,
     steps: makeDefaultSteps(false),
-    activeNotes: new Map(),
-    moveEchoEvents: []
+    activeNotes: new Map()
   };
 }
 
 function makeMasterState(): MasterState {
   return {
     chain: [
-      makeAudioFx("master-fx-1", "Master FX 1"),
-      makeAudioFx("master-fx-2", "Master FX 2"),
-      makeAudioFx("master-fx-3", "Master FX 3"),
-      makeAudioFx("master-fx-4", "Master FX 4")
+      makeAudioFx("master_fx:fx1", "Master FX 1"),
+      makeAudioFx("master_fx:fx2", "Master FX 2"),
+      makeAudioFx("master_fx:fx3", "Master FX 3"),
+      makeAudioFx("master_fx:fx4", "Master FX 4")
     ]
   };
 }

@@ -1,6 +1,6 @@
 import { readFile, readdir } from "node:fs/promises";
 import { join } from "node:path";
-import { modulePaths, selectedModuleIds } from "./lib/modules.ts";
+import { selectedModuleTargets, type ModuleBuildTarget } from "./lib/modules.ts";
 import { metricsForWavFile } from "./wav-metrics.ts";
 import { readWav } from "./wav-io.ts";
 
@@ -17,8 +17,8 @@ type StressManifest = {
 };
 
 let failures = 0;
-for (const moduleId of await selectedModuleIds()) {
-  if (await checkModule(moduleId)) failures++;
+for (const target of await selectedModuleTargets()) {
+  if (await checkModule(target)) failures++;
 }
 
 if (failures > 0) {
@@ -26,10 +26,10 @@ if (failures > 0) {
   process.exit(1);
 }
 
-async function checkModule(moduleId: string): Promise<boolean> {
-  const paths = modulePaths(moduleId);
-  const moduleJson = JSON.parse(await readFile(paths.moduleJson, "utf8"));
-  const kind = moduleJson.capabilities?.component_type ?? "";
+async function checkModule(target: ModuleBuildTarget): Promise<boolean> {
+  const moduleId = target.id;
+  const paths = target.paths;
+  const kind = target.componentType;
   if (kind !== "sound_generator" && kind !== "audio_fx") {
     console.log(`[${moduleId}] skipping stress check: component_type='${kind}'`);
     return false;

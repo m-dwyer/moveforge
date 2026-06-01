@@ -25,11 +25,11 @@ last passing commit on `main` before `web-react-port`).
 5. **Per-slot MIDI FX picker loads modules.** Same pattern with "Arpy" on the
    MIDI FX slot; verifies a `Pattern` param shows up.
 6. **Settings slot shows the right rows.** Selecting Settings shows
-   `Slot Vol`, `MIDI Out` in the controls panel.
-7. **Master mode switch.** Clicking the master-mode key (in the legacy UI the
+   `Slot Vol`, `MIDI Pre`, and Schwung-aligned slot setting rows in the controls panel.
+7. **Master FX switch.** Clicking the master-mode key (in the legacy UI the
    "Note Session" button) flipped the chain to 4 slots and the status text to
-   "Master". The React UI does not yet expose master mode; either add it or
-   drop this coverage.
+   "Master". The React UI does not yet expose Master FX; track this through
+   `docs/schwung-host-feature-gaps.md` instead of treating it as emulator test pre-work.
 8. **No horizontal overflow at narrow widths.** Resize viewport to 760×1000 and
    assert no `.control` element has `scrollWidth > clientWidth`. Worth keeping
    when responsive design lands.
@@ -49,7 +49,7 @@ last passing commit on `main` before `web-react-port`).
 | `#controls` | The param container in `Controls.tsx`. Add `data-testid="controls"`. |
 | `#panelTitle` | `<h1>` in `Panel.tsx`. Add `data-testid="panel-title"`. |
 | `#status` | The "Track N / Slot Type" line in `Panel.tsx`. |
-| `#noteSessionKey` | No equivalent yet (master mode UI not ported). |
+| `#noteSessionKey` | No equivalent yet. Master FX is documented in `docs/schwung-host-feature-gaps.md`. |
 | `.pad.playable` | `<button>` in `PadGrid.tsx`. Add `data-testid="pad"`. |
 | `body.dataset.audio` | Not set. Add this from `audio.ts` (`document.body.dataset.audio = "ready"` after `engine.ready`), or expose a `data-audio` attr on a known element. |
 
@@ -97,12 +97,11 @@ const url = `http://localhost:${server.config.server.port}/web/`;
 await server.close();
 ```
 
-## Scope decision for "master mode"
+## Scope decision for Master FX
 
-The legacy test asserted master-mode behaviour (the 4-slot master FX chain).
-The React UI does not surface master mode yet. The rewrite should either:
+The legacy test asserted Master FX behaviour (the 4-slot Master FX chain).
+The React UI does not surface Master FX yet. The rewrite should:
 
-- Drop the master-mode assertions and document the gap, or
-- Wait until master mode is ported (no scheduled chunk).
-
-Recommend dropping for now; track separately if/when master mode is restored.
+- Drop the Master FX assertions for now.
+- Keep the gap tracked in `docs/schwung-host-feature-gaps.md`.
+- Add Master FX coverage when the UI and browser routing are implemented.

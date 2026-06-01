@@ -26,6 +26,7 @@ export type ModulePaths = {
 export type ModuleBuildTarget = {
   componentType: string;
   coreImpl: string;
+  deviceComponentDir: string | null;
   dspAuthoring: DspAuthoring;
   id: string;
   paths: ModulePaths;
@@ -44,6 +45,10 @@ type ModuleJson = {
 
 export async function selectedModuleIds(): Promise<string[]> {
   return process.env.MODULE_ID ? [process.env.MODULE_ID] : listModuleIds();
+}
+
+export async function selectedModuleTargets(): Promise<ModuleBuildTarget[]> {
+  return Promise.all((await selectedModuleIds()).map((moduleId) => readModuleTarget(moduleId)));
 }
 
 export async function listModuleIds(): Promise<string[]> {
@@ -75,10 +80,6 @@ export function modulePaths(moduleId: string): ModulePaths {
   };
 }
 
-export async function selectedModuleTargets(): Promise<ModuleBuildTarget[]> {
-  return Promise.all((await selectedModuleIds()).map((id) => readModuleTarget(id)));
-}
-
 export async function readModuleTarget(moduleId: string): Promise<ModuleBuildTarget> {
   const paths = modulePaths(moduleId);
   const moduleJson = JSON.parse(await readFile(paths.moduleJson, "utf8")) as ModuleJson;
@@ -90,6 +91,7 @@ export async function readModuleTarget(moduleId: string): Promise<ModuleBuildTar
   return {
     componentType,
     coreImpl,
+    deviceComponentDir: deviceComponentDirFor(componentType),
     dspAuthoring,
     id: moduleId,
     paths,
@@ -122,6 +124,13 @@ function wasmGlueFor(componentType: string): string | null {
   if (componentType === "sound_generator") return "src/host/schwung_wasm_glue_sg.c";
   if (componentType === "audio_fx") return "src/host/schwung_wasm_glue_fx.c";
   if (componentType === "midi_fx") return "src/host/midi_fx_wasm_glue.c";
+  return null;
+}
+
+function deviceComponentDirFor(componentType: string): string | null {
+  if (componentType === "sound_generator") return "sound_generators";
+  if (componentType === "audio_fx") return "audio_fx";
+  if (componentType === "midi_fx") return "midi_fx";
   return null;
 }
 

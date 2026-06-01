@@ -12,14 +12,13 @@ static void capture_slider(void *ui, const char *label, FAUSTFLOAT *zone,
     (void)init; (void)min; (void)max; (void)step;
     {{moduleId}}_core_t *core = ({{moduleId}}_core_t*)ui;
     int id = {{moduleId}}_param_id(label);
-    if (id >= 0 && id < 2) core->zones[id] = (void*)zone;
+    if (id >= 0 && id < {{moduleUpper}}_PARAM_COUNT) core->zones[id] = (void*)zone;
 }
 
 static void push_params_to_faust({{moduleId}}_core_t *s) {
-    float vals[2] = { s->mix, s->level };
-    for (int i = 0; i < 2; i++) {
+    for (int i = 0; i < {{moduleUpper}}_PARAM_COUNT; i++) {
         FAUSTFLOAT *zone = (FAUSTFLOAT*)s->zones[i];
-        if (zone) *zone = (FAUSTFLOAT)vals[i];
+        if (zone) *zone = (FAUSTFLOAT){{moduleId}}_get_param(s, i);
     }
 }
 

@@ -23,14 +23,13 @@ static void capture_slider(void *ui, const char *label, FAUSTFLOAT *zone,
     if (strcmp(label, "gain") == 0) { core->zone_gain = (void*)zone; return; }
 
     int id = faust_voice_param_id(label);
-    if (id >= 0 && id < 5) core->zones[id] = (void*)zone;
+    if (id >= 0 && id < FAUST_VOICE_PARAM_COUNT) core->zones[id] = (void*)zone;
 }
 
 static void push_params_to_faust(faust_voice_core_t *s) {
-    float vals[5] = { s->cutoff, s->resonance, s->attack, s->release, s->level };
-    for (int i = 0; i < 5; i++) {
+    for (int i = 0; i < FAUST_VOICE_PARAM_COUNT; i++) {
         FAUSTFLOAT *zone = (FAUSTFLOAT*)s->zones[i];
-        if (zone) *zone = (FAUSTFLOAT)vals[i];
+        if (zone) *zone = (FAUSTFLOAT)faust_voice_get_param(s, i);
     }
     if (s->zone_gate) *(FAUSTFLOAT*)s->zone_gate = (FAUSTFLOAT)s->gate;
     if (s->zone_freq) *(FAUSTFLOAT*)s->zone_freq = (FAUSTFLOAT)s->current_freq;

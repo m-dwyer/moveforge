@@ -8,8 +8,7 @@ This branch turns the browser mock into a broader Move/Schwung iteration harness
 - Schwung chain view: documented slot chain shape, `MIDI FX -> Sound Generator -> Audio FX 1 -> Audio FX 2 -> Settings`, with selected-slot and bypass state.
 - Functional local MIDI FX: `Scale Gate` can transpose, scale-lock, probability-gate, and velocity-scale notes before they reach the synth.
 - Functional local Audio FX: `Drive Tone` and `Air Tone` apply post-synth drive, tone smoothing, and wet/dry mix in the AudioWorklet.
-- Master FX view: Note/Session toggles a four-slot master effects chain.
-- Slot settings: knob/routing/LFO settings are represented locally, including Receive Ch, Forward Ch, MIDI FX output mode, and two LFO indicators.
+- Slot settings: Schwung-aligned setting keys are represented locally, including `slot:receive_channel`, `slot:forward_channel`, `midi_fx_pre_mode`, and minimal `lfo1:*` / `lfo2:*` state. Browser audition does not yet apply these host-level settings.
 - Device view: 8 parameters per page, encoder touch/highlight behavior, page navigation, and parameter value feedback on the OLED canvas.
 - Preset browser view: wheel-driven preset selection and loading.
 - Step harness: 16-step local sequencer, selected step state, play/stop, step clearing, and basic parameter locks while recording in step mode.
@@ -78,14 +77,10 @@ See `docs/schwung-device-workflow.md` for the checked hardware loop.
 
 The toolchain is now credible for deciding whether Schwung can support fast local synth iteration, but several pieces are still worth building before heavy module work:
 
-1. Generate parameter IDs for C/WASM/JS from one manifest.
-2. Extend validation to step/render fixtures in addition to each module directory's `module.json`, `params.json`, and `presets.json`.
-3. Add golden render metrics: peak, RMS, DC offset, silence, clipping, and tolerance comparison.
-4. Add an FX render harness with fixture WAV input.
-5. Add WASM/browser processing support for audio FX input/output comparison.
-6. Add browser recording/export so current WASM sessions can be captured as WAV fixtures.
-7. Add browser-side preset save/export back to JSON.
-8. Calibrate exact display, LED, and gesture timing with real hardware via Schwung screen mirroring.
+1. Implement the host-level behavior tracked in `docs/schwung-host-feature-gaps.md`: slot settings, MIDI FX pre mode, LFO modulation, and Master FX.
+2. Add browser recording/export so current WASM sessions can be captured as WAV fixtures.
+3. Add browser-side preset save/export back to JSON.
+4. Calibrate exact display, LED, and gesture timing with real hardware via Schwung screen mirroring.
 
 ## Practical Confidence Check
 

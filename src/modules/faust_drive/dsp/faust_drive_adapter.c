@@ -17,14 +17,13 @@ static void capture_slider(void *ui, const char *label, FAUSTFLOAT *zone,
     (void)init; (void)min; (void)max; (void)step;
     faust_drive_core_t *core = (faust_drive_core_t*)ui;
     int id = faust_drive_param_id(label);
-    if (id >= 0 && id < 4) core->zones[id] = (void*)zone;
+    if (id >= 0 && id < FAUST_DRIVE_PARAM_COUNT) core->zones[id] = (void*)zone;
 }
 
 static void push_params_to_faust(faust_drive_core_t *s) {
-    float vals[4] = { s->drive, s->tone, s->mix, s->level };
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < FAUST_DRIVE_PARAM_COUNT; i++) {
         FAUSTFLOAT *zone = (FAUSTFLOAT*)s->zones[i];
-        if (zone) *zone = (FAUSTFLOAT)vals[i];
+        if (zone) *zone = (FAUSTFLOAT)faust_drive_get_param(s, i);
     }
 }
 

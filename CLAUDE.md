@@ -15,7 +15,7 @@ Included modules:
 | `westfold` | sound_generator | plain C | West Coast voice: dual oscillator FM, wavefolder, low-pass gate |
 | `dustline` | sound_generator | plain C | Subtractive/noise voice: oscillator blend, resonant filter, drive |
 | `faust_voice` | sound_generator | Faust | Mono sawtooth + ADSR + resonant LPF + tanh saturation |
-| `trail` | audio_fx | plain C | Stereo feedback delay |
+| `trail` | audio_fx | Faust | Stereo feedback delay |
 | `faust_drive` | audio_fx | Faust | Drive/tone/mix saturator |
 | `arpy` | midi_fx | plain C | Arpeggiator with clock sync |
 
@@ -163,13 +163,11 @@ MOVE_HOST=ableton@192.168.1.42 mise run install
 
 Prioritized improvements to make synth and FX iteration faster and safer:
 
-1. Generate `PARAM_IDS` for `web/module-worklet.js` from the selected module's `module.json` to remove the remaining JS fallback mapping.
-2. Add a browser capture/export path that records a short WAV from the current WASM state and stores it beside the offline suite for A/B comparison.
-3. Add a hardware screenshot/OLED calibration path against the real 128x64 display.
-4. Add a small preset morph/randomize tool in the web UI to explore parameter spaces quickly, with bounded randomization from `module.json` ranges.
-5. Add MIDI learn or configurable CC mapping in the web UI, instead of hard-coding CC 20-27.
-6. Add clang-format and a formatting task to keep C changes mechanical and reviewable.
-7. Add GitHub Actions or a local pre-push command for `mise run check`, leaving Move deploy as an explicit local-only step.
-8. Generate Faust adapter boilerplate from `module.json` so template adapters do not hard-code param counts.
+1. Add a browser capture/export path that records a short WAV from the current WASM state and stores it beside the offline suite for A/B comparison.
+2. Add a hardware screenshot/OLED calibration path against the real 128x64 display.
+3. Add MIDI learn or configurable CC mapping in the web UI, instead of hard-coding CC 20-27.
+4. Add clang-format and a formatting task to keep C changes mechanical and reviewable.
+5. Add GitHub Actions or a local pre-push command for `mise run check`, leaving Move deploy as an explicit local-only step.
+6. Continue generating more Faust adapter boilerplate from `module.json` where it can stay compatible with custom adapter controls such as `gate`, `freq`, `gain`, and Trail's internal `_dtime`.
 
-For the next repo change, the highest-leverage item is probably generated parameter bindings (#1). The current validator catches drift across C, module JSON, and presets; generating the worklet mapping from `module.json` would remove the remaining browser-side duplication entirely.
+The current validator catches drift across C, module JSON, presets, Faust C, and generated chain UI. Browser parameter dispatch intentionally uses string keys from `module.json`, so there is no separate `PARAM_IDS` mapping in `web/module-worklet.js` to keep in sync.

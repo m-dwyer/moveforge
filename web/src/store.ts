@@ -8,24 +8,39 @@ import {
   type ModuleIndexItem
 } from "./module-metadata";
 import {
-  makeDefaultAudition,
   makeInitialState,
   type AppState,
   type AuditionPatternName,
   type ChainSlot,
   type ScaleName,
-  type StepState,
   type TrackState
 } from "./chain-state";
 import type { Preset } from "./module-metadata";
-import { sendParamToSlot } from "@/audio";
+import { sendParamUpdate, sendParamUpdates, type HostParamUpdate } from "@/audio";
 import type { ParamDefinition } from "./module-metadata";
+import {
+  applyParamUpdatesToDraft,
+  currentParamSnapshotKey,
+  liveParamRecord,
+  paramUpdatesForSnapshot,
+  repairParamSnapshots,
+  type ParamSnapshotBank,
+  type ParamSnapshotLabel
+} from "./param-snapshots";
+import { RANDOMIZE_AMOUNTS, randomizeParams, repairRandomizeAmount, type RandomizeAmount } from "./param-randomize";
+import {
+  reconcileParamRecord,
+  reconcileParamsFromRecord,
+  repairAudition,
+  repairScaleName,
+  repairSteps,
+  repairTracks
+} from "./store-repair";
+import { clamp, trackSlotKey } from "./store-utils";
 
-export const PARAM_SNAPSHOT_LABELS = ["A", "B", "C", "D"] as const;
-export type ParamSnapshotLabel = typeof PARAM_SNAPSHOT_LABELS[number];
-export type ParamSnapshotBank = Partial<Record<ParamSnapshotLabel, Record<string, number>>>;
-export const RANDOMIZE_AMOUNTS = ["subtle", "medium", "wild"] as const;
-export type RandomizeAmount = typeof RANDOMIZE_AMOUNTS[number];
+export { PARAM_SNAPSHOT_LABELS, type ParamSnapshotLabel } from "./param-snapshots";
+export { RANDOMIZE_AMOUNTS, type RandomizeAmount } from "./param-randomize";
+export { trackSlotKey } from "./store-utils";
 
 export type StoreState = AppState & {
   activeModuleName: string;
@@ -92,6 +107,7 @@ export type Store = StoreState & StoreActions;
 const initialModuleId = "westfold";
 const initialModuleName = "Westfold";
 export const STORE_PERSIST_KEY = "moveforge-web-ui:v1";
+const STORE_PERSIST_VERSION = 2;
 
 export const useStore = create<Store>()(
   persist(
@@ -279,7 +295,7 @@ export const useStore = create<Store>()(
         slot.enabled = !slot.enabled;
       }),
 
-    setTopLevelParam: (key, value) =>
+    setTopLevelParam: (key, value) => {
       set((draft) => {
         const param = draft.topLevelParams.find((p) => p.key === key);
         if (param) {
@@ -287,14 +303,22 @@ export const useStore = create<Store>()(
           const sound = soundSlotForTrack(draft, draft.selectedTrack);
           if (sound) sound.params[key] = value;
         }
-      }),
+      });
+      const param = get().topLevelParams.find((p) => p.key === key);
+      if (param) sendParamUpdate({ slotId: "sound", key, id: param.id, value });
+    },
 
-    setSlotParam: (trackIndex, slotIndex, key, value) =>
+    setSlotParam: (trackIndex, slotIndex, key, value) => {
       set((draft) => {
         const slot = draft.tracks[trackIndex].chain[slotIndex];
         if (slot.kind === "sound_generator") return;
         (slot.params as Record<string, number>)[key] = value;
-      }),
+      });
+      const slot = get().tracks[trackIndex]?.chain[slotIndex];
+      if (!slot || slot.kind === "settings" || slot.kind === "sound_generator") return;
+      const param = get().slotMeta[trackSlotKey(trackIndex, slot.id)]?.params.find((p) => p.key === key);
+      if (param) sendParamUpdate({ slotId: slot.id, key, id: param.id, value });
+    },
 
     setPadLayout: (layout) =>
       set((draft) => {
@@ -342,11 +366,7 @@ export const useStore = create<Store>()(
         }
       });
       // Push the new values to the audio engine.
-      const params = get().topLevelParams;
-      for (const [key, value] of Object.entries(preset.params)) {
-        const p = params.find((q) => q.key === key);
-        if (p) sendParamToSlot("sound", key, p.id, value);
-      }
+      sendParamUpdates(paramUpdatesForEntries("sound", get().topLevelParams, preset.params));
     },
 
     applySlotPreset: (trackIndex, slotIndex, name) => {
@@ -365,10 +385,7 @@ export const useStore = create<Store>()(
         }
       });
       // Push the new values to the audio engine for this slot.
-      for (const [key, value] of Object.entries(preset.params)) {
-        const p = meta?.params.find((q) => q.key === key);
-        if (p) sendParamToSlot(slot.id, key, p.id, value);
-      }
+      sendParamUpdates(paramUpdatesForEntries(slot.id, meta.params, preset.params));
     },
 
     randomizeSelectedSlotParams: () => {
@@ -390,11 +407,7 @@ export const useStore = create<Store>()(
           draft.selectedPreset = "Random";
           currentTrack(draft).selectedPreset = "Random";
         });
-        const params = get().topLevelParams;
-        for (const [key, value] of Object.entries(updates)) {
-          const p = params.find((q) => q.key === key);
-          if (p) sendParamToSlot("sound", key, p.id, value);
-        }
+        sendParamUpdates(paramUpdatesForEntries("sound", get().topLevelParams, updates));
         return;
       }
 
@@ -407,10 +420,7 @@ export const useStore = create<Store>()(
         Object.assign(target.params, updates);
         draft.slotPreset[trackSlotKey(trackIndex, target.id)] = "Random";
       });
-      for (const [key, value] of Object.entries(updates)) {
-        const p = meta.params.find((q) => q.key === key);
-        if (p) sendParamToSlot(slot.id, key, p.id, value);
-      }
+      sendParamUpdates(paramUpdatesForEntries(slot.id, meta.params, updates));
     },
 
     setRandomizeAmount: (amount) =>
@@ -443,7 +453,7 @@ export const useStore = create<Store>()(
         applyParamUpdatesToDraft(draft, updates);
         if (key) draft.selectedParamSnapshot[key] = label;
       });
-      for (const update of updates) sendParamToSlot(update.slotId, update.key, update.id, update.value);
+      sendParamUpdates(updates);
     },
 
     swapParamSnapshot: (label) => {
@@ -459,7 +469,7 @@ export const useStore = create<Store>()(
         draft.paramSnapshots[key][label] = live;
         draft.selectedParamSnapshot[key] = label;
       });
-      for (const update of updates) sendParamToSlot(update.slotId, update.key, update.id, update.value);
+      sendParamUpdates(updates);
     },
 
     clearParamSnapshot: (label) =>
@@ -596,7 +606,8 @@ export const useStore = create<Store>()(
     {
       name: STORE_PERSIST_KEY,
       storage: createJSONStorage(() => localStorage),
-      version: 1,
+      version: STORE_PERSIST_VERSION,
+      migrate: (persisted) => persisted,
       partialize: (state) => ({
         activeModuleName: state.activeModuleName,
         audition: state.audition,
@@ -671,254 +682,6 @@ export type SlotParamRow = {
   value: number;
 };
 
-function reconcileParams(next: ParamDefinition[], saved: ParamDefinition[]): ParamDefinition[] {
-  const savedByKey = new Map(saved.map((p) => [p.key, p.value]));
-  return next.map((param) => ({
-    ...param,
-    value: clamp(savedByKey.get(param.key) ?? param.value ?? param.default, param.min, param.max)
-  }));
-}
-
-function reconcileParamsFromRecord(next: ParamDefinition[], saved: Record<string, number>): ParamDefinition[] {
-  return next.map((param) => ({
-    ...param,
-    value: clamp(saved[param.key] ?? param.default, param.min, param.max)
-  }));
-}
-
-function reconcileParamRecord(next: ParamDefinition[], saved: Record<string, number>): Record<string, number> {
-  return Object.fromEntries(next.map((param) => [
-    param.key,
-    clamp(saved[param.key] ?? param.default, param.min, param.max)
-  ]));
-}
-
-function repairTracks(savedTracks: Store["tracks"] | undefined, fallback: Store["tracks"]): Store["tracks"] {
-  if (!Array.isArray(savedTracks)) return fallback;
-  return fallback.map((fallbackTrack, index) => {
-    const saved = savedTracks[index] as Partial<TrackState> | undefined;
-    if (!saved) return fallbackTrack;
-    return {
-      ...fallbackTrack,
-      ...saved,
-      activeNotes: new Map(),
-      audition: repairAudition(saved.audition, fallbackTrack.audition),
-      customCopySteps: repairSteps(saved.customCopySteps, fallbackTrack.customCopySteps),
-      moveEchoEvents: []
-    };
-  });
-}
-
-function repairSteps(savedSteps: StepState[] | undefined, fallback: StepState[]): StepState[] {
-  const repaired = fallback.map((step, index) => {
-    const saved = savedSteps?.[index];
-    if (!saved) return step;
-    return {
-      enabled: Boolean(saved.enabled),
-      locks: saved.locks ?? {},
-      note: clamp(saved.note, 0, 127),
-      velocity: clamp(saved.velocity, 0, 1)
-    };
-  });
-  return repaired;
-}
-
-function repairAudition(saved: Partial<Store["audition"]> | undefined, fallback = makeDefaultAudition()): Store["audition"] {
-  return {
-    ...fallback,
-    ...saved,
-    gate: clamp(saved?.gate ?? fallback.gate, 0.05, 1),
-    length: repairAuditionLength(saved?.length, fallback.length),
-    pattern: repairAuditionPattern(saved?.pattern, fallback.pattern),
-    transpose: clamp(Math.round(saved?.transpose ?? fallback.transpose), -24, 24),
-    velocity: clamp(saved?.velocity ?? fallback.velocity, 0.05, 1)
-  };
-}
-
-function repairAuditionLength(value: unknown, fallback: 8 | 16 | 32): 8 | 16 | 32 {
-  return value === 8 || value === 16 || value === 32 ? value : fallback;
-}
-
-function repairAuditionPattern(value: unknown, fallback: AuditionPatternName): AuditionPatternName {
-  const allowed: AuditionPatternName[] = [
-    "custom",
-    "custom_copy",
-    "bass_pulse",
-    "octave_bounce",
-    "drone_hold",
-    "chord_stab",
-    "velocity_ramp",
-    "acid_line",
-    "minor_hook",
-    "fifths",
-    "syncopated_stab"
-  ];
-  return allowed.includes(value as AuditionPatternName) ? value as AuditionPatternName : fallback;
-}
-
-function repairScaleName(value: unknown): ScaleName {
-  if (value === "minor") return "natural_minor";
-  if (value === "pentatonic") return "major_pentatonic";
-  const allowed: ScaleName[] = [
-    "major",
-    "natural_minor",
-    "harmonic_minor",
-    "melodic_minor",
-    "major_pentatonic",
-    "minor_pentatonic",
-    "blues",
-    "dorian",
-    "phrygian",
-    "lydian",
-    "mixolydian",
-    "locrian",
-    "whole_tone",
-    "diminished"
-  ];
-  return allowed.includes(value as ScaleName) ? value as ScaleName : "major";
-}
-
-type ParamUpdate = {
-  id: number;
-  key: string;
-  slotId: string;
-  slotIndex: number;
-  trackIndex: number;
-  value: number;
-};
-
-function currentParamSnapshotKey(state: Pick<StoreState, "selectedSlot" | "selectedTrack" | "tracks">): string | null {
-  const slot = state.tracks[state.selectedTrack]?.chain[state.selectedSlot];
-  if (!slot || slot.kind === "settings" || !slot.moduleId) return null;
-  return `${state.selectedTrack}:${slot.id}:${slot.moduleId}`;
-}
-
-function liveParamRecord(state: Pick<StoreState, "selectedSlot" | "selectedTrack" | "tracks" | "topLevelParams">): Record<string, number> {
-  const slot = state.tracks[state.selectedTrack]?.chain[state.selectedSlot];
-  if (!slot || slot.kind === "settings") return {};
-  if (slot.kind === "sound_generator") {
-    return Object.fromEntries(state.topLevelParams.map((param) => [param.key, param.value]));
-  }
-  return { ...(slot.params as Record<string, number>) };
-}
-
-function paramUpdatesForSnapshot(
-  state: Pick<StoreState, "selectedSlot" | "selectedTrack" | "slotMeta" | "topLevelParams" | "tracks">,
-  snapshot: Record<string, number>
-): ParamUpdate[] {
-  const trackIndex = state.selectedTrack;
-  const slotIndex = state.selectedSlot;
-  const slot = state.tracks[trackIndex]?.chain[slotIndex];
-  if (!slot || slot.kind === "settings") return [];
-
-  if (slot.kind === "sound_generator") {
-    return state.topLevelParams
-      .filter((param) => snapshot[param.key] !== undefined)
-      .map((param) => ({
-        id: param.id,
-        key: param.key,
-        slotId: "sound",
-        slotIndex,
-        trackIndex,
-        value: clamp(snapshot[param.key], param.min, param.max)
-      }));
-  }
-
-  const meta = state.slotMeta[trackSlotKey(trackIndex, slot.id)];
-  if (!meta) return [];
-  return meta.params
-    .filter((param) => snapshot[param.key] !== undefined)
-    .map((param) => ({
-      id: param.id,
-      key: param.key,
-      slotId: slot.id,
-      slotIndex,
-      trackIndex,
-      value: clamp(snapshot[param.key], param.min, param.max)
-    }));
-}
-
-function applyParamUpdatesToDraft(state: StoreState, updates: ParamUpdate[]): void {
-  for (const update of updates) {
-    const slot = state.tracks[update.trackIndex]?.chain[update.slotIndex];
-    if (!slot || slot.kind === "settings") continue;
-    if (slot.kind === "sound_generator") {
-      const param = state.topLevelParams.find((p) => p.key === update.key);
-      if (param) param.value = update.value;
-      slot.params[update.key] = update.value;
-    } else {
-      (slot.params as Record<string, number>)[update.key] = update.value;
-    }
-  }
-}
-
-function repairParamSnapshots(saved: Store["paramSnapshots"] | undefined): Store["paramSnapshots"] {
-  if (!saved || typeof saved !== "object") return {};
-  const repaired: Store["paramSnapshots"] = {};
-  for (const [key, bank] of Object.entries(saved)) {
-    if (!bank || typeof bank !== "object") continue;
-    for (const label of PARAM_SNAPSHOT_LABELS) {
-      const snapshot = bank[label];
-      if (!snapshot || typeof snapshot !== "object") continue;
-      const params = Object.fromEntries(
-        Object.entries(snapshot).filter(([, value]) => Number.isFinite(value))
-      );
-      if (Object.keys(params).length === 0) continue;
-      repaired[key] = repaired[key] ?? {};
-      repaired[key][label] = params;
-    }
-  }
-  return repaired;
-}
-
-function randomizeParams(params: ParamDefinition[], current: Record<string, number>, amount: RandomizeAmount): Record<string, number> {
-  return Object.fromEntries(params.map((param) => [param.key, randomParamValue(param, current[param.key], amount)]));
-}
-
-function randomParamValue(param: ParamDefinition, currentValue: number | undefined, amount: RandomizeAmount): number {
-  const declaredMin = Number.isFinite(param.min) ? param.min : 0;
-  const declaredMax = Number.isFinite(param.max) ? param.max : declaredMin;
-  const hint = param.randomize;
-  const hintedMin = Number.isFinite(hint?.min) ? hint!.min! : declaredMin;
-  const hintedMax = Number.isFinite(hint?.max) ? hint!.max! : declaredMax;
-  const min = clamp(hintedMin, declaredMin, declaredMax);
-  const max = clamp(Math.max(hintedMin, hintedMax), min, declaredMax);
-  const baseWidth = Math.max(0, max - min);
-  const centerSource = hint?.mode === "around_default" ? param.default : currentValue ?? param.default;
-  const center = clamp(centerSource, min, max);
-  const amountScale = randomizeScale(amount, hint?.amount);
-  const rangeWidth = hint?.mode === "full" ? baseWidth : baseWidth * amountScale;
-  const lo = rangeWidth >= baseWidth ? min : clamp(center - rangeWidth / 2, min, max);
-  const hi = rangeWidth >= baseWidth ? max : clamp(center + rangeWidth / 2, min, max);
-  const value = lo + Math.random() * Math.max(0, hi - lo);
-  const step = param.step && param.step > 0 ? param.step : 0;
-  if (!step) return clamp(value, min, max);
-  const stepped = declaredMin + Math.round((value - declaredMin) / step) * step;
-  const decimals = Math.max(0, decimalPlaces(step));
-  return Number(clamp(stepped, min, max).toFixed(decimals));
-}
-
-function randomizeScale(amount: RandomizeAmount, hintAmount?: number): number {
-  const base = amount === "subtle" ? 0.18 : amount === "medium" ? 0.45 : 1;
-  if (!Number.isFinite(hintAmount)) return base;
-  return clamp(base * hintAmount!, 0.01, 1);
-}
-
-function repairRandomizeAmount(value: unknown): RandomizeAmount {
-  return RANDOMIZE_AMOUNTS.includes(value as RandomizeAmount) ? value as RandomizeAmount : "medium";
-}
-
-function decimalPlaces(value: number): number {
-  const text = String(value);
-  const dot = text.indexOf(".");
-  return dot === -1 ? 0 : text.length - dot - 1;
-}
-
-function clamp(value: number, min: number, max: number): number {
-  if (!Number.isFinite(value)) return min;
-  return Math.max(min, Math.min(max, value));
-}
-
 function currentTrack(state: Pick<StoreState, "selectedTrack" | "tracks">): TrackState {
   return state.tracks[state.selectedTrack];
 }
@@ -948,6 +711,13 @@ function soundSlotForTrack(state: Pick<StoreState, "tracks">, trackIndex: number
   return slot?.kind === "sound_generator" ? slot : null;
 }
 
-export function trackSlotKey(trackIndex: number, slotId: string): string {
-  return `${trackIndex}:${slotId}`;
+function paramUpdatesForEntries(
+  slotId: string,
+  params: ParamDefinition[],
+  entries: Record<string, number>
+): HostParamUpdate[] {
+  return Object.entries(entries).flatMap(([key, value]) => {
+    const param = params.find((candidate) => candidate.key === key);
+    return param ? [{ slotId, key, id: param.id, value }] : [];
+  });
 }

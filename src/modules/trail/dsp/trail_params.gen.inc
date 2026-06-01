@@ -4,6 +4,8 @@
 #ifndef TRAIL_PARAMS_GEN_INC
 #define TRAIL_PARAMS_GEN_INC
 
+#define TRAIL_PARAM_COUNT 9
+
 enum {
     TRAIL_PARAM_TIME = 0,
     TRAIL_PARAM_SYNC = 1,

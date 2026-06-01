@@ -12,6 +12,13 @@ export type AudioCall =
   | { kind: "sendParamToSlot"; slotId: string; key: string; id: number; value: number }
   | { kind: "reloadModuleWasm"; moduleId: string | null };
 
+export type HostParamUpdate = {
+  slotId: string;
+  key: string;
+  id: number;
+  value: number;
+};
+
 declare global {
   interface Window {
     __moveforgeAudioCalls__: AudioCall[];
@@ -57,8 +64,18 @@ export function setMasterVolume(volume: number): void {
   record({ kind: "setMasterVolume", volume });
 }
 
-export function sendParamToSlot(slotId: string, key: string, id: number, value: number): void {
-  record({ kind: "sendParamToSlot", slotId, key, id, value });
+export function sendParamUpdate(update: HostParamUpdate): void {
+  record({
+    kind: "sendParamToSlot",
+    slotId: update.slotId,
+    key: update.key,
+    id: update.id,
+    value: update.value
+  });
+}
+
+export function sendParamUpdates(updates: HostParamUpdate[]): void {
+  for (const update of updates) sendParamUpdate(update);
 }
 
 export async function reloadModuleWasm(moduleId: string | null): Promise<void> {

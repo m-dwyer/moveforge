@@ -1,10 +1,11 @@
 import { readdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { modulePaths, selectedModuleIds } from "./lib/modules.ts";
+import { selectedModuleTargets } from "./lib/modules.ts";
 import { metricsForWavFile, type WavMetrics } from "./wav-metrics.ts";
 
-for (const moduleId of await selectedModuleIds()) {
-  const { suiteDir } = modulePaths(moduleId);
+for (const target of await selectedModuleTargets()) {
+  const moduleId = target.id;
+  const { suiteDir } = target.paths;
 
   const entries = await readdir(suiteDir, { withFileTypes: true }).catch(() => []);
   const wavs = entries.filter((entry) => entry.isFile() && entry.name.endsWith(".wav")).map((entry) => entry.name);
