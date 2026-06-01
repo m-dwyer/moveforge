@@ -4,9 +4,12 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 . "$ROOT/scripts/lib/move-guards.sh"
-. "$ROOT/scripts/lib/module-targets.sh"
 
-MODULE_IDS="$(moveforge_module_ids)"
+module_target() {
+  node scripts/module-target.ts "$@"
+}
+
+MODULE_IDS="$(module_target ids)"
 MOVE_HOST="${MOVE_HOST:-ableton@move.local}"
 FORCE=0
 SKIP_BUILD=0
@@ -71,17 +74,7 @@ component_dir_for() {
     return
   fi
 
-  local module_kind
-  module_kind="$(moveforge_component_type "$module_id")"
-  case "$module_kind" in
-    sound_generator) echo "sound_generators" ;;
-    audio_fx)        echo "audio_fx" ;;
-    midi_fx)         echo "midi_fx" ;;
-    *)
-      echo "install-to-move: $module_id has unrecognized component_type='$module_kind'" >&2
-      exit 2
-      ;;
-  esac
+  module_target device-component-dir "$module_id"
 }
 
 echo "install-to-move: checking SSH to $MOVE_HOST"

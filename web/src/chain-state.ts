@@ -96,7 +96,6 @@ export type TrackState = {
   audition: AuditionState;
   chain: ChainSlot[];
   customCopySteps: StepState[];
-  moveEchoEvents: Array<{ at: number; note: number; velocity: number }>;
   selectedPreset: string;
   selectedStep: number;
   steps: StepState[];
@@ -124,29 +123,21 @@ export type AuditionState = {
 export type AppState = {
   activePads: Map<number, number>;
   audition: AuditionState;
-  browserIndex: number;
-  context: "master" | "slot";
   customCopySteps: StepState[];
-  loop: boolean;
   master: MasterState;
   masterVolume: number;
   mode: "browser" | "chain" | "device" | "seq";
-  mute: boolean;
   octave: number;
   padLayout: "chromatic" | "in-key-fourths" | "in-key-octaves";
-  page: number;
   playStep: number;
   playing: boolean;
-  record: boolean;
   root: number;
   scale: ScaleName;
   selectedPreset: string;
   selectedSlot: number;
   selectedStep: number;
   selectedTrack: number;
-  shift: boolean;
   steps: StepState[];
-  touchedParam: unknown;
   tracks: TrackState[];
 };
 
@@ -167,18 +158,6 @@ export const scales: Record<ScaleName, number[]> = {
   diminished: [0, 2, 3, 5, 6, 8, 9, 11]
 };
 
-export const midiFxParamDefs: ScopedParamDefinition[] = [
-  { scope: "component", key: "transpose", label: "Transpose", min: -24, max: 24, default: 0, step: 1 },
-  { scope: "component", key: "chance", label: "Chance", min: 0, max: 1, default: 1, step: 0.01 },
-  { scope: "component", key: "velocity", label: "Velocity", min: 0.1, max: 1.5, default: 1, step: 0.01 }
-];
-
-export const audioFxParamDefs: ScopedParamDefinition[] = [
-  { scope: "component", key: "drive", label: "Drive", min: 0, max: 1, default: 0.35, step: 0.01 },
-  { scope: "component", key: "tone", label: "Tone", min: 0, max: 1, default: 0.72, step: 0.01 },
-  { scope: "component", key: "wet", label: "Wet", min: 0, max: 1, default: 0.55, step: 0.01 }
-];
-
 export const settingsParamDefs: ScopedParamDefinition[] = [
   { scope: "settings", key: "slot_volume", label: "Slot Vol", min: 0, max: 1, default: 1, step: 0.01 },
   { scope: "settings", key: "receive_ch", label: "Recv Ch", min: 0, max: 16, default: 0, step: 1 },
@@ -191,18 +170,10 @@ export const settingsParamDefs: ScopedParamDefinition[] = [
 export function makeInitialState(moduleId: string, moduleName: string): AppState {
   return {
     mode: "device",
-    context: "slot",
-    page: 0,
     selectedTrack: 0,
     selectedSlot: 1,
     selectedPreset: "Init",
-    browserIndex: 0,
-    touchedParam: null,
-    shift: false,
-    record: false,
     playing: false,
-    loop: false,
-    mute: false,
     audition: makeDefaultAudition(),
     customCopySteps: makeDefaultSteps(false),
     selectedStep: 0,
@@ -306,8 +277,7 @@ function makeSlotState(moduleId: string, moduleName: string): TrackState {
     selectedPreset: "Init",
     selectedStep: 0,
     steps: makeDefaultSteps(false),
-    activeNotes: new Map(),
-    moveEchoEvents: []
+    activeNotes: new Map()
   };
 }
 

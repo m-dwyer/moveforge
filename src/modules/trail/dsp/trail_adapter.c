@@ -41,13 +41,9 @@ static void capture_slider(void *ui, const char *label, FAUSTFLOAT *zone,
 /* Push the 1:1 param fields into their captured Faust zones. time/sync have no
  * zone (NULL) and are handled by compute_dtime instead. */
 static void push_params_to_faust(trail_core_t *s) {
-    float vals[TRAIL_NUM_PARAMS] = {
-        s->time, s->sync, s->feedback, s->tone,
-        s->mod, s->width, s->drive, s->space, s->mix
-    };
-    for (int i = 0; i < TRAIL_NUM_PARAMS; i++) {
+    for (int i = 0; i < TRAIL_PARAM_COUNT; i++) {
         FAUSTFLOAT *zone = (FAUSTFLOAT*)s->zones[i];
-        if (zone) *zone = (FAUSTFLOAT)vals[i];
+        if (zone) *zone = (FAUSTFLOAT)trail_get_param(s, i);
     }
 }
 

@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { trackSlotKey, useStore, selectSelectedSlot, type SlotParamRow } from "@/store";
 import { Slider } from "@/components/ui/slider";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { audioFxParamDefs, midiFxParamDefs, settingsParamDefs, type ScopedParamDefinition } from "@/chain-state";
+import { settingsParamDefs, type ScopedParamDefinition } from "@/chain-state";
 import { sendParamToSlot } from "@/audio";
 
 export function Controls() {
@@ -40,7 +40,7 @@ export function Controls() {
         value: (slot.params as Record<string, number>)[p.key] ?? p.default
       }));
     }
-    return rowsFromDefs(slot.kind === "midi_fx" ? midiFxParamDefs : audioFxParamDefs, slot.params as Record<string, number>);
+    return [];
   }, [slot, topLevelParams, slotMetaEntry]);
 
   if (params.length === 0) {

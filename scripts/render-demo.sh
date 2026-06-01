@@ -3,19 +3,22 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
-. "$ROOT/scripts/lib/module-targets.sh"
 
-MODULE_IDS="$(moveforge_module_ids)"
+module_target() {
+  node scripts/module-target.ts "$@"
+}
+
+MODULE_IDS="$(module_target ids)"
 
 mkdir -p build renders
 
 for MODULE_ID in $MODULE_IDS; do
-  MODULE_DIR="$(moveforge_module_dir "$MODULE_ID")"
-  COMPONENT_TYPE="$(moveforge_component_type "$MODULE_ID")"
-  CORE_IMPL="$(moveforge_core_impl "$MODULE_ID")"
-  WRAPPER_C="$(moveforge_wrapper_c "$MODULE_ID")"
-  RENDER_BIN="$(moveforge_render_bin "$MODULE_ID" "$COMPONENT_TYPE")"
-  RENDER_DEMO_OUT="$(moveforge_render_demo_out "$MODULE_ID" "$COMPONENT_TYPE")"
+  MODULE_DIR="$(module_target module-dir "$MODULE_ID")"
+  COMPONENT_TYPE="$(module_target component-type "$MODULE_ID")"
+  CORE_IMPL="$(module_target core-impl "$MODULE_ID")"
+  WRAPPER_C="$(module_target wrapper-c "$MODULE_ID")"
+  RENDER_BIN="$(module_target render-bin "$MODULE_ID")"
+  RENDER_DEMO_OUT="$(module_target render-demo-out "$MODULE_ID")"
 
   case "$COMPONENT_TYPE" in
     sound_generator)

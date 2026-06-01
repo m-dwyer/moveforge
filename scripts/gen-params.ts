@@ -95,7 +95,9 @@ function renderInc(moduleId: string, params: Param[]): string {
     guard,
     idLookup,
     moduleId,
-    setCases
+    paramCount: params.length,
+    setCases,
+    upper
   });
 }
 

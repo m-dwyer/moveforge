@@ -3,13 +3,16 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
-. "$ROOT/scripts/lib/module-targets.sh"
+
+module_target() {
+  node scripts/module-target.ts "$@"
+}
 
 IMAGE_NAME="${IMAGE_NAME:-schwung-module-builder}"
 if [ -n "${MODULE_ID:-}" ]; then
   MODULE_IDS="$MODULE_ID"
 else
-  MODULE_IDS="$(moveforge_module_ids)"
+  MODULE_IDS="$(module_target ids)"
 fi
 
 if [ -z "${CROSS_PREFIX:-}" ] && [ -z "${SCHWUNG_NO_DOCKER:-}" ] && [ ! -f "/.dockerenv" ]; then
@@ -42,9 +45,9 @@ fi
 mkdir -p build
 
 for MODULE_ID in $MODULE_IDS; do
-  MODULE_DIR="$(moveforge_module_dir "$MODULE_ID")"
-  CORE_IMPL="$(moveforge_core_impl "$MODULE_ID")"
-  WRAPPER_C="$(moveforge_wrapper_c "$MODULE_ID")"
+  MODULE_DIR="$(module_target module-dir "$MODULE_ID")"
+  CORE_IMPL="$(module_target core-impl "$MODULE_ID")"
+  WRAPPER_C="$(module_target wrapper-c "$MODULE_ID")"
   mkdir -p "dist/$MODULE_ID"
 
   "${CROSS_PREFIX}gcc" -std=c11 -O3 -g -shared -fPIC \

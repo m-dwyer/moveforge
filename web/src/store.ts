@@ -92,6 +92,7 @@ export type Store = StoreState & StoreActions;
 const initialModuleId = "westfold";
 const initialModuleName = "Westfold";
 export const STORE_PERSIST_KEY = "moveforge-web-ui:v1";
+const STORE_PERSIST_VERSION = 2;
 
 export const useStore = create<Store>()(
   persist(
@@ -596,7 +597,8 @@ export const useStore = create<Store>()(
     {
       name: STORE_PERSIST_KEY,
       storage: createJSONStorage(() => localStorage),
-      version: 1,
+      version: STORE_PERSIST_VERSION,
+      migrate: (persisted) => persisted,
       partialize: (state) => ({
         activeModuleName: state.activeModuleName,
         audition: state.audition,
@@ -704,7 +706,6 @@ function repairTracks(savedTracks: Store["tracks"] | undefined, fallback: Store[
       activeNotes: new Map(),
       audition: repairAudition(saved.audition, fallbackTrack.audition),
       customCopySteps: repairSteps(saved.customCopySteps, fallbackTrack.customCopySteps),
-      moveEchoEvents: []
     };
   });
 }

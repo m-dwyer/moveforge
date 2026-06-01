@@ -4,11 +4,14 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 . "$ROOT/scripts/lib/move-guards.sh"
-. "$ROOT/scripts/lib/module-targets.sh"
+
+module_target() {
+  node scripts/module-target.ts "$@"
+}
 
 MOVE_HOST="${MOVE_HOST:-ableton@move.local}"
 SCHWUNG_DIR="${SCHWUNG_DIR:-/data/UserData/schwung}"
-MODULE_IDS="$(moveforge_module_ids)"
+MODULE_IDS="$(module_target ids)"
 
 usage() {
   cat <<EOF
@@ -42,17 +45,7 @@ component_dir_for() {
     return
   fi
 
-  local module_kind
-  module_kind="$(moveforge_component_type "$module_id")"
-  case "$module_kind" in
-    sound_generator) echo "sound_generators" ;;
-    audio_fx)        echo "audio_fx" ;;
-    midi_fx)         echo "midi_fx" ;;
-    *)
-      echo "move-health: $module_id has unrecognized component_type='$module_kind'" >&2
-      exit 2
-      ;;
-  esac
+  module_target device-component-dir "$module_id"
 }
 
 move_guard_validate_host "$MOVE_HOST"

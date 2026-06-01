@@ -12,14 +12,14 @@ test("renders settings rows when the settings slot is selected", async () => {
   await expect.element(page.getByTestId("controls")).toHaveTextContent(/MIDI Out/);
 });
 
-test("falls back to default audio_fx params when no module is loaded", async () => {
+test("shows an empty state when no audio_fx module metadata is loaded", async () => {
   useStore.setState({ selectedSlot: 2 });
   render(createElement(Controls));
 
   const controls = page.getByTestId("controls");
-  await expect.element(controls).toHaveTextContent(/Drive/);
-  await expect.element(controls).toHaveTextContent(/Tone/);
-  await expect.element(controls).toHaveTextContent(/Wet/);
+  await expect.element(controls).toHaveTextContent(/Pick a module above/);
+  await expect.element(controls).not.toHaveTextContent(/Drive/);
+  await expect.element(controls).not.toHaveTextContent(/Tone/);
 });
 
 test("renders top-level params and fires sendParamToSlot on slider change", async () => {
