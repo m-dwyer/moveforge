@@ -56,6 +56,46 @@ test("migrates legacy persisted scale names", async () => {
   expect(useStore.getState().scale).toBe("major_pentatonic");
 });
 
+test("migrates legacy browser slot setting keys to Schwung host keys", async () => {
+  window.localStorage.setItem(STORE_PERSIST_KEY, JSON.stringify({
+    state: {
+      tracks: [
+        {
+          chain: [
+            {},
+            {},
+            {},
+            {},
+            {
+              kind: "settings",
+              params: {
+                slot_volume: 0.75,
+                receive_ch: 3,
+                forward_ch: 1,
+                midi_fx_output: 1,
+                lfo1_depth: 0.4,
+                lfo2_depth: -0.25
+              }
+            }
+          ]
+        }
+      ]
+    },
+    version: 2
+  }));
+
+  await (useStore as typeof useStore & { persist: { rehydrate: () => Promise<void> } }).persist.rehydrate();
+
+  const settings = useStore.getState().tracks[0].chain[4];
+  if (settings.kind !== "settings") throw new Error("Expected settings slot");
+  expect(settings.params["slot:volume"]).toBe(0.75);
+  expect(settings.params["slot:receive_channel"]).toBe(3);
+  expect(settings.params["slot:forward_channel"]).toBe(-2);
+  expect(settings.params.midi_fx_pre_mode).toBe(1);
+  expect(settings.params["lfo1:depth"]).toBe(0.4);
+  expect(settings.params["lfo2:depth"]).toBe(-0.25);
+});
+
 test("tracks keep independent sequencer state", async () => {
   useStore.getState().toggleStep(0);
   useStore.getState().setStepNote(0, 48);

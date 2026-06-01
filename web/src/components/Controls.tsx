@@ -120,13 +120,18 @@ function rowsFromDefs(defs: ScopedParamDefinition[], values: Record<string, numb
 
 function formatValue(p: { key: string; value: number; step: number }): string {
   if (p.key === "transpose") return (p.value > 0 ? "+" : "") + p.value.toFixed(0);
-  if (p.key === "receive_ch") return p.value === 0 ? "All" : p.value.toFixed(0);
-  if (p.key === "forward_ch") {
-    if (p.value === 0) return "Auto";
-    if (p.value === 1) return "Thru";
-    return `Ch ${(p.value - 1).toFixed(0)}`;
+  if (p.key === "slot:muted" || p.key === "slot:soloed" || p.key.endsWith(":enabled")) {
+    return p.value < 0.5 ? "Off" : "On";
   }
-  if (p.key === "midi_fx_output") return p.value < 0.5 ? "Schw" : "Both";
+  if (p.key === "slot:volume") return `${Math.round(p.value * 100)}%`;
+  if (p.key === "slot:receive_channel") return p.value === 0 ? "All" : p.value.toFixed(0);
+  if (p.key === "slot:forward_channel") {
+    if (p.value === -2) return "Thru";
+    if (p.value === -1) return "Auto";
+    return `Ch ${(p.value + 1).toFixed(0)}`;
+  }
+  if (p.key === "midi_fx_pre_mode") return p.value < 0.5 ? "Post" : "Pre";
+  if (p.key === "lfo1:depth" || p.key === "lfo2:depth") return `${Math.round(p.value * 100)}%`;
   if (p.step >= 1) return p.value.toFixed(0);
   return p.value.toFixed(2);
 }

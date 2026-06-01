@@ -9,7 +9,7 @@ test("renders settings rows when the settings slot is selected", async () => {
   render(createElement(Controls));
 
   await expect.element(page.getByTestId("controls")).toHaveTextContent(/Slot Vol/);
-  await expect.element(page.getByTestId("controls")).toHaveTextContent(/MIDI Out/);
+  await expect.element(page.getByTestId("controls")).toHaveTextContent(/MIDI Pre/);
 });
 
 test("shows an empty state when no audio_fx module metadata is loaded", async () => {

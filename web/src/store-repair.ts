@@ -1,5 +1,5 @@
-import type { AuditionPatternName, AuditionState, ScaleName, StepState, TrackState } from "./chain-state";
-import { makeDefaultAudition } from "./chain-state";
+import type { AuditionPatternName, AuditionState, ChainSlot, ScaleName, SettingsParamKey, StepState, TrackState } from "./chain-state";
+import { makeDefaultAudition, settingsParamDefs } from "./chain-state";
 import type { ParamDefinition } from "./module-metadata";
 import { clamp } from "./store-utils";
 
@@ -27,9 +27,53 @@ export function repairTracks(savedTracks: TrackState[] | undefined, fallback: Tr
       ...saved,
       activeNotes: new Map(),
       audition: repairAudition(saved.audition, fallbackTrack.audition),
+      chain: repairChain(saved.chain, fallbackTrack.chain),
       customCopySteps: repairSteps(saved.customCopySteps, fallbackTrack.customCopySteps),
     };
   });
+}
+
+function repairChain(savedChain: ChainSlot[] | undefined, fallbackChain: ChainSlot[]): ChainSlot[] {
+  return fallbackChain.map((fallbackSlot, index) => {
+    const savedSlot = savedChain?.[index];
+    if (!savedSlot || savedSlot.kind !== fallbackSlot.kind) return fallbackSlot;
+    if (fallbackSlot.kind !== "settings") return { ...fallbackSlot, ...savedSlot };
+    return {
+      ...fallbackSlot,
+      ...savedSlot,
+      params: repairSettingsParams((savedSlot as Partial<typeof fallbackSlot>).params, fallbackSlot.params)
+    };
+  });
+}
+
+function repairSettingsParams(
+  savedParams: Partial<Record<SettingsParamKey | string, number>> | undefined,
+  fallbackParams: Record<SettingsParamKey, number>
+): Record<SettingsParamKey, number> {
+  const migrated = migrateLegacySettingsParams(savedParams ?? {});
+  return Object.fromEntries(settingsParamDefs.map((def) => [
+    def.key,
+    clamp(migrated[def.key as SettingsParamKey] ?? fallbackParams[def.key as SettingsParamKey] ?? def.default, def.min, def.max)
+  ])) as Record<SettingsParamKey, number>;
+}
+
+function migrateLegacySettingsParams(params: Partial<Record<SettingsParamKey | string, number>>): Partial<Record<SettingsParamKey, number>> {
+  return {
+    ...params,
+    "slot:volume": params["slot:volume"] ?? params["slot_volume"],
+    "slot:receive_channel": params["slot:receive_channel"] ?? params["receive_ch"],
+    "slot:forward_channel": params["slot:forward_channel"] ?? migrateLegacyForwardChannel(params["forward_ch"]),
+    midi_fx_pre_mode: params["midi_fx_pre_mode"] ?? params["midi_fx_output"],
+    "lfo1:depth": params["lfo1:depth"] ?? params["lfo1_depth"],
+    "lfo2:depth": params["lfo2:depth"] ?? params["lfo2_depth"]
+  };
+}
+
+function migrateLegacyForwardChannel(value: number | undefined): number | undefined {
+  if (value === undefined) return undefined;
+  if (value === 0) return -1;
+  if (value === 1) return -2;
+  return value - 1;
 }
 
 export function repairSteps(savedSteps: StepState[] | undefined, fallback: StepState[]): StepState[] {
