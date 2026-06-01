@@ -1,6 +1,13 @@
 import { AudioEngine, type AudioEngineConfig, type ChainSlotSpec } from "./audio-engine";
 import { useStore } from "./store";
 
+export type HostParamUpdate = {
+  slotId: string;
+  key: string;
+  id: number;
+  value: number;
+};
+
 const params = new URLSearchParams(window.location.search);
 const workletUrl = params.get("worklet") ?? "/module-worklet.js";
 const workletProcessor = params.get("processor") ?? "module-processor";
@@ -127,9 +134,18 @@ export function setMasterVolume(volume: number): void {
   engine.setMasterVolume(volume);
 }
 
-export function sendParamToSlot(slotId: string, key: string, id: number, value: number): void {
-  if (!engine.hasSlot(slotId)) return;
-  engine.sendToSlot(slotId, { type: "param", key, id, value });
+export function sendParamUpdate(update: HostParamUpdate): void {
+  if (!engine.hasSlot(update.slotId)) return;
+  engine.sendToSlot(update.slotId, {
+    type: "param",
+    key: update.key,
+    id: update.id,
+    value: update.value
+  });
+}
+
+export function sendParamUpdates(updates: HostParamUpdate[]): void {
+  for (const update of updates) sendParamUpdate(update);
 }
 
 export async function reloadModuleWasm(moduleId: string | null): Promise<void> {

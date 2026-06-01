@@ -16,7 +16,7 @@ import {
   type TrackState
 } from "./chain-state";
 import type { Preset } from "./module-metadata";
-import { sendParamToSlot } from "@/audio";
+import { sendParamUpdate, sendParamUpdates, type HostParamUpdate } from "@/audio";
 import type { ParamDefinition } from "./module-metadata";
 import {
   applyParamUpdatesToDraft,
@@ -295,7 +295,7 @@ export const useStore = create<Store>()(
         slot.enabled = !slot.enabled;
       }),
 
-    setTopLevelParam: (key, value) =>
+    setTopLevelParam: (key, value) => {
       set((draft) => {
         const param = draft.topLevelParams.find((p) => p.key === key);
         if (param) {
@@ -303,14 +303,22 @@ export const useStore = create<Store>()(
           const sound = soundSlotForTrack(draft, draft.selectedTrack);
           if (sound) sound.params[key] = value;
         }
-      }),
+      });
+      const param = get().topLevelParams.find((p) => p.key === key);
+      if (param) sendParamUpdate({ slotId: "sound", key, id: param.id, value });
+    },
 
-    setSlotParam: (trackIndex, slotIndex, key, value) =>
+    setSlotParam: (trackIndex, slotIndex, key, value) => {
       set((draft) => {
         const slot = draft.tracks[trackIndex].chain[slotIndex];
         if (slot.kind === "sound_generator") return;
         (slot.params as Record<string, number>)[key] = value;
-      }),
+      });
+      const slot = get().tracks[trackIndex]?.chain[slotIndex];
+      if (!slot || slot.kind === "settings" || slot.kind === "sound_generator") return;
+      const param = get().slotMeta[trackSlotKey(trackIndex, slot.id)]?.params.find((p) => p.key === key);
+      if (param) sendParamUpdate({ slotId: slot.id, key, id: param.id, value });
+    },
 
     setPadLayout: (layout) =>
       set((draft) => {
@@ -358,11 +366,7 @@ export const useStore = create<Store>()(
         }
       });
       // Push the new values to the audio engine.
-      const params = get().topLevelParams;
-      for (const [key, value] of Object.entries(preset.params)) {
-        const p = params.find((q) => q.key === key);
-        if (p) sendParamToSlot("sound", key, p.id, value);
-      }
+      sendParamUpdates(paramUpdatesForEntries("sound", get().topLevelParams, preset.params));
     },
 
     applySlotPreset: (trackIndex, slotIndex, name) => {
@@ -381,10 +385,7 @@ export const useStore = create<Store>()(
         }
       });
       // Push the new values to the audio engine for this slot.
-      for (const [key, value] of Object.entries(preset.params)) {
-        const p = meta?.params.find((q) => q.key === key);
-        if (p) sendParamToSlot(slot.id, key, p.id, value);
-      }
+      sendParamUpdates(paramUpdatesForEntries(slot.id, meta.params, preset.params));
     },
 
     randomizeSelectedSlotParams: () => {
@@ -406,11 +407,7 @@ export const useStore = create<Store>()(
           draft.selectedPreset = "Random";
           currentTrack(draft).selectedPreset = "Random";
         });
-        const params = get().topLevelParams;
-        for (const [key, value] of Object.entries(updates)) {
-          const p = params.find((q) => q.key === key);
-          if (p) sendParamToSlot("sound", key, p.id, value);
-        }
+        sendParamUpdates(paramUpdatesForEntries("sound", get().topLevelParams, updates));
         return;
       }
 
@@ -423,10 +420,7 @@ export const useStore = create<Store>()(
         Object.assign(target.params, updates);
         draft.slotPreset[trackSlotKey(trackIndex, target.id)] = "Random";
       });
-      for (const [key, value] of Object.entries(updates)) {
-        const p = meta.params.find((q) => q.key === key);
-        if (p) sendParamToSlot(slot.id, key, p.id, value);
-      }
+      sendParamUpdates(paramUpdatesForEntries(slot.id, meta.params, updates));
     },
 
     setRandomizeAmount: (amount) =>
@@ -459,7 +453,7 @@ export const useStore = create<Store>()(
         applyParamUpdatesToDraft(draft, updates);
         if (key) draft.selectedParamSnapshot[key] = label;
       });
-      for (const update of updates) sendParamToSlot(update.slotId, update.key, update.id, update.value);
+      sendParamUpdates(updates);
     },
 
     swapParamSnapshot: (label) => {
@@ -475,7 +469,7 @@ export const useStore = create<Store>()(
         draft.paramSnapshots[key][label] = live;
         draft.selectedParamSnapshot[key] = label;
       });
-      for (const update of updates) sendParamToSlot(update.slotId, update.key, update.id, update.value);
+      sendParamUpdates(updates);
     },
 
     clearParamSnapshot: (label) =>
@@ -715,4 +709,15 @@ function syncTrackSequencerToGlobal(state: StoreState): void {
 function soundSlotForTrack(state: Pick<StoreState, "tracks">, trackIndex: number) {
   const slot = state.tracks[trackIndex]?.chain.find((s) => s.kind === "sound_generator");
   return slot?.kind === "sound_generator" ? slot : null;
+}
+
+function paramUpdatesForEntries(
+  slotId: string,
+  params: ParamDefinition[],
+  entries: Record<string, number>
+): HostParamUpdate[] {
+  return Object.entries(entries).flatMap(([key, value]) => {
+    const param = params.find((candidate) => candidate.key === key);
+    return param ? [{ slotId, key, id: param.id, value }] : [];
+  });
 }

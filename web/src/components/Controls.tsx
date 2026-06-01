@@ -3,7 +3,6 @@ import { trackSlotKey, useStore, selectSelectedSlot, type SlotParamRow } from "@
 import { Slider } from "@/components/ui/slider";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { settingsParamDefs, type ScopedParamDefinition } from "@/chain-state";
-import { sendParamToSlot } from "@/audio";
 
 export function Controls() {
   const slot = useStore(selectSelectedSlot);
@@ -56,14 +55,9 @@ export function Controls() {
   const onChange = (key: string, value: number) => {
     if (slot.kind === "sound_generator") {
       setTopLevelParam(key, value);
-      const p = topLevelParams.find((p) => p.key === key);
-      if (p) sendParamToSlot("sound", key, p.id, value);
       return;
     }
     setSlotParam(trackIndex, slotIndex, key, value);
-    if (slot.kind === "settings") return;
-    const p = slotMetaEntry?.params.find((p) => p.key === key);
-    if (p) sendParamToSlot(slot.id, key, p.id, value);
   };
 
   return (
