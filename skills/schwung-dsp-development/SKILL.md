@@ -58,6 +58,8 @@ src/modules/<id>/
 
 A module is Faust-backed if and only if `<id>.dsp` exists. The build scripts detect this and compile the right `.c`. There is no flag, no config — the file layout is the signal.
 
+**Output scope.** Scaffolded sound_generator and audio_fx wrappers ship with an output-waveform scope (the chain UI draws it while the module is sounding). It taps the wrapper's float output via `src/modules/_shared/scope.h` — no DSP-core changes needed. Toggle/style it with the `<ID>_SCOPE_STYLE` define at the top of `<id>.c`: `MF_SCOPE_ENVELOPE` (default, honest min/max — leave this for noise/poly/FM/fold voices), `MF_SCOPE_TRIGGERED` (phase-locked — good for mono harmonic voices), `MF_SCOPE_LINE`, or `MF_SCOPE_NONE` to disable. midi_fx modules have no audio out and so no scope. See `docs/scope-adaptive-plan.md`.
+
 ## Workflow: create a new module
 
 ```bash

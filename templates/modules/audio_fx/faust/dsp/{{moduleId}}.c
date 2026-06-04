@@ -5,8 +5,15 @@
 
 #include "host/audio_fx_api_v2.h"
 #include "modules/_shared/dsp_runtime.h"
+#include "modules/_shared/scope.h"
 #include "{{moduleId}}_core.h"
 #include "{{moduleId}}_presets.gen.inc"
+
+/* Output-waveform scope shown in the chain UI. Set the style to MF_SCOPE_NONE
+ * to disable (stays compiled in, but inert). Other styles: MF_SCOPE_TRIGGERED,
+ * MF_SCOPE_LINE -- see src/modules/_shared/scope.h. */
+#define {{moduleUpper}}_SCOPE_STYLE  MF_SCOPE_ENVELOPE
+#define {{moduleUpper}}_SCOPE_WINDOW 1024
 
 typedef struct {
     {{moduleId}}_core_t core;
@@ -15,6 +22,7 @@ typedef struct {
     float in_r[MOVEFORGE_BLOCK_FRAMES];
     float out_l[MOVEFORGE_BLOCK_FRAMES];
     float out_r[MOVEFORGE_BLOCK_FRAMES];
+    mf_scope_t scope;
 } {{moduleId}}_plugin_t;
 
 static void* create_instance(const char *module_dir, const char *config_json) {
@@ -25,6 +33,7 @@ static void* create_instance(const char *module_dir, const char *config_json) {
         {{moduleId}}_init(&p->core);
         p->current_preset = {{moduleId}}_clamp_preset_index(0);
         {{moduleId}}_apply_preset(&p->core, p->current_preset);
+        mf_scope_init(&p->scope, {{moduleUpper}}_SCOPE_WINDOW, MF_SCOPE_CONTINUOUS, {{moduleUpper}}_SCOPE_STYLE);
     }
     return p;
 }
@@ -42,6 +51,7 @@ static void process_block(void *instance, int16_t *audio_inout, int frames) {
 
     moveforge_stereo_i16_to_float(audio_inout, p->in_l, p->in_r, frames);
     {{moduleId}}_process_float(&p->core, p->in_l, p->in_r, p->out_l, p->out_r, frames);
+    mf_scope_capture(&p->scope, p->out_l, p->out_r, frames);
     moveforge_stereo_float_to_i16(p->out_l, p->out_r, audio_inout, frames);
 }
 
@@ -67,6 +77,9 @@ static int get_param(void *instance, const char *key, char *buf, int buf_len) {
     }
     if (strcmp(key, "preset_name") == 0) {
         return snprintf(buf, (size_t)buf_len, "%s", {{moduleId}}_preset_name(p->current_preset));
+    }
+    if (strcmp(key, "__scope") == 0) {
+        return mf_scope_serialize(&p->scope, buf, buf_len);
     }
     int id = {{moduleId}}_param_id(key);
     if (id < 0) return -1;

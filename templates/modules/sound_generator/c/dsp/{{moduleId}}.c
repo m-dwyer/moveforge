@@ -5,12 +5,20 @@
 
 #include "host/plugin_api_v1.h"
 #include "modules/_shared/dsp_runtime.h"
+#include "modules/_shared/scope.h"
 #include "{{moduleId}}_core.h"
 #include "{{moduleId}}_presets.gen.inc"
+
+/* Output-waveform scope shown in the chain/solo UI. Set the style to
+ * MF_SCOPE_NONE to disable (stays compiled in, but inert). Other styles:
+ * MF_SCOPE_TRIGGERED, MF_SCOPE_LINE -- see src/modules/_shared/scope.h. */
+#define {{moduleUpper}}_SCOPE_STYLE  MF_SCOPE_ENVELOPE
+#define {{moduleUpper}}_SCOPE_WINDOW 1024
 
 typedef struct {
     {{moduleId}}_core_t core;
     int current_preset;
+    mf_scope_t scope;
 } {{moduleId}}_plugin_t;
 
 static const host_api_v1_t *g_host = NULL;
@@ -23,6 +31,7 @@ static void* create_instance(const char *module_dir, const char *json_defaults) 
     {{moduleId}}_init(&p->core);
     p->current_preset = {{moduleId}}_clamp_preset_index(0);
     {{moduleId}}_apply_preset(&p->core, p->current_preset);
+    mf_scope_init(&p->scope, {{moduleUpper}}_SCOPE_WINDOW, MF_SCOPE_CONTINUOUS, {{moduleUpper}}_SCOPE_STYLE);
     return p;
 }
 
@@ -35,6 +44,7 @@ static void on_midi(void *instance, const uint8_t *msg, int len, int source) {
     uint8_t status = msg[0] & 0xF0;
     if (status == 0x90 && msg[2] > 0) {
         {{moduleId}}_note_on(&p->core, msg[1], (float)msg[2] / 127.0f);
+        mf_scope_arm(&p->scope);  /* restart the scope frame on note onset */
     } else if (status == 0x80 || (status == 0x90 && msg[2] == 0)) {
         {{moduleId}}_note_off(&p->core, msg[1]);
     } else if (status == 0xE0) {
@@ -70,6 +80,9 @@ static int get_param(void *instance, const char *key, char *buf, int buf_len) {
     if (strcmp(key, "preset_name") == 0) {
         return snprintf(buf, (size_t)buf_len, "%s", {{moduleId}}_preset_name(p->current_preset));
     }
+    if (strcmp(key, "__scope") == 0) {
+        return mf_scope_serialize(&p->scope, buf, buf_len);
+    }
     int param_id = {{moduleId}}_param_id(key);
     if (param_id < 0) return -1;
     return snprintf(buf, (size_t)buf_len, "%.6f", {{moduleId}}_get_param(&p->core, param_id));
@@ -89,6 +102,7 @@ static void render_block(void *instance, int16_t *out, int frames) {
     float right[MOVEFORGE_BLOCK_FRAMES];
     if (frames > MOVEFORGE_BLOCK_FRAMES) frames = MOVEFORGE_BLOCK_FRAMES;
     {{moduleId}}_process_float(&p->core, NULL, NULL, left, right, frames);
+    mf_scope_capture(&p->scope, left, right, frames);
     moveforge_stereo_float_to_i16(left, right, out, frames);
 }
 

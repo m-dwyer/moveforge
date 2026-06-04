@@ -16,6 +16,11 @@
     "midi_out": false,
     "chainable": true,
     "component_type": "audio_fx",
+    "scope": {
+      "mode": "continuous",
+      "style": "envelope",
+      "window": 1024
+    },
     "ui_hierarchy": {
       "levels": {
         "root": {
