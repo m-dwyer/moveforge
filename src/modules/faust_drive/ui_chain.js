@@ -67,6 +67,17 @@ let editMode = false;
 let encoderPage = 0;
 let needsRedraw = true;
 
+// Optional oscilloscope: if the DSP serves a non-empty "__scope" frame
+// (src/modules/_shared/scope.h), flash the captured attack waveform when a new
+// frame arrives (i.e. on each note). Modules without scope return null here, so
+// all of this stays a no-op for them. Frame format: 2 chars/column, max-row
+// then min-row, each 0..63 offset by 48.
+const SCOPE_ENC_BASE = 48;
+const SCOPE_VAL_ROWS = 64;
+let scopeData = "";
+let scopeHold = 0;     // ticks remaining to keep the overlay visible
+let scopePollDiv = 0;
+
 function clampSelected(v) {
     return Math.max(0, Math.min(Math.max(0, displayItemCount() - 1), v));
 }
@@ -261,9 +272,26 @@ function drawPresetUI() {
     needsRedraw = false;
 }
 
+function drawScopeOverlay() {
+    if (!scopeData || scopeData.length < 256) return;
+    const x0 = 0, y0 = 16, w = 128, h = 40;
+    fill_rect(x0, y0, w, h, 0);
+    draw_rect(x0, y0, w, h, 1);
+    const innerTop = y0 + 2, innerBot = y0 + h - 2, bandH = innerBot - innerTop;
+    for (let c = 0; c < 128; c++) {
+        const top = scopeData.charCodeAt(c * 2) - SCOPE_ENC_BASE;
+        const bot = scopeData.charCodeAt(c * 2 + 1) - SCOPE_ENC_BASE;
+        if (top < 0 || bot < 0) continue;
+        const yTop = innerTop + Math.round((top / (SCOPE_VAL_ROWS - 1)) * bandH);
+        const yBot = innerTop + Math.round((bot / (SCOPE_VAL_ROWS - 1)) * bandH);
+        draw_line(c, yTop, c, yBot, 1);
+    }
+}
+
 function drawUI() {
     if (mode === "preset") {
         drawPresetUI();
+        if (scopeHold > 0) drawScopeOverlay();
         return;
     }
 
@@ -291,6 +319,7 @@ function drawUI() {
         ? "Click: bank"
         : (editMode ? {left: "Click: done", right: "Jog: adjust"} : "Click: edit"));
     drawOverlay();
+    if (scopeHold > 0) drawScopeOverlay();
 
     needsRedraw = false;
 }
@@ -307,6 +336,24 @@ function init() {
 
 function tick() {
     if (tickOverlay()) needsRedraw = true;
+
+    // Poll the scope ~every 8 ticks; a changed frame means a fresh note was
+    // captured, so flash the waveform. host_module_get_param returns null for
+    // modules that don't serve "__scope", leaving this inert.
+    if ((scopePollDiv++ & 7) === 0) {
+        const s = host_module_get_param("__scope");
+        const next = (s === null || s === undefined) ? "" : s;
+        if (next && next !== scopeData) {
+            scopeData = next;
+            scopeHold = 700;
+            needsRedraw = true;
+        }
+    }
+    if (scopeHold > 0) {
+        scopeHold--;
+        needsRedraw = true;
+    }
+
     if (needsRedraw) drawUI();
 }
 

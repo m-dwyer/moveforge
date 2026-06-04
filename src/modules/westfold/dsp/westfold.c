@@ -5,12 +5,17 @@
 
 #include "host/plugin_api_v1.h"
 #include "modules/_shared/dsp_runtime.h"
+#include "modules/_shared/scope.h"
 #include "westfold_core.h"
 #include "westfold_presets.gen.inc"
+
+/* ~23 ms per scope frame at 44.1 kHz (~43 frames/s); see capabilities.scope. */
+#define WESTFOLD_SCOPE_WINDOW 1024
 
 typedef struct {
     westfold_core_t core;
     int current_preset;
+    mf_scope_t scope;
 } westfold_plugin_t;
 
 static const host_api_v1_t *g_host = NULL;
@@ -23,6 +28,10 @@ static void* create_instance(const char *module_dir, const char *json_defaults) 
     westfold_init(&p->core);
     p->current_preset = westfold_clamp_preset_index(0);
     westfold_apply_preset(&p->core, p->current_preset);
+    /* Envelope (untriggered min/max): the honest default. westfold's wavefolder
+     * + FM goes inharmonic at extreme settings, where a trigger would flail, so
+     * the peak-honest envelope is the right fit here. See capabilities.scope. */
+    mf_scope_init(&p->scope, WESTFOLD_SCOPE_WINDOW, MF_SCOPE_CONTINUOUS, MF_SCOPE_ENVELOPE);
     return p;
 }
 
@@ -38,6 +47,7 @@ static void on_midi(void *instance, const uint8_t *msg, int len, int source) {
     uint8_t status = msg[0] & 0xF0;
     if (status == 0x90 && msg[2] > 0) {
         westfold_note_on(&p->core, msg[1], (float)msg[2] / 127.0f);
+        mf_scope_arm(&p->scope);  /* restart the scope frame on note onset */
     } else if (status == 0x80 || (status == 0x90 && msg[2] == 0)) {
         westfold_note_off(&p->core, msg[1]);
     } else if (status == 0xE0) {
@@ -73,6 +83,9 @@ static int get_param(void *instance, const char *key, char *buf, int buf_len) {
     if (strcmp(key, "preset_name") == 0) {
         return snprintf(buf, (size_t)buf_len, "%s", westfold_preset_name(p->current_preset));
     }
+    if (strcmp(key, "__scope") == 0) {
+        return mf_scope_serialize(&p->scope, buf, buf_len);
+    }
     int param_id = westfold_param_id(key);
     if (param_id < 0) return -1;
     return snprintf(buf, (size_t)buf_len, "%.6f", westfold_get_param(&p->core, param_id));
@@ -92,6 +105,7 @@ static void render_block(void *instance, int16_t *out, int frames) {
     float right[MOVEFORGE_BLOCK_FRAMES];
     if (frames > MOVEFORGE_BLOCK_FRAMES) frames = MOVEFORGE_BLOCK_FRAMES;
     westfold_process_float(&p->core, NULL, NULL, left, right, frames);
+    mf_scope_capture(&p->scope, left, right, frames);
     moveforge_stereo_float_to_i16(left, right, out, frames);
 }
 
