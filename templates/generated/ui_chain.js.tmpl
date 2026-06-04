@@ -68,8 +68,11 @@ let needsRedraw = true;
 // then min-row, each 0..63 offset by 48.
 const SCOPE_ENC_BASE = 48;
 const SCOPE_VAL_ROWS = 64;
+const SCOPE_POLL_TICKS = 4;     // poll cadence (robust to the chain UI tick rate)
+const SCOPE_LINGER_POLLS = 2;   // empty polls before hiding -> brief post-release linger
 let scopeData = "";
-let scopeHold = 0;     // ticks remaining to keep the overlay visible
+let scopeVisible = false;
+let scopeEmptyPolls = 0;
 let scopePollDiv = 0;
 
 function clampSelected(v) {
@@ -285,7 +288,7 @@ function drawScopeOverlay() {
 function drawUI() {
     if (mode === "preset") {
         drawPresetUI();
-        if (scopeHold > 0) drawScopeOverlay();
+        if (scopeVisible) drawScopeOverlay();
         return;
     }
 
@@ -331,21 +334,25 @@ function init() {
 function tick() {
     if (tickOverlay()) needsRedraw = true;
 
-    // Poll the scope ~every 8 ticks; a changed frame means a fresh note was
-    // captured, so flash the waveform. host_module_get_param returns null for
-    // modules that don't serve "__scope", leaving this inert.
-    if ((scopePollDiv++ & 7) === 0) {
+    // Poll the scope. The DSP squelches silence (serves nothing when idle/quiet),
+    // so a non-empty frame means the voice is sounding. Hide after a few
+    // consecutive empty polls -> a brief post-release linger that is robust to
+    // the chain UI's tick rate (a tick countdown would massively overshoot at a
+    // slow tick rate). Inert for modules that don't serve "__scope".
+    if (scopePollDiv++ % SCOPE_POLL_TICKS === 0) {
         const s = host_module_get_param("__scope");
         const next = (s === null || s === undefined) ? "" : s;
-        if (next && next !== scopeData) {
-            scopeData = next;
-            scopeHold = 700;
-            needsRedraw = true;
+        if (next) {
+            scopeEmptyPolls = 0;
+            if (next !== scopeData) { scopeData = next; needsRedraw = true; }
+            if (!scopeVisible) { scopeVisible = true; needsRedraw = true; }
+        } else if (scopeVisible) {
+            scopeEmptyPolls++;
+            if (scopeEmptyPolls >= SCOPE_LINGER_POLLS) {
+                scopeVisible = false;
+                needsRedraw = true;
+            }
         }
-    }
-    if (scopeHold > 0) {
-        scopeHold--;
-        needsRedraw = true;
     }
 
     if (needsRedraw) drawUI();

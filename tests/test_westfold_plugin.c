@@ -67,14 +67,21 @@ static void test_scope_helper(void) {
     }
     require_true(spanning > MF_SCOPE_COLS / 2, "full-scale sine spans the display");
 
-    /* silence collapses to the centre row */
+    /* silence is squelched: a near-zero frame serves nothing, so the UI never
+     * shows the scope while the voice is idle */
     mf_scope_init(&scope, 1024, MF_SCOPE_CONTINUOUS, MF_SCOPE_ENVELOPE);
     memset(blk, 0, sizeof(blk));
     for (int fed = 0; fed < 1024; fed += 128) mf_scope_capture(&scope, blk, NULL, 128);
-    n = mf_scope_serialize(&scope, buf, sizeof(buf));
-    require_true(n == MF_SCOPE_COLS * 2, "scope silence frame length");
+    require_true(mf_scope_serialize(&scope, buf, sizeof(buf)) == 0, "silence is squelched");
+
+    /* a quiet-but-audible signal (above squelch) still serves a frame */
+    mf_scope_init(&scope, 1024, MF_SCOPE_CONTINUOUS, MF_SCOPE_ENVELOPE);
+    for (int i = 0; i < 128; i++) blk[i] = (i % 2 == 0) ? 0.1f : -0.1f;
+    for (int fed = 0; fed < 1024; fed += 128) mf_scope_capture(&scope, blk, NULL, 128);
+    require_true(mf_scope_serialize(&scope, buf, sizeof(buf)) == MF_SCOPE_COLS * 2, "audible signal serves a frame");
+
     int centre = (int)((1.0f - 0.0f) * 0.5f * (MF_SCOPE_ROWS - 1) + 0.5f);
-    require_true((buf[0] - MF_SCOPE_ENC_BASE) == centre, "silence encodes centre row");
+    require_true((mf_scope_enc(0.0f) - MF_SCOPE_ENC_BASE) == centre, "zero encodes centre row");
 }
 
 /* Style coverage: line collapses each column to a single sample (min==max),

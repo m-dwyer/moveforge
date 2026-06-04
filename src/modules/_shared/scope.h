@@ -34,6 +34,7 @@
 #define MF_SCOPE_COLS 128   /* one column per display pixel-x (128x64 OLED) */
 #define MF_SCOPE_ROWS 64    /* display height; serialized value range */
 #define MF_SCOPE_ENC_BASE 48 /* printable ASCII base for encoded rows */
+#define MF_SCOPE_SQUELCH 0.02f /* frames quieter than this serve nothing (idle/silence) */
 
 /* capture cadence */
 enum {
@@ -56,6 +57,7 @@ typedef struct {
     int   style;                /* MF_SCOPE_ENVELOPE | TRIGGERED | LINE | NONE */
     int   running;              /* 1 = actively filling */
     int   have_frame;           /* a published frame exists */
+    int   active;               /* last frame's peak >= squelch (i.e. sounding) */
     int   trig_wait;            /* TRIGGERED: waiting for a rising zero-crossing */
     int   trig_age;             /* samples spent waiting (for the timeout) */
     float prev;                 /* previous sample (edge detection) */
@@ -82,6 +84,7 @@ static inline void mf_scope_init(mf_scope_t *s, int window_samples, int mode, in
     s->mode = mode;
     s->style = style;
     s->have_frame = 0;
+    s->active = 0;
     s->running = (mode == MF_SCOPE_CONTINUOUS) ? 1 : 0;
     s->trig_wait = (style == MF_SCOPE_TRIGGERED) ? 1 : 0;
     s->trig_age = 0;
@@ -105,6 +108,7 @@ static inline void mf_scope_arm(mf_scope_t *s)
 
 static inline void mf_scope_publish(mf_scope_t *s)
 {
+    float peak = 0.0f;
     for (int c = 0; c < MF_SCOPE_COLS; c++) {
         if (s->cur_max[c] < s->cur_min[c]) {
             /* column saw no samples -> collapse to centre */
@@ -114,7 +118,12 @@ static inline void mf_scope_publish(mf_scope_t *s)
             s->pub_min[c] = s->cur_min[c];
             s->pub_max[c] = s->cur_max[c];
         }
+        float lo = s->pub_min[c] < 0.0f ? -s->pub_min[c] : s->pub_min[c];
+        float hi = s->pub_max[c] < 0.0f ? -s->pub_max[c] : s->pub_max[c];
+        if (lo > peak) peak = lo;
+        if (hi > peak) peak = hi;
     }
+    s->active = (peak >= MF_SCOPE_SQUELCH) ? 1 : 0;
     s->have_frame = 1;
 }
 
@@ -192,7 +201,9 @@ static inline int mf_scope_serialize(const mf_scope_t *s, char *buf, int buf_len
         if (buf && buf_len > 0) buf[0] = '\0';
         return 0;
     }
-    if (!s->have_frame || s->style == MF_SCOPE_NONE) { buf[0] = '\0'; return 0; }
+    /* squelch: serve nothing while the voice is silent/idle, so the UI only
+     * shows the scope when the module is actually sounding. */
+    if (!s->have_frame || s->style == MF_SCOPE_NONE || !s->active) { buf[0] = '\0'; return 0; }
     int n = 0;
     for (int c = 0; c < MF_SCOPE_COLS; c++) {
         buf[n++] = mf_scope_enc(s->pub_max[c]); /* top pixel of the column */
