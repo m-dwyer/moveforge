@@ -363,7 +363,7 @@ function tick() {
         if (next) {
             scopeEmptyPolls = 0;
             if (next !== scopeData) { scopeData = next; needsRedraw = true; }
-            if (!scopeVisible) { scopeVisible = true; needsRedraw = true; }
+            if (!scopeVisible) { scopeVisible = true; needsRedraw = true; hideOverlay(); }
         } else if (scopeVisible) {
             scopeEmptyPolls++;
             if (scopeEmptyPolls >= SCOPE_LINGER_POLLS) {
