@@ -1,3 +1,6 @@
+[tools]
+node = "lts"
+
 [tasks.setup]
 description = "Install local Python dev dependencies"
 run = "make dev-deps"
