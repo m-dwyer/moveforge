@@ -74,10 +74,13 @@ const SCOPE_ENC_BASE = 48;
 const SCOPE_VAL_ROWS = 64;
 const SCOPE_POLL_TICKS = 4;     // poll cadence (robust to the chain UI tick rate)
 const SCOPE_LINGER_POLLS = 2;   // empty polls before hiding -> brief post-release linger
+const SCOPE_HINT_POLLS = 4;     // param-readout linger (polls) while the scope is up
 let scopeData = "";
 let scopeVisible = false;
 let scopeEmptyPolls = 0;
 let scopePollDiv = 0;
+let paramHintText = "";
+let paramHintHold = 0;
 
 function clampSelected(v) {
     return Math.max(0, Math.min(Math.max(0, displayItemCount() - 1), v));
@@ -205,7 +208,13 @@ function formatParamValue(index) {
 }
 
 function showEncoderOverlay(k, paramIndex) {
-    if (paramIndex !== undefined && paramIndex < PARAMS.length) {
+    // While the scope is up, show a compact one-line readout over the waveform
+    // instead of the big centred box, so dialing a knob keeps the waveform
+    // visible (watch the sound change as you turn). Otherwise use the box.
+    if (scopeVisible && paramIndex !== undefined && paramIndex < PARAMS.length) {
+        paramHintText = PARAMS[paramIndex].name + " " + formatParamValue(paramIndex);
+        paramHintHold = SCOPE_HINT_POLLS;
+    } else if (paramIndex !== undefined && paramIndex < PARAMS.length) {
         showOverlay("K" + String(k + 1) + " " + PARAMS[paramIndex].name, formatParamValue(paramIndex));
     } else {
         showOverlay("K" + String(k + 1), "Unmapped");
@@ -287,6 +296,11 @@ function drawScopeOverlay() {
         const yBot = innerTop + Math.round((bot / (SCOPE_VAL_ROWS - 1)) * bandH);
         draw_line(c, yTop, c, yBot, 1);
     }
+    // compact param readout over the top of the waveform while dialing a knob
+    if (paramHintHold > 0 && paramHintText) {
+        fill_rect(x0 + 1, y0 + 1, w - 2, 9, 0);
+        print(x0 + 3, y0 + 2, paramHintText, 1);
+    }
 }
 
 function drawUI() {
@@ -357,6 +371,7 @@ function tick() {
                 needsRedraw = true;
             }
         }
+        if (paramHintHold > 0 && --paramHintHold === 0) needsRedraw = true;
     }
 
     if (needsRedraw) drawUI();
