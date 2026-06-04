@@ -8,12 +8,10 @@
 #include "modules/_shared/scope.h"
 #include "{{moduleId}}_core.h"
 #include "{{moduleId}}_presets.gen.inc"
-
-/* Output-waveform scope shown in the chain UI. Set the style to MF_SCOPE_NONE
- * to disable (stays compiled in, but inert). Other styles: MF_SCOPE_TRIGGERED,
- * MF_SCOPE_LINE -- see src/modules/_shared/scope.h. */
-#define {{moduleUpper}}_SCOPE_STYLE  MF_SCOPE_ENVELOPE
-#define {{moduleUpper}}_SCOPE_WINDOW 1024
+/* Output-waveform scope: style/mode/window are the single source of truth in
+ * capabilities.scope (module.json); set style to "none" there to disable.
+ * GENERATED -- re-run gen-params after editing the scope block. */
+#include "{{moduleId}}_scope.gen.inc"
 
 typedef struct {
     {{moduleId}}_core_t core;
@@ -33,7 +31,7 @@ static void* create_instance(const char *module_dir, const char *config_json) {
         {{moduleId}}_init(&p->core);
         p->current_preset = {{moduleId}}_clamp_preset_index(0);
         {{moduleId}}_apply_preset(&p->core, p->current_preset);
-        mf_scope_init(&p->scope, {{moduleUpper}}_SCOPE_WINDOW, MF_SCOPE_CONTINUOUS, {{moduleUpper}}_SCOPE_STYLE);
+        mf_scope_init(&p->scope, {{moduleUpper}}_SCOPE_WINDOW, {{moduleUpper}}_SCOPE_MODE, {{moduleUpper}}_SCOPE_STYLE);
     }
     return p;
 }

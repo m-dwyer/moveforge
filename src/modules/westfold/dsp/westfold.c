@@ -8,9 +8,7 @@
 #include "modules/_shared/scope.h"
 #include "westfold_core.h"
 #include "westfold_presets.gen.inc"
-
-/* ~23 ms per scope frame at 44.1 kHz (~43 frames/s); see capabilities.scope. */
-#define WESTFOLD_SCOPE_WINDOW 1024
+#include "westfold_scope.gen.inc"  /* GENERATED scope style/mode/window from module.json */
 
 typedef struct {
     westfold_core_t core;
@@ -28,10 +26,10 @@ static void* create_instance(const char *module_dir, const char *json_defaults) 
     westfold_init(&p->core);
     p->current_preset = westfold_clamp_preset_index(0);
     westfold_apply_preset(&p->core, p->current_preset);
-    /* Envelope (untriggered min/max): the honest default. westfold's wavefolder
-     * + FM goes inharmonic at extreme settings, where a trigger would flail, so
-     * the peak-honest envelope is the right fit here. See capabilities.scope. */
-    mf_scope_init(&p->scope, WESTFOLD_SCOPE_WINDOW, MF_SCOPE_CONTINUOUS, MF_SCOPE_ENVELOPE);
+    /* Style/mode/window are the single source of truth in capabilities.scope
+     * (module.json) -> generated westfold_scope.gen.inc. westfold keeps the
+     * honest envelope: its fold/FM goes inharmonic where a trigger would flail. */
+    mf_scope_init(&p->scope, WESTFOLD_SCOPE_WINDOW, WESTFOLD_SCOPE_MODE, WESTFOLD_SCOPE_STYLE);
     return p;
 }
 

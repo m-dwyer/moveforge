@@ -15,6 +15,7 @@ export type ModulePaths = {
   moduleJson: string;
   paramsGenInc: string;
   presetsGenInc: string;
+  scopeGenInc: string;
   presets: string;
   stressDir: string;
   suiteDir: string;
@@ -71,6 +72,7 @@ export function modulePaths(moduleId: string): ModulePaths {
     moduleJson: `${moduleDir}/module.json`,
     paramsGenInc: `${moduleDir}/dsp/${moduleId}_params.gen.inc`,
     presetsGenInc: `${moduleDir}/dsp/${moduleId}_presets.gen.inc`,
+    scopeGenInc: `${moduleDir}/dsp/${moduleId}_scope.gen.inc`,
     presets: `${moduleDir}/presets.json`,
     stressDir: `renders/${moduleId}-stress`,
     suiteDir: `renders/${moduleId}-suite`,

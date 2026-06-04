@@ -18,8 +18,15 @@ type Param = {
   type: string;
 };
 
+type ScopeConfig = {
+  mode?: string;
+  style?: string;
+  window?: number;
+};
+
 type ModuleJson = {
   capabilities?: {
+    scope?: ScopeConfig;
     ui_hierarchy?: {
       levels?: {
         root?: {
@@ -29,6 +36,18 @@ type ModuleJson = {
     };
   };
   id: string;
+};
+
+const SCOPE_STYLE: Record<string, string> = {
+  envelope: "MF_SCOPE_ENVELOPE",
+  triggered: "MF_SCOPE_TRIGGERED",
+  line: "MF_SCOPE_LINE",
+  none: "MF_SCOPE_NONE"
+};
+
+const SCOPE_MODE: Record<string, string> = {
+  continuous: "MF_SCOPE_CONTINUOUS",
+  oneshot: "MF_SCOPE_ONESHOT"
 };
 
 /**
@@ -58,9 +77,45 @@ export async function generate(options: GenerateOptions = {}): Promise<number> {
       staleMessage: "run `mise run gen-params`",
       writeMessage: `wrote ${paths.paramsGenInc} (${params.length} param${params.length === 1 ? "" : "s"})`
     });
+
+    // capabilities.scope is the single source of truth for the output scope;
+    // emit the wrapper's style/mode/window macros from it.
+    const scope = moduleJson.capabilities?.scope;
+    if (scope) {
+      drift += await writeGeneratedFile({
+        generated: renderScopeInc(moduleId, scope),
+        mode,
+        moduleId,
+        outPath: paths.scopeGenInc,
+        staleMessage: "run `mise run gen-params`",
+        writeMessage: `wrote ${paths.scopeGenInc}`
+      });
+    }
   }
 
   return drift;
+}
+
+function renderScopeInc(moduleId: string, scope: ScopeConfig): string {
+  const upper = moduleId.toUpperCase();
+  const styleKey = scope.style ?? "envelope";
+  const modeKey = scope.mode ?? "continuous";
+  const style = SCOPE_STYLE[styleKey];
+  const mode = SCOPE_MODE[modeKey];
+  if (!style) console.warn(`[${moduleId}] unknown scope.style "${styleKey}" — defaulting to envelope`);
+  if (!mode) console.warn(`[${moduleId}] unknown scope.mode "${modeKey}" — defaulting to continuous`);
+  const window = Number.isFinite(scope.window) ? Math.round(scope.window as number) : 1024;
+  return [
+    `/* GENERATED from capabilities.scope in ${moduleId}/module.json by gen-params.`,
+    ` * Do not edit by hand — re-run \`mise run gen-params\` after editing the scope block. */`,
+    `#ifndef ${upper}_SCOPE_GEN_INC`,
+    `#define ${upper}_SCOPE_GEN_INC`,
+    `#define ${upper}_SCOPE_STYLE  ${style ?? "MF_SCOPE_ENVELOPE"}`,
+    `#define ${upper}_SCOPE_MODE   ${mode ?? "MF_SCOPE_CONTINUOUS"}`,
+    `#define ${upper}_SCOPE_WINDOW ${window}`,
+    `#endif`,
+    ""
+  ].join("\n");
 }
 
 function renderInc(moduleId: string, params: Param[]): string {
