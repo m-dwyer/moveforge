@@ -16,6 +16,11 @@
     "midi_out": false,
     "chainable": true,
     "component_type": "sound_generator",
+    "scope": {
+      "mode": "continuous",
+      "style": "triggered",
+      "window": 1024
+    },
     "ui_hierarchy": {
       "levels": {
         "root": {

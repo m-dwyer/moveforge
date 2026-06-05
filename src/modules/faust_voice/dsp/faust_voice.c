@@ -5,10 +5,16 @@
 
 #include "host/plugin_api_v1.h"
 #include "modules/_shared/dsp_runtime.h"
+#include "modules/_shared/scope.h"
 #include "faust_voice_core.h"
+/* Scope style/mode/window: single source of truth in capabilities.scope
+ * (module.json) -> generated faust_voice_scope.gen.inc. faust_voice is a mono
+ * harmonic saw, so it opts into the phase-locked "triggered" style. */
+#include "faust_voice_scope.gen.inc"
 
 typedef struct {
     faust_voice_core_t core;
+    mf_scope_t scope;
 } faust_voice_plugin_t;
 
 static const host_api_v1_t *g_host = NULL;
@@ -19,6 +25,7 @@ static void* create_instance(const char *module_dir, const char *json_defaults) 
     faust_voice_plugin_t *p = (faust_voice_plugin_t*)calloc(1, sizeof(faust_voice_plugin_t));
     if (!p) return NULL;
     faust_voice_init(&p->core);
+    mf_scope_init(&p->scope, FAUST_VOICE_SCOPE_WINDOW, FAUST_VOICE_SCOPE_MODE, FAUST_VOICE_SCOPE_STYLE);
     return p;
 }
 
@@ -36,6 +43,7 @@ static void on_midi(void *instance, const uint8_t *msg, int len, int source) {
     uint8_t status = msg[0] & 0xF0;
     if (status == 0x90 && msg[2] > 0) {
         faust_voice_note_on(&p->core, msg[1], (float)msg[2] / 127.0f);
+        mf_scope_arm(&p->scope);  /* restart the scope frame on note onset */
     } else if (status == 0x80 || (status == 0x90 && msg[2] == 0)) {
         faust_voice_note_off(&p->core, msg[1]);
     } else if (status == 0xE0) {
@@ -56,6 +64,9 @@ static void set_param(void *instance, const char *key, const char *val) {
 static int get_param(void *instance, const char *key, char *buf, int buf_len) {
     faust_voice_plugin_t *p = (faust_voice_plugin_t*)instance;
     if (!p || !key || !buf || buf_len <= 0) return -1;
+    if (strcmp(key, "__scope") == 0) {
+        return mf_scope_serialize(&p->scope, buf, buf_len);
+    }
     int param_id = faust_voice_param_id(key);
     if (param_id < 0) return -1;
     return snprintf(buf, (size_t)buf_len, "%.6f", faust_voice_get_param(&p->core, param_id));
@@ -75,6 +86,7 @@ static void render_block(void *instance, int16_t *out, int frames) {
     float right[MOVEFORGE_BLOCK_FRAMES];
     if (frames > MOVEFORGE_BLOCK_FRAMES) frames = MOVEFORGE_BLOCK_FRAMES;
     faust_voice_process_float(&p->core, NULL, NULL, left, right, frames);
+    mf_scope_capture(&p->scope, left, right, frames);
     moveforge_stereo_float_to_i16(left, right, out, frames);
 }
 
