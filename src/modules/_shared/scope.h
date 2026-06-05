@@ -124,6 +124,18 @@ static inline void mf_scope_publish(mf_scope_t *s)
         if (hi > peak) peak = hi;
     }
     s->active = (peak >= MF_SCOPE_SQUELCH) ? 1 : 0;
+    /* LINE: each column holds one decimated sample (min==max). Span each
+     * column's bar to the NEXT column's sample so the points join into a
+     * connected trace instead of disconnected dots. Forward pass reads each
+     * neighbour's value while it is still raw. */
+    if (s->style == MF_SCOPE_LINE) {
+        for (int c = 0; c < MF_SCOPE_COLS; c++) {
+            float a = s->pub_min[c];
+            float b = (c + 1 < MF_SCOPE_COLS) ? s->pub_min[c + 1] : a;
+            s->pub_min[c] = a < b ? a : b;
+            s->pub_max[c] = a > b ? a : b;
+        }
+    }
     s->have_frame = 1;
 }
 

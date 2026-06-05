@@ -97,16 +97,20 @@ static void test_scope_styles(void) {
     for (int fed = 0; fed < 2048; fed += 128) mf_scope_capture(&scope, blk, NULL, 128);
     require_true(mf_scope_serialize(&scope, buf, sizeof(buf)) == 0, "none style stays disabled");
 
-    /* LINE: each column's max-row equals its min-row (single decimated sample) */
+    /* LINE connects consecutive decimated samples: with a rising ramp each
+     * column's bar spans to the next column's sample, so bars have height
+     * (top != bot) -- a joined trace, not disconnected dots. */
     mf_scope_init(&scope, 1024, MF_SCOPE_CONTINUOUS, MF_SCOPE_LINE);
-    for (int i = 0; i < 128; i++) blk[i] = (i % 2 == 0) ? 0.5f : -0.5f;
-    for (int fed = 0; fed < 1024; fed += 128) mf_scope_capture(&scope, blk, NULL, 128);
-    require_true(mf_scope_serialize(&scope, buf, sizeof(buf)) == MF_SCOPE_COLS * 2, "line frame length");
-    int collapsed = 1;
-    for (int c = 0; c < MF_SCOPE_COLS; c++) {
-        if (buf[c * 2] != buf[c * 2 + 1]) { collapsed = 0; break; }
+    for (int fed = 0; fed < 1024; fed += 128) {
+        for (int i = 0; i < 128; i++) blk[i] = -1.0f + 2.0f * (float)(fed + i) / 1024.0f;
+        mf_scope_capture(&scope, blk, NULL, 128);
     }
-    require_true(collapsed, "line style collapses each column to one sample");
+    require_true(mf_scope_serialize(&scope, buf, sizeof(buf)) == MF_SCOPE_COLS * 2, "line frame length");
+    int connected = 0;
+    for (int c = 0; c < MF_SCOPE_COLS - 1; c++) {
+        if (buf[c * 2] != buf[c * 2 + 1]) { connected = 1; break; }
+    }
+    require_true(connected, "line style joins consecutive samples into a trace");
 
     /* TRIGGERED: a full-scale sine still publishes a frame (timeout guarantees
      * progress even if the trigger search were unlucky) */
