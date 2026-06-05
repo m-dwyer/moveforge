@@ -341,7 +341,7 @@ function drawUI() {
         ? "Click: bank"
         : (editMode ? {left: "Click: done", right: "Jog: adjust"} : "Click: edit"));
     drawOverlay();
-    if (scopeHold > 0) drawScopeOverlay();
+    if (scopeVisible) drawScopeOverlay();
 
     needsRedraw = false;
 }
