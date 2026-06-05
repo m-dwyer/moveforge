@@ -13,6 +13,7 @@
     "check-stress": "node scripts/check-stress.ts",
     "dev": "vite",
     "test": "vitest run",
+    "test:ui-chain": "vitest run -c vitest.node.config.ts",
     "gen-faust": "node scripts/gen-faust.ts",
     "gen-presets": "node scripts/gen-presets.ts",
     "gen-ui-chain": "node scripts/gen-ui-chain.ts",

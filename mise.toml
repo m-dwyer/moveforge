@@ -33,6 +33,10 @@ run = "pnpm run gen-ui-chain"
 description = "Run Vitest browser-mode component tests for the React web UI"
 run = "pnpm test"
 
+[tasks.ui-chain-test]
+description = "Run local chain-UI behaviour tests (generated ui_chain.js, no device)"
+run = "pnpm run test:ui-chain"
+
 [tasks.render]
 description = "Render the default demo WAV"
 run = "make render"

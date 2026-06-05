@@ -66,6 +66,7 @@ move-screen:
 check:
 	pnpm run typecheck
 	pnpm run validate
+	pnpm run test:ui-chain
 	$(MAKE) test
 	$(MAKE) suite
 	pnpm run check-renders
@@ -75,6 +76,7 @@ check:
 check-all:
 	pnpm run typecheck
 	pnpm run validate
+	pnpm run test:ui-chain
 	$(MAKE) test
 	$(MAKE) suite
 	pnpm run check-renders
