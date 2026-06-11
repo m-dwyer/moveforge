@@ -4,36 +4,44 @@
 #ifndef LOBBER_PRESETS_GEN_INC
 #define LOBBER_PRESETS_GEN_INC
 
-#define LOBBER_PRESET_COUNT 4
+#define LOBBER_PRESET_COUNT 6
 
 typedef struct {
     const char *name;
     const float *values;
 } lobber_preset_t;
 
-static const char *lobber_preset_param_keys[10] = {
+static const char *lobber_preset_param_keys[14] = {
     "active",
     "offset",
     "division",
+    "mode",
     "loop",
     "ratchet",
     "reverse",
     "freeze",
+    "mute",
+    "capture",
+    "loop_beats",
     "mix",
     "bpm",
     "xfade"
 };
 
-static const float lobber_preset_values_0[10] = { 0.0f, 2.0f, 3.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 120.0f, 4.0f };
-static const float lobber_preset_values_1[10] = { 1.0f, 2.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.55f, 120.0f, 4.0f };
-static const float lobber_preset_values_2[10] = { 1.0f, 1.0f, 3.0f, 1.0f, 1.0f, 0.0f, 0.0f, 1.0f, 120.0f, 3.0f };
-static const float lobber_preset_values_3[10] = { 1.0f, 4.0f, 2.0f, 1.0f, 0.0f, 1.0f, 0.0f, 1.0f, 120.0f, 6.0f };
+static const float lobber_preset_values_0[14] = { 0.0f, 2.0f, 2.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 4.0f, 1.0f, 120.0f, 4.0f };
+static const float lobber_preset_values_1[14] = { 1.0f, 2.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 4.0f, 0.55f, 120.0f, 4.0f };
+static const float lobber_preset_values_2[14] = { 1.0f, 1.0f, 2.0f, 0.0f, 1.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 4.0f, 1.0f, 120.0f, 3.0f };
+static const float lobber_preset_values_3[14] = { 1.0f, 4.0f, 4.0f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 4.0f, 1.0f, 120.0f, 6.0f };
+static const float lobber_preset_values_4[14] = { 0.0f, 0.0f, 2.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 2.0f, 1.0f, 120.0f, 5.0f };
+static const float lobber_preset_values_5[14] = { 1.0f, 0.0f, 2.0f, 2.0f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 2.0f, 1.0f, 120.0f, 3.0f };
 
-static const lobber_preset_t lobber_presets[4] = {
+static const lobber_preset_t lobber_presets[6] = {
     { "Init", lobber_preset_values_0 },
     { "Eighth Throw", lobber_preset_values_1 },
     { "Stutter 16", lobber_preset_values_2 },
-    { "Reverse Roll", lobber_preset_values_3 }
+    { "Reverse Roll", lobber_preset_values_3 },
+    { "Loop Hold", lobber_preset_values_4 },
+    { "Slice Roll", lobber_preset_values_5 }
 };
 
 static int lobber_preset_count(void) {
@@ -57,7 +65,7 @@ static void lobber_apply_preset(lobber_core_t *s, int index) {
     index = lobber_clamp_preset_index(index);
     const float *values = lobber_presets[index].values;
     if (!values) return;
-    for (int i = 0; i < 10; i++) {
+    for (int i = 0; i < 14; i++) {
         lobber_set_param(s, lobber_param_id(lobber_preset_param_keys[i]), values[i]);
     }
 }

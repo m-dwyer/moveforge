@@ -46,11 +46,15 @@ const KNOB_TOUCHES = [
 const PARAMS = [
     { key: "active", name: "Toss", min: 0, max: 1, step: 1, dec: 0, def: 0 },
     { key: "offset", name: "Slices Back", min: 0, max: 16, step: 1, dec: 0, def: 2 },
-    { key: "division", name: "Slice", min: 0, max: 4, step: 1, dec: 0, def: 3 },
+    { key: "division", name: "Slice", min: 0, max: 5, step: 1, dec: 0, def: 2 },
+    { key: "mode", name: "Play Mode", min: 0, max: 2, step: 1, dec: 0, def: 0 },
     { key: "loop", name: "Loop", min: 0, max: 1, step: 1, dec: 0, def: 1 },
     { key: "ratchet", name: "Ratchet", min: 0, max: 4, step: 1, dec: 0, def: 0 },
     { key: "reverse", name: "Reverse", min: 0, max: 1, step: 1, dec: 0, def: 0 },
     { key: "freeze", name: "Freeze", min: 0, max: 1, step: 1, dec: 0, def: 0 },
+    { key: "mute", name: "Mute", min: 0, max: 1, step: 1, dec: 0, def: 0 },
+    { key: "capture", name: "Capture", min: 0, max: 1, step: 1, dec: 0, def: 0 },
+    { key: "loop_beats", name: "Loop Beats", min: 1, max: 16, step: 1, dec: 0, def: 4 },
     { key: "mix", name: "Mix", min: 0, max: 1, step: 0.01, dec: 2, def: 1 },
     { key: "bpm", name: "Tempo", min: 40, max: 200, step: 1, dec: 0, def: 120 },
     { key: "xfade", name: "Declick", min: 0, max: 25, step: 0.25, dec: 1, def: 4 }
@@ -62,11 +66,15 @@ const KNOB_PARAM_INDEXES = [
     2,
     3,
     4,
-    5,
     6,
     7,
+    11,
+    5,
     8,
-    9
+    10,
+    9,
+    12,
+    13
 ];
 
 let selectedIndex = 0;

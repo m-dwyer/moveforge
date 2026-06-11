@@ -51,9 +51,10 @@ static void process_block(void *instance, int16_t *audio_inout, int frames) {
      * core falls back to its bpm param (offline renderer, browser). */
     float bpm = 120.0f;
     int clock_available = 0;
+    int status = MOVE_CLOCK_STATUS_UNAVAILABLE;
     if (g_host) {
-        int status = g_host->get_clock_status ? g_host->get_clock_status()
-                                               : MOVE_CLOCK_STATUS_UNAVAILABLE;
+        status = g_host->get_clock_status ? g_host->get_clock_status()
+                                          : MOVE_CLOCK_STATUS_UNAVAILABLE;
         clock_available = (status != MOVE_CLOCK_STATUS_UNAVAILABLE);
         if (clock_available && g_host->get_bpm) {
             float b = g_host->get_bpm();
@@ -61,6 +62,9 @@ static void process_block(void *instance, int16_t *audio_inout, int frames) {
         }
     }
     lobber_set_tempo(&p->core, bpm, clock_available);
+    /* Loop mode mutes when the host transport is stopped; treat "no clock"
+     * (offline renderer, browser) as running so audition/render still play. */
+    lobber_set_transport(&p->core, status != MOVE_CLOCK_STATUS_STOPPED);
 
     moveforge_stereo_i16_to_float(audio_inout, p->in_l, p->in_r, frames);
     lobber_process_float(&p->core, p->in_l, p->in_r, p->out_l, p->out_r, frames);

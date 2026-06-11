@@ -20,7 +20,7 @@ function loadUi() {
 
   const MovePads = Array.from({ length: 32 }, (_, i) => i + 68); // notes 68..99
   const sandbox: Record<string, unknown> = {
-    MovePads, Cyan: 14, Red: 127,
+    MovePads, Cyan: 14, Red: 127, Green: 126, Blue: 125, Purple: 22, White: 120,
     setLED: rec("setLED"),
     clearAllLEDs: rec("clearAllLEDs"),
     host_pad_block: rec("host_pad_block"),
@@ -79,5 +79,33 @@ describe("lobber ui.js pad handling", () => {
     ctx.sandbox.onMidiMessageInternal([0x90, 60, 100]); // not a pad
     ctx.sandbox.onMidiMessageInternal([0xB0, 14, 64]);  // a CC
     expect(sent(ctx.calls)).toEqual([]);
+  });
+
+  it("maps the function row (pads 16..20) to fn descriptors, others to null", () => {
+    expect(ctx.sandbox.padToFn(84)?.name).toBe("MODE");     // pad 16
+    expect(ctx.sandbox.padToFn(85)?.name).toBe("REVERSE");  // pad 17
+    expect(ctx.sandbox.padToFn(88)?.name).toBe("CAPTURE");  // pad 20
+    expect(ctx.sandbox.padToFn(83)).toBe(null);             // a toss pad, not a fn pad
+    expect(ctx.sandbox.padToFn(60)).toBe(null);             // not a pad note
+  });
+
+  it("injects function-row presses on MIDI channel 1", () => {
+    ctx.sandbox.init();
+    ctx.calls.length = 0;
+    ctx.sandbox.onMidiMessageInternal([0x90, 84, 100]);     // MODE press
+    expect(sent(ctx.calls)).toEqual([[0x91, 0, 100]]);
+    ctx.calls.length = 0;
+    ctx.sandbox.onMidiMessageInternal([0x80, 84, 0]);       // MODE release
+    expect(sent(ctx.calls)).toEqual([[0x81, 0, 0]]);
+  });
+
+  it("sends momentary reverse on press and release", () => {
+    ctx.sandbox.init();
+    ctx.calls.length = 0;
+    ctx.sandbox.onMidiMessageInternal([0x90, 85, 100]);     // REVERSE hold
+    expect(sent(ctx.calls)).toEqual([[0x91, 1, 100]]);
+    ctx.calls.length = 0;
+    ctx.sandbox.onMidiMessageInternal([0x80, 85, 0]);       // REVERSE release
+    expect(sent(ctx.calls)).toEqual([[0x81, 1, 0]]);
   });
 });

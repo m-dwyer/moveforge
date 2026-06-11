@@ -31,16 +31,20 @@
           "params": [
             { "key": "active", "name": "Toss", "type": "float", "min": 0, "max": 1, "default": 0, "step": 1 },
             { "key": "offset", "name": "Slices Back", "type": "float", "min": 0, "max": 16, "default": 2, "step": 1 },
-            { "key": "division", "name": "Slice", "type": "float", "min": 0, "max": 4, "default": 3, "step": 1 },
+            { "key": "division", "name": "Slice", "type": "float", "min": 0, "max": 5, "default": 2, "step": 1 },
+            { "key": "mode", "name": "Play Mode", "type": "float", "min": 0, "max": 2, "default": 0, "step": 1 },
             { "key": "loop", "name": "Loop", "type": "float", "min": 0, "max": 1, "default": 1, "step": 1 },
             { "key": "ratchet", "name": "Ratchet", "type": "float", "min": 0, "max": 4, "default": 0, "step": 1 },
             { "key": "reverse", "name": "Reverse", "type": "float", "min": 0, "max": 1, "default": 0, "step": 1 },
             { "key": "freeze", "name": "Freeze", "type": "float", "min": 0, "max": 1, "default": 0, "step": 1 },
+            { "key": "mute", "name": "Mute", "type": "float", "min": 0, "max": 1, "default": 0, "step": 1 },
+            { "key": "capture", "name": "Capture", "type": "float", "min": 0, "max": 1, "default": 0, "step": 1 },
+            { "key": "loop_beats", "name": "Loop Beats", "type": "float", "min": 1, "max": 16, "default": 4, "step": 1 },
             { "key": "mix", "name": "Mix", "type": "float", "min": 0, "max": 1, "default": 1, "step": 0.01 },
             { "key": "bpm", "name": "Tempo", "type": "float", "min": 40, "max": 200, "default": 120, "step": 1 },
             { "key": "xfade", "name": "Declick", "type": "float", "min": 0, "max": 25, "default": 4, "step": 0.5 }
           ],
-          "knobs": ["active", "offset", "division", "loop", "ratchet", "reverse", "freeze", "mix", "bpm", "xfade"]
+          "knobs": ["active", "offset", "division", "mode", "loop", "reverse", "freeze", "mix", "ratchet", "mute", "loop_beats", "capture", "bpm", "xfade"]
         }
       }
     }
