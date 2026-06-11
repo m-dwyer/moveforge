@@ -2,15 +2,21 @@ import { defineConfig } from "vitest/config";
 import type { Plugin, ViteDevServer } from "vite";
 import react from "@vitejs/plugin-react";
 import { playwright } from "@vitest/browser-playwright";
-import { resolve, sep } from "node:path";
+import { join, resolve, sep } from "node:path";
 import { spawn } from "node:child_process";
-import { readFile } from "node:fs/promises";
+import { copyFile, mkdir, readdir, readFile } from "node:fs/promises";
 
 const REPO_ROOT = import.meta.dirname;
 
-export default defineConfig(({ mode }) => {
+export default defineConfig(({ mode, command }) => {
   const isTest = mode === "test";
+  const isBuild = command === "build";
+  // Project Pages site is served under https://<user>.github.io/<repo>/, so the
+  // built app must resolve assets under that subpath. Dev/test stay at root.
+  // Override with PAGES_BASE (e.g. "/" for a user page or custom domain).
+  const base = isBuild ? process.env.PAGES_BASE ?? "/moveforge/" : "/";
   return {
+    base,
     root: "web",
     server: {
       port: 8765,
@@ -38,7 +44,12 @@ export default defineConfig(({ mode }) => {
     optimizeDeps: {
       include: ["zustand/middleware"]
     },
-    plugins: [react(), serveRepoModules(), ...(isTest ? [] : [wasmRebuilder()])],
+    plugins: [
+      react(),
+      serveRepoModules(),
+      copyStaticAssets(),
+      ...(isTest ? [] : [wasmRebuilder()])
+    ],
     test: {
       include: ["tests/**/*.spec.ts"],
       browser: {
@@ -80,6 +91,58 @@ function serveRepoModules(): Plugin {
           res.end("not found");
         }
       });
+    }
+  };
+}
+
+// The dev-only serveRepoModules/wasmRebuilder plugins fake a backend during
+// `vite dev`. For a static deploy (GitHub Pages) the production build must
+// instead emit those files as real assets: the compiled WASM, the repo module
+// JSON, and the AudioWorklet processor — all fetched at runtime by absolute
+// (base-relative) URL, so Vite's bundler never sees them otherwise.
+function copyStaticAssets(): Plugin {
+  let outDir = resolve(REPO_ROOT, "web/dist");
+  return {
+    name: "moveforge-copy-static-assets",
+    apply: "build",
+    configResolved(config) {
+      outDir = resolve(config.root, config.build.outDir);
+    },
+    async closeBundle() {
+      // AudioWorklet processor (loaded via audioWorklet.addModule).
+      await copyFile(resolve(REPO_ROOT, "web/module-worklet.js"), join(outDir, "module-worklet.js"));
+
+      // Compiled WASM modules. Built by scripts/build-wasm.sh before `vite build`.
+      const wasmSrc = resolve(REPO_ROOT, "web/wasm");
+      const wasmOut = join(outDir, "wasm");
+      await mkdir(wasmOut, { recursive: true });
+      let wasmCount = 0;
+      try {
+        for (const entry of await readdir(wasmSrc, { withFileTypes: true })) {
+          if (!entry.isFile() || !entry.name.endsWith(".wasm")) continue;
+          await copyFile(join(wasmSrc, entry.name), join(wasmOut, entry.name));
+          wasmCount += 1;
+        }
+      } catch (err) {
+        this.warn(`no WASM found under web/wasm (${(err as Error).message}); run build-wasm.sh first`);
+      }
+      if (wasmCount === 0) this.warn("copied 0 .wasm files — the deployed app will show no modules");
+
+      // Repo module metadata, mirroring what serveRepoModules exposes in dev:
+      // index.json plus each module's module/presets/metadata JSON.
+      const modulesSrc = resolve(REPO_ROOT, "src/modules");
+      const modulesOut = join(outDir, "modules");
+      await mkdir(modulesOut, { recursive: true });
+      await copyFile(join(modulesSrc, "index.json"), join(modulesOut, "index.json"));
+      for (const entry of await readdir(modulesSrc, { withFileTypes: true })) {
+        if (!entry.isDirectory() || entry.name.startsWith("_")) continue;
+        const srcDir = join(modulesSrc, entry.name);
+        const dstDir = join(modulesOut, entry.name);
+        await mkdir(dstDir, { recursive: true });
+        for (const file of ["module.json", "presets.json", "metadata.json"]) {
+          await copyFile(join(srcDir, file), join(dstDir, file)).catch(() => {});
+        }
+      }
     }
   };
 }

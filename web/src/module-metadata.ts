@@ -81,9 +81,9 @@ export type LoadedModuleMetadata = {
 
 export async function loadModuleMetadata(moduleId: string): Promise<LoadedModuleMetadata> {
   const [moduleJson, presetJson, metadataJson] = await Promise.all([
-    loadJson<ModuleMetadataJson>(`/modules/${moduleId}/module.json`),
-    loadJson<PresetsJson>(`/modules/${moduleId}/presets.json`),
-    loadOptionalJson<MetadataJson>(`/modules/${moduleId}/metadata.json`)
+    loadJson<ModuleMetadataJson>(`${import.meta.env.BASE_URL}modules/${moduleId}/module.json`),
+    loadJson<PresetsJson>(`${import.meta.env.BASE_URL}modules/${moduleId}/presets.json`),
+    loadOptionalJson<MetadataJson>(`${import.meta.env.BASE_URL}modules/${moduleId}/metadata.json`)
   ]);
   const params = paramsFromModuleJson(moduleJson, metadataJson?.params ?? {}, metadataJson?.randomize ?? {});
   return {
@@ -96,7 +96,7 @@ export async function loadModuleMetadata(moduleId: string): Promise<LoadedModule
 }
 
 export async function loadModuleIndex(): Promise<ModuleIndex> {
-  const index = await loadJson<ModuleIndex>("/modules/index.json");
+  const index = await loadJson<ModuleIndex>(`${import.meta.env.BASE_URL}modules/index.json`);
   const modules = index.modules ?? [];
   const availability = await Promise.all(modules.map(async (module) => ({
     module,
@@ -123,7 +123,7 @@ async function loadOptionalJson<T>(path: string): Promise<T | null> {
 
 async function hasWasmBuild(moduleId: string): Promise<boolean> {
   try {
-    const response = await fetch(`/wasm/${moduleId}.wasm`, { cache: "no-store" });
+    const response = await fetch(`${import.meta.env.BASE_URL}wasm/${moduleId}.wasm`, { cache: "no-store" });
     if (!response.ok) return false;
     const bytes = await response.arrayBuffer();
     return looksLikeWasm(bytes);
