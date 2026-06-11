@@ -79,8 +79,8 @@ globalThis.tick = function tick() {
   needRedraw = false;
   clear_screen();
   print(2, 2, 'Lobber — ' + MODE_NAMES[modeIdx], 1);
-  const status = activePad >= 0 ? ('Toss slice ' + activePad)
-                                : (muteOn ? 'Muted' : 'Hold a pad to toss');
+  const status = activePad >= 0 ? ('Lob slice ' + activePad)
+                                : (muteOn ? 'Muted' : 'Hold a pad to lob');
   print(2, 18, status, 1);
 };
 

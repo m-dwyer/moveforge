@@ -44,7 +44,7 @@ const KNOB_TOUCHES = [
 ];
 
 const PARAMS = [
-    { key: "active", name: "Toss", min: 0, max: 1, step: 1, dec: 0, def: 0 },
+    { key: "active", name: "Lob", min: 0, max: 1, step: 1, dec: 0, def: 0 },
     { key: "offset", name: "Slices Back", min: 0, max: 16, step: 1, dec: 0, def: 2 },
     { key: "division", name: "Slice", min: 0, max: 5, step: 1, dec: 0, def: 2 },
     { key: "mode", name: "Play Mode", min: 0, max: 2, step: 1, dec: 0, def: 0 },

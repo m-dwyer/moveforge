@@ -29,7 +29,7 @@
           "count_param": "preset_count",
           "name_param": "preset_name",
           "params": [
-            { "key": "active", "name": "Toss", "type": "float", "min": 0, "max": 1, "default": 0, "step": 1 },
+            { "key": "active", "name": "Lob", "type": "float", "min": 0, "max": 1, "default": 0, "step": 1 },
             { "key": "offset", "name": "Slices Back", "type": "float", "min": 0, "max": 16, "default": 2, "step": 1 },
             { "key": "division", "name": "Slice", "type": "float", "min": 0, "max": 5, "default": 2, "step": 1 },
             { "key": "mode", "name": "Play Mode", "type": "float", "min": 0, "max": 2, "default": 0, "step": 1 },

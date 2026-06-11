@@ -1,9 +1,9 @@
 {
   "params": {
-    "active": "Engages tossing: when on, plays from the read head jumped back by Slices Back. Pads override this momentarily.",
-    "offset": "How many tempo-locked slices behind 'now' the read head jumps when tossing.",
+    "active": "Engages the lob: when on, plays from the read head jumped back by Slices Back. Pads override this momentarily.",
+    "offset": "How many tempo-locked slices behind 'now' the read head jumps when lobbing.",
     "division": "Slice length on the tempo grid: 0=1/4, 1=1/8, 2=1/16, 3=1/4T, 4=1/8T, 5=1/16T.",
-    "mode": "Play mode: 0=Live (toss the live input buffer), 1=Loop (play the captured loop, tempo-followed), 2=Slice (fire one slice of the captured loop over the live input).",
+    "mode": "Play mode: 0=Live (lob the live input buffer), 1=Loop (play the captured loop, tempo-followed), 2=Slice (fire one slice of the captured loop over the live input).",
     "loop": "When on, repeats the jumped slice (stutter). When off, plays through the buffer from the jump point (delay throw). Used in Live and Loop modes.",
     "ratchet": "Subdivides the loop window for faster repeats (0=full slice, each step halves it).",
     "reverse": "Reads the slice backwards.",
@@ -11,7 +11,7 @@
     "mute": "Silences the dry/live path; the wet toss/slice still plays.",
     "capture": "Rising edge snapshots the most recent Loop Beats of audio into the loop buffer (and retriggers it). Loop/Slice modes auto-capture once on first entry.",
     "loop_beats": "Musical length in beats of the captured loop (1..16), used by Loop and Slice modes.",
-    "mix": "Wet/dry balance of the tossed signal against the live input.",
+    "mix": "Wet/dry balance of the lobbed signal against the live input.",
     "bpm": "Fallback tempo used when the host clock is unavailable (e.g. the browser). On device the host tempo wins.",
     "xfade": "Declick crossfade length in milliseconds applied at every read-head jump and loop seam."
   },
