@@ -9,7 +9,7 @@ export type HostParamUpdate = {
 };
 
 const params = new URLSearchParams(window.location.search);
-const workletUrl = params.get("worklet") ?? "/module-worklet.js";
+const workletUrl = params.get("worklet") ?? `${import.meta.env.BASE_URL}module-worklet.js`;
 const workletProcessor = params.get("processor") ?? "module-processor";
 
 const engine = new AudioEngine();

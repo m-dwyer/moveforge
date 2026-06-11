@@ -143,7 +143,7 @@ export class AudioEngine {
   }
 
   async #loadWasmInto(entry: SlotEntry): Promise<void> {
-    const wasmPath = `/wasm/${entry.moduleId}.wasm`;
+    const wasmPath = `${import.meta.env.BASE_URL}wasm/${entry.moduleId}.wasm`;
     const wasmResponse = await fetch(wasmPath, { cache: "no-store" });
     if (!wasmResponse.ok) {
       this.#config?.onError(entry.slotId, `Could not load audio module: ${wasmResponse.status}`);
