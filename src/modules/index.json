@@ -21,6 +21,11 @@
       "kind": "sound_generator"
     },
     {
+      "id": "lobber",
+      "name": "Lobber",
+      "kind": "audio_fx"
+    },
+    {
       "id": "trail",
       "name": "Trail Delay",
       "kind": "audio_fx"

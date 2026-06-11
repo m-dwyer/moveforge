@@ -1,0 +1,25 @@
+{
+  "module_id": "lobber",
+  "presets": [
+    {
+      "name": "Init",
+      "params": { "active": 0, "offset": 2, "division": 3, "loop": 1, "ratchet": 0, "reverse": 0, "freeze": 0, "mix": 1, "bpm": 120, "xfade": 4 },
+      "render": { "file": "00-init.wav", "signal": "sweep", "seconds": 4 }
+    },
+    {
+      "name": "Eighth Throw",
+      "params": { "active": 1, "offset": 2, "division": 1, "loop": 0, "ratchet": 0, "reverse": 0, "freeze": 0, "mix": 0.55, "bpm": 120, "xfade": 4 },
+      "render": { "file": "01-eighth-throw.wav", "signal": "sweep", "seconds": 4 }
+    },
+    {
+      "name": "Stutter 16",
+      "params": { "active": 1, "offset": 1, "division": 3, "loop": 1, "ratchet": 1, "reverse": 0, "freeze": 0, "mix": 1, "bpm": 120, "xfade": 3 },
+      "render": { "file": "02-stutter-16.wav", "signal": "noise", "seconds": 3 }
+    },
+    {
+      "name": "Reverse Roll",
+      "params": { "active": 1, "offset": 4, "division": 2, "loop": 1, "ratchet": 0, "reverse": 1, "freeze": 0, "mix": 1, "bpm": 120, "xfade": 6 },
+      "render": { "file": "03-reverse-roll.wav", "signal": "sweep", "seconds": 4 }
+    }
+  ]
+}
