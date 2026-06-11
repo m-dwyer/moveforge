@@ -1,0 +1,52 @@
+{
+  "id": "lobber",
+  "name": "Lobber",
+  "abbrev": "LOB",
+  "version": "0.1.0",
+  "description": "Tempo-locked slice buffer: toss/stutter/reverse/freeze incoming audio",
+  "author": "Local",
+  "ui": "ui.js",
+  "ui_chain": "ui_chain.js",
+  "dsp": "dsp.so",
+  "api_version": 2,
+  "capabilities": {
+    "audio_out": true,
+    "audio_in": true,
+    "midi_in": true,
+    "midi_out": false,
+    "chainable": true,
+    "component_type": "audio_fx",
+    "scope": {
+      "mode": "continuous",
+      "style": "envelope",
+      "window": 1024
+    },
+    "ui_hierarchy": {
+      "levels": {
+        "root": {
+          "name": "Lobber",
+          "list_param": "preset",
+          "count_param": "preset_count",
+          "name_param": "preset_name",
+          "params": [
+            { "key": "active", "name": "Lob", "type": "float", "min": 0, "max": 1, "default": 0, "step": 1 },
+            { "key": "offset", "name": "Slices Back", "type": "float", "min": 0, "max": 16, "default": 2, "step": 1 },
+            { "key": "division", "name": "Slice", "type": "float", "min": 0, "max": 5, "default": 2, "step": 1 },
+            { "key": "mode", "name": "Play Mode", "type": "float", "min": 0, "max": 2, "default": 0, "step": 1 },
+            { "key": "loop", "name": "Loop", "type": "float", "min": 0, "max": 1, "default": 1, "step": 1 },
+            { "key": "ratchet", "name": "Ratchet", "type": "float", "min": 0, "max": 4, "default": 0, "step": 1 },
+            { "key": "reverse", "name": "Reverse", "type": "float", "min": 0, "max": 1, "default": 0, "step": 1 },
+            { "key": "freeze", "name": "Freeze", "type": "float", "min": 0, "max": 1, "default": 0, "step": 1 },
+            { "key": "mute", "name": "Mute", "type": "float", "min": 0, "max": 1, "default": 0, "step": 1 },
+            { "key": "capture", "name": "Capture", "type": "float", "min": 0, "max": 1, "default": 0, "step": 1 },
+            { "key": "loop_beats", "name": "Loop Beats", "type": "float", "min": 1, "max": 16, "default": 4, "step": 1 },
+            { "key": "mix", "name": "Mix", "type": "float", "min": 0, "max": 1, "default": 1, "step": 0.01 },
+            { "key": "bpm", "name": "Tempo", "type": "float", "min": 40, "max": 200, "default": 120, "step": 1 },
+            { "key": "xfade", "name": "Declick", "type": "float", "min": 0, "max": 25, "default": 4, "step": 0.5 }
+          ],
+          "knobs": ["active", "offset", "division", "mode", "loop", "reverse", "freeze", "mix", "ratchet", "mute", "loop_beats", "capture", "bpm", "xfade"]
+        }
+      }
+    }
+  }
+}

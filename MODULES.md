@@ -16,6 +16,7 @@ This index lists the checked-in Schwung modules by component type. Each module i
 |---|---|---|---|
 | `trail` | Trail Delay | Faust | Lush stereo delay for hypnotic techno: free or tempo-synced time (1/16–1/1, incl. dotted/triplet), LFO modulation, filtered + saturated feedback, stereo→ping-pong width, and an integrated reverb tail. Params: time, sync, feedback, tone, mod, width, drive, space, mix. |
 | `faust_drive` | Faust Drive | Faust | Reference Faust stereo drive/tone/mix saturator. |
+| `lobber` | Lobber | C | Tempo-locked slice buffer with three play modes — Live (lob/stutter/reverse/throw the live buffer), Loop (capture a bar and play it tempo-followed), Slice (fire slices of the captured loop over the live input). Played via pads (lob grid on ch0, function row on ch1) or knobs. Syncs to host tempo, falls back to a bpm param; Loop mutes on transport stop. Params: active, offset, division, mode, loop, ratchet, reverse, freeze, mute, capture, loop_beats, mix, bpm, xfade. User manual: [`src/modules/lobber/MANUAL.md`](src/modules/lobber/MANUAL.md). Parity roadmap: [`src/modules/lobber/PARITY.md`](src/modules/lobber/PARITY.md). |
 
 ## MIDI FX
 
