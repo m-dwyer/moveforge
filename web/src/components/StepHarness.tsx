@@ -1,8 +1,5 @@
-import { useEffect } from "react";
 import { useStore } from "@/store";
-import { noteOff, noteOn } from "@/audio";
 import {
-  auditionEvent,
   defaultStep,
   materializePattern,
   patternLabels,
@@ -16,7 +13,6 @@ export function StepHarness() {
   const steps = useStore((s) => s.steps);
   const customCopySteps = useStore((s) => s.customCopySteps);
   const selectedStep = useStore((s) => s.selectedStep);
-  const playing = useStore((s) => s.playing);
   const playStep = useStore((s) => s.playStep);
   const bpm = useStore((s) => s.bpm);
   const audition = useStore((s) => s.audition);
@@ -32,45 +28,6 @@ export function StepHarness() {
   const setCustomCopyStepVelocity = useStore((s) => s.setCustomCopyStepVelocity);
 
   const intervalMs = Math.max(20, Math.round(60_000 / (bpm * 4)));
-
-  useEffect(() => {
-    if (!playing) return;
-    const noteOffTimers = new Set<number>();
-    const activeNotes = new Set<number>();
-
-    const tick = () => {
-      const state = useStore.getState();
-      const next = (state.playStep + 1) % state.audition.length;
-      state.setPlayStep(next);
-      const event = auditionEvent(state.audition.pattern, next, {
-        steps: state.audition.pattern === "custom_copy" ? state.customCopySteps : state.steps,
-        root: state.root,
-        octave: state.octave,
-        transpose: state.audition.transpose,
-        velocity: state.audition.velocity
-      });
-      if (!event) return;
-
-      if (activeNotes.has(event.note)) noteOff(event.note);
-      activeNotes.add(event.note);
-      void noteOn(event.note, event.velocity);
-      const gateMs = Math.max(15, Math.round(intervalMs * Math.min(0.98, state.audition.gate) * event.gateSteps));
-      const timer = window.setTimeout(() => {
-        noteOff(event.note);
-        activeNotes.delete(event.note);
-        noteOffTimers.delete(timer);
-      }, gateMs);
-      noteOffTimers.add(timer);
-    };
-
-    tick();
-    const id = setInterval(tick, intervalMs);
-    return () => {
-      clearInterval(id);
-      for (const timer of noteOffTimers) clearTimeout(timer);
-      for (const note of activeNotes) noteOff(note);
-    };
-  }, [playing, intervalMs]);
 
   const customCopyPattern = audition.pattern === "custom_copy";
   const customPattern = audition.pattern === "custom";
