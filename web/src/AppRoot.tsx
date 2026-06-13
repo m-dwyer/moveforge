@@ -10,6 +10,7 @@ import { StepHarness } from "@/components/StepHarness";
 import { MobileTabBar, type MobileTab } from "@/components/MobileTabBar";
 import { useKeyboardPlay } from "@/lib/keyboard";
 import { useIsDesktop } from "@/lib/useMediaQuery";
+import { useSequencer } from "@/lib/useSequencer";
 
 export function AppRoot() {
   const initialize = useStore((s) => s.initialize);
@@ -56,6 +57,7 @@ export function AppRoot() {
   }, []);
 
   useKeyboardPlay();
+  useSequencer();
 
   return (
     <TooltipProvider delayDuration={200}>

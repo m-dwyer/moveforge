@@ -4,10 +4,19 @@ import { userEvent } from "vitest/browser";
 import { render, page, useStore, audioCalls } from "./fixtures";
 import { AppRoot } from "@/AppRoot";
 import { StepHarness } from "@/components/StepHarness";
+import { useSequencer } from "@/lib/useSequencer";
 
 afterEach(() => {
   vi.useRealTimers();
 });
+
+// The playback engine lives in useSequencer (mounted at the app root) so it
+// survives mobile tab switches; pair it with the StepHarness UI to exercise the
+// click-Play flow in isolation, without a full AppRoot mount.
+function SequencerHarness() {
+  useSequencer();
+  return createElement(StepHarness);
+}
 
 test("audition controls update the persistent sequencer state", async () => {
   render(createElement(StepHarness));
@@ -117,7 +126,7 @@ test("bass pulse note length schedules short note-offs", async () => {
     state.bpm = 120;
   });
 
-  render(createElement(StepHarness));
+  render(createElement(SequencerHarness));
   await page.getByRole("button", { name: "Play" }).click();
 
   expect(audioCalls().some((call) => call.kind === "noteOn")).toBe(true);
@@ -133,7 +142,7 @@ test("new generated audition patterns produce notes with transpose", async () =>
   useStore.getState().setAuditionPattern("acid_line");
   useStore.getState().setAuditionTranspose(12);
 
-  render(createElement(StepHarness));
+  render(createElement(SequencerHarness));
   await page.getByRole("button", { name: "Play" }).click();
 
   const noteOn = audioCalls().find((call): call is Extract<typeof call, { kind: "noteOn" }> => call.kind === "noteOn");
