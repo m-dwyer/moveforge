@@ -3,17 +3,19 @@ import { useStore } from "@/store";
 import { isInScale, isRoot, noteForPad, noteLabel, noteShortLabel } from "@/lib/pads";
 import { noteOff, noteOn } from "@/audio";
 import { cn } from "@/lib/utils";
+import { OctaveButtons } from "./OctaveButtons";
 import type { ScaleName } from "@/chain-state";
 
-export function PadGrid() {
+export function PadGrid({ rows = 4 }: { rows?: 1 | 4 }) {
   const padLayout = useStore((s) => s.padLayout);
   const root = useStore((s) => s.root);
   const scale = useStore((s) => s.scale);
   const octave = useStore((s) => s.octave);
+  const count = rows * 8;
 
   const notes = useMemo(
-    () => Array.from({ length: 32 }, (_, i) => noteForPad(i, { padLayout, root, scale, octave })),
-    [padLayout, root, scale, octave]
+    () => Array.from({ length: count }, (_, i) => noteForPad(i, { padLayout, root, scale, octave })),
+    [padLayout, root, scale, octave, count]
   );
 
   return (
@@ -23,6 +25,7 @@ export function PadGrid() {
           <Pad key={i} index={i} note={note} root={root} scale={scale} />
         ))}
       </div>
+      {rows === 1 && <OctaveButtons />}
       <p className="text-[11px] text-muted">
         Keyboard: <kbd className="rounded bg-panel-2 px-1 font-mono">a–l</kbd> + black keys (w r t u i o) play first 16 pads ·{" "}
         <kbd className="rounded bg-panel-2 px-1 font-mono">space</kbd> play/stop sequencer
