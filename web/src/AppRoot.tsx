@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useStore, selectSelectedSlot } from "@/store";
 import { hardPanic, setMasterVolume, syncChain, reloadModuleWasm } from "@/audio";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -7,7 +7,9 @@ import { Panel } from "@/components/Panel";
 import { PadConfig } from "@/components/PadConfig";
 import { PadGrid } from "@/components/PadGrid";
 import { StepHarness } from "@/components/StepHarness";
+import { MobileTabBar, type MobileTab } from "@/components/MobileTabBar";
 import { useKeyboardPlay } from "@/lib/keyboard";
+import { useIsDesktop } from "@/lib/useMediaQuery";
 
 export function AppRoot() {
   const initialize = useStore((s) => s.initialize);
@@ -20,6 +22,8 @@ export function AppRoot() {
   const setPlaying = useStore((s) => s.setPlaying);
   const masterVolume = useStore((s) => s.masterVolume);
   const setMasterVolumeState = useStore((s) => s.setMasterVolume);
+  const isDesktop = useIsDesktop();
+  const [mobileTab, setMobileTab] = useState<MobileTab>("chain");
 
   useEffect(() => {
     void initialize(moduleId);
@@ -57,7 +61,7 @@ export function AppRoot() {
     <TooltipProvider delayDuration={200}>
       <main className="h-screen bg-bg text-text">
         <div className="mx-auto flex h-full max-w-[1400px] flex-col gap-3 p-4">
-          <header className="flex items-baseline justify-between gap-3">
+          <header className="flex shrink-0 items-baseline justify-between gap-3">
             <div>
               <h1 className="text-lg font-bold tracking-tight" data-testid="panel-title">{activeModuleName}</h1>
               <p className="text-xs text-muted">
@@ -101,19 +105,38 @@ export function AppRoot() {
           </header>
 
           {error && (
-            <div className="rounded border border-red-700 bg-red-950/40 px-3 py-1.5 text-sm text-red-200">{error}</div>
+            <div className="shrink-0 rounded border border-red-700 bg-red-950/40 px-3 py-1.5 text-sm text-red-200">
+              {error}
+            </div>
           )}
 
-          <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 overflow-hidden lg:grid-cols-2">
-            <section className="flex min-h-0 flex-col gap-3 overflow-y-auto pr-1">
-              <Panel />
-            </section>
-            <section className="flex min-h-0 flex-col gap-3 overflow-y-auto pl-1">
-              <PadConfig />
-              <PadGrid />
-              <StepHarness />
-            </section>
-          </div>
+          {isDesktop ? (
+            <div className="grid min-h-0 flex-1 grid-cols-2 gap-4 overflow-hidden">
+              <section className="flex min-h-0 flex-col gap-3 overflow-y-auto pr-1">
+                <Panel />
+              </section>
+              <section className="flex min-h-0 flex-col gap-3 overflow-y-auto pl-1">
+                <PadConfig />
+                <PadGrid />
+                <StepHarness />
+              </section>
+            </div>
+          ) : (
+            <div className="flex min-h-0 flex-1 flex-col gap-3">
+              <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto">
+                {mobileTab === "chain" && <Panel sections={["track", "chain", "presets", "snapshots"]} />}
+                {mobileTab === "params" && <Panel sections={["controls"]} />}
+                {mobileTab === "play" && (
+                  <>
+                    <PadConfig />
+                    <PadGrid rows={1} />
+                  </>
+                )}
+                {mobileTab === "sequence" && <StepHarness />}
+              </div>
+              <MobileTabBar active={mobileTab} onChange={setMobileTab} />
+            </div>
+          )}
         </div>
       </main>
     </TooltipProvider>

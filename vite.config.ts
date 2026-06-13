@@ -56,6 +56,10 @@ export default defineConfig(({ mode, command }) => {
         enabled: true,
         headless: true,
         provider: playwright(),
+        // Vitest's built-in browser viewport default is mobile-sized (414px). This app's
+        // sensible default is desktop, so pin tests above the lg: breakpoint (1024px).
+        // Mobile-path tests opt in explicitly via page.viewport(...).
+        viewport: { width: 1280, height: 800 },
         instances: [{ browser: "chromium" }]
       }
     }
