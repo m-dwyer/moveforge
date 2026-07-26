@@ -589,10 +589,50 @@ worth doing when they trade sound for a fraction of a percent.
       which fetches the real `.wasm` (absent in CI), so every `AppRoot` mount
       test runs with empty pickers. Also: `hasWasmBuild` downloads each module's
       **full** `.wasm` just to check 4 magic bytes, with `cache: "no-store"`.
-- [ ] **5.12 Add a `process()` timing counter** in `module-worklet.js:208` as a
-      device-headroom proxy — the browser context is pinned to exactly
-      44100 Hz / 128 frames, so the ratio against the 2.9 ms quantum is
-      meaningful. See also 6.5.
+- [ ] **5.12 Add a load meter to the worklet** — but not the way this item
+      originally said, and not as a substitute for 6.5. Probed in Chrome against
+      a live AudioContext:
+
+      | API | available? |
+      |---|---|
+      | `performance` / `performance.now()` in `AudioWorkletGlobalScope` | **no** |
+      | `AudioContext.renderCapacity` | **no** (not on the prototype either) |
+      | `currentTime`, `currentFrame`, `Date.now()`, `sampleRate` | yes |
+
+      So the `performance.now()` accumulator this item used to propose cannot be
+      written — that global does not exist in a worklet. And `currentTime` cannot
+      detect a missed deadline: it tracks the *hardware* audio clock, so it keeps
+      advancing whether or not the render callback finished. Verified by burning
+      400,000 sin() per quantum — far past a 2.9 ms budget — and still measuring
+      the audio clock at 100.1% of wall clock.
+
+      What does work: accumulate `Date.now()` deltas across many quanta. Coarse
+      per call (1 ms resolution) but the sum over a few hundred quanta gives a
+      usable average load, and the quantum is *exactly* the device's 128 frames
+      at 44.1 kHz. Measured with a synthetic load:
+
+      ```
+      quantum = 2.902 ms (128 frames @ 44.1k — identical to the device)
+      load      0 ->  0.1% of budget      load  60000 -> 44.3%
+      load   5000 ->  5.4% of budget      load 400000 -> 76.5%
+      load  20000 -> 22.6% of budget
+      ```
+
+      `currentFrame` also confirmed quanta are never skipped (frame-skew constant
+      at 128): Chrome runs late rather than dropping a callback, so the underrun
+      happens at the output device where the page cannot observe it.
+
+      This is an **average**, so it has the same blind spot as the offline average
+      — it would not catch lobber's one-bad-block capture. It is complementary to
+      6.5, not a replacement: 6.5 owns per-block max with a real clock and gates
+      CI; this owns "how heavy is this module while I play it" and belongs in the
+      UI.
+
+      Note also why CPU throttling is not the answer for emulating the device:
+      DevTools throttling targets main-thread task scheduling rather than the
+      audio render thread, and even if it applied it would not model CM4's memory
+      bandwidth — which is precisely what dominates the one cost that matters
+      (lobber's capture). It would mis-model the bug it was meant to find.
 - [ ] **5.13 Fix the stale note-off timers in `useSequencer`.**
       `web/src/lib/useSequencer.ts:34-43` starts a new timer on retrigger
       without cancelling the old one. With `drone_hold` (`gateSteps: 16`) at
