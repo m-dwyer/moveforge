@@ -18,8 +18,10 @@ static void* create_instance(const char *module_dir, const char *config_json) {
     arpy_plugin_t *p = (arpy_plugin_t*)calloc(1, sizeof(arpy_plugin_t));
     if (p) {
         arpy_init(&p->core);
-        p->current_preset = arpy_clamp_preset_index(0);
-        arpy_apply_preset(&p->core, p->current_preset);
+        /* Deliberately no preset at create: arpy_init has applied module.json's
+         * defaults, and preset selection is the host's (chain_patch.c:1345 sends
+         * set_param("preset")). -1 = none selected, so any first pick applies. */
+        p->current_preset = -1;
     }
     return p;
 }

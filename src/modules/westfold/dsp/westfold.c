@@ -24,8 +24,10 @@ static void* create_instance(const char *module_dir, const char *json_defaults) 
     westfold_plugin_t *p = (westfold_plugin_t*)calloc(1, sizeof(westfold_plugin_t));
     if (!p) return NULL;
     westfold_init(&p->core);
-    p->current_preset = westfold_clamp_preset_index(0);
-    westfold_apply_preset(&p->core, p->current_preset);
+    /* Deliberately no preset at create: westfold_init has applied module.json's
+     * defaults, and preset selection is the host's (chain_patch.c:1345 sends
+     * set_param("preset")). -1 = none selected, so any first pick applies. */
+    p->current_preset = -1;
     /* Style/mode/window are the single source of truth in capabilities.scope
      * (module.json) -> generated westfold_scope.gen.inc. westfold keeps the
      * honest envelope: its fold/FM goes inharmonic where a trigger would flail. */

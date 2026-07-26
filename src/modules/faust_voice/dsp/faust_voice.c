@@ -27,8 +27,10 @@ static void* create_instance(const char *module_dir, const char *json_defaults) 
     faust_voice_plugin_t *p = (faust_voice_plugin_t*)calloc(1, sizeof(faust_voice_plugin_t));
     if (!p) return NULL;
     faust_voice_init(&p->core);
-    p->current_preset = faust_voice_clamp_preset_index(0);
-    faust_voice_apply_preset(&p->core, p->current_preset);
+    /* Deliberately no preset at create: faust_voice_init has applied module.json's
+     * defaults, and preset selection is the host's (chain_patch.c:1345 sends
+     * set_param("preset")). -1 = none selected, so any first pick applies. */
+    p->current_preset = -1;
     mf_scope_init(&p->scope, FAUST_VOICE_SCOPE_WINDOW, FAUST_VOICE_SCOPE_MODE, FAUST_VOICE_SCOPE_STYLE);
     return p;
 }

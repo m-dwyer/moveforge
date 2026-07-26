@@ -27,8 +27,10 @@ static void* create_instance(const char *module_dir, const char *config_json) {
     trail_plugin_t *p = (trail_plugin_t*)calloc(1, sizeof(trail_plugin_t));
     if (p) {
         trail_init(&p->core);
-        p->current_preset = trail_clamp_preset_index(0);
-        trail_apply_preset(&p->core, p->current_preset);
+        /* Deliberately no preset at create: trail_init has applied module.json's
+         * defaults, and preset selection is the host's (chain_patch.c:1345 sends
+         * set_param("preset")). -1 = none selected, so any first pick applies. */
+        p->current_preset = -1;
     }
     return p;
 }

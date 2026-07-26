@@ -23,8 +23,10 @@ static void* create_instance(const char *module_dir, const char *config_json) {
     faust_drive_plugin_t *p = (faust_drive_plugin_t*)calloc(1, sizeof(faust_drive_plugin_t));
     if (p) {
         faust_drive_init(&p->core);
-        p->current_preset = faust_drive_clamp_preset_index(0);
-        faust_drive_apply_preset(&p->core, p->current_preset);
+        /* Deliberately no preset at create: faust_drive_init has applied module.json's
+         * defaults, and preset selection is the host's (chain_patch.c:1345 sends
+         * set_param("preset")). -1 = none selected, so any first pick applies. */
+        p->current_preset = -1;
     }
     return p;
 }

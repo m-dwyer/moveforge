@@ -140,11 +140,24 @@ int main(void) {
     require_true(inst != NULL, "create instance");
 
     require_true(get_int(api, inst, "preset_count") == 12, "preset_count");
-    require_true(get_int(api, inst, "preset") == 0, "initial preset");
 
+    /* No preset is elected at create: the module comes up on module.json's
+     * declared defaults — which is what the host seeds its knobs from — and
+     * leaves preset choice to the host. `fold` distinguishes the two states:
+     * module.json declares 0.35, preset 0 sets 0.22. */
     char name[64];
-    require_true(api->get_param(inst, "preset_name", name, sizeof(name)) > 0, "initial preset_name");
-    require_true(name[0] == 'I', "initial preset name is Init");
+    require_true(get_int(api, inst, "preset") == -1, "no preset selected at create");
+    require_true(api->get_param(inst, "preset_name", name, sizeof(name)) >= 0, "initial preset_name");
+    require_true(name[0] == '\0', "no preset name before one is selected");
+    require_true(get_float(api, inst, "fold") > 0.34f, "create leaves module.json default for fold");
+
+    /* Selecting preset 0 must apply it: the sentinel must not let index 0 look
+     * unchanged and get skipped by the idempotence guard. */
+    api->set_param(inst, "preset", "0");
+    require_true(get_int(api, inst, "preset") == 0, "preset 0 is selectable");
+    require_true(api->get_param(inst, "preset_name", name, sizeof(name)) > 0, "preset 0 name");
+    require_true(name[0] == 'I', "preset 0 name is Init");
+    require_true(get_float(api, inst, "fold") < 0.23f, "preset 0 is actually applied");
 
     api->set_param(inst, "preset", "2");
     require_true(get_int(api, inst, "preset") == 2, "selected preset");

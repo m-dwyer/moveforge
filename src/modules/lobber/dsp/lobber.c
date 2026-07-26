@@ -37,8 +37,10 @@ static void* create_instance(const char *module_dir, const char *config_json) {
     lobber_plugin_t *p = (lobber_plugin_t*)malloc(sizeof(lobber_plugin_t));
     if (p) {
         lobber_init(&p->core);
-        p->current_preset = lobber_clamp_preset_index(0);
-        lobber_apply_preset(&p->core, p->current_preset);
+        /* Deliberately no preset at create: lobber_init has applied module.json's
+         * defaults, and preset selection is the host's (chain_patch.c:1345 sends
+         * set_param("preset")). -1 = none selected, so any first pick applies. */
+        p->current_preset = -1;
         mf_scope_init(&p->scope, LOBBER_SCOPE_WINDOW, LOBBER_SCOPE_MODE, LOBBER_SCOPE_STYLE);
     }
     return p;
