@@ -11,6 +11,19 @@ module_target() {
 MODULE_IDS="$(module_target ids)"
 mkdir -p build
 
+# Shared DSP blocks (src/modules/_shared) are module-independent, so they are
+# tested once rather than per module.
+for SHARED_TEST in tests/test_mf_dsp.c; do
+  SHARED_NAME="$(basename "$SHARED_TEST" .c)"
+  cc -std=c11 -O2 -g \
+    "$SHARED_TEST" \
+    -o "build/${SHARED_NAME}" \
+    -Isrc \
+    -lm
+
+  "./build/${SHARED_NAME}"
+done
+
 for MODULE_ID in $MODULE_IDS; do
   MODULE_DIR="$(module_target module-dir "$MODULE_ID")"
   CORE_IMPL="$(module_target core-impl "$MODULE_ID")"

@@ -1,6 +1,8 @@
 #ifndef DUSTLINE_CORE_H
 #define DUSTLINE_CORE_H
 
+#include "modules/_shared/mf_dsp.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -13,8 +15,7 @@ typedef struct {
     float velocity;
     float env;
     float gate;
-    float lp;
-    float bp;
+    mf_svf_t svf;
     float hp_x;
     float hp_y;
     float rng;

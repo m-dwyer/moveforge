@@ -23,6 +23,53 @@ static float peak_abs(const float *x, int from, int to) {
     return m;
 }
 
+/* Every param pushed to both extremes while feedback is pinned at maximum and
+ * the input is sustained near full scale, then held in silence long enough for
+ * the tail to decay. The suite's presets all render a single impulse, so the
+ * runaway case — max feedback plus continuous input — is otherwise never
+ * exercised anywhere. */
+static void test_max_feedback_does_not_run_away(void) {
+    static const char *keys[] = {
+        "feedback", "time", "sync", "mod", "space", "tone", "drive", "width", "mix"
+    };
+    const int n = (int)(sizeof(keys) / sizeof(keys[0]));
+    float l[256];
+    float r[256];
+    float il[256];
+    float ir[256];
+
+    for (int a = 0; a < n; a++) {
+        for (int v = 0; v <= 1; v++) {
+            trail_core_t t;
+            int id = trail_param_id(keys[a]);
+            require_true(id >= 0, "stress param keys exist");
+
+            trail_init(&t);
+            trail_set_param(&t, trail_param_id("feedback"), 1.0e9f);
+            trail_set_param(&t, id, v ? 1.0e9f : -1.0e9f);
+
+            for (int block = 0; block < 400; block++) {
+                for (int i = 0; i < 256; i++) {
+                    /* Drive hard for ~1.2 s, then go silent and let it decay. */
+                    float phase = (float)(block * 256 + i) / 44100.0f;
+                    il[i] = block < 200 ? 0.99f * sinf(6.2831853f * 220.0f * phase) : 0.0f;
+                    ir[i] = il[i];
+                }
+                trail_process_float(&t, il, ir, l, r, 256);
+                for (int i = 0; i < 256; i++) {
+                    if (!isfinite(l[i]) || !isfinite(r[i]) ||
+                        fabsf(l[i]) > 1.0f || fabsf(r[i]) > 1.0f) {
+                        fprintf(stderr, "FAIL: runaway at max feedback with %s=%s (block %d)\n",
+                                keys[a], v ? "max" : "min", block);
+                        exit(1);
+                    }
+                }
+            }
+            trail_destroy(&t);
+        }
+    }
+}
+
 int main(void) {
     trail_core_t fx;
     static float in_l[FRAMES];
@@ -125,6 +172,8 @@ int main(void) {
     require_true(at_echo > before_echo * 4.0f, "synced echo lands at the right time");
 
     trail_destroy(&fx);
+
+    test_max_feedback_does_not_run_away();
 
     printf("trail core tests passed\n");
     return 0;

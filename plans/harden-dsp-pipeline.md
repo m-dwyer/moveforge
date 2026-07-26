@@ -96,28 +96,73 @@ Collapsing Trail to mono moves `stereo_correlation` 0.953 → 1.0, inside the
 Do this first: it is the actual defect, and it becomes the regression test for
 everything below.
 
-- [ ] **1.1 Fix the SVF stability cap.** `dustline_core.c:96-97`. Cap `q`
-      against `min(2/f, (4 - f²) / (2f))`, or replace the topology with a
-      TPT/ZDF SVF (unconditionally stable, and the block we want in `_shared`
-      anyway — see 4.2). Prefer the replacement; the cap is a patch on a
-      topology we should not be hand-rolling per module.
-- [ ] **1.2 Check the resonance mapping while in there.** `q` is the *damping*
-      term in `hp = source - lp - q*bp`, and `q_desired = 0.35f + s->resonance * 3.8f`
-      increases damping as `resonance` rises. Confirm against the intended
-      behaviour before re-blessing; the fix in 1.1 changes what the knob does at
-      the top of its range either way.
-- [ ] **1.3 Add a parameter-space sweep test.** `tests/test_dustline_core.c`
-      currently tests one point. Sweep the full `cutoff` × `resonance` grid and
-      assert finite + bounded at every node. Do the same for any module with a
-      feedback or resonant path (`westfold`, `trail`).
+- [x] **1.1 Fix the SVF stability cap.** Replaced the Chamberlin form with a
+      TPT/ZDF SVF in the new `src/modules/_shared/mf_dsp.h` (`mf_svf_t`),
+      unconditionally stable for every `g > 0`, `k > 0`, so no stability cap is
+      needed at all. Filter coefficients now computed once per block rather than
+      per sample, which also removes a `powf` + `sinf` from the sample loop.
+- [x] **1.2 Resonance mapping — it was genuinely inverted, not just worth
+      checking.** Measured peak gain of the shipped filter at cutoff 0.42:
+      `res=0.00 → +9.09 dB`, `res=0.19 → +0.47 dB`, `res=0.38 → 0.00 dB`,
+      `res≥0.57 → diverges` (at cutoff 0.70). `q` is the damping term, so the
+      knob ran backwards: most resonant at zero, flat across its middle, then
+      unstable. Replaced with an exponential-in-Q map (`Q` 0.5 → 25) which is
+      near-constant in dB per turn:
+
+      ```
+      r      0.000  0.125  0.250  0.375  0.500  0.625  0.750  0.875  1.000
+      peak   -0.00   0.28   3.13   6.96  11.06  15.14  18.99  22.36  25.15 dB
+      ```
+
+      A lowpass has no resonant peak until `Q > 1/sqrt(2)`, so the flat first
+      step is inherent rather than a mapping flaw.
+- [x] **1.3 Parameter-space sweep tests.**
+      - `tests/test_dustline_core.c`: full cutoff × resonance plane (21 × 20) at
+        three drive settings with noise off and full = 2520 points, each a
+        complete note lifecycle. Fails on the pre-fix core
+        (`unstable at cutoff=0.60 resonance=0.65`), passes after. Plus named
+        assertions for the two divergent presets, and a normalized-slew check
+        that catches an inverted resonance wiring.
+      - `tests/test_mf_dsp.c` (new, module-independent — wired into
+        `scripts/test.sh` ahead of the per-module loop): SVF stability across
+        41 × 21 coefficient combinations under a full-scale square, peak-gain
+        monotonicity and dB-per-turn evenness, cutoff/resonance clamping, and
+        denormal flush.
+      - `tests/test_westfold_core.c`: pairwise extremes across the 10 params with
+        feedback or nonlinearity in their path (400 combinations). Passes as
+        written — no westfold instability found.
+      - `tests/test_trail_core.c`: every param at both extremes with feedback
+        pinned at maximum and sustained near-full-scale input, then silence for
+        the tail. Passes as written — no runaway found.
+
+      Full suite stays green and gains ~1.5 s (11 s total).
 - [ ] **1.4 Re-render and re-bless deliberately**, after 2.x lands so the new
       floors have to pass. Note the before/after metrics in the commit body —
       the one-line "Fix module stress failures" commit is exactly the failure
       mode 2.4 is meant to prevent.
 
+      Current state after 1.1-1.3, from `MODULE_ID=dustline mise run check-renders`
+      (14 drifts, all expected):
+
+      ```
+      02-air-noise   rms 0.00029 -> 0.24285   (+58 dB; was the NaN silence)
+      04-glass-keys  rms 0.02789 -> 0.27732   (+20 dB; same cause)
+      05-filter-sweep rms 0.23965 -> 0.30985  (res 0.86 is now actually resonant)
+      03-pin-lead    zcr 0.10009 -> 0.04676   (topology change, peak unchanged)
+      00-init, 01-dust-bass: within tolerance (low resonance under either map)
+      ```
+
+      Note `goldens/**/*.wav` is gitignored, so `check-renders` reports "no
+      golden WAV … re-bless to capture audio" and `tools/render_diff.py` cannot
+      run. Worth resolving as part of 2.4.
+
 **Done when:** the sweep test fails on the pre-fix core and passes after, and
 `02-air-noise` / `04-glass-keys` goldens have healthy `rms` and
 `silence_ratio < 0.5`.
+
+**Note for 5.1:** `src/modules/_shared/mf_dsp.h` is now a real dependency of
+dustline's WASM TU and is *not* in `build-wasm.sh`'s dep list, so editing it
+will not trigger a rebuild. Add it with the others.
 
 ---
 
@@ -261,10 +306,12 @@ Currently rewritten per module:
       noise. `rng` can also reach exactly `1.0f`, making the next
       `(uint32_t)(1.0f * 4294967295.0f)` an out-of-range conversion. Keep the
       state in `uint32_t`; never leave integer domain.
-- [ ] **4.2 Add `src/modules/_shared/mf_dsp.h`** (~200 lines): `mf_smooth_t`,
-      `mf_ar_t`, `mf_svf_t` (TPT/ZDF), `mf_dcblock_t`, `mf_tanh_approx`,
-      `mf_flush_denorm`, `mf_rng_t`, `mf_beats_to_samples`, `mf_sanitize`.
-      Phase 1 should consume `mf_svf_t` rather than patching the Chamberlin form.
+- [ ] **4.2 Fill out `src/modules/_shared/mf_dsp.h`.** Created in Phase 1 with
+      `mf_flush_denorm` and `mf_svf_t` (TPT/ZDF), tested in
+      `tests/test_mf_dsp.c`. Still to add: `mf_smooth_t`, `mf_ar_t`,
+      `mf_dcblock_t`, `mf_tanh_approx`, `mf_rng_t`, `mf_beats_to_samples`,
+      `mf_sanitize` — then convert the existing per-module copies listed above to
+      use them.
 - [ ] **4.3 Add `src/modules/_shared/moveforge.lib`** for the Faust side: `sm`
       (the `si.smooth(ba.tau2pole(0.02))` idiom that currently exists only
       inside `trail.dsp:29`), `satTanh`, `divBeats`. Import it from every `.dsp`.
