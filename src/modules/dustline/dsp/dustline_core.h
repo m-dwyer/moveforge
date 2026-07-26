@@ -16,8 +16,8 @@ typedef struct {
     float env;
     float gate;
     mf_svf_t svf;
-    float hp_x;
-    float hp_y;
+    mf_dcblock_t dc_pre;   /* before the output saturator */
+    mf_dcblock_t dc_post;  /* after it — tanh reintroduces DC on asymmetric input */
     float rng;
     int active_note;
     float pitch_bend;

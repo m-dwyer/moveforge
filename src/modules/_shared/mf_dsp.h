@@ -35,6 +35,41 @@ static inline float mf_flush_denorm(float x)
 }
 
 /* ---------------------------------------------------------------------------
+ * DC blocker (one-pole highpass)
+ *
+ * Place this *after* the last nonlinearity in a chain, not before. A saturator
+ * fed an asymmetric waveform produces DC even when its input is zero-mean —
+ * tanh compresses tall peaks more than shallow troughs — so a blocker upstream
+ * of the output stage does not protect the output. dustline had a blocker
+ * before its final tanh and still emitted 4.5% DC; faust_voice had none.
+ *
+ * Pole 0.9975 puts the corner near 17.5 Hz at 44.1 kHz: below the audible
+ * fundamental range, so bass is preserved.
+ * ------------------------------------------------------------------------- */
+
+#define MF_DCBLOCK_POLE 0.9975f
+
+typedef struct {
+    float x1;
+    float y1;
+} mf_dcblock_t;
+
+static inline void mf_dcblock_init(mf_dcblock_t *d)
+{
+    if (!d) return;
+    d->x1 = 0.0f;
+    d->y1 = 0.0f;
+}
+
+static inline float mf_dcblock_tick(mf_dcblock_t *d, float x)
+{
+    float y = x - d->x1 + MF_DCBLOCK_POLE * d->y1;
+    d->x1 = x;
+    d->y1 = mf_flush_denorm(y);
+    return d->y1;
+}
+
+/* ---------------------------------------------------------------------------
  * State-variable filter (TPT / zero-delay-feedback, Zavalishin)
  *
  * Unconditionally stable for every g > 0 and k > 0, so cutoff and resonance can

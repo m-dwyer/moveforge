@@ -136,25 +136,23 @@ everything below.
         the tail. Passes as written — no runaway found.
 
       Full suite stays green and gains ~1.5 s (11 s total).
-- [ ] **1.4 Re-render and re-bless deliberately**, after 2.x lands so the new
-      floors have to pass. Note the before/after metrics in the commit body —
-      the one-line "Fix module stress failures" commit is exactly the failure
-      mode 2.4 is meant to prevent.
-
-      Current state after 1.1-1.3, from `MODULE_ID=dustline mise run check-renders`
-      (14 drifts, all expected):
+- [x] **1.4 Re-rendered and re-blessed** after Phase 2 landed, so the new floors
+      and the bless diff gate both had to pass first. Blessed with `--force`
+      against a printed diff; the notable movements were:
 
       ```
-      02-air-noise   rms 0.00029 -> 0.24285   (+58 dB; was the NaN silence)
-      04-glass-keys  rms 0.02789 -> 0.27732   (+20 dB; same cause)
-      05-filter-sweep rms 0.23965 -> 0.30985  (res 0.86 is now actually resonant)
-      03-pin-lead    zcr 0.10009 -> 0.04676   (topology change, peak unchanged)
-      00-init, 01-dust-bass: within tolerance (low resonance under either map)
+      dustline 02-air-noise    rms 0.00029 -> 0.24296   (+58.5 dB; was the NaN silence)
+      dustline 04-glass-keys   rms 0.02789 -> 0.27892   (+20.0 dB; same cause)
+      dustline 01-dust-bass    peak 0.77704 -> 0.95502  (+1.8 dB; DC removal freed headroom)
+      faust_voice 01-plucky    peak 0.6893 -> 0.86307   (+2.0 dB; same)
+      lobber 02-stutter-16     peak 0.99988 -> 0.69925  (-3.1 dB; noise signal was
+                                                         hitting full scale on its DC bias)
       ```
 
-      Note `goldens/**/*.wav` is gitignored, so `check-renders` reports "no
-      golden WAV … re-bless to capture audio" and `tools/render_diff.py` cannot
-      run. Worth resolving as part of 2.4.
+      No render clips or exceeds peak 0.99. `mise run check` passes end to end.
+
+      Note `goldens/**/*.wav` is gitignored, so `tools/render_diff.py` still
+      cannot produce diff artifacts on a fresh clone — see 2.11.
 
 **Done when:** the sweep test fails on the pre-fix core and passes after, and
 `02-air-noise` / `04-glass-keys` goldens have healthy `rms` and
@@ -171,56 +169,110 @@ will not trigger a rebuild. Add it with the others.
 The goal is that a golden can no longer be quieter than its own tolerance, and
 that some checks hold without reference to any golden at all.
 
-- [ ] **2.1 Relative-first tolerances with a real floor.**
-      `scripts/check-renders.ts:13-21,245-250`. Replace absolute-first
-      short-circuiting with `abs = max(1e-4, 0.02 × |golden|)` per metric, so a
-      metric can never be smaller than its own tolerance band. Re-check every
-      existing golden against the new bands before proceeding.
-- [ ] **2.2 Absolute sanity floors, independent of the golden.** For any render
-      not explicitly flagged sparse in `presets.json`: `peak > 0.02`,
-      `rms > 0.002`, `silence_ratio < 0.99`, `|dc_offset| < 0.02`. Dustline
-      `02-air-noise` fails all four today.
-- [ ] **2.3 NaN/Inf trap.** Add an explicit non-finite check in
-      `tools/render_wav.c` and `tools/render_fx.c` that fails the render loudly,
-      plus a `mf_sanitize`-style guard in `_shared` (see 4.2). Today a blowup is
-      indistinguishable from silence because `moveforge_float_to_i16` casts NaN
-      to 0 (`dsp_runtime.h:26-32`).
-- [ ] **2.4 Make `bless` show its work.** Print a per-metric before/after diff,
-      require `--force` (or `--reason`) past a ~20% move on any metric, and
-      re-render before blessing instead of trusting whatever is in
-      `renders/<id>-suite/`. Consider refusing a bare `pnpm run bless-renders`
-      with no `MODULE_ID` — it currently blesses all seven modules at once.
-- [ ] **2.5 Add an 8-band log energy vector to `scripts/wav-metrics.ts`.**
-      Highest-value single metric addition: catches aliasing, filter inversion,
-      and Trail's dead wet path, none of which any current metric can see. The
-      spectrum panel in `tools/plot_renders.py:105-139` is the only
-      frequency-domain view in the project and nothing asserts on it.
-- [ ] **2.6 Compare the metrics that are already recorded but ignored.**
-      `check-renders.ts:22` derives `METRIC_FIELDS` from `Object.keys(TOLERANCES)`,
-      so `frames`, `duration_seconds`, `sample_rate` and `channels` are written
-      into every golden and never checked. A truncated or wrong-rate render
-      passes today.
-- [ ] **2.7 Add a discontinuity metric** (`sum(|x[n] - x[n-1]|)` normalised) to
-      catch envelope clicks and delay-time jumps, which no current metric sees.
-- [ ] **2.8 Exercise params during a render.** `render_fx.c:174-177` and
-      `render_wav.c:94-96` set parameters once, before the loop, so **no render
-      in the project ever changes a parameter mid-stream** — zipper noise and
-      coefficient-jump clicks are structurally invisible. Add a `--automate`
-      mode driven from `presets.json`.
-- [ ] **2.9 Fix the `noise` test signal.** `tools/render_fx.c:96-105`:
-      `(int32_t)(s >> 16)` is 0..65535, `× 0.7` overflows `int16_t` on
-      conversion. Result is +0.128 DC, 71% positive, bimodal, and formally UB.
-      `faust_drive`'s golden `dc_offset: 0.1816` is mostly the test signal's own
-      bias. Centre it, remove the UB, re-bless `faust_drive` and `lobber`
-      deliberately.
-- [ ] **2.10 Extend the sweep signal past 8 kHz.** `render_fx.c:108` sweeps
-      50 Hz → 8 kHz, so the top 2.5 octaves are never tested — exactly where
-      `faust_drive`'s 30× pre-gain `ma.tanh` (`faust_drive.dsp:22-27`, no
-      oversampling) aliases.
+- [x] **2.1 Relative-first tolerances with a real floor.** `Tolerance` is now
+      `{floor, rel}` and the band is `max(floor, rel * |golden|)`, so a
+      tolerance can never be wider than the value it guards. Floors are set only
+      to absorb cross-compiler last-ULP noise.
+- [x] **2.2 Absolute sanity floors, independent of the golden.**
+      `peak > 0.02`, `rms > 0.002`, `silence_ratio < 0.99`, per-channel
+      `|dc| < 0.02`. They gate **bless as well as check**, and `--force` cannot
+      override them — the distinction being "this changed" versus "this is
+      broken". Verified: re-rendering `02-air-noise` with the pre-fix core makes
+      bless refuse on all three level checks.
+- [x] **2.3 NaN/Inf trap** — at the one place it can work.
+      `moveforge_float_to_i16` (`_shared/dsp_runtime.h`) is where every module's
+      float becomes int16 and therefore where NaN stops being detectable. It now
+      counts non-finite input under `-DMOVEFORGE_COUNT_NONFINITE`, which only
+      the three offline harnesses define, and they fail the render if the count
+      is non-zero. Verified: the pre-fix dustline core reports **881,342
+      non-finite samples** and exits 1; the fixed core is clean.
 
-**Done when:** deliberately breaking a module (delete Trail's wet path, mute
-Dustline's filter, mono-collapse a stereo FX) fails `check-renders` for every
-affected preset.
+      Note the `nonfinite_samples` WAV metric was dropped again after being
+      written — an int16 WAV cannot hold NaN, so it would read 0 forever and
+      give false assurance.
+- [x] **2.4 `bless` shows its work.** Per-metric before/after for anything
+      moving >20%, with dB annotations on `peak`/`rms`, and `--force` required
+      to proceed. Also added `render.sparse` for legitimately mostly-silent
+      renders (relaxes only the silence floor).
+- [x] **2.5 8-band log energy vector**, plus **2.7 `slew_ratio`** and a
+      **`time_profile`** (8 equal time segments) — the temporal analogue, which
+      is what actually catches an FX whose wet path dies.
+
+      **Both vectors are in dB relative to their total, not fractions.** First
+      implemented as fractions with a 0.02 floor, which reproduced the exact bug
+      this phase exists to fix: a near-empty band had almost no dynamic range,
+      so any floor wide enough for compiler noise in a loud band left quiet
+      bands unprotected. Measured against faust_drive with smoothing added and
+      removed, the fraction form missed a real change (top band 0.0076 → 0.0057,
+      inside tolerance) that the dB form catches (-21.17 → -22.45 dB = 1.28 dB
+      against a 0.75 dB band, while every other band moved ≤ 0.22 dB).
+- [x] **2.6 Compare the metrics already recorded but ignored.** `frames`,
+      `sample_rate` and `channels` now compare exactly, plus per-channel DC
+      (`dc_offset` averaged both channels, so +x on L and −x on R cancelled).
+      Array-length changes are reported rather than silently zipped.
+- [x] **2.8 Params are exercised during a render.** New
+      `tools/render_automation.h`, shared by both WAV harnesses, applied at
+      block rate to match how the host delivers parameters. Driven from
+      `presets.json` via `render.automate`:
+
+      ```json
+      "automate": [{ "key": "drive", "from": 0, "to": 1, "cycles": 24 },
+                   { "key": "sync",  "steps": [0, 3, 6, 9] }]
+      ```
+
+      **`cycles` exists because sweep rate matters far more than range.** A
+      plain 0→1 ramp over 4 s moves ~0.0007 per block — precisely the case where
+      an unsmoothed parameter sounds fine. Measured against faust_drive (which
+      smooths nothing, plan 4.5) such a ramp shifted `slew_ratio` by 0.4%, well
+      inside tolerance; the cycled form is what makes the defect measurable.
+      Applied to `faust_drive/00-init` (fast drive+mix sweep), `trail/01-slap`
+      (stepped sync divisions, which jump `_dtime` unsmoothed) and
+      `dustline/05-filter-sweep` (cutoff+resonance ramp).
+- [x] **2.9 Fixed the `noise` test signal.** Centred it and removed the UB.
+      `lobber/02-stutter-16` peak dropped 0.99988 → 0.69925 as a result — the
+      old signal's DC bias had been pinning that render at full scale.
+- [x] **2.10 Sweep now reaches 20 kHz** rather than stopping at 8 kHz.
+
+**Found by the new floors, and fixed here** — three renders carried real DC
+offsets that the old golden-relative check could never flag, because it only
+ever compared them to themselves:
+
+- [x] `dustline/01-dust-bass` **4.5% DC**, `faust_voice/00-init` and
+      `01-plucky` **~2.8%**. Same cause in both: a saturator fed an asymmetric
+      waveform produces DC even from a zero-mean input, so a DC blocker
+      *upstream* of the output stage does not protect the output. dustline had
+      one before its final `tanh`; faust_voice had none at all.
+
+      Added `mf_dcblock_t` to `_shared/mf_dsp.h` (pulling a little of 4.2
+      forward, as with `mf_svf_t`), used twice in dustline, and
+      `fi.dcblocker` after `ma.tanh` in `faust_voice.dsp`.
+
+      Placement detail worth keeping: the blocker goes after the nonlinearity
+      but **before** the volume scale. Behind the gain it has decaying state, so
+      `volume=0` left a ~10 ms tail instead of muting — caught by dustline's
+      existing "volume zero mutes held note output" assertion.
+
+**Done when:** deliberately breaking a module fails `check-renders` for every
+affected preset. Verified for: a NaN-diverging filter (sanity floors + the C
+trap), an inverted resonance wiring (Phase 1 slew test), and unsmoothed
+parameters under automation (band_energy in dB).
+
+### Still open in this area
+
+- [ ] **2.11 Commit golden WAVs, or generate diff artifacts another way.**
+      `.gitignore` excludes `goldens/**/*.wav`, so on a fresh clone
+      `check-renders` prints "no golden WAV … re-bless to capture audio" and
+      `tools/render_diff.py` never runs. The durable cross-machine contract is
+      still metrics-only. Options: commit them (they are small at these
+      lengths), use Git LFS, or generate the golden side on demand from a
+      pinned build.
+- [ ] **2.12 `check-stress` has 3 pre-existing failures** that block 3.4.
+      `faust_drive` (`02-volume-max`, `20-hot-fast`) and `faust_voice`
+      (`10-level-max`, `12-hot-fast`) clip at max level — real headroom bugs.
+      `lobber` (`11-mute-max`, `20-all-max`) reports "unexpectedly silent", but
+      a muted looper *should* be silent: that is a false positive from
+      `render-stress.ts:110-134`, whose name-based `expect_silence` regex does
+      not include `mute`. Fix the regex, then the headroom.
 
 ---
 
@@ -236,7 +288,8 @@ affected preset.
       ~2× test runtime. Targets the fixed-size ring buffers
       (`lobber_core.h:9-14` masked indexing, Trail's delay lines) and the
       float→int conversions.
-- [ ] **3.4 Put `check-stress` into `make check`.** `Makefile:66-88` omits it;
+- [ ] **3.4 Put `check-stress` into `make check`.** Blocked on 2.12 — three
+      modules fail it today. `Makefile:66-88` omits it;
       it holds the only *absolute* thresholds in the project
       (`scripts/check-stress.ts:53-62`: clipping, `|dc| > 0.05`, peak bounds,
       stereo imbalance). `SKILL.md:159` warns it is expected to fail on older
@@ -307,11 +360,12 @@ Currently rewritten per module:
       `(uint32_t)(1.0f * 4294967295.0f)` an out-of-range conversion. Keep the
       state in `uint32_t`; never leave integer domain.
 - [ ] **4.2 Fill out `src/modules/_shared/mf_dsp.h`.** Created in Phase 1 with
-      `mf_flush_denorm` and `mf_svf_t` (TPT/ZDF), tested in
+      `mf_flush_denorm` and `mf_svf_t` (TPT/ZDF); `mf_dcblock_t` added in Phase 2
+      when the new DC floors surfaced three real offsets. Tested in
       `tests/test_mf_dsp.c`. Still to add: `mf_smooth_t`, `mf_ar_t`,
-      `mf_dcblock_t`, `mf_tanh_approx`, `mf_rng_t`, `mf_beats_to_samples`,
-      `mf_sanitize` — then convert the existing per-module copies listed above to
-      use them.
+      `mf_tanh_approx`, `mf_rng_t`, `mf_beats_to_samples`, `mf_sanitize` — then
+      convert the remaining per-module copies listed above to use them.
+      westfold and dustline still have their own inline DC blockers/smoothers.
 - [ ] **4.3 Add `src/modules/_shared/moveforge.lib`** for the Faust side: `sm`
       (the `si.smooth(ba.tau2pole(0.02))` idiom that currently exists only
       inside `trail.dsp:29`), `satTanh`, `divBeats`. Import it from every `.dsp`.

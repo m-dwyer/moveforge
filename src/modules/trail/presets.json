@@ -3,33 +3,134 @@
   "presets": [
     {
       "name": "Init",
-      "params": { "time": 0.12, "sync": 0, "feedback": 0.22, "tone": 0.55, "mod": 0.12, "width": 0.45, "drive": 0.12, "space": 0.05, "mix": 0.18 },
-      "render": { "file": "00-init.wav", "signal": "impulse", "seconds": 4 }
+      "params": {
+        "time": 0.12,
+        "sync": 0,
+        "feedback": 0.22,
+        "tone": 0.55,
+        "mod": 0.12,
+        "width": 0.45,
+        "drive": 0.12,
+        "space": 0.05,
+        "mix": 0.18
+      },
+      "render": {
+        "file": "00-init.wav",
+        "signal": "impulse",
+        "seconds": 4,
+        "sparse": true
+      }
     },
     {
       "name": "Slap",
-      "params": { "time": 0.05, "sync": 0, "feedback": 0.12, "tone": 0.85, "mod": 0.03, "width": 0.18, "drive": 0.08, "space": 0.03, "mix": 0.28 },
-      "render": { "file": "01-slap.wav", "signal": "impulse", "seconds": 3 }
+      "params": {
+        "time": 0.05,
+        "sync": 0,
+        "feedback": 0.12,
+        "tone": 0.85,
+        "mod": 0.03,
+        "width": 0.18,
+        "drive": 0.08,
+        "space": 0.03,
+        "mix": 0.28
+      },
+      "render": {
+        "file": "01-slap.wav",
+        "signal": "impulse",
+        "seconds": 3,
+        "sparse": true,
+        "automate": [
+          {
+            "key": "sync",
+            "steps": [
+              0,
+              3,
+              6,
+              9
+            ]
+          }
+        ]
+      }
     },
     {
       "name": "Dub",
-      "params": { "time": 0.32, "sync": 0, "feedback": 0.52, "tone": 0.22, "mod": 0.18, "width": 0.55, "drive": 0.32, "space": 0.12, "mix": 0.25 },
-      "render": { "file": "02-dub.wav", "signal": "impulse", "seconds": 5 }
+      "params": {
+        "time": 0.32,
+        "sync": 0,
+        "feedback": 0.52,
+        "tone": 0.22,
+        "mod": 0.18,
+        "width": 0.55,
+        "drive": 0.32,
+        "space": 0.12,
+        "mix": 0.25
+      },
+      "render": {
+        "file": "02-dub.wav",
+        "signal": "impulse",
+        "seconds": 5,
+        "sparse": true
+      }
     },
     {
       "name": "Hypno Dub",
-      "params": { "time": 0.3, "sync": 5, "feedback": 0.62, "tone": 0.2, "mod": 0.15, "width": 0.9, "drive": 0.2, "space": 0.18, "mix": 0.28 },
-      "render": { "file": "03-hypno-dub.wav", "signal": "impulse", "seconds": 6 }
+      "params": {
+        "time": 0.3,
+        "sync": 5,
+        "feedback": 0.62,
+        "tone": 0.2,
+        "mod": 0.15,
+        "width": 0.9,
+        "drive": 0.2,
+        "space": 0.18,
+        "mix": 0.28
+      },
+      "render": {
+        "file": "03-hypno-dub.wav",
+        "signal": "impulse",
+        "seconds": 6,
+        "sparse": true
+      }
     },
     {
       "name": "Tape Wobble",
-      "params": { "time": 0.18, "sync": 0, "feedback": 0.42, "tone": 0.48, "mod": 0.75, "width": 0.24, "drive": 0.45, "space": 0.08, "mix": 0.24 },
-      "render": { "file": "04-tape-wobble.wav", "signal": "impulse", "seconds": 4 }
+      "params": {
+        "time": 0.18,
+        "sync": 0,
+        "feedback": 0.42,
+        "tone": 0.48,
+        "mod": 0.75,
+        "width": 0.24,
+        "drive": 0.45,
+        "space": 0.08,
+        "mix": 0.24
+      },
+      "render": {
+        "file": "04-tape-wobble.wav",
+        "signal": "impulse",
+        "seconds": 4,
+        "sparse": true
+      }
     },
     {
       "name": "Cavern",
-      "params": { "time": 0.3, "sync": 6, "feedback": 0.34, "tone": 0.7, "mod": 0.2, "width": 0.7, "drive": 0.16, "space": 0.85, "mix": 0.25 },
-      "render": { "file": "05-cavern.wav", "signal": "impulse", "seconds": 6 }
+      "params": {
+        "time": 0.3,
+        "sync": 6,
+        "feedback": 0.34,
+        "tone": 0.7,
+        "mod": 0.2,
+        "width": 0.7,
+        "drive": 0.16,
+        "space": 0.85,
+        "mix": 0.25
+      },
+      "render": {
+        "file": "05-cavern.wav",
+        "signal": "impulse",
+        "seconds": 6,
+        "sparse": true
+      }
     }
   ]
 }

@@ -42,6 +42,11 @@ osc = os.sawtooth(freq);
 
 // tanh saturation after the resonant filter keeps high-Q peaks bounded
 // to [-1, 1] before the final level scale. Side benefit: more characterful.
-mono = osc * env * gain : fi.resonlp(cutoffHz, qVal, 1.0) : ma.tanh : *(level);
+//
+// fi.dcblocker comes *after* ma.tanh, not before: saturating an asymmetric
+// waveform (a sawtooth through a resonant lowpass) produces DC even though the
+// input is zero-mean, because tanh compresses tall peaks more than shallow
+// troughs. Without it the init and plucky presets measured ~2.8% DC.
+mono = osc * env * gain : fi.resonlp(cutoffHz, qVal, 1.0) : ma.tanh : fi.dcblocker : *(level);
 
 process = mono <: _, _;

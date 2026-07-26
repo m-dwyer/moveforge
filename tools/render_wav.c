@@ -4,8 +4,16 @@
 #include <string.h>
 
 #include "host/plugin_api_v1.h"
+#include "render_automation.h"
 
 extern plugin_api_v2_t* move_plugin_init_v2(const host_api_v1_t *host);
+
+#ifdef MOVEFORGE_COUNT_NONFINITE
+/* Incremented by moveforge_float_to_i16 (modules/_shared/dsp_runtime.h) when a
+ * module emits a non-finite sample. Checked after the render loop — without it,
+ * a NaN blowup is indistinguishable from a quiet patch in the WAV. */
+unsigned long moveforge_nonfinite_count = 0;
+#endif
 
 typedef struct {
     const char *key;
@@ -22,6 +30,7 @@ typedef struct {
     int gate_blocks;
     int seconds;
     int velocity;
+    const mf_automate_set_t *automation;
 } render_case_t;
 
 static void write_u16(FILE *f, uint16_t v) {
@@ -111,12 +120,28 @@ static int render_case(plugin_api_v2_t *api, const render_case_t *rc, const char
             int step = (block_index / (uint32_t)rc->note_blocks) % rc->note_count;
             send_midi(api, inst, 0x80, (uint8_t)rc->notes[step], 0);
         }
+        /* Block-rate automation, matching how the host delivers parameters. */
+        if (rc->automation && rc->automation->count > 0) {
+            mf_automate_apply(rc->automation, (double)frame / (double)total_frames,
+                              inst, api->set_param);
+        }
         api->render_block(inst, block, 128);
         fwrite(block, sizeof(int16_t), 128 * 2, f);
     }
 
     api->destroy_instance(inst);
     fclose(f);
+
+#ifdef MOVEFORGE_COUNT_NONFINITE
+    if (moveforge_nonfinite_count > 0) {
+        fprintf(stderr,
+                "ERROR: %s emitted %lu non-finite sample(s) — these become silence in the WAV, "
+                "so the render would otherwise look merely quiet\n",
+                out_path, moveforge_nonfinite_count);
+        return 1;
+    }
+#endif
+
     fprintf(stderr, "Wrote %s\n", out_path);
     return 0;
 }
@@ -137,8 +162,13 @@ int main(int argc, char **argv) {
         int notes[64];
         param_t params[32];
         int param_count = 0;
+        mf_automate_set_t automation = {0};
         int note_count = parse_notes(argv[7], notes, 64);
         for (int i = 8; i < argc && param_count < 32; i++) {
+            if (strcmp(argv[i], "--automate") == 0 && i + 1 < argc) {
+                if (mf_automate_add(&automation, argv[++i]) != 0) return 2;
+                continue;
+            }
             char *eq = strchr(argv[i], '=');
             if (!eq) continue;
             *eq = '\0';
@@ -155,14 +185,15 @@ int main(int argc, char **argv) {
             atoi(argv[4]),
             atoi(argv[5]),
             atoi(argv[3]),
-            atoi(argv[6])
+            atoi(argv[6]),
+            &automation
         };
         return render_case(api, &rc, argv[2]);
     }
 
     const char *out_path = argc > 1 ? argv[1] : "westfold-demo.wav";
     const render_case_t demo = {
-        "demo", p_demo, ARRAY_LEN(p_demo), seq_demo, ARRAY_LEN(seq_demo), 86, 64, 8, 102
+        "demo", p_demo, ARRAY_LEN(p_demo), seq_demo, ARRAY_LEN(seq_demo), 86, 64, 8, 102, NULL
     };
     return render_case(api, &demo, out_path);
 }

@@ -88,14 +88,16 @@ typedef struct {
 	FAUSTFLOAT fHslider3;
 	float fConst2;
 	FAUSTFLOAT fHslider4;
-	float fRec1[2];
+	float fRec2[2];
 	FAUSTFLOAT fHslider5;
 	FAUSTFLOAT fHslider6;
 	float fVec0[2];
-	float fRec3[2];
+	float fRec4[2];
 	FAUSTFLOAT fHslider7;
-	int iRec4[2];
-	float fRec0[3];
+	int iRec5[2];
+	float fRec1[3];
+	float fVec1[2];
+	float fRec0[2];
 } faust_voice_faust;
 
 faust_voice_faust* newfaust_voice_faust() { 
@@ -116,6 +118,9 @@ void metadatafaust_voice_faust(MetaGlue* m) {
 	m->declare(m->metaInterface, "envelopes.lib/name", "Faust Envelope Library");
 	m->declare(m->metaInterface, "envelopes.lib/version", "1.3.0");
 	m->declare(m->metaInterface, "filename", "faust_voice.dsp");
+	m->declare(m->metaInterface, "filters.lib/dcblocker:author", "Julius O. Smith III");
+	m->declare(m->metaInterface, "filters.lib/dcblocker:copyright", "Copyright (C) 2003-2019 by Julius O. Smith III <jos@ccrma.stanford.edu>");
+	m->declare(m->metaInterface, "filters.lib/dcblocker:license", "MIT-style STK-4.3 license");
 	m->declare(m->metaInterface, "filters.lib/fir:author", "Julius O. Smith III");
 	m->declare(m->metaInterface, "filters.lib/fir:copyright", "Copyright (C) 2003-2019 by Julius O. Smith III <jos@ccrma.stanford.edu>");
 	m->declare(m->metaInterface, "filters.lib/fir:license", "MIT-style STK-4.3 license");
@@ -124,6 +129,9 @@ void metadatafaust_voice_faust(MetaGlue* m) {
 	m->declare(m->metaInterface, "filters.lib/iir:license", "MIT-style STK-4.3 license");
 	m->declare(m->metaInterface, "filters.lib/lowpass0_highpass1", "Copyright (C) 2003-2019 by Julius O. Smith III <jos@ccrma.stanford.edu>");
 	m->declare(m->metaInterface, "filters.lib/name", "Faust Filters Library");
+	m->declare(m->metaInterface, "filters.lib/pole:author", "Julius O. Smith III");
+	m->declare(m->metaInterface, "filters.lib/pole:copyright", "Copyright (C) 2003-2019 by Julius O. Smith III <jos@ccrma.stanford.edu>");
+	m->declare(m->metaInterface, "filters.lib/pole:license", "MIT-style STK-4.3 license");
 	m->declare(m->metaInterface, "filters.lib/resonlp:author", "Julius O. Smith III");
 	m->declare(m->metaInterface, "filters.lib/resonlp:copyright", "Copyright (C) 2003-2019 by Julius O. Smith III <jos@ccrma.stanford.edu>");
 	m->declare(m->metaInterface, "filters.lib/resonlp:license", "MIT-style STK-4.3 license");
@@ -134,6 +142,9 @@ void metadatafaust_voice_faust(MetaGlue* m) {
 	m->declare(m->metaInterface, "filters.lib/tf2s:copyright", "Copyright (C) 2003-2019 by Julius O. Smith III <jos@ccrma.stanford.edu>");
 	m->declare(m->metaInterface, "filters.lib/tf2s:license", "MIT-style STK-4.3 license");
 	m->declare(m->metaInterface, "filters.lib/version", "1.7.1");
+	m->declare(m->metaInterface, "filters.lib/zero:author", "Julius O. Smith III");
+	m->declare(m->metaInterface, "filters.lib/zero:copyright", "Copyright (C) 2003-2019 by Julius O. Smith III <jos@ccrma.stanford.edu>");
+	m->declare(m->metaInterface, "filters.lib/zero:license", "MIT-style STK-4.3 license");
 	m->declare(m->metaInterface, "maths.lib/author", "GRAME");
 	m->declare(m->metaInterface, "maths.lib/copyright", "GRAME");
 	m->declare(m->metaInterface, "maths.lib/license", "LGPL with exception");
@@ -178,7 +189,7 @@ void instanceClearfaust_voice_faust(faust_voice_faust* dsp) {
 	{
 		int l0;
 		for (l0 = 0; l0 < 2; l0 = l0 + 1) {
-			dsp->fRec1[l0] = 0.0f;
+			dsp->fRec2[l0] = 0.0f;
 		}
 	}
 	/* C99 loop */
@@ -192,21 +203,35 @@ void instanceClearfaust_voice_faust(faust_voice_faust* dsp) {
 	{
 		int l2;
 		for (l2 = 0; l2 < 2; l2 = l2 + 1) {
-			dsp->fRec3[l2] = 0.0f;
+			dsp->fRec4[l2] = 0.0f;
 		}
 	}
 	/* C99 loop */
 	{
 		int l3;
 		for (l3 = 0; l3 < 2; l3 = l3 + 1) {
-			dsp->iRec4[l3] = 0;
+			dsp->iRec5[l3] = 0;
 		}
 	}
 	/* C99 loop */
 	{
 		int l4;
 		for (l4 = 0; l4 < 3; l4 = l4 + 1) {
-			dsp->fRec0[l4] = 0.0f;
+			dsp->fRec1[l4] = 0.0f;
+		}
+	}
+	/* C99 loop */
+	{
+		int l5;
+		for (l5 = 0; l5 < 2; l5 = l5 + 1) {
+			dsp->fVec1[l5] = 0.0f;
+		}
+	}
+	/* C99 loop */
+	{
+		int l6;
+		for (l6 = 0; l6 < 2; l6 = l6 + 1) {
+			dsp->fRec0[l6] = 0.0f;
 		}
 	}
 }
@@ -264,23 +289,28 @@ void computefaust_voice_faust(faust_voice_faust* dsp, int count, FAUSTFLOAT** RE
 	{
 		int i0;
 		for (i0 = 0; i0 < count; i0 = i0 + 1) {
-			float fTemp0 = fSlow7 + dsp->fRec1[1] + -1.0f;
+			float fTemp0 = fSlow7 + dsp->fRec2[1] + -1.0f;
 			int iTemp1 = fTemp0 < 0.0f;
-			float fTemp2 = fSlow7 + dsp->fRec1[1];
-			dsp->fRec1[0] = ((iTemp1) ? fTemp2 : fTemp0);
-			float fRec2 = ((iTemp1) ? fTemp2 : fSlow7 + dsp->fRec1[1] + fSlow8 * fTemp0);
+			float fTemp2 = fSlow7 + dsp->fRec2[1];
+			dsp->fRec2[0] = ((iTemp1) ? fTemp2 : fTemp0);
+			float fRec3 = ((iTemp1) ? fTemp2 : fSlow7 + dsp->fRec2[1] + fSlow8 * fTemp0);
 			dsp->fVec0[0] = fSlow10;
-			dsp->fRec3[0] = fSlow10 + dsp->fRec3[1] * (float)(dsp->fVec0[1] >= fSlow10);
-			dsp->iRec4[0] = iSlow12 * (dsp->iRec4[1] + 1);
-			dsp->fRec0[0] = fSlow5 * (2.0f * fRec2 + -1.0f) * fmaxf(0.0f, fminf(fSlow9 * dsp->fRec3[0], 1.0f) * (1.0f - fSlow11 * (float)(dsp->iRec4[0]))) - fSlow4 * (fSlow13 * dsp->fRec0[2] + fSlow14 * dsp->fRec0[1]);
-			float fTemp3 = fSlow0 * tanhf(fSlow4 * (dsp->fRec0[2] + dsp->fRec0[0] + 2.0f * dsp->fRec0[1]));
-			output0[i0] = (FAUSTFLOAT)(fTemp3);
-			output1[i0] = (FAUSTFLOAT)(fTemp3);
-			dsp->fRec1[1] = dsp->fRec1[0];
+			dsp->fRec4[0] = fSlow10 + dsp->fRec4[1] * (float)(dsp->fVec0[1] >= fSlow10);
+			dsp->iRec5[0] = iSlow12 * (dsp->iRec5[1] + 1);
+			dsp->fRec1[0] = fSlow5 * (2.0f * fRec3 + -1.0f) * fmaxf(0.0f, fminf(fSlow9 * dsp->fRec4[0], 1.0f) * (1.0f - fSlow11 * (float)(dsp->iRec5[0]))) - fSlow4 * (fSlow13 * dsp->fRec1[2] + fSlow14 * dsp->fRec1[1]);
+			float fTemp3 = tanhf(fSlow4 * (dsp->fRec1[2] + dsp->fRec1[0] + 2.0f * dsp->fRec1[1]));
+			dsp->fVec1[0] = fTemp3;
+			dsp->fRec0[0] = 0.995f * dsp->fRec0[1] + fTemp3 - dsp->fVec1[1];
+			float fTemp4 = fSlow0 * dsp->fRec0[0];
+			output0[i0] = (FAUSTFLOAT)(fTemp4);
+			output1[i0] = (FAUSTFLOAT)(fTemp4);
+			dsp->fRec2[1] = dsp->fRec2[0];
 			dsp->fVec0[1] = dsp->fVec0[0];
-			dsp->fRec3[1] = dsp->fRec3[0];
-			dsp->iRec4[1] = dsp->iRec4[0];
-			dsp->fRec0[2] = dsp->fRec0[1];
+			dsp->fRec4[1] = dsp->fRec4[0];
+			dsp->iRec5[1] = dsp->iRec5[0];
+			dsp->fRec1[2] = dsp->fRec1[1];
+			dsp->fRec1[1] = dsp->fRec1[0];
+			dsp->fVec1[1] = dsp->fVec1[0];
 			dsp->fRec0[1] = dsp->fRec0[0];
 		}
 	}

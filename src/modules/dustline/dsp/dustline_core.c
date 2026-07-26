@@ -25,6 +25,8 @@ void dustline_init(dustline_core_t *s) {
     s->active_note = -1;
     s->rng = 0.37f;
     mf_svf_init(&s->svf);
+    mf_dcblock_init(&s->dc_pre);
+    mf_dcblock_init(&s->dc_post);
     dustline_apply_defaults(s);
 }
 
@@ -104,10 +106,19 @@ void dustline_process_float(dustline_core_t *s,
         float amp = (0.12f + 0.88f * s->velocity) * s->env;
         float gain = 1.0f + s->drive * 12.0f;
         float y = tanhf(s->svf.lp * gain) * amp * 0.96f;
-        float hp_out = y - s->hp_x + 0.995f * s->hp_y;
-        s->hp_x = y;
-        s->hp_y = hp_out;
-        y = tanhf(hp_out) * output_gain * 0.94f;
+        y = mf_dcblock_tick(&s->dc_pre, y);
+        y = tanhf(y);
+        /* The output tanh above reintroduces DC whenever the waveform is
+         * asymmetric (a narrow pulse at high `wave`, for instance), so a
+         * blocker has to run after it too — dust-bass measured 4.5% DC with
+         * only the upstream one.
+         *
+         * It runs before the volume scale, not after: a highpass after the gain
+         * has decaying state, so volume=0 would leave a ~10 ms tail instead of
+         * muting. A constant gain cannot reintroduce DC, so blocking first is
+         * both correct and hard-mutable. */
+        y = mf_dcblock_tick(&s->dc_post, y);
+        y = y * output_gain * 0.94f;
         left[i] = moveforge_clampf(y, -1.0f, 1.0f);
         right[i] = left[i];
     }
