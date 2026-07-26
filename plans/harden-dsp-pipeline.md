@@ -653,9 +653,30 @@ header, and none is visible to any local check.
       shared across 4 slots, their FX, master FX, LFOs, resampling, EQ, display
       and LEDs. moveforge measures nothing:
       `grep -rn "clock_gettime\|CLOCKS_PER_SEC\|performance.now" tools/ scripts/ src/ tests/`
-      returns zero hits. A `rendered_seconds / elapsed_seconds` ratio in
-      `render_wav.c`/`render_fx.c` is ~10 lines and would immediately flag
-      Trail's always-on Freeverb and Lobber's 4 MB working set.
+      returns zero hits.
+
+      **Measure per block, not a total ratio.** The formulation originally
+      written here — `rendered_seconds / elapsed_seconds` — is an average, and
+      the watchdog fires on three consecutive *blocks*. Measured on lobber with
+      a capture every 500 blocks:
+
+      ```
+      AVERAGE view : 4110x realtime, mean 0.7 us/block     <- looks fine
+      PER-BLOCK    : median 0.0 us  p99 1.0 us  MAX 172 us  <- the capture block
+      ```
+
+      lobber's steady-state cost is below clock resolution; the average hides
+      the one block that matters entirely. So: record median / p99 / max per
+      block and gate on the max.
+
+      Caveat on interpreting it: the dev machine is not the device. That 172 us
+      is an Apple M-series at ~4 GHz moving 2.8 MB at ~16 GB/s; on a 1.5 GHz A72
+      with CM4's LPDDR4 at 2-4 GB/s effective for scattered reads the same work
+      is roughly 700-1400 us. Ratios and regressions transfer, absolute
+      microseconds do not — any "% of the 2900 us budget" claim derived from this
+      needs that scaling stated. Real on-device numbers come from 6.8
+      (`SW/tools/pytest-schwung`) and schwung's own `spi.pre` OTLP spans in
+      `SW/src/host/schwung_trace.c`.
 - [ ] **6.6 Reconcile MIDI FX `max_out`: 8 / 16 / 32.**
       `tools/trace_midi_fx.c:35` is 8, `SW/src/host/midi_fx_api_v1.h:19` is 16,
       `src/host/midi_fx_wasm_glue.c:7` is 32. The byte-exact golden trace is
