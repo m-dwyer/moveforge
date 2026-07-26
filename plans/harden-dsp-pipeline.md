@@ -456,6 +456,35 @@ Currently rewritten per module:
 
 ### Per-sample cost (ARM)
 
+**Hardware correction, and it re-ranks everything below.** Move is a Raspberry Pi
+CM4 — BCM2711, 4x Cortex-A72 @ 1.5 GHz. The original audit reasoned throughout
+about a Cortex-A53 and drew conclusions from in-order execution, a 32 KB L1 and
+a non-pipelined divide. The A72 is an out-of-order 3-wide superscalar with 1 MB
+of L2 and pipelined FP divide, so it hides most of that latency. Confirmed
+independently in the schwung tree: `SW/docs/plans/2026-04-08-usb-c-host-mode.md:15`
+("Pi CM4, ARM64"), `SW/src/shadow/shadow_ui.js:5305` ("Move's Cortex-A72"), and
+its build notes use `-march=armv8-a -mtune=cortex-a72`.
+
+Working the frame budget: 2900 us per 128 frames at 1.5 GHz is 4,350,000 cycles
+per block, ~34,000 cycles per sample, shared across 4 slots x 4 FX plus master
+FX, LFOs, resampling, EQ, display and LEDs. Against that:
+
+| item | approx cost | share of frame budget |
+|---|---|---|
+| **lobber capture memcpy** (4 MB scattered, in ONE block) | 800-2000 us | **28-69%** |
+| westfold total (15 libm calls/sample) | ~550 cyc/sample | 1.6% |
+| dustline block-constant math redone per sample | ~260 cyc/sample | 0.8% |
+| westfold's 5 tanhf alone (the 4.12 target) | ~200 cyc/sample | 0.6% |
+| scope.h 64-bit divide per sample | ~12 cyc/sample | 0.04% |
+
+So only lobber's capture is a real xrun risk. The rest are worth doing when they
+are free — pure hoisting, or a two-line change with no sonic effect — and not
+worth doing when they trade sound for a fraction of a percent.
+
+- [x] **4.0 Tune the cross-build for the actual CPU.** `scripts/build.sh` had no
+      `-mtune` at all. Now `-march=armv8-a -mtune=cortex-a72`: baseline ISA so the
+      `.so` still runs on any ARMv8, A72 scheduling model for the optimiser.
+
 - [ ] **4.8 Hoist Dustline's block-constant math out of the sample loop.**
       `dustline_core.c:70-92` computes 2 × `powf`, 2 × `expf` and 1 × `sinf`
       per sample from inputs that are all block-constant — ~7 libm calls/sample

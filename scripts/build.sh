@@ -90,7 +90,12 @@ while IFS=$'\t' read -r MODULE_ID MODULE_DIR CORE_IMPL WRAPPER_C; do
   if [ -z "${MODULE_ID:-}" ]; then continue; fi
   mkdir -p "dist/$MODULE_ID"
 
-  "${CROSS_PREFIX}gcc" -std=c11 -O3 -g -Wall -Wextra -shared -fPIC \
+  # Move is a Raspberry Pi CM4: BCM2711, 4x Cortex-A72 @ 1.5 GHz. The build was
+  # generic ARMv8 baseline with no tuning at all. -march stays at the baseline so
+  # the .so keeps running anywhere ARMv8, while -mtune lets the scheduler assume
+  # an out-of-order 3-wide A72 rather than a conservative default. Matches what
+  # schwung's own build notes use.
+  "${CROSS_PREFIX}gcc" -std=c11 -O3 -g -Wall -Wextra -march=armv8-a -mtune=cortex-a72 -shared -fPIC \
     "$WRAPPER_C" \
     "$CORE_IMPL" \
     -o "build/${MODULE_ID}-dsp.so" \
