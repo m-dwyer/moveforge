@@ -5,6 +5,7 @@
 
 #include "host/plugin_api_v1.h"
 #include "render_automation.h"
+#include "render_timing.h"
 
 extern plugin_api_v2_t* move_plugin_init_v2(const host_api_v1_t *host);
 
@@ -108,6 +109,8 @@ static int render_case(plugin_api_v2_t *api, const render_case_t *rc, const char
     write_wav_header(f, total_frames);
 
     int16_t block[128 * 2];
+    mf_timing_t timing;
+    mf_timing_init(&timing, (int)(total_frames / 128) + 1);
 
     for (uint32_t frame = 0; frame < total_frames; frame += 128) {
         uint32_t block_index = frame / 128;
@@ -125,12 +128,18 @@ static int render_case(plugin_api_v2_t *api, const render_case_t *rc, const char
             mf_automate_apply(rc->automation, (double)frame / (double)total_frames,
                               inst, api->set_param);
         }
+        mf_timing_begin(&timing);
         api->render_block(inst, block, 128);
+        mf_timing_end(&timing);
         fwrite(block, sizeof(int16_t), 128 * 2, f);
     }
 
     api->destroy_instance(inst);
     fclose(f);
+
+    int timing_failed = mf_timing_report(&timing, out_path, 128, 44100);
+    mf_timing_free(&timing);
+    if (timing_failed) return 1;
 
 #ifdef MOVEFORGE_COUNT_NONFINITE
     if (moveforge_nonfinite_count > 0) {

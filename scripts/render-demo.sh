@@ -22,7 +22,7 @@ for MODULE_ID in $MODULE_IDS; do
 
   case "$COMPONENT_TYPE" in
     sound_generator)
-      cc -std=c11 -O2 -g -Wall -Wextra -DMOVEFORGE_COUNT_NONFINITE \
+      cc -std=c11 -O2 -g -Wall -Wextra -D_POSIX_C_SOURCE=200809L -DMOVEFORGE_COUNT_NONFINITE \
         tools/render_wav.c \
         "$WRAPPER_C" \
         "$CORE_IMPL" \
@@ -45,7 +45,7 @@ for MODULE_ID in $MODULE_IDS; do
       ;;
 
     audio_fx)
-      cc -std=c11 -O2 -g -Wall -Wextra -DMOVEFORGE_COUNT_NONFINITE \
+      cc -std=c11 -O2 -g -Wall -Wextra -D_POSIX_C_SOURCE=200809L -DMOVEFORGE_COUNT_NONFINITE \
         tools/render_fx.c \
         "$WRAPPER_C" \
         "$CORE_IMPL" \
@@ -68,7 +68,7 @@ for MODULE_ID in $MODULE_IDS; do
       ;;
 
     midi_fx)
-      cc -std=c11 -O2 -g -Wall -Wextra -DMOVEFORGE_COUNT_NONFINITE \
+      cc -std=c11 -O2 -g -Wall -Wextra -D_POSIX_C_SOURCE=200809L -DMOVEFORGE_COUNT_NONFINITE \
         tools/trace_midi_fx.c \
         "$WRAPPER_C" \
         "$CORE_IMPL" \

@@ -490,7 +490,22 @@ worth doing when they trade sound for a fraction of a percent.
       per sample from inputs that are all block-constant — ~7 libm calls/sample
       where only the 2 `tanhf` need to be per-sample. `westfold_core.c:188-192`
       already does this correctly. Roughly a 3-5× CPU cut for zero sonic change.
-- [ ] **4.9 Lobber's capture is a multi-megabyte memcpy in the audio callback.**
+- [x] **4.9 Lobber's capture is no longer a multi-megabyte memcpy in the audio
+      callback.** Amortised into `LOBBER_CAPTURE_CHUNK`-sized steps, one per
+      block. Measured on the same worst case (16-beat loop, capture fired
+      mid-render): **max block 107 us -> 18 us**. A typical 4-beat loop now
+      completes in 3 blocks (8.7 ms) and the worst case in 11-16 (32-46 ms), a
+      transition far preferable to overrunning the callback. No golden drift —
+      the fix is behaviour-preserving at the metric level.
+
+      Asserted by `test_capture_is_amortised_across_blocks`, which is
+      behavioural rather than timing-based so it holds on any machine: 1 block
+      pre-fix, 11 post-fix.
+
+      Staging into a second buffer would avoid the brief gap but would add
+      another 4 MB to a core already at 8 MB against the CM4's 1 MB of L2.
+
+      *(original text)* **4.9 Lobber's capture is a multi-megabyte memcpy in the audio callback.**
       `lobber_core.c:147-176`, called from the render path at `:222`/`:231`. At
       `loop_beats=16, bpm=40` that is 4 MB of scattered ring reads inside one
       128-frame block (2.9 ms budget) — a guaranteed xrun on device, fired on

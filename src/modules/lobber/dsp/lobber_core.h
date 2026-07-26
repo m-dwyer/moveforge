@@ -61,6 +61,14 @@ typedef struct {
     /* --- captured loop (Loop/Slice modes) --- */
     float   loop_l[LOBBER_LOOP_LEN];
     float   loop_r[LOBBER_LOOP_LEN];
+
+    /* Incremental capture state. The snapshot is copied a chunk per block rather
+     * than all at once — see lb_capture_begin/lb_capture_step. */
+    int64_t cap_src_start;   /* absolute ring position the copy reads from */
+    int     cap_total;       /* samples to copy */
+    int     cap_done;        /* samples copied so far */
+    float   cap_beats;       /* loop_beats_captured to publish when finished */
+    int     capturing;       /* 1 while a copy is in flight */
     int     loop_filled;          /* a loop has been captured */
     int     loop_len;             /* valid samples in the loop buffer */
     float   loop_beats_captured;  /* musical length actually captured, in beats */

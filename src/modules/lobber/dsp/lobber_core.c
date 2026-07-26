@@ -141,39 +141,93 @@ static inline void lb_loop_read_sample(const lobber_core_t *s, double pos,
     *r = (float)(s->loop_r[a] * (1.0 - frac) + s->loop_r[b] * frac);
 }
 
-/* Snapshot the most recent loop_beats of live audio out of the ring into the loop
- * buffer. Requests longer than what has been recorded (or than the buffer holds)
- * are clamped; loop_beats_captured records the musical length actually grabbed so
- * Loop mode can time-stretch it to follow tempo. */
-static void lb_capture(lobber_core_t *s) {
+/* Samples copied per block while a capture is in flight.
+ *
+ * This used to copy the whole loop — up to 4 MB of scattered ring reads — inside
+ * a single 128-frame block. Measured, that one block took 107 us against a p99
+ * of 1 us, on a machine several times faster than the device. On a 1.5 GHz
+ * Cortex-A72 with CM4's LPDDR4 the same work is roughly 1 ms: a third of the
+ * entire 2900 us frame budget, which is shared with three other slots, their FX,
+ * master FX, LFOs, resampling, EQ, display and LEDs. The host drops a module's
+ * DSP after three consecutive blocks over 2850 us.
+ *
+ * 32768 samples is 256 KB per block across both channels — roughly 10 us here
+ * and ~85 us on device. A worst-case loop then finishes in 16 blocks (46 ms) and
+ * a typical 4-beat loop in 3 (8.7 ms). */
+#define LOBBER_CAPTURE_CHUNK 32768
+
+/* Headroom kept in the ring so live recording cannot overwrite the region the
+ * copy is still reading. The copy advances the write head by 128 samples per
+ * block for at most LOBBER_BUF_LEN/LOBBER_CAPTURE_CHUNK blocks, so this is very
+ * generous; it costs 0.8% of the maximum loop length. */
+#define LOBBER_CAPTURE_HEADROOM 4096
+
+/* Begin snapshotting the most recent loop_beats of live audio out of the ring.
+ * Requests longer than what has been recorded (or than the buffer holds) are
+ * clamped; cap_beats records the musical length actually grabbed so Loop mode can
+ * time-stretch it to follow tempo.
+ *
+ * The copy itself happens in lb_capture_step, a chunk per block. Because it
+ * writes into the same buffer Loop and Slice read from, playback of any previous
+ * loop stops until it completes — a few tens of milliseconds after a CAPTURE
+ * press, which is musically unremarkable and far preferable to overrunning the
+ * audio callback. Staging into a second buffer would avoid the gap but would add
+ * another 4 MB to a core that is already 8 MB against the CM4's 1 MB of L2. */
+static void lb_capture_begin(lobber_core_t *s) {
     int beats = (int)(s->loop_beats + 0.5f);
     if (beats < 1) beats = 1;
     if (beats > 16) beats = 16;
     const int beat_samples = lb_beat_samples(s);
 
     int64_t want = (int64_t)beats * beat_samples;
-    if (want > LOBBER_LOOP_LEN) want = LOBBER_LOOP_LEN;
+    if (want > LOBBER_LOOP_LEN - LOBBER_CAPTURE_HEADROOM) {
+        want = LOBBER_LOOP_LEN - LOBBER_CAPTURE_HEADROOM;
+    }
     int64_t available = s->write_pos;              /* samples ever written */
-    if (available > LOBBER_BUF_LEN) available = LOBBER_BUF_LEN;
+    if (available > LOBBER_BUF_LEN - LOBBER_CAPTURE_HEADROOM) {
+        available = LOBBER_BUF_LEN - LOBBER_CAPTURE_HEADROOM;
+    }
     if (want > available) want = available;
     if (want < 1) want = 1;
 
-    const int64_t start = s->write_pos - want;
-    for (int64_t j = 0; j < want; j++) {
-        s->loop_l[j] = s->buf_l[lb_idx(start + j)];
-        s->loop_r[j] = s->buf_r[lb_idx(start + j)];
-    }
-    s->loop_len = (int)want;
-    s->loop_beats_captured = (float)want / (float)beat_samples;
-    if (s->loop_beats_captured < 0.001f) s->loop_beats_captured = (float)beats;
-    s->loop_filled = 1;
+    s->cap_src_start = s->write_pos - want;
+    s->cap_total = (int)want;
+    s->cap_done = 0;
+    s->cap_beats = (float)want / (float)beat_samples;
+    if (s->cap_beats < 0.001f) s->cap_beats = (float)beats;
+    s->capturing = 1;
 
-    /* restart playback / clear transient read state */
+    /* Stop playing the old loop and clear transient read state; the new loop is
+     * published only once the copy finishes. */
+    s->loop_filled = 0;
+    s->loop_len = 0;
     s->loop_read = 0.0;
     s->loop_phase = 0;
     s->loop_win_start = 0;
     s->loop_win_len = 0;
     s->slice_active = 0;
+}
+
+/* Copy one chunk. Called once per block, outside the sample loop. */
+static void lb_capture_step(lobber_core_t *s) {
+    if (!s->capturing) return;
+
+    int remaining = s->cap_total - s->cap_done;
+    int n = remaining < LOBBER_CAPTURE_CHUNK ? remaining : LOBBER_CAPTURE_CHUNK;
+    for (int j = 0; j < n; j++) {
+        const int64_t src = s->cap_src_start + s->cap_done + j;
+        s->loop_l[s->cap_done + j] = s->buf_l[lb_idx(src)];
+        s->loop_r[s->cap_done + j] = s->buf_r[lb_idx(src)];
+    }
+    s->cap_done += n;
+
+    if (s->cap_done >= s->cap_total) {
+        s->loop_len = s->cap_total;
+        s->loop_beats_captured = s->cap_beats;
+        s->loop_filled = 1;
+        s->loop_read = 0.0;
+        s->capturing = 0;
+    }
 }
 
 void lobber_process_float(lobber_core_t *s,
@@ -221,17 +275,21 @@ void lobber_process_float(lobber_core_t *s,
      * mode switch with no history doesn't snapshot a sliver of silence). */
     const int cap = (s->capture >= 0.5f);
     if (cap && !s->last_capture) {
-        lb_capture(s);
-    } else if (mode != 0 && !s->loop_filled) {
+        lb_capture_begin(s);
+    } else if (mode != 0 && !s->loop_filled && !s->capturing) {
         int beats = (int)(s->loop_beats + 0.5f);
         if (beats < 1) beats = 1;
         if (beats > 16) beats = 16;
         int64_t want = (int64_t)beats * lb_beat_samples(s);
         if (want > LOBBER_LOOP_LEN) want = LOBBER_LOOP_LEN;
         if (want > LOBBER_BUF_LEN) want = LOBBER_BUF_LEN;
-        if (s->write_pos >= want) lb_capture(s);
+        if (s->write_pos >= want) lb_capture_begin(s);
     }
     s->last_capture = cap;
+
+    /* Advance any in-flight snapshot by one chunk. Once per block, outside the
+     * sample loop, so the work is bounded no matter how long the loop is. */
+    lb_capture_step(s);
 
     /* A mode change clears transient read state so modes don't bleed together. */
     if (mode != s->last_mode) {

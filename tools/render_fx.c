@@ -21,6 +21,7 @@
 
 #include "host/audio_fx_api_v2.h"
 #include "render_automation.h"
+#include "render_timing.h"
 
 extern audio_fx_api_v2_t* move_audio_fx_init_v2(const host_api_v1_t *host);
 
@@ -206,6 +207,9 @@ int main(int argc, char **argv) {
     if (!f) { perror(out_path); free(input); return 1; }
     write_wav_header(f, total_frames);
 
+    mf_timing_t timing;
+    mf_timing_init(&timing, (int)(total_frames / BLOCK) + 1);
+
     int16_t block_buf[BLOCK * 2];
     for (uint32_t frame = 0; frame < total_frames; frame += BLOCK) {
         uint32_t this_block = total_frames - frame;
@@ -219,13 +223,19 @@ int main(int argc, char **argv) {
         if (this_block < BLOCK) {
             memset(block_buf + this_block * 2, 0, (size_t)(BLOCK - this_block) * 2 * sizeof(int16_t));
         }
+        mf_timing_begin(&timing);
         api->process_block(inst, block_buf, (int)this_block);
+        mf_timing_end(&timing);
         fwrite(block_buf, sizeof(int16_t), (size_t)this_block * 2, f);
     }
 
     api->destroy_instance(inst);
     fclose(f);
     free(input);
+
+    int timing_failed = mf_timing_report(&timing, out_path, BLOCK, SR);
+    mf_timing_free(&timing);
+    if (timing_failed) return 1;
 
 #ifdef MOVEFORGE_COUNT_NONFINITE
     if (moveforge_nonfinite_count > 0) {

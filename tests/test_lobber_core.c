@@ -115,6 +115,74 @@ static void test_slice_sum_is_bounded_but_passthrough_is_exact(void) {
     free(fx);
 }
 
+/* Capture must be amortised across blocks, not done all at once.
+ *
+ * It used to copy the whole loop — up to 4 MB of scattered ring reads — inside a
+ * single 128-frame block: measured at 107 us against a p99 of 1 us on a machine
+ * several times faster than the device, which is roughly 1 ms on the CM4's
+ * Cortex-A72, a third of the whole 2900 us frame budget. The host drops a
+ * module's DSP after three consecutive blocks over 2850 us.
+ *
+ * Asserted behaviourally rather than by timing, so it holds on any machine: a
+ * long loop must take several blocks to become playable, and must still end up
+ * with exactly the right length and content. */
+static void test_capture_is_amortised_across_blocks(void) {
+    lobber_core_t *fx = (lobber_core_t *)malloc(sizeof(*fx));
+    require_true(fx != NULL, "capture test core allocates");
+    lobber_init(fx);
+
+    float in_l[BLOCK], in_r[BLOCK], out_l[BLOCK], out_r[BLOCK];
+
+    /* Record enough history for a long loop: 16 beats at 120 bpm is 8 s. */
+    set(fx, "bpm", 120.0f);
+    set(fx, "loop_beats", 16.0f);
+    for (int b = 0; b < 3000; b++) {
+        for (int i = 0; i < BLOCK; i++) {
+            float t = (float)(b * BLOCK + i) / 44100.0f;
+            in_l[i] = 0.6f * sinf(6.2831853f * 220.0f * t);
+            in_r[i] = in_l[i];
+        }
+        lobber_process_float(fx, in_l, in_r, out_l, out_r, BLOCK);
+    }
+
+    set(fx, "mode", 1.0f);        /* Loop */
+    set(fx, "mix", 1.0f);
+    set(fx, "capture", 1.0f);
+
+    /* Count how many blocks pass before the loop becomes playable. */
+    int blocks_to_fill = -1;
+    for (int b = 0; b < 200 && blocks_to_fill < 0; b++) {
+        for (int i = 0; i < BLOCK; i++) { in_l[i] = 0.0f; in_r[i] = 0.0f; }
+        lobber_process_float(fx, in_l, in_r, out_l, out_r, BLOCK);
+        if (b == 0) set(fx, "capture", 0.0f);
+        if (fx->loop_filled) blocks_to_fill = b + 1;
+    }
+
+    require_true(blocks_to_fill > 1,
+                 "a long capture spans multiple blocks rather than one big copy");
+    require_true(blocks_to_fill < 64,
+                 "a long capture still completes promptly (well under a second)");
+    require_true(fx->loop_len == 16 * 22050,
+                 "the amortised capture grabs exactly the requested length");
+    require_true(fx->loop_beats_captured > 15.9f && fx->loop_beats_captured < 16.1f,
+                 "captured musical length is recorded correctly");
+
+    /* And the result actually plays, with no live input feeding it. */
+    double energy = 0.0;
+    for (int b = 0; b < 200; b++) {
+        for (int i = 0; i < BLOCK; i++) { in_l[i] = 0.0f; in_r[i] = 0.0f; }
+        lobber_process_float(fx, in_l, in_r, out_l, out_r, BLOCK);
+        for (int i = 0; i < BLOCK; i++) {
+            require_true(isfinite(out_l[i]) && out_l[i] <= 1.0f && out_l[i] >= -1.0f,
+                         "amortised loop playback stays finite and normalized");
+            energy += (double)out_l[i] * (double)out_l[i];
+        }
+    }
+    require_true(energy > 1.0, "the captured loop plays back from silence");
+
+    free(fx);
+}
+
 int main(void) {
     /* Core is ~4 MB (embedded ring buffer) — heap, never the stack. */
     lobber_core_t *fx = (lobber_core_t*)malloc(sizeof(*fx));
@@ -279,6 +347,7 @@ int main(void) {
     free(fx);
 
     test_slice_sum_is_bounded_but_passthrough_is_exact();
+    test_capture_is_amortised_across_blocks();
 
     printf("lobber core tests passed\n");
     return 0;
