@@ -322,16 +322,9 @@ parameters under automation (band_energy in dB).
       still metrics-only. Options: commit them (they are small at these
       lengths), use Git LFS, or generate the golden side on demand from a
       pinned build.
-- [ ] **2.12 `check-stress` has 3 pre-existing failures** that block 3.4.
-      `faust_drive` (`02-volume-max`, `20-hot-fast`) and `faust_voice`
-      (`10-level-max`, `12-hot-fast`) clip at max level — real headroom bugs.
-      `lobber` (`11-mute-max`, `20-all-max`) reports "unexpectedly silent", but
-      a muted looper *should* be silent: that is a false positive from
-      `render-stress.ts:110-134`, whose name-based `expect_silence` regex does
-      not include `mute`. Fix the regex, then the headroom.
-
----
-
+- [x] **2.12 done** — the `expect_silence` regex now covers mute-at-max
+      (`render-stress.ts:133`) and the headroom bugs were fixed; all 7 modules
+      pass and 3.4 landed on top of it. The checkbox was simply never flipped.
 ## Phase 3 — Turn the gate on
 
 - [x] **3.1 Added `.github/workflows/ci.yml`** with `pull_request` + `push`
@@ -393,8 +386,8 @@ parameters under automation (band_energy in dB).
 
 **Also worth folding in here** (cheap, same area):
 
-- [ ] `make check` renders the whole suite twice — `Makefile:16` declares
-      `plot: suite` and `check` invokes `suite` separately as a sub-make.
+- [x] Done: `plot:` no longer declares `suite` as a prerequisite, so `check`
+      renders the suite once. (Was already fixed; the bullet was stale.)
 - [x] `check-all` is now an alias for `check` (which already covers every
       module), keeping existing docs and muscle memory working.
 - [ ] `scripts/module-target.ts` is spawned ~6× per module per script
@@ -573,20 +566,13 @@ worth doing when they trade sound for a fraction of a percent.
 
 ## Phase 5 — Make the browser loop stop lying
 
-- [ ] **5.1 Fix the WASM rebuild dependency list.** `scripts/build-wasm.sh:76-104`
-      omits `*_params.gen.inc`, `*_presets.gen.inc`, `*_scope.gen.inc`,
-      `_shared/scope.h`, `src/host/faust_adapter.h`, `<id>.dsp` and
-      `module.json` — all of which are `#include`d into the compiled TU or are
-      upstream of one. **Correctness bug:** add a param, run `gen-params`,
-      rebuild → prints `cached`, and the new knob silently does nothing because
-      `<id>_param_id()` in the stale WASM returns -1.
-- [ ] **5.2 Fix `reloadModuleWasm`.** `web/src/audio.ts:151-161` iterates all
-      four tracks over slot IDs that are globally identical (`"sound"`,
-      `"audio-fx-1"`, …, `web/src/chain-state.ts:232-254`) while the engine only
-      holds the selected track's slots. Default state (4 tracks on westfold)
-      means **4 audio-thread WASM instantiations per save**; and with track 0 on
-      westfold and track 1 on dustline, editing dustline reloads westfold.
-      Key by engine slot, not by track × slot ID.
+- [x] **5.1 done** — `DEPS` now covers the generated `*_params.gen.{h,inc}`,
+      `*_presets.gen.inc`, `*_scope.gen.inc`, `_shared/mf_dsp.h`,
+      `_shared/scope.h` and `host/faust_adapter.h`, plus the `module.json` /
+      `presets.json` / `.dsp` they are generated from.
+- [x] **5.2 done** — driven off `engine.loadedSlotIds(moduleId)` rather than
+      the store's tracks, so one save reloads each engine slot exactly once and
+      never reloads a different track's module.
 - [ ] **5.3 Compile WASM off the audio thread.** `web/module-worklet.js:32-34`
       calls `WebAssembly.instantiate` inside `AudioWorkletGlobalScope` — an
       audible dropout on every hot-swap. `WebAssembly.compile()` on the main
@@ -673,11 +659,8 @@ worth doing when they trade sound for a fraction of a percent.
       audio render thread, and even if it applied it would not model CM4's memory
       bandwidth — which is precisely what dominates the one cost that matters
       (lobber's capture). It would mis-model the bug it was meant to find.
-- [ ] **5.13 Fix the stale note-off timers in `useSequencer`.**
-      `web/src/lib/useSequencer.ts:34-43` starts a new timer on retrigger
-      without cancelling the old one. With `drone_hold` (`gateSteps: 16`) at
-      `length: 8`, the previous timer fires 3.5 steps into the new note and
-      chops the drone. `noteOffTimers` is a flat `Set` with no per-note key.
+- [x] **5.13 done** — `noteOffTimers` is keyed by note, and a retrigger cancels
+      that note's pending timer before starting a new one.
 - [ ] **5.14 Rewrite or delete `docs/move-emulator-toolchain.md`** — it
       advertises 8 encoders, wheel controls, an OLED canvas, a preset browser
       and Web MIDI. None of that exists in `web/src` (grep for
@@ -767,16 +750,18 @@ header, and none is visible to any local check.
       check the deploy loop has never had — and it also gives arpy a device-side
       MIDI golden at the real `max_out = 16`, and a way to actually test 6.1
       and 6.3.
-- [ ] **6.9 Make the install atomic.** `scripts/install-to-move.sh:118` plain
-      `scp`s over a `.so` the host may have `dlopen`'d
-      (`SW/.../chain_host.c:422`, `:247`, `chain_midi.c:155`), truncating a file
-      mapped `PROT_EXEC` in the middle of the audio callback. `scp` to `.new`
-      then `mv` is free and atomic.
-- [ ] **6.10 Verify what actually got installed.** `install-to-move.sh:120-125`
-      byte-count-compares **only** `dsp.so`, but the chain host loads audio FX
-      from `<id>/<id>.so` (`SW/.../chain_host.c:243-244`). `module.json`,
-      `ui.js`, `ui_chain.js` and `presets.json` are unverified. Use a checksum,
-      and cover every shipped file.
+- [x] **6.9 done** — files are staged to `.<id>.incoming` on the device and
+      renamed into place. `mv` is atomic and leaves the old inode intact, so a
+      shared object the host still has mapped is never truncated.
+- [x] **6.10 done** — every shipped file is compared by checksum, not just
+      `dsp.so` (which for an audio FX was never the loaded file — the host uses
+      `<id>/<id>.so`, `chain_host.c:243`).
+
+      **The first version of this check could not fail:** with no checksum tool
+      available both manifests came back empty and compared equal. It now
+      asserts the local manifest has one line per file in `dist/` first.
+      Exercised against identical, corrupted, missing-file and broken-hasher
+      cases.
 - [ ] **6.11 Add a dirty-tree guard** — `SKILL.md:169` claims
       `install-to-move.sh` refuses one by default. There is no `git status`
       check anywhere in `scripts/`. Device builds are currently untraceable to
@@ -788,11 +773,15 @@ header, and none is visible to any local check.
       offender. Recovery today is SSH-only and undocumented. Also enable
       `debug_log_on` *before* installing — every load-failure path in
       `chain_host.c:295-310,439-500` is silent otherwise.
-- [ ] **6.13 Validate against the host's real `module.json` limits.**
-      `SW/.../chain_internal.h:103-116` and `chain_params.c:527-565`: key ≤ 31
-      chars, name ≤ 63, `module.json` < 64 KiB, ≤ 256 params, and a **duplicate
-      key anywhere across all levels rejects the module load**.
-      `scripts/validate-params.ts:142` only walks `levels.root`.
+- [x] **6.13 done** — key length, name length, param count, `module.json` size
+      and cross-level duplicate keys are all validated, and the duplicate walk
+      covers every level rather than just `root`.
+
+      **Correction to this item:** the name limit is 31, not 63.
+      `chain_param_info_t.name` is `char[64]`, but `chain_params.c:660` clamps
+      the copy to 31 exactly as it does for `key` — the field size is
+      misleading. Truncation is silent, so an over-long key becomes a key the
+      module itself does not answer to.
 - [ ] **6.14 Correct `CLAUDE.md`'s chain-UI discovery description.** It states
       the host decides from the `"ui_chain"` field and that there is no fallback
       editor. `SW/src/shadow/shadow_ui.js:2185-2224` defaults to
@@ -831,15 +820,23 @@ it is that every fix has to be made seven times.
       `gate`/`freq`/`gain`/`_dtime`, and `MF_FAUST_PRE_COMPUTE(s)` for
       `compute_dtime`. This is Suggested Improvement #6 in `CLAUDE.md`, and it
       is fully achievable today.
-- [ ] **7.3 Size `zones[]` from the generated count.**
-      `faust_voice_core.h:30` is `zones[5]`, `faust_drive_core.h:26` is
-      `zones[4]`, and **both Faust scaffolding templates ship `zones[1]`/`zones[2]`**
-      — so adding one param to a freshly scaffolded Faust module is an
-      out-of-bounds write in `capture_slider`, with no compiler warning, no
-      validate error and no test failure. `trail_core.h:22` has the mirror
-      variant (`TRAIL_NUM_PARAMS 9` duplicating `TRAIL_PARAM_COUNT`, mixed
-      between `trail_adapter.c:38` and `:44`). One-line fix:
-      `void *zones[<UPPER>_PARAM_COUNT];`.
+- [x] **7.3 done** — every Faust core and both scaffolding templates now
+      declare `void *zones[<UPPER>_PARAM_COUNT];`, `TRAIL_NUM_PARAMS` is gone,
+      and `validate-params` rejects any other spelling of the size.
+
+      **The one-line fix in this item does not compile as written.** The core
+      header cannot see `<UPPER>_PARAM_COUNT`: it lived in
+      `<id>_params.gen.inc`, which also defines functions taking
+      `<id>_core_t*` and therefore has to be included *after* the struct. Split
+      the count and enum into a generated `<id>_params.gen.h` that the core
+      header includes; the `.inc` includes it too and the guard makes that a
+      no-op.
+
+      Measured on the template's own layout: `&zones[1]` is exactly
+      `&zone_gate`, so the first added param replaces the voice's gate zone
+      with its own and the note never sounds. ASan is silent, confirming 3.3.
+      Verified end to end by scaffolding a module, adding a param, and checking
+      the array grew and the new zone was captured.
 - [ ] **7.4 Emit `ui_chain.js` as a thin call into a shared `.mjs`.**
       `diff src/modules/trail/ui_chain.js src/modules/faust_drive/ui_chain.js`
       → 26 differing lines out of ~470, all data. Modules already import
@@ -875,12 +872,8 @@ it is that every fix has to be made seven times.
 
 Cheap, and it stops the earlier phases from silently regressing.
 
-- [ ] **8.1 `await` the floating promise.** `scripts/validate-params.ts:146`
-      calls the `async` `validateGenInc` without `await`; its pushes land after
-      `validateModule()` resolves, so line 82 has already read an empty array.
-      If a module has no other errors, the whole group is dropped and validate
-      exits 0. (Masked in `mise run validate` because the byte comparison runs
-      first, but `validate-params.ts` is runnable standalone.)
+- [x] **8.1 done** — proved first by making arpy's gen.inc stale: standalone
+      `validate-params.ts` exited 0 and printed nothing. It now exits 1.
 - [ ] **8.2 Delete orphaned generated files.** All four generators `continue`
       when their input is absent and nothing ever cleans up. Remove
       `capabilities.scope` from a `module.json` and `<id>_scope.gen.inc` is
@@ -894,12 +887,19 @@ Cheap, and it stops the earlier phases from silently regressing.
       0.1 over [0,12] and moves in 0.12). `type` is checked for presence only.
       The key regex accepts every lowercase C keyword, and a param named
       `count` collides with the generated `<UPPER>_PARAM_COUNT` macro.
-- [ ] **8.4 Cross-check `.dsp` hslider labels against `module.json` keys.** A
-      typo'd label means `<id>_param_id()` returns -1, the zone is never
-      captured, and `push_params_to_faust` silently skips it — **a dead knob
-      with zero diagnostics** that compiles, validates, renders and ships.
-      Defaults already drift: `trail.dsp:34` declares `hslider("mod", 0.12,…)`
-      against `trail/module.json:32`'s `0.2`.
+- [x] **8.4 done** — labels, defaults, min, max and step are all compared.
+      Adapter-owned sliders (`gate`, `freq`, `gain`, `_dtime`) and
+      adapter-computed params (`time`, `sync`) are declared in the `.dsp`
+      itself via `// moveforge-adapter-controls:` / `-params:`, so anything
+      else that does not match is reported rather than silently exempted.
+
+      Found **two** live drifts, not the one recorded here: trail's `mod`
+      (0.12 vs 0.2) and `drive` (0.12 vs 0.15). Both fixed in the `.dsp`, with
+      no render drift since `apply_defaults` overwrites the Faust defaults.
+
+      The three Faust modules' tests now also assert every declared param
+      captured a zone — the runtime half of the same check. Confirmed
+      non-vacuous by typo'ing a label and watching the test fail.
 - [ ] **8.5 Escape `new-module` inputs.** `--name` and `--abbrev` are
       unescaped (`scripts/new-module.ts:48-49`); `--name 'A"B'` writes corrupt
       JSON into `module.json` and every subsequent read fails.
@@ -917,8 +917,9 @@ Cheap, and it stops the earlier phases from silently regressing.
       `float <key>;` core-struct edit to "plain C only", but
       `validate-params.ts:277-284` runs `validateCoreStruct` for **every**
       module including Faust ones. A Faust author following the docs exactly
-      gets a compile error and a validate failure. None of the three mentions
-      growing `zones[N]` (7.3), and only `SKILL.md` mentions the mandatory
+      gets a compile error and a validate failure. The `zones[N]` gap is now
+      moot — 7.3 made the array self-sizing, so there is no step to document —
+      but only `SKILL.md` mentions the mandatory
       `metadata.json` `randomize` entry (`validate-params.ts:178-182`).
       Collapse to one canonical list — ideally one that shrinks as 7.1-7.3 land.
 - [ ] **8.8 Cross-check `index.json`.** `kind` and `name` are a third
@@ -938,9 +939,9 @@ Cheap, and it stops the earlier phases from silently regressing.
       real ~20-option `menu_layout.mjs:134` contract is never exercised.
       Borrow the pattern from `SW/tests/shadow/` (~60 grep/behaviour tests over
       the shared `.mjs` files).
-- [ ] **8.10 Fix `dustline/ui.js`** — it exports `render(ctx, state)` instead of
-      setting `globalThis.init`/`tick`, so it will never be called by the host.
-      Dustline's solo screen is dead.
+- [x] **8.10 done** — rebuilt on the shared `createSoundGeneratorUI` and
+      assigns `globalThis.init`/`tick`. `validate-params` now rejects any
+      `ui.js` that does not.
 - [ ] **8.11 Handle blocks properly instead of truncating.** Every wrapper does
       `if (frames > MOVEFORGE_BLOCK_FRAMES) frames = MOVEFORGE_BLOCK_FRAMES;`
       (`westfold.c:104`, `dustline.c:74`, `faust_voice.c:87`, `trail.c:45`,
