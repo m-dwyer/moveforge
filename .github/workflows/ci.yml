@@ -1,0 +1,118 @@
+name: CI
+
+# The gate. Before this existed the only workflow was deploy-pages.yml, which
+# ran on push to main, built WASM, and published — so nothing checked a pull
+# request, and README/SKILL both described a CI gate that did not exist.
+#
+# Deliberately NOT here: `pnpm test`, the React component suite. It is 41
+# Zustand/component tests with @/audio aliased to a mock, so it covers no audio,
+# WASM or DSP, and it needs a Playwright Chromium download. It also has a
+# known-excluded file (KeyboardPlay.spec.tsx does not match the *.spec.ts
+# include glob). Worth gating on once those are fixed — see plan items 5.10 and
+# 5.11 — not before.
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Everything that does not need a cross-compiler: typecheck, generated-file
+  # drift, C unit tests (with sanitizers), the render suite against goldens, the
+  # stress gates, and the host build.
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.2
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # `make plot` needs numpy/pillow. Cached on requirements-dev.txt so this
+      # is a no-op on most runs.
+      - uses: actions/cache@v4
+        with:
+          path: .venv
+          key: venv-${{ runner.os }}-${{ hashFiles('requirements-dev.txt') }}
+
+      - name: Python plotting deps
+        run: test -x .venv/bin/python || make dev-deps
+
+      # Faust is deliberately NOT installed. The generated *_faust.c embeds its
+      # compiler and stdfaust.lib versions and the drift check is byte-exact, so
+      # any Faust other than the one that produced the committed artifacts
+      # (currently 2.85.5, which apt does not carry) reports drift on every
+      # Faust module without a .dsp having changed. gen-faust.ts now compares
+      # the recorded version and skips with a warning when it cannot compare
+      # meaningfully, so `validate` is green here and the real byte comparison
+      # happens for anyone whose local Faust matches.
+      #
+      # To check Faust drift in CI too, the version has to be pinned — a
+      # container image or a source build, not apt. Tracked as plan item 3.8.
+      - run: make check
+
+  # The artifact that actually ships was never built in CI. A wrapper that fails
+  # to compile for aarch64, or stops exporting its init symbol, previously got
+  # caught only by a human running `mise run move`.
+  device-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.2
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # build.sh cross-compiles inside its own Docker image, so the aarch64
+      # binutils are not on the host — but the symbol check below runs on the
+      # host and needs them.
+      - name: Install aarch64 binutils
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends binutils-aarch64-linux-gnu
+
+      - name: Cross-compile for Move (aarch64)
+        run: make move
+
+      # Building is not the same as being loadable: the chain host resolves
+      # move_plugin_init_v2 / move_audio_fx_init_v2 / move_midi_fx_init by name,
+      # and a module missing its entry point installs and verifies clean while
+      # doing nothing on hardware.
+      - name: Verify entry points are exported
+        run: |
+          set -euo pipefail
+          status=0
+          for dir in dist/*/; do
+            id="$(basename "$dir")"
+            so="$dir/dsp.so"
+            [ -f "$so" ] || { echo "::error::$id has no dsp.so"; status=1; continue; }
+            file "$so" | grep -q 'ARM aarch64' || { echo "::error::$id dsp.so is not aarch64"; status=1; continue; }
+            if ! aarch64-linux-gnu-nm -D --defined-only "$so" 2>/dev/null \
+                 | grep -qE ' (move_plugin_init_v2|move_audio_fx_init_v2|move_midi_fx_init)$'; then
+              echo "::error::$id exports no Schwung entry point"
+              status=1
+              continue
+            fi
+            echo "ok: $id"
+          done
+          exit $status

@@ -139,7 +139,10 @@ static inline void mf_svf_set(mf_svf_coeffs_t *c, float cutoff_hz, float resonan
 {
     if (!c) return;
     float fc = moveforge_clampf(cutoff_hz, 10.0f, MOVEFORGE_SAMPLE_RATE * 0.45f);
-    c->g = tanf((float)M_PI * fc / MOVEFORGE_SAMPLE_RATE);
+    /* Not M_PI: that is a POSIX extension, and glibc does not define it under
+     * -std=c11 (which is what the aarch64 device build uses). Apple's libc does,
+     * so using it compiles locally and fails only when cross-compiling. */
+    c->g = tanf(MOVEFORGE_TWO_PI * 0.5f * fc / MOVEFORGE_SAMPLE_RATE);
     c->k = mf_svf_damping_from_resonance(resonance);
     c->a1 = 1.0f / (1.0f + c->g * (c->g + c->k));
     c->a2 = c->g * c->a1;

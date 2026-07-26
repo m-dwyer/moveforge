@@ -278,39 +278,69 @@ parameters under automation (band_energy in dB).
 
 ## Phase 3 — Turn the gate on
 
-- [ ] **3.1 Add a `pull_request` CI job** running `mise run check` **and**
-      `make move` (the aarch64 artifact that actually ships is currently never
-      built in CI).
-- [ ] **3.2 `-Wall -Wextra` on all seven compile lines**, then `-Werror` in
-      `scripts/test.sh` and CI. There are currently **zero** warning flags
-      anywhere in the repo (`scripts/{test,build,build-host,build-wasm,render-demo}.sh`).
-- [ ] **3.3 ASan/UBSan pass in `scripts/test.sh`.** One extra `cc` line,
-      ~2× test runtime. Targets the fixed-size ring buffers
-      (`lobber_core.h:9-14` masked indexing, Trail's delay lines) and the
-      float→int conversions.
-- [ ] **3.4 Put `check-stress` into `make check`.** Blocked on 2.12 — three
-      modules fail it today. `Makefile:66-88` omits it;
+- [x] **3.1 Added `.github/workflows/ci.yml`** with `pull_request` + `push`
+      triggers. Two jobs: `check` (runs `make check`) and `device-build`
+      (`make move` plus a symbol check that each `dist/<id>/dsp.so` is aarch64
+      **and** exports one of `move_plugin_init_v2` / `move_audio_fx_init_v2` /
+      `move_midi_fx_init` — building is not the same as being loadable).
+
+      **The device-build job earned its place immediately:** `mf_dsp.h` used
+      `M_PI`, which is a POSIX extension that glibc does *not* define under
+      `-std=c11`. It compiled on macOS and failed the aarch64 cross-compile.
+      `tools/render_fx.c:133` had the same latent bug, pre-existing and never
+      exercised because CI only ever ran `emcc`. Both now use an explicit
+      constant.
+
+      `pnpm test` is deliberately **not** gated yet — see 3.9.
+- [x] **3.2 `-Wall -Wextra` on every compile line**, plus `-Werror` on the test
+      path (`scripts/test.sh`). All hand-written C was already clean; the only
+      warnings were `-Wunused-parameter` in generated Faust C, which is
+      `#include`d into the adapter and so shares its translation unit and cannot
+      take per-file flags. Fixed at the source: `gen-faust.ts` now wraps the
+      generated body in a scoped `#pragma GCC diagnostic push/ignored/pop`, so
+      the suppression travels with the artifact and every future scaffolded
+      module inherits it while its own adapter code stays checked.
+
+      Also made `tools/render_automation.h`'s helpers `static inline` — as plain
+      `static` in a header they tripped `-Wunused-function` in any TU that did
+      not use all three.
+- [x] **3.3 ASan/UBSan second pass in `scripts/test.sh`** (`-O1`, opt out with
+      `MOVEFORGE_NO_SANITIZE=1`). Clean across all modules; suite went 11 s → 25 s.
+
+      Worth recording what this cannot catch: the hand-sized `zones[N]` overflow
+      from 7.3 is an *intra-struct* overflow into an adjacent field, which has no
+      ASan redzone. That stays a structural fix, not something a sanitizer will
+      find.
+- [x] **3.4 `check-stress` is in `make check`** (via `$(MAKE) stress`), once
+      2.12 was resolved. All 7 modules pass. `Makefile:66-88` omits it;
       it holds the only *absolute* thresholds in the project
       (`scripts/check-stress.ts:53-62`: clipping, `|dc| > 0.05`, peak bounds,
       stereo imbalance). `SKILL.md:159` warns it is expected to fail on older
       modules — that is a reason to fix them, not to exclude the check.
-- [ ] **3.5 Reconcile the two "gate" definitions.** `scripts/deploy-to-move.sh:7-11`
-      omits `typecheck`, `test:ui-chain`, `check-renders` and `plot`, so
-      `mise run deploy` ships to hardware without ever comparing renders to
-      goldens.
-- [ ] **3.6 Emit `compile_commands.json`.** All include paths and flags already
-      live in `scripts/lib/modules.ts`; today they exist only inside bash string
-      interpolation, so clangd cannot resolve `#include "host/plugin_api_v1.h"`
-      in any editor. Matters for humans and for agents working in this repo.
-- [ ] **3.7 Add `.clang-format`** and a format task (already listed as
-      Suggested Improvement #4 in `CLAUDE.md`).
+- [x] **3.5 `deploy-to-move.sh` now runs `make check`** instead of a hand-rolled
+      subset, so a deploy cannot skip the golden comparison.
+- [x] **3.6 `scripts/gen-compile-commands.ts`** emits `compile_commands.json`
+      (27 entries: cores, wrappers, tests, harnesses) with the same flags as
+      `test.sh`, so editor diagnostics match what the gate rejects. Gitignored;
+      regenerate with `mise run gen-compile-commands`.
+- [x] **3.7 Added `.clang-format`, `.clang-format-ignore` and
+      `scripts/format.sh`** (`mise run format` / `format-check`), tuned to the
+      existing 4-space/K&R/100-col style with generated files excluded.
+
+      **The repo is deliberately not reformatted and `format-check` is not in the
+      gate.** A first pass would rewrite 1999 of 5830 lines (34%), which would
+      bury every functional change in this branch. That belongs in its own
+      commit. Tried `AlignConsecutiveAssignments`/`AlignConsecutiveMacros` to
+      preserve the hand-aligned enum and constant tables; it made drift worse
+      (lobber 178 → 206 lines) by aligning things that were not aligned before,
+      so it is off.
 
 **Also worth folding in here** (cheap, same area):
 
 - [ ] `make check` renders the whole suite twice — `Makefile:16` declares
       `plot: suite` and `check` invokes `suite` separately as a sub-make.
-- [ ] `make check-all` re-runs suite/check-renders/plot/host for `dustline` a
-      second time; `check` with no `MODULE_ID` already covers all modules.
+- [x] `check-all` is now an alias for `check` (which already covers every
+      module), keeping existing docs and muscle memory working.
 - [ ] `scripts/module-target.ts` is spawned ~6× per module per script
       (~42 ms each, ~145 spawns ≈ 6 s across `make check`). One
       `module-target ids --json` call per script removes it.
@@ -322,13 +352,37 @@ parameters under automation (band_energy in dB).
       exist, so editing `scripts/Dockerfile` never rebuilds it.
 - [ ] Pin `faust` and `pnpm` in `mise.toml [tools]`. `node = "lts"` is floating
       while every `scripts/*.ts` relies on Node ≥22.6 type-stripping.
-- [ ] `mise run validate` fails for anyone without Faust installed
-      (`scripts/gen-faust.ts:34-44` counts a missing binary as drift), directly
-      contradicting `README.md:78`. Compare the recorded Faust version banner
-      instead.
+- [x] `mise run validate` no longer fails without Faust. `gen-faust.ts` check
+      mode now compares the version recorded in the committed `*_faust.c`
+      against the local `faust --version`, and skips with a warning when Faust
+      is absent or is a different version — a byte comparison across Faust
+      versions is meaningless, and "fixing" it would rewrite tens of KB of C
+      with different inlining. Verified all three paths: matching version still
+      byte-compares, mismatched version skips, absent skips; validate stays
+      green in every case.
 
 **Done when:** a PR that breaks a C test, drifts a generated file, or moves a
-golden cannot be merged green.
+golden cannot be merged green. — **met**, with the caveats in 3.8/3.9 below.
+
+### Still open in this area
+
+- [ ] **3.8 Pin Faust so CI can check its drift too.** CI deliberately does not
+      install Faust: apt does not carry 2.85.5, and any other version makes the
+      byte-exact check meaningless (3.2 above). So Faust drift is currently
+      verified only on a developer machine whose version matches. Pinning needs
+      a container image or a source build.
+- [ ] **3.9 Gate `pnpm test`.** Not added to CI yet: it is 41 Zustand/component
+      tests with `@/audio` aliased to a mock, so it covers no audio, WASM or DSP,
+      it needs a Playwright Chromium download, and `KeyboardPlay.spec.tsx` is
+      silently excluded by the `tests/**/*.spec.ts` glob. Gate it after 5.10 and
+      5.11, when the suite is honest about what it covers.
+- [ ] **3.10 `device-build` is unverified in CI itself.** `make move` and the
+      symbol check were both run locally against Docker, and the symbol-grep
+      loop was exercised against the host build. The GitHub-hosted path
+      (`binutils-aarch64-linux-gnu` on the runner, since `build.sh`
+      cross-compiles inside its own image) has not run yet.
+- [ ] **3.11 Reformat the repo** in a standalone commit, then add
+      `format-check` to `make check`. See 3.7.
 
 ---
 

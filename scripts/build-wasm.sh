@@ -110,7 +110,7 @@ for MODULE_ID in $MODULE_IDS; do
   esac
 
   if needs_rebuild "$WASM_OUT" "${DEPS[@]}"; then
-    COMMANDS+=("emcc '$WRAPPER_C' '$CORE_IMPL' '$GLUE' -O3 -I'$MODULE_DIR/dsp' -Isrc -s STANDALONE_WASM=1 -s EXPORTED_FUNCTIONS='[\"${EXPORTS//,/\",\"}\"]' -Wl,--no-entry -o '$WASM_OUT'")
+    COMMANDS+=("emcc -Wall -Wextra '$WRAPPER_C' '$CORE_IMPL' '$GLUE' -O3 -I'$MODULE_DIR/dsp' -Isrc -s STANDALONE_WASM=1 -s EXPORTED_FUNCTIONS='[\"${EXPORTS//,/\",\"}\"]' -Wl,--no-entry -o '$WASM_OUT'")
     SUMMARY+=("build  $WASM_OUT")
   else
     SUMMARY+=("cached $WASM_OUT")

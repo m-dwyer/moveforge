@@ -118,7 +118,12 @@ void dustline_process_float(dustline_core_t *s,
          * muting. A constant gain cannot reintroduce DC, so blocking first is
          * both correct and hard-mutable. */
         y = mf_dcblock_tick(&s->dc_post, y);
-        y = y * output_gain * 0.94f;
+        /* 0.78, not 0.94: removing the DC offset freed up peak headroom, so the
+         * same nominal level now swings further. Measured pre-clamp peak at
+         * volume=max was 1.084 (defaults) and 1.138 (all-hot), i.e. the output
+         * was hard-clipping in moveforge_float_to_i16. This lands the worst case
+         * near 0.89 and keeps margin against the stress gate's 0.995. */
+        y = y * output_gain * 0.78f;
         left[i] = moveforge_clampf(y, -1.0f, 1.0f);
         right[i] = left[i];
     }

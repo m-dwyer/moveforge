@@ -47,6 +47,15 @@ osc = os.sawtooth(freq);
 // waveform (a sawtooth through a resonant lowpass) produces DC even though the
 // input is zero-mean, because tanh compresses tall peaks more than shallow
 // troughs. Without it the init and plucky presets measured ~2.8% DC.
-mono = osc * env * gain : fi.resonlp(cutoffHz, qVal, 1.0) : ma.tanh : fi.dcblocker : *(level);
+// The 0.65 is headroom, and it is measured rather than guessed. ma.tanh
+// saturates at +-1, but fi.dcblocker overshoots on the resulting near-square:
+// rendering the stress cases at a known small scale puts the true unit peak at
+// 1.377. Without this, `level` at maximum hard-clipped in the int16 conversion
+// (20256 clipped samples). 0.65 lands the worst case near 0.90, so the whole
+// declared range of `level` is usable.
+//
+// fi.highpass(1, 20) overshoots less (1.243, allowing 0.72) but fi.dcblocker
+// states the intent more clearly for under 1 dB of level.
+mono = osc * env * gain : fi.resonlp(cutoffHz, qVal, 1.0) : ma.tanh : fi.dcblocker : *(level * 0.65);
 
 process = mono <: _, _;

@@ -33,6 +33,10 @@ unsigned long moveforge_nonfinite_count = 0;
 #define SR 44100
 #define BLOCK 128
 
+/* Not M_PI: that is a POSIX extension and glibc does not define it under
+ * -std=c11, so using it builds on macOS and fails on Linux. */
+#define RENDER_TWO_PI 6.283185307179586476925286766559
+
 /* Tempo exposed to sync-aware FX (e.g. Trail). Settable via --bpm; defaults to
  * 120, which matches the NULL-get_bpm fallback so non-sync renders are stable. */
 static float g_render_bpm = 120.0f;
@@ -130,8 +134,8 @@ static void generate_signal(const char *kind, int16_t *buf, uint32_t frames) {
     for (uint32_t i = 0; i < frames; i++) {
         double t = (double)i / (double)SR;
         double f = f0 * pow(f1 / f0, t / duration);
-        phase += 2.0 * M_PI * f / (double)SR;
-        if (phase > 2.0 * M_PI) phase -= 2.0 * M_PI;
+        phase += RENDER_TWO_PI * f / (double)SR;
+        if (phase > RENDER_TWO_PI) phase -= RENDER_TWO_PI;
         int16_t v = (int16_t)(sin(phase) * 23000.0);
         buf[i * 2] = v;
         buf[i * 2 + 1] = v;

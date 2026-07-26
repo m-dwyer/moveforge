@@ -50,7 +50,7 @@ typedef struct {
 } mf_automate_set_t;
 
 /* Parse one "--automate" argument value. Returns 0 on success. */
-static int mf_automate_add(mf_automate_set_t *set, const char *spec)
+static inline int mf_automate_add(mf_automate_set_t *set, const char *spec)
 {
     if (!set || !spec) return -1;
     if (set->count >= MF_AUTOMATE_MAX) {
@@ -106,7 +106,7 @@ static int mf_automate_add(mf_automate_set_t *set, const char *spec)
 }
 
 /* Current value for entry `i` at normalized render position `t` in [0, 1]. */
-static double mf_automate_value(const mf_automate_t *a, double t)
+static inline double mf_automate_value(const mf_automate_t *a, double t)
 {
     if (t < 0.0) t = 0.0;
     if (t > 1.0) t = 1.0;
@@ -128,7 +128,7 @@ static double mf_automate_value(const mf_automate_t *a, double t)
 
 /* Push every automated parameter for this block. `set_param` is the module's
  * string-keyed setter, matching the Schwung ABI. */
-static void mf_automate_apply(const mf_automate_set_t *set, double t, void *instance,
+static inline void mf_automate_apply(const mf_automate_set_t *set, double t, void *instance,
                               void (*set_param)(void *, const char *, const char *))
 {
     if (!set || !set_param) return;

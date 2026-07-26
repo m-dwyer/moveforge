@@ -95,15 +95,17 @@ function buildCases(params: Param[], defaults: Record<string, number>, kind: str
 
   for (const param of params) {
     if (param.min !== param.default) {
-      add(`${param.name} Min`, { ...defaults, [param.key]: param.min }, isSilencingParam(param.key, param.min, kind));
+      add(`${param.name} Min`, { ...defaults, [param.key]: param.min }, isSilencingParam(param, param.min, kind));
     }
     if (param.max !== param.default) {
-      add(`${param.name} Max`, { ...defaults, [param.key]: param.max });
+      add(`${param.name} Max`, { ...defaults, [param.key]: param.max }, isSilencingParam(param, param.max, kind));
     }
   }
 
   const allMax = Object.fromEntries(params.map((param) => [param.key, param.max]));
-  add("All Max", allMax, kind === "sound_generator" && hasSlowMaxAttack(params));
+  add("All Max", allMax,
+      (kind === "sound_generator" && hasSlowMaxAttack(params)) ||
+      params.some((param) => silencesAtMax(param.key)));
 
   const hot = { ...defaults };
   for (const param of params) {
@@ -123,10 +125,20 @@ function buildCases(params: Param[], defaults: Record<string, number>, kind: str
   return cases;
 }
 
-function isSilencingParam(key: string, value: number, kind: string): boolean {
+/* Params whose *maximum* is silence — a mute switch.
+ *
+ * Without this a module is failed by its own stress gate for behaving
+ * correctly: lobber's `Mute Max` and `All Max` both reported "unexpectedly
+ * silent", because only minima were ever considered silencing. */
+function silencesAtMax(key: string): boolean {
+  return /^(mute)$/i.test(key);
+}
+
+function isSilencingParam(param: Param, value: number, kind: string): boolean {
+  if (value === param.max && silencesAtMax(param.key)) return true;
   if (value !== 0) return false;
-  if (kind === "sound_generator") return /^(volume|level)$/i.test(key);
-  return /^level$/i.test(key);
+  if (kind === "sound_generator") return /^(volume|level)$/i.test(param.key);
+  return /^level$/i.test(param.key);
 }
 
 function hasSlowMaxAttack(params: Param[]): boolean {

@@ -4,14 +4,14 @@
     "channels": 2,
     "frames": 308700,
     "duration_seconds": 7,
-    "peak": 0.58557,
-    "rms": 0.3023,
-    "dc_offset": 0.000018,
+    "peak": 0.4859,
+    "rms": 0.25085,
+    "dc_offset": 0.000015,
     "dc_offset_per_channel": [
-      0.000018,
-      0.000018
+      0.000015,
+      0.000015
     ],
-    "silence_ratio": 0.0018,
+    "silence_ratio": 0.0021,
     "clipped_samples": 0,
     "zero_crossing_rate": [
       0.01698,
@@ -37,7 +37,7 @@
       -15.37,
       -22.66,
       -34.48,
-      -50.29
+      -50.3
     ]
   },
   "01-dust-bass.wav": {
@@ -45,14 +45,14 @@
     "channels": 2,
     "frames": 308700,
     "duration_seconds": 7,
-    "peak": 0.95502,
-    "rms": 0.34323,
-    "dc_offset": 0.000163,
+    "peak": 0.79245,
+    "rms": 0.28481,
+    "dc_offset": 0.000134,
     "dc_offset_per_channel": [
-      0.000163,
-      0.000163
+      0.000134,
+      0.000134
     ],
-    "silence_ratio": 0.004,
+    "silence_ratio": 0.0049,
     "clipped_samples": 0,
     "zero_crossing_rate": [
       0.00549,
@@ -86,14 +86,14 @@
     "channels": 2,
     "frames": 441000,
     "duration_seconds": 10,
-    "peak": 0.34305,
-    "rms": 0.24296,
+    "peak": 0.28467,
+    "rms": 0.2016,
     "dc_offset": -0.000001,
     "dc_offset_per_channel": [
       -0.000001,
       -0.000001
     ],
-    "silence_ratio": 0.0015,
+    "silence_ratio": 0.0018,
     "clipped_samples": 0,
     "zero_crossing_rate": [
       0.26925,
@@ -127,14 +127,14 @@
     "channels": 2,
     "frames": 264600,
     "duration_seconds": 6,
-    "peak": 0.56067,
-    "rms": 0.3792,
-    "dc_offset": 0.000016,
+    "peak": 0.46524,
+    "rms": 0.31465,
+    "dc_offset": 0.000014,
     "dc_offset_per_channel": [
-      0.000016,
-      0.000016
+      0.000014,
+      0.000014
     ],
-    "silence_ratio": 0.0004,
+    "silence_ratio": 0.0005,
     "clipped_samples": 0,
     "zero_crossing_rate": [
       0.04726,
@@ -168,14 +168,14 @@
     "channels": 2,
     "frames": 308700,
     "duration_seconds": 7,
-    "peak": 0.48639,
-    "rms": 0.27892,
-    "dc_offset": -0.000054,
+    "peak": 0.40359,
+    "rms": 0.23144,
+    "dc_offset": -0.000045,
     "dc_offset_per_channel": [
-      -0.000054,
-      -0.000054
+      -0.000045,
+      -0.000045
     ],
-    "silence_ratio": 0.0013,
+    "silence_ratio": 0.0016,
     "clipped_samples": 0,
     "zero_crossing_rate": [
       0.0788,
@@ -209,14 +209,14 @@
     "channels": 2,
     "frames": 441000,
     "duration_seconds": 10,
-    "peak": 0.55005,
-    "rms": 0.28188,
-    "dc_offset": 0.000005,
+    "peak": 0.45642,
+    "rms": 0.2339,
+    "dc_offset": 0.000004,
     "dc_offset_per_channel": [
-      0.000005,
-      0.000005
+      0.000004,
+      0.000004
     ],
-    "silence_ratio": 0.0016,
+    "silence_ratio": 0.002,
     "clipped_samples": 0,
     "zero_crossing_rate": [
       0.11942,

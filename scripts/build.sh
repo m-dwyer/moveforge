@@ -90,7 +90,7 @@ while IFS=$'\t' read -r MODULE_ID MODULE_DIR CORE_IMPL WRAPPER_C; do
   if [ -z "${MODULE_ID:-}" ]; then continue; fi
   mkdir -p "dist/$MODULE_ID"
 
-  "${CROSS_PREFIX}gcc" -std=c11 -O3 -g -shared -fPIC \
+  "${CROSS_PREFIX}gcc" -std=c11 -O3 -g -Wall -Wextra -shared -fPIC \
     "$WRAPPER_C" \
     "$CORE_IMPL" \
     -o "build/${MODULE_ID}-dsp.so" \
