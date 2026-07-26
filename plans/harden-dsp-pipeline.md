@@ -407,22 +407,12 @@ Currently rewritten per module:
 | linear ramp / declick | `lobber_core.c:387-393` **and** `:419-425` | same 7 lines twice in one function |
 | voice alloc / note stack | nowhere | 5 ad-hoc gate representations across 6 modules |
 
-- [ ] **4.1 Fix the PRNG.** `dustline_core.c:11-17` round-trips a 32-bit LCG
-      state through a `float` every sample, destroying the low 8 bits.
-      Measured period: **7412 samples ≈ 168 ms** — a 5.95 Hz repeating loop, not
-      noise. `rng` can also reach exactly `1.0f`, making the next
-      `(uint32_t)(1.0f * 4294967295.0f)` an out-of-range conversion. Keep the
-      state in `uint32_t`; never leave integer domain.
-- [ ] **4.2 Fill out `src/modules/_shared/mf_dsp.h`.** Created in Phase 1 with
-      `mf_flush_denorm` and `mf_svf_t` (TPT/ZDF); `mf_dcblock_t` added in Phase 2
-      when the new DC floors surfaced three real offsets. Tested in
-      `tests/test_mf_dsp.c`. Still to add: `mf_smooth_t`, `mf_ar_t`,
-      `mf_tanh_approx`, `mf_rng_t`, `mf_beats_to_samples`, `mf_sanitize` — then
-      convert the remaining per-module copies listed above to use them.
-      westfold and dustline still have their own inline DC blockers/smoothers.
-- [ ] **4.3 Add `src/modules/_shared/moveforge.lib`** for the Faust side: `sm`
-      (the `si.smooth(ba.tau2pole(0.02))` idiom that currently exists only
-      inside `trail.dsp:29`), `satTanh`, `divBeats`. Import it from every `.dsp`.
+- [x] **4.1 done** — committed in ca9af75 — dustline's PRNG now uses mf_rng_t; the float round-trip had made its noise a perfectly periodic 67.7 Hz buzz (autocorrelation 1.0000 at lag 651), now 0.013 worst case.
+
+- [x] **4.2 done** — committed in ca9af75 and extended since — mf_dsp.h now carries flush_denorm, sanitize, wrap_phase, dcblock, onepole, svf, smooth, ar, tanh_approx, soft_limit, rng, voice and beats_to_samples, all tested in tests/test_mf_dsp.c. Remaining: converting westfold's and dustline's last inline smoothers/DC blockers to use them (task 5).
+
+- [x] **4.3 done** — committed in 8599ddb — src/modules/_shared/moveforge.lib provides sm, smGain, lpSmoothed, hpSmoothed, satTanh, softLimit, divBeats, reachable via -I src/modules/_shared.
+
 - [x] **4.4 done — `mf_voice_t` with a held-note stack.** Last-note priority:
       a new note takes over, releasing it falls back to whatever is still held,
       and releasing an underlying note changes nothing. Retriggering a held note
@@ -437,36 +427,13 @@ Currently rewritten per module:
       No golden drift: the render harness plays one note at a time, so single-note
       sequences behave identically.
 
-- [ ] **4.4 Add a shared `mf_voice_t`** with a held-note stack. All three sound
-      generators share the same latent bug: press A, press B, release B → sound
-      stops while A is still held (`westfold_core.c:150-159`,
-      `dustline_core.c:41-47`, `faust_voice_adapter.c:80-87` — none keeps a
-      stack). None of them handle CC 120/123 either. `render_wav.c:103-116`
-      plays strictly one note at a time, so the harness cannot see it.
-
 ### Parameter smoothing and denormals (do with 4.2/4.3)
 
-- [ ] **4.5 `faust_drive` smooths nothing.** `faust_drive.dsp:14-17` — the
-      generated code hoists `fSlow0/1/6` and applies them as hard steps at each
-      128-sample block boundary (`faust_drive_faust.c:208-214`): a 344 Hz buzz
-      while the encoder moves, and a click on every preset load. `faust_voice`
-      has the same problem for `cutoff`/`resonance`/`level`
-      (`faust_voice_faust.c:248-262`), where it also jumps the `resonlp`
-      coefficients discontinuously at high Q.
-- [ ] **4.6 Trail smooths the one control where it is most expensive.**
-      Smoothing `tone` (`trail.dsp:32-38,47-49`) promotes it from a block
-      constant to a per-sample signal, forcing Faust to recompute the bilinear
-      `tan` mapping **every sample** for both filters and both channels
-      (`trail_faust.c:1034-1048`). Smooth gains/mix; pre-warp or block-rate the
-      cutoff coefficients.
-- [ ] **4.7 Regenerate Faust with `-ftz 1`.** All generated C currently carries
-      `-ftz 0` (`src/modules/*/dsp/*_faust.c:7`), and nothing anywhere sets FZ
-      for the host or WASM builds. Trail's 16 Freeverb combs at 0.88 feedback
-      plus a 3-second delay line all decay into the denormal range on silence.
-      Note the device sets FPCR **FZ but not DAZ**
-      (`SW/src/schwung_shim.c:4227-4241`), per-thread — so
-      `SKILL.md`'s "denormals are silently flushed, don't add guards" is only
-      half true, and offline renders run with denormals live regardless.
+- [x] **4.5 done** — committed in 8599ddb — faust_drive's drive/mix/level are smoothed (smGain for level). Measured -1.27 dB in the top band on the Phase 2 automated render.
+
+- [x] **4.6 done** — committed in 8599ddb — trail's tone no longer smooths the cutoff; lpSmoothed/hpSmoothed smooth the coefficient instead. Per-sample tanf 2 -> 0, divides 12 -> 4.
+
+- [x] **4.7 done** — committed in 8599ddb — gen-faust now passes -ftz 1, so the generated code flushes its recursive state.
 
 ### Per-sample cost (ARM)
 
@@ -503,11 +470,6 @@ worth doing when they trade sound for a fraction of a percent.
       (bit-identical, they depend only on parameters). Measured: median 3-5 us ->
       2-3 us, p99 5-7 -> 3-4. Uses `mf_env_coeff_seconds` from the shared header.
 
-- [ ] **4.8 Hoist Dustline's block-constant math out of the sample loop.**
-      `dustline_core.c:70-92` computes 2 × `powf`, 2 × `expf` and 1 × `sinf`
-      per sample from inputs that are all block-constant — ~7 libm calls/sample
-      where only the 2 `tanhf` need to be per-sample. `westfold_core.c:188-192`
-      already does this correctly. Roughly a 3-5× CPU cut for zero sonic change.
 - [x] **4.9 Lobber's capture is no longer a multi-megabyte memcpy in the audio
       callback.** Amortised into `LOBBER_CAPTURE_CHUNK`-sized steps, one per
       block. Measured on the same worst case (16-beat loop, capture fired
@@ -533,20 +495,11 @@ worth doing when they trade sound for a fraction of a percent.
       `lobber_init` memsets the struct anyway. Saves 8 MB of redundant writes at
       instance creation, which runs on the SPI thread on device.
 
-- [ ] **4.10 Lobber allocates 8 MB per instance and zeroes it twice.**
-      `lobber_core.h:39-40,62-63` (`float[1<<19]` × 4); `lobber.c:33` `calloc`s
-      it and `lobber_core.c:16` then `memset`s the same 8 MB.
-      `trail_faust` adds 2.81 MB per instance plus a 256 KB static global sine
-      table that `classInittrail_faust` refills on every init.
 - [x] **4.11 done** — narrowed to a 32-bit divide (`pos <= window`, and window is
       now clamped to `MF_SCOPE_MAX_WINDOW` so the product cannot overflow int32).
       Identical results. Measured effect on westfold: none visible above noise,
       consistent with the 0.04%-of-budget estimate — done as hygiene, not perf.
 
-- [ ] **4.11 `_shared/scope.h:144` does a 64-bit integer division per sample**
-      (`(long)s->pos * MF_SCOPE_COLS / s->window`) in the audio path — ~20-40
-      cycles, non-pipelined on A53, ~4000 wasted cycles/block for a display
-      feature. Use an incremental counter or reciprocal multiply.
 - [ ] **4.12 Westfold: 11 libm calls/sample** (`sinf` ×4, `expf`, `powf`,
       `tanhf` ×5, plus 4 × `floorf`), none short-circuited when `chaos == 0`.
       `mf_tanh_approx` + `mf_sin_poly` from 4.2 cut this by an order of
@@ -555,22 +508,9 @@ worth doing when they trade sound for a fraction of a percent.
       is always the case in Slice mode (it advances by exactly +-1). Loop mode
       still interpolates for tempo-following.
 
-- [ ] **4.13 Lobber uses double-precision interpolation for integer reads.**
-      `lobber_core.c:132-141,433` — `slice_read` advances by exactly ±1, so
-      `frac` is always 0, yet it pays a full double 2-tap interpolation per
-      sample. Keep the position in double; interpolate in float; skip when
-      `frac == 0`.
-- [ ] **4.14 Lobber Slice mode has no output bound.** `lobber_core.c:440-441`
-      (`out_l = dl + sl * mix`, both up to ±1) — no limiter, no DC blocker, no
-      soft clip anywhere in lobber. The only bound is the hard clamp inside
-      `moveforge_float_to_i16`.
-- [ ] **4.15 Arpy hangs notes when the pattern is switched off.**
-      `arpy_core.c:126-127` returns before the gate-off step, leaving
-      `playing_note` sounding forever. Related: with `pattern == 0`,
-      `process_midi` passes the *input* note-off through (`:103`) but the
-      sounding note is the transposed chord note, so it addresses the wrong
-      pitch; `held_active` is never cleared. `emit()` also drops messages past
-      `max_out` (`:43`) while `arpy_tick:165` sets `playing_note` regardless.
+- [x] **4.14 done** — committed in ca9af75 — lobber's Slice sum is bounded by mf_soft_limit, engaged only while a slice sounds so idle passthrough stays bit-exact.
+
+- [x] **4.15 done** — committed in ca9af75 — arpy releases its sounding note when the pattern is switched off, and defers a step rather than half-emitting it when output slots run short.
 
 **Done when:** `mf_dsp.h` and `moveforge.lib` are consumed by every module, and
 `grep -c tanhf src/modules/*/dsp/*_core.c` finds no raw uses.
@@ -710,15 +650,6 @@ header, and none is visible to any local check.
       `render_block` unconditionally. It is a declaration whose only observable
       effect is on hardware — 6.8 is what would actually confirm it.
 
-- [ ] **6.1 Set `capabilities.requires_continuous_processing`** on `lobber` and
-      `trail`. `SW/src/schwung_shim.c:613-614` — after ~1 s of output below
-      ±4 LSB (`DSP_IDLE_THRESHOLD 344`, `DSP_SILENCE_LEVEL 4`) the host **stops
-      calling `render_block`**, probing roughly twice a second
-      (`:1626-1638`, FX gated separately at `:1758-1785`). Loopers, delay write
-      pointers, LFO phase and arp clocks freeze. The flag is read at
-      `SW/src/modules/chain/dsp/chain_host.c:315-340`; **no moveforge module
-      sets it today.** MIDI-FX `tick()` is called from inside the chain's
-      `v2_render_block`, so an arpeggiator's clock is gated by audio silence too.
 - [x] **6.2 done** — 15 params retyped from `float` to `int` across arpy
       (pattern, chord), lobber (12, including the 0/1 toggles and bpm) and trail
       (sync). The host only enrols `KNOB_TYPE_FLOAT` in its audio-thread
@@ -737,14 +668,6 @@ header, and none is visible to any local check.
       rejects both an out-of-set `type` and a `step >= 1` param still declared
       `float`; both were checked against a deliberately broken module.json.
 
-- [ ] **6.2 Declare discrete params as `int`/`enum`, not `float`.** The host
-      runs a parameter smoother **on the audio thread**
-      (`SW/src/modules/chain/dsp/chain_host.c:1972-2002`, `SMOOTH_COEFF 0.15`,
-      ~90 ms to converge) and enrols anything typed `KNOB_TYPE_FLOAT`
-      (`:830-838`). `trail.sync` (0-9), `arpy.pattern`, `arpy.chord`,
-      `lobber.mode` are all `{"type":"float", step:1}` today, so changing
-      `sync` 0 → 4 sweeps through every division on the way. Schwung's own
-      modules use `enum`/`int`.
 - [x] **6.3 done** — preset application is now idempotent in all three wrappers
       that expose presets (westfold, trail, lobber): if the index has not
       changed, return.
@@ -759,15 +682,6 @@ header, and none is visible to any local check.
       reload, so on preset 0 or 1 turning any unrelated encoder killed the held
       note and reset every parameter.
 
-- [ ] **6.3 Stop `preset` being re-fired on every knob turn.** Traced
-      `is_smoothable_float("0")` at `SW/.../chain_params.c:139-143`: the
-      integer-index guard is `strchr(val,'.')==NULL && (f<0 || f>1)`, which is
-      **false** for "0" and "1", so both fall through and return 1. Once
-      enrolled, `smoother_update` re-sends **every** active key whenever any one
-      of them is moving. So on preset 0 or 1, turning `fold` re-delivers
-      `set_param("preset","0.000000")` → `westfold.c:63-68` runs
-      `all_notes_off` + a full preset reset. Note also `MAX_SMOOTH_PARAMS 16`:
-      westfold has 15 params + `preset` = exactly 16.
 - [ ] **6.4 Make `set_param` audio-thread-safe by contract.** Per 6.2/6.3 it is
       called from the SPI (RT) thread, and `create_instance` reaches
       `dlopen`/`calloc`/`fopen` from there by design
@@ -775,36 +689,8 @@ header, and none is visible to any local check.
       `CLAUDE.md`; today both treat `set_param` as a UI-thread call. While
       there: `SKILL.md` says SCHED_FIFO 90 — the DSP runs at **FIFO 70**
       (`SW/docs/REALTIME_SAFETY.md:9-14`).
-- [ ] **6.5 Measure CPU time.** `SW/src/schwung_shim.c:4207-4208`:
-      `OVERRUN_THRESHOLD_US 2850`, `SKIP_DSP_THRESHOLD 3` — three consecutive
-      overruns and **the host drops your DSP**, and that 2900 µs budget is
-      shared across 4 slots, their FX, master FX, LFOs, resampling, EQ, display
-      and LEDs. moveforge measures nothing:
-      `grep -rn "clock_gettime\|CLOCKS_PER_SEC\|performance.now" tools/ scripts/ src/ tests/`
-      returns zero hits.
+- [x] **6.5 done** — committed in 59b346f — tools/render_timing.h reports per-block median / p99 / #3-slowest / max in both WAV harnesses.
 
-      **Measure per block, not a total ratio.** The formulation originally
-      written here — `rendered_seconds / elapsed_seconds` — is an average, and
-      the watchdog fires on three consecutive *blocks*. Measured on lobber with
-      a capture every 500 blocks:
-
-      ```
-      AVERAGE view : 4110x realtime, mean 0.7 us/block     <- looks fine
-      PER-BLOCK    : median 0.0 us  p99 1.0 us  MAX 172 us  <- the capture block
-      ```
-
-      lobber's steady-state cost is below clock resolution; the average hides
-      the one block that matters entirely. So: record median / p99 / max per
-      block and gate on the max.
-
-      Caveat on interpreting it: the dev machine is not the device. That 172 us
-      is an Apple M-series at ~4 GHz moving 2.8 MB at ~16 GB/s; on a 1.5 GHz A72
-      with CM4's LPDDR4 at 2-4 GB/s effective for scattered reads the same work
-      is roughly 700-1400 us. Ratios and regressions transfer, absolute
-      microseconds do not — any "% of the 2900 us budget" claim derived from this
-      needs that scaling stated. Real on-device numbers come from 6.8
-      (`SW/tools/pytest-schwung`) and schwung's own `spi.pre` OTLP spans in
-      `SW/src/host/schwung_trace.c`.
 - [ ] **6.6 Reconcile MIDI FX `max_out`: 8 / 16 / 32.**
       `tools/trace_midi_fx.c:35` is 8, `SW/src/host/midi_fx_api_v1.h:19` is 16,
       `src/host/midi_fx_wasm_glue.c:7` is 32. The byte-exact golden trace is
