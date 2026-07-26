@@ -9,6 +9,13 @@
  * module identically to a hand-written C module.
  */
 
+/* FAUST_DRIVE_PARAM_COUNT and the FAUST_DRIVE_PARAM_* enum, generated from
+ * module.json. Included here so zones[] below is sized from the generated
+ * count — a hand-written size silently overflows into the next field the first
+ * time a param is added, which no sanitizer can see (it is an intra-struct
+ * write). */
+#include "faust_drive_params.gen.h"
+
 typedef struct {
     float drive;
     float tone;
@@ -23,7 +30,7 @@ typedef struct {
     /* Captured zone addresses (FAUSTFLOAT*) for each moveforge param id,
      * populated by buildUserInterface during init. Indexed by
      * FAUST_DRIVE_PARAM_* enum values. */
-    void *zones[4];
+    void *zones[FAUST_DRIVE_PARAM_COUNT];
 } faust_drive_core_t;
 
 void faust_drive_init(faust_drive_core_t *s);

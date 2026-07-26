@@ -35,7 +35,7 @@ static void capture_slider(void *ui, const char *label, FAUSTFLOAT *zone,
         return;
     }
     int id = trail_param_id(label);
-    if (id >= 0 && id < TRAIL_NUM_PARAMS) core->zones[id] = (void*)zone;
+    if (id >= 0 && id < TRAIL_PARAM_COUNT) core->zones[id] = (void*)zone;
 }
 
 /* Push the 1:1 param fields into their captured Faust zones. time/sync have no

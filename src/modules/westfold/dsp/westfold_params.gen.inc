@@ -4,25 +4,9 @@
 #ifndef WESTFOLD_PARAMS_GEN_INC
 #define WESTFOLD_PARAMS_GEN_INC
 
-#define WESTFOLD_PARAM_COUNT 15
-
-enum {
-    WESTFOLD_PARAM_VOLUME = 0,
-    WESTFOLD_PARAM_RATIO = 1,
-    WESTFOLD_PARAM_SNAP = 2,
-    WESTFOLD_PARAM_FM = 3,
-    WESTFOLD_PARAM_FOLD = 4,
-    WESTFOLD_PARAM_LPG = 5,
-    WESTFOLD_PARAM_TONE = 6,
-    WESTFOLD_PARAM_DRIVE = 7,
-    WESTFOLD_PARAM_STRIKE = 8,
-    WESTFOLD_PARAM_CHAOS = 9,
-    WESTFOLD_PARAM_WIDTH = 10,
-    WESTFOLD_PARAM_SUSTAIN = 11,
-    WESTFOLD_PARAM_DECAY = 12,
-    WESTFOLD_PARAM_RELEASE = 13,
-    WESTFOLD_PARAM_BEND_RANGE = 14
-};
+/* WESTFOLD_PARAM_COUNT and the WESTFOLD_PARAM_* enum. Also included by
+ * westfold_core.h; the guard makes the second include a no-op. */
+#include "westfold_params.gen.h"
 
 static inline float westfold_params_clampf_(float x, float lo, float hi) {
     return x < lo ? lo : (x > hi ? hi : x);

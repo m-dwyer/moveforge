@@ -13,6 +13,7 @@ export type ModulePaths = {
   goldenMetrics: string;
   moduleDir: string;
   moduleJson: string;
+  paramsGenH: string;
   paramsGenInc: string;
   presetsGenInc: string;
   scopeGenInc: string;
@@ -70,6 +71,7 @@ export function modulePaths(moduleId: string): ModulePaths {
     goldenMetrics: `goldens/${moduleId}/metrics.json`,
     moduleDir,
     moduleJson: `${moduleDir}/module.json`,
+    paramsGenH: `${moduleDir}/dsp/${moduleId}_params.gen.h`,
     paramsGenInc: `${moduleDir}/dsp/${moduleId}_params.gen.inc`,
     presetsGenInc: `${moduleDir}/dsp/${moduleId}_presets.gen.inc`,
     scopeGenInc: `${moduleDir}/dsp/${moduleId}_scope.gen.inc`,

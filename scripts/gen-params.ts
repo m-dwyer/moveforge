@@ -7,6 +7,7 @@ import { renderTemplateString } from "./lib/templates.ts";
 import { type GenerateOptions, writeGeneratedFile } from "./lib/generated-files.ts";
 
 const TEMPLATE_PATH = "templates/generated/params.gen.inc.tmpl";
+const HEADER_TEMPLATE_PATH = "templates/generated/params.gen.h.tmpl";
 
 type Param = {
   default: number;
@@ -68,6 +69,15 @@ export async function generate(options: GenerateOptions = {}): Promise<number> {
       continue;
     }
 
+    drift += await writeGeneratedFile({
+      generated: renderHeader(moduleId, params),
+      mode,
+      moduleId,
+      outPath: paths.paramsGenH,
+      staleMessage: "run `mise run gen-params`",
+      writeMessage: `wrote ${paths.paramsGenH}`
+    });
+
     const generated = renderInc(moduleId, params);
     drift += await writeGeneratedFile({
       generated,
@@ -118,12 +128,25 @@ function renderScopeInc(moduleId: string, scope: ScopeConfig): string {
   ].join("\n");
 }
 
+/* The param count and enum live in their own header so <id>_core.h can size
+ * arrays indexed by param id (e.g. a Faust adapter's zones[]) from the
+ * generated count rather than a hand-maintained literal. */
+function renderHeader(moduleId: string, params: Param[]): string {
+  const upper = moduleId.toUpperCase();
+  return renderTemplateString(readTemplate(HEADER_TEMPLATE_PATH), {
+    coreType: `${moduleId}_core_t`,
+    enumEntries: params.map((p, i) => `    ${enumName(upper, p.key)} = ${i}`).join(",\n"),
+    guard: `${upper}_PARAMS_GEN_H`,
+    moduleId,
+    paramCount: params.length,
+    upper
+  });
+}
+
 function renderInc(moduleId: string, params: Param[]): string {
   const upper = moduleId.toUpperCase();
   const coreT = `${moduleId}_core_t`;
   const guard = `${upper}_PARAMS_GEN_INC`;
-
-  const enumEntries = params.map((p, i) => `    ${enumName(upper, p.key)} = ${i}`).join(",\n");
 
   const idLookup = params
     .map((p) => `    if (strcmp(key, "${p.key}") == 0) return ${enumName(upper, p.key)};`)
@@ -142,10 +165,9 @@ function renderInc(moduleId: string, params: Param[]): string {
 
   const defaults = params.map((p) => `    s->${p.key} = ${cf(p.default, "param value")};`).join("\n");
 
-  return renderTemplateString(readTemplate(), {
+  return renderTemplateString(readTemplate(TEMPLATE_PATH), {
     coreType: coreT,
     defaults,
-    enumEntries,
     getCases,
     guard,
     idLookup,
@@ -156,11 +178,15 @@ function renderInc(moduleId: string, params: Param[]): string {
   });
 }
 
-let template: string | undefined;
+const templates = new Map<string, string>();
 
-function readTemplate(): string {
-  if (template === undefined) template = readFileSync(TEMPLATE_PATH, "utf8");
-  return template;
+function readTemplate(path: string): string {
+  let cached = templates.get(path);
+  if (cached === undefined) {
+    cached = readFileSync(path, "utf8");
+    templates.set(path, cached);
+  }
+  return cached;
 }
 
 function enumName(upper: string, key: string): string {

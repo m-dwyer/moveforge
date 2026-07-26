@@ -4,13 +4,9 @@
 #ifndef ARPY_PARAMS_GEN_INC
 #define ARPY_PARAMS_GEN_INC
 
-#define ARPY_PARAM_COUNT 3
-
-enum {
-    ARPY_PARAM_PATTERN = 0,
-    ARPY_PARAM_CHORD = 1,
-    ARPY_PARAM_RATE = 2
-};
+/* ARPY_PARAM_COUNT and the ARPY_PARAM_* enum. Also included by
+ * arpy_core.h; the guard makes the second include a no-op. */
+#include "arpy_params.gen.h"
 
 static inline float arpy_params_clampf_(float x, float lo, float hi) {
     return x < lo ? lo : (x > hi ? hi : x);

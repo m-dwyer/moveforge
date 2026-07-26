@@ -341,11 +341,11 @@ void classInittrail_faust(int sample_rate) {
 void instanceResetUserInterfacetrail_faust(trail_faust* dsp) {
 	dsp->fHslider0 = (FAUSTFLOAT)(0.18f);
 	dsp->fHslider1 = (FAUSTFLOAT)(1.323e+04f);
-	dsp->fHslider2 = (FAUSTFLOAT)(0.12f);
+	dsp->fHslider2 = (FAUSTFLOAT)(0.2f);
 	dsp->fHslider3 = (FAUSTFLOAT)(0.22f);
 	dsp->fHslider4 = (FAUSTFLOAT)(0.5f);
 	dsp->fHslider5 = (FAUSTFLOAT)(0.55f);
-	dsp->fHslider6 = (FAUSTFLOAT)(0.12f);
+	dsp->fHslider6 = (FAUSTFLOAT)(0.15f);
 	dsp->fHslider7 = (FAUSTFLOAT)(0.05f);
 }
 
@@ -1023,10 +1023,10 @@ void inittrail_faust(trail_faust* dsp, int sample_rate) {
 void buildUserInterfacetrail_faust(trail_faust* dsp, UIGlue* ui_interface) {
 	ui_interface->openVerticalBox(ui_interface->uiInterface, "trail");
 	ui_interface->addHorizontalSlider(ui_interface->uiInterface, "_dtime", &dsp->fHslider1, (FAUSTFLOAT)1.323e+04f, (FAUSTFLOAT)1.0f, (FAUSTFLOAT)131064.0f, (FAUSTFLOAT)1.0f);
-	ui_interface->addHorizontalSlider(ui_interface->uiInterface, "drive", &dsp->fHslider6, (FAUSTFLOAT)0.12f, (FAUSTFLOAT)0.0f, (FAUSTFLOAT)1.0f, (FAUSTFLOAT)0.01f);
+	ui_interface->addHorizontalSlider(ui_interface->uiInterface, "drive", &dsp->fHslider6, (FAUSTFLOAT)0.15f, (FAUSTFLOAT)0.0f, (FAUSTFLOAT)1.0f, (FAUSTFLOAT)0.01f);
 	ui_interface->addHorizontalSlider(ui_interface->uiInterface, "feedback", &dsp->fHslider3, (FAUSTFLOAT)0.22f, (FAUSTFLOAT)0.0f, (FAUSTFLOAT)0.88f, (FAUSTFLOAT)0.01f);
 	ui_interface->addHorizontalSlider(ui_interface->uiInterface, "mix", &dsp->fHslider0, (FAUSTFLOAT)0.18f, (FAUSTFLOAT)0.0f, (FAUSTFLOAT)1.0f, (FAUSTFLOAT)0.01f);
-	ui_interface->addHorizontalSlider(ui_interface->uiInterface, "mod", &dsp->fHslider2, (FAUSTFLOAT)0.12f, (FAUSTFLOAT)0.0f, (FAUSTFLOAT)1.0f, (FAUSTFLOAT)0.01f);
+	ui_interface->addHorizontalSlider(ui_interface->uiInterface, "mod", &dsp->fHslider2, (FAUSTFLOAT)0.2f, (FAUSTFLOAT)0.0f, (FAUSTFLOAT)1.0f, (FAUSTFLOAT)0.01f);
 	ui_interface->addHorizontalSlider(ui_interface->uiInterface, "space", &dsp->fHslider7, (FAUSTFLOAT)0.05f, (FAUSTFLOAT)0.0f, (FAUSTFLOAT)1.0f, (FAUSTFLOAT)0.01f);
 	ui_interface->addHorizontalSlider(ui_interface->uiInterface, "tone", &dsp->fHslider5, (FAUSTFLOAT)0.55f, (FAUSTFLOAT)0.0f, (FAUSTFLOAT)1.0f, (FAUSTFLOAT)0.01f);
 	ui_interface->addHorizontalSlider(ui_interface->uiInterface, "width", &dsp->fHslider4, (FAUSTFLOAT)0.5f, (FAUSTFLOAT)0.0f, (FAUSTFLOAT)1.0f, (FAUSTFLOAT)0.01f);

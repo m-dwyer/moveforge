@@ -20,6 +20,11 @@ type Capabilities = {
   midi_out?: boolean;
   ui_hierarchy?: {
     levels?: {
+      [level: string]: {
+        knobs?: string[];
+        name?: string;
+        params?: Param[];
+      } | undefined;
       root?: {
         knobs?: string[];
         name?: string;
@@ -71,6 +76,13 @@ const VALID_COMPONENT_TYPES = new Set([
   "overtake"
 ]);
 const VALID_RANDOMIZE_MODES = new Set(["around_default", "bounded", "full"]);
+/* Faust UI primitives that carry a label plus (init, min, max, step). */
+const FAUST_SLIDER_RE = /\b(?:hslider|vslider|nentry)\s*\(\s*"([^"]*)"\s*,([^)]*)\)/g;
+/* Schwung chain-host limits — see validateHostLimits for provenance. */
+const HOST_MAX_KEY_CHARS = 31;
+const HOST_MAX_NAME_CHARS = 31;
+const HOST_MAX_PARAMS = 256;
+const HOST_MAX_MODULE_JSON_BYTES = 65536;
 
 const moduleIds = await selectedModuleIds();
 const allErrors: ValidationGroup[] = [];
@@ -136,6 +148,8 @@ async function validateModule(moduleId: string, errors: string[]): Promise<void>
     errors.push(`module.json capabilities.chainable is not set (skill recommends explicit true/false)`);
   }
 
+  validateHostLimits(moduleJson, (await stat(paths.moduleJson)).size, errors);
+
   if (moduleJson.ui_chain && !(await fileExists(`${paths.moduleDir}/${moduleJson.ui_chain}`))) {
     errors.push(`ui_chain "${moduleJson.ui_chain}" referenced but file missing`);
   }
@@ -144,10 +158,15 @@ async function validateModule(moduleId: string, errors: string[]): Promise<void>
   if (params) {
     validateParams(moduleId, params, errors);
     validateSoundGeneratorLevelParams(caps.component_type, params, errors);
-    validateGenInc(moduleId, errors);
+    await validateGenInc(moduleId, errors);
     validatePresets(presetsJson, params, errors);
     validateMetadata(moduleId, metadataJson, params, errors);
-    validateCoreStruct(moduleId, params, await readFile(paths.coreHeader, "utf8"), errors);
+    const coreHeader = await readFile(paths.coreHeader, "utf8");
+    validateCoreStruct(moduleId, params, coreHeader, errors);
+    validateZoneSizing(moduleId, coreHeader, errors);
+    if (await fileExists(paths.faustDsp)) {
+      validateFaustSliders(params, await readFile(paths.faustDsp, "utf8"), errors);
+    }
     const knobs = caps.ui_hierarchy?.levels?.root?.knobs || [];
     const paramKeys = new Set(params.map((p) => p.key));
     for (const key of knobs) {
@@ -155,6 +174,70 @@ async function validateModule(moduleId: string, errors: string[]): Promise<void>
     }
   } else if (caps.component_type === "sound_generator" || caps.component_type === "audio_fx") {
     errors.push(`module.json is missing capabilities.ui_hierarchy.levels.root.params`);
+  }
+}
+
+/* Hard limits enforced by the Schwung chain host when it parses module.json.
+ * Every one of these fails at *load* time on the device with no local symptom:
+ * the module installs, verifies clean, and then simply does not appear.
+ *
+ * Verified against schwung 0.11.4, src/modules/chain/dsp/:
+ *   chain_internal.h:101  MAX_CHAIN_PARAMS 256
+ *   chain_params.c:645,660  key and name are both truncated at 31 chars —
+ *     note name is clamped to 31 even though chain_param_info_t.name is
+ *     char[64], so the field size is misleading
+ *   chain_params.c:561,774  module.json is rejected at >= 65536 bytes
+ *   chain_params.c:531-541  a duplicate key across ANY two levels makes
+ *     parse_chain_params return -1, which rejects the whole module
+ * Truncation is silent, so an over-long key becomes a key the module itself
+ * does not answer to — a dead knob rather than an error. */
+function validateHostLimits(moduleJson: ModuleJson, jsonBytes: number, errors: string[]): void {
+  if (jsonBytes >= HOST_MAX_MODULE_JSON_BYTES) {
+    errors.push(
+      `module.json is ${jsonBytes} bytes — the host refuses to read it at ` +
+        `>= ${HOST_MAX_MODULE_JSON_BYTES} and the module will not load`
+    );
+  }
+
+  const levels = moduleJson.capabilities?.ui_hierarchy?.levels ?? {};
+  const seen = new Map<string, string>();
+  let total = 0;
+
+  for (const [levelName, level] of Object.entries(levels)) {
+    for (const param of level?.params ?? []) {
+      total++;
+      if (typeof param.key === "string") {
+        if (param.key.length > HOST_MAX_KEY_CHARS) {
+          errors.push(
+            `param ${param.key}: key is ${param.key.length} chars — the host truncates keys at ` +
+              `${HOST_MAX_KEY_CHARS}, so it would look up a key this module does not answer to`
+          );
+        }
+        /* The host dedupes across every level, not per level. */
+        const previous = seen.get(param.key);
+        if (previous !== undefined) {
+          errors.push(
+            `param key "${param.key}" appears in both levels.${previous} and levels.${levelName} — ` +
+              `a duplicate key anywhere in ui_hierarchy makes the host reject the entire module`
+          );
+        } else {
+          seen.set(param.key, levelName);
+        }
+      }
+      if (typeof param.name === "string" && param.name.length > HOST_MAX_NAME_CHARS) {
+        errors.push(
+          `param ${param.key}: name "${param.name}" is ${param.name.length} chars — the host ` +
+            `truncates display names at ${HOST_MAX_NAME_CHARS}`
+        );
+      }
+    }
+  }
+
+  if (total > HOST_MAX_PARAMS) {
+    errors.push(
+      `${total} params across all ui_hierarchy levels exceeds the host's ` +
+        `MAX_CHAIN_PARAMS (${HOST_MAX_PARAMS})`
+    );
   }
 }
 
@@ -294,6 +377,95 @@ function validatePresets(presetsJson: PresetsJson, params: Param[], errors: stri
           errors.push(`preset ${preset.name} param ${param.key}=${value} outside [${p.min}, ${p.max}]`);
         }
       }
+    }
+  }
+}
+
+/* Opt-outs, declared in the .dsp itself so the intent travels with the source:
+ *   // moveforge-adapter-controls: gate, freq, gain
+ *       sliders the C adapter drives directly; not module.json params.
+ *   // moveforge-adapter-params: time, sync
+ *       module.json params the adapter computes rather than mapping 1:1. */
+function declaredExemptions(dsp: string, tag: string): Set<string> {
+  const names = new Set<string>();
+  for (const [, list] of dsp.matchAll(new RegExp(`//\\s*moveforge-${tag}\\s*:([^\\n]*)`, "g"))) {
+    for (const name of list.split(",").map((s) => s.trim()).filter(Boolean)) names.add(name);
+  }
+  return names;
+}
+
+/* The adapter captures a Faust zone by matching the slider's label against
+ * <id>_param_id(). A label that does not match any module.json key returns -1,
+ * so the zone is never captured and push_params_to_faust skips it forever: a
+ * knob that compiles, validates, renders and ships while doing nothing. The
+ * only way to catch it is to compare the two lists directly. */
+function validateFaustSliders(params: Param[], dsp: string, errors: string[]): void {
+  const adapterControls = declaredExemptions(dsp, "adapter-controls");
+  const adapterParams = declaredExemptions(dsp, "adapter-params");
+  const paramByKey = new Map(params.map((p) => [p.key, p]));
+
+  const sliders = new Map<string, string[]>();
+  for (const [, label, argText] of dsp.matchAll(FAUST_SLIDER_RE)) {
+    sliders.set(label, argText.split(",").map((s) => s.trim()));
+  }
+
+  for (const [label, args] of sliders) {
+    const param = paramByKey.get(label);
+    if (!param) {
+      /* An internal control slider is conventionally prefixed with "_". */
+      if (label.startsWith("_") || adapterControls.has(label)) continue;
+      errors.push(
+        `${label ? `.dsp declares hslider("${label}", …)` : `.dsp declares an unlabelled slider`} ` +
+          `which is not a param in module.json — if the C adapter drives it, declare it with ` +
+          `\`// moveforge-adapter-controls: ${label}\`; otherwise it is a typo and the knob is dead`
+      );
+      continue;
+    }
+    /* init, min, max, step — module.json is the single source of truth, so a
+     * mismatch means the two disagree about the same control. */
+    const [init, min, max, step] = args;
+    for (const [name, dspValue, jsonValue] of [
+      ["default", init, param.default],
+      ["min", min, param.min],
+      ["max", max, param.max],
+      ["step", step, param.step]
+    ] as Array<[string, string | undefined, number | undefined]>) {
+      if (dspValue === undefined || jsonValue === undefined) continue;
+      const parsed = Number(dspValue);
+      if (!Number.isFinite(parsed)) continue; // e.g. "MAXDELAY - 8"
+      if (parsed !== jsonValue) {
+        errors.push(
+          `.dsp hslider("${label}") ${name} ${parsed} does not match module.json ${name} ${jsonValue}`
+        );
+      }
+    }
+  }
+
+  for (const param of params) {
+    if (sliders.has(param.key) || adapterParams.has(param.key)) continue;
+    errors.push(
+      `param ${param.key} has no matching hslider("${param.key}", …) in the .dsp, so its zone is ` +
+        `never captured and the knob does nothing — if the adapter computes it, declare it with ` +
+        `\`// moveforge-adapter-params: ${param.key}\``
+    );
+  }
+}
+
+/* A Faust adapter captures one zone pointer per param into a fixed array
+ * indexed by param id. Sized with a literal, adding a param to module.json
+ * makes capture_slider write one past the end — into whatever field follows it
+ * in the struct. There is no redzone between struct fields, so ASan cannot see
+ * it, the compiler cannot warn, and nothing else in the pipeline notices.
+ * Requiring the generated count makes the array grow with module.json. */
+function validateZoneSizing(moduleId: string, header: string, errors: string[]): void {
+  const upper = moduleId.toUpperCase();
+  for (const [, size] of header.matchAll(/\bzones\s*\[\s*([^\]]+?)\s*\]/g)) {
+    if (size !== `${upper}_PARAM_COUNT`) {
+      errors.push(
+        `${moduleId}_core_t declares zones[${size}] — it must be sized ` +
+          `zones[${upper}_PARAM_COUNT] (from ${moduleId}_params.gen.h) so it cannot ` +
+          `overflow into the next struct field when a param is added`
+      );
     }
   }
 }

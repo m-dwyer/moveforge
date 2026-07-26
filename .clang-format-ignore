@@ -3,3 +3,4 @@
 src/modules/*/dsp/*_faust.c
 # Generated from module.json / presets.json by scripts/gen-*.ts.
 src/modules/*/dsp/*.gen.inc
+src/modules/*/dsp/*.gen.h

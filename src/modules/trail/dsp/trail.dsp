@@ -16,6 +16,10 @@
 //   - "time" and "sync" have no slider here; the C adapter combines them with
 //     the host tempo and writes the delay length (samples) into "_dtime".
 //   - "_dtime" is an internal control slider, not a module.json param.
+//
+// The two exceptions are declared below for validate-params, which otherwise
+// treats a param with no slider as a dead knob.
+// moveforge-adapter-params: time, sync
 
 import("stdfaust.lib");
 // sm, lpSmoothed, hpSmoothed, satTanh — see src/modules/_shared/moveforge.lib
@@ -33,9 +37,9 @@ fb    = hslider("feedback", 0.22, 0, 0.88, 0.01) : sm;
 // sample with nothing hoisted. The filters below smooth their *coefficients*
 // instead, which is click-free and keeps the transcendentals at block rate.
 tone  = hslider("tone", 0.55, 0, 1, 0.01);
-modd  = hslider("mod", 0.12, 0, 1, 0.01) : sm;
+modd  = hslider("mod", 0.2, 0, 1, 0.01) : sm;
 width = hslider("width", 0.5, 0, 1, 0.01) : sm;
-drive = hslider("drive", 0.12, 0, 1, 0.01) : sm;
+drive = hslider("drive", 0.15, 0, 1, 0.01) : sm;
 space = hslider("space", 0.05, 0, 1, 0.01) : sm;
 mix   = hslider("mix", 0.18, 0, 1, 0.01) : sm;
 

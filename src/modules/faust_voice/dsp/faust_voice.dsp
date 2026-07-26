@@ -14,6 +14,10 @@
 //
 // The order of hslider declarations is irrelevant: the adapter captures
 // zones by label via buildUserInterface, not by index.
+//
+// The wrapper-driven group is declared below for validate-params, which
+// otherwise treats a slider with no matching module.json key as a typo.
+// moveforge-adapter-controls: freq, gate, gain
 
 import("stdfaust.lib");
 // sm, smGain — see src/modules/_shared/moveforge.lib

@@ -79,6 +79,19 @@ int main(void) {
 
     trail_init(&fx);
 
+    /* Every 1:1 param must have found its hslider label in trail.dsp. A NULL
+     * zone means the label is missing or misspelled, which would ship as a knob
+     * that silently does nothing. time and sync are the two documented
+     * exceptions — the adapter derives _dtime from them instead. */
+    for (int i = 0; i < TRAIL_PARAM_COUNT; i++) {
+        if (i == TRAIL_PARAM_TIME || i == TRAIL_PARAM_SYNC) {
+            require_true(fx.zones[i] == NULL, "adapter-driven param has no Faust zone");
+            continue;
+        }
+        require_true(fx.zones[i] != NULL, "param zone captured");
+    }
+    require_true(fx.dtime_zone != NULL, "_dtime control zone captured");
+
     int time_id = trail_param_id("time");
     int sync_id = trail_param_id("sync");
     int feedback_id = trail_param_id("feedback");

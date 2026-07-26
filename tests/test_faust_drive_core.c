@@ -22,7 +22,7 @@ int main(void) {
 
     faust_drive_init(&fx);
     require_true(fx.fdsp != NULL, "faust dsp allocated");
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < FAUST_DRIVE_PARAM_COUNT; i++) {
         require_true(fx.zones[i] != NULL, "param zone captured by buildUserInterface");
     }
 

@@ -4,11 +4,9 @@
 #ifndef {{guard}}
 #define {{guard}}
 
-#define {{upper}}_PARAM_COUNT {{paramCount}}
-
-enum {
-{{enumEntries}}
-};
+/* {{upper}}_PARAM_COUNT and the {{upper}}_PARAM_* enum. Also included by
+ * {{moduleId}}_core.h; the guard makes the second include a no-op. */
+#include "{{moduleId}}_params.gen.h"
 
 static inline float {{moduleId}}_params_clampf_(float x, float lo, float hi) {
     return x < lo ? lo : (x > hi ? hi : x);

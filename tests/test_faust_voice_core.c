@@ -74,7 +74,7 @@ int main(void) {
 
     faust_voice_init(&v);
     require_true(v.fdsp != NULL, "faust dsp allocated");
-    for (int i = 0; i < 5; i++) {
+    for (int i = 0; i < FAUST_VOICE_PARAM_COUNT; i++) {
         require_true(v.zones[i] != NULL, "param zone captured");
     }
     require_true(v.zone_gate != NULL, "gate zone captured");

@@ -18,8 +18,11 @@
  * 1/1 bar at typical techno tempos. MUST match MAXDELAY in trail.dsp. */
 #define TRAIL_MAXDELAY 131072
 
-/* Number of moveforge params (must match module.json param count). */
-#define TRAIL_NUM_PARAMS 9
+/* TRAIL_PARAM_COUNT and the TRAIL_PARAM_* enum, generated from module.json.
+ * Included here so zones[] below is sized from the generated count — a
+ * hand-written size silently overflows into the next field the first time a
+ * param is added, which no sanitizer can see (it is an intra-struct write). */
+#include "trail_params.gen.h"
 
 typedef struct {
     /* moveforge params (one float field per module.json key). */
@@ -45,7 +48,7 @@ typedef struct {
      * populated by buildUserInterface during init. Indexed by
      * TRAIL_PARAM_* enum values. NULL for params with no Faust slider
      * (time, sync). */
-    void *zones[TRAIL_NUM_PARAMS];
+    void *zones[TRAIL_PARAM_COUNT];
 
     /* Captured zone for the internal "_dtime" slider (delay length in
      * samples), driven by the adapter from time/sync/bpm each block. */

@@ -9,6 +9,13 @@
 
 #include "modules/_shared/mf_dsp.h"
 
+/* FAUST_VOICE_PARAM_COUNT and the FAUST_VOICE_PARAM_* enum, generated from
+ * module.json. Included here so zones[] below is sized from the generated
+ * count — a hand-written size silently overflows into the next field (here,
+ * zone_gate) the first time a param is added, which no sanitizer can see (it
+ * is an intra-struct write). */
+#include "faust_voice_params.gen.h"
+
 typedef struct {
     /* User-facing params, populated by faust_voice_apply_defaults. */
     float cutoff;
@@ -30,7 +37,7 @@ typedef struct {
 
     /* Param zones captured by buildUserInterface, indexed by
      * FAUST_VOICE_PARAM_*. */
-    void *zones[5];
+    void *zones[FAUST_VOICE_PARAM_COUNT];
 
     /* C-driven control zones, captured by hardcoded label. */
     void *zone_gate;
