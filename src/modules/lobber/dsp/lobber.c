@@ -30,7 +30,11 @@ static const host_api_v1_t *g_host = NULL;
 static void* create_instance(const char *module_dir, const char *config_json) {
     (void)module_dir;
     (void)config_json;
-    lobber_plugin_t *p = (lobber_plugin_t*)calloc(1, sizeof(lobber_plugin_t));
+    /* malloc, not calloc: lobber_init memsets the whole struct anyway, and the
+     * embedded ring plus loop buffers are 8 MB — zeroing them twice is 16 MB of
+     * writes. create_instance runs on the SPI thread on device (schwung's
+     * REALTIME_SAFETY.md accepts the load hiccup), so halving it is free. */
+    lobber_plugin_t *p = (lobber_plugin_t*)malloc(sizeof(lobber_plugin_t));
     if (p) {
         lobber_init(&p->core);
         p->current_preset = lobber_clamp_preset_index(0);

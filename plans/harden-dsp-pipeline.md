@@ -485,6 +485,10 @@ worth doing when they trade sound for a fraction of a percent.
       `-mtune` at all. Now `-march=armv8-a -mtune=cortex-a72`: baseline ISA so the
       `.so` still runs on any ARMv8, A72 scheduling model for the optimiser.
 
+- [x] **4.8 done** — hoisted one `powf` and two `expf` out of dustline's sample loop
+      (bit-identical, they depend only on parameters). Measured: median 3-5 us ->
+      2-3 us, p99 5-7 -> 3-4. Uses `mf_env_coeff_seconds` from the shared header.
+
 - [ ] **4.8 Hoist Dustline's block-constant math out of the sample loop.**
       `dustline_core.c:70-92` computes 2 × `powf`, 2 × `expf` and 1 × `sinf`
       per sample from inputs that are all block-constant — ~7 libm calls/sample
@@ -511,11 +515,20 @@ worth doing when they trade sound for a fraction of a percent.
       128-frame block (2.9 ms budget) — a guaranteed xrun on device, fired on
       every CAPTURE press. Make it a pointer/length swap, or amortise it behind
       a state machine.
+- [x] **4.10 done** — the wrapper now `malloc`s instead of `calloc`ing, since
+      `lobber_init` memsets the struct anyway. Saves 8 MB of redundant writes at
+      instance creation, which runs on the SPI thread on device.
+
 - [ ] **4.10 Lobber allocates 8 MB per instance and zeroes it twice.**
       `lobber_core.h:39-40,62-63` (`float[1<<19]` × 4); `lobber.c:33` `calloc`s
       it and `lobber_core.c:16` then `memset`s the same 8 MB.
       `trail_faust` adds 2.81 MB per instance plus a 256 KB static global sine
       table that `classInittrail_faust` refills on every init.
+- [x] **4.11 done** — narrowed to a 32-bit divide (`pos <= window`, and window is
+      now clamped to `MF_SCOPE_MAX_WINDOW` so the product cannot overflow int32).
+      Identical results. Measured effect on westfold: none visible above noise,
+      consistent with the 0.04%-of-budget estimate — done as hygiene, not perf.
+
 - [ ] **4.11 `_shared/scope.h:144` does a 64-bit integer division per sample**
       (`(long)s->pos * MF_SCOPE_COLS / s->window`) in the audio path — ~20-40
       cycles, non-pipelined on A53, ~4000 wasted cycles/block for a display
@@ -524,6 +537,10 @@ worth doing when they trade sound for a fraction of a percent.
       `tanhf` ×5, plus 4 × `floorf`), none short-circuited when `chaos == 0`.
       `mf_tanh_approx` + `mf_sin_poly` from 4.2 cut this by an order of
       magnitude inaudibly.
+- [x] **4.13 done** — `lb_loop_read_sample` short-circuits when `frac == 0`, which
+      is always the case in Slice mode (it advances by exactly +-1). Loop mode
+      still interpolates for tempo-following.
+
 - [ ] **4.13 Lobber uses double-precision interpolation for integer reads.**
       `lobber_core.c:132-141,433` — `slice_read` advances by exactly ±1, so
       `frac` is always 0, yet it pays a full double 2-tap interpolation per

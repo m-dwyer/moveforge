@@ -136,6 +136,14 @@ static inline void lb_loop_read_sample(const lobber_core_t *s, double pos,
     const int i0 = (int)pos;
     const double frac = pos - (double)i0;
     const int a = lb_loop_wrap(i0, len);
+    /* Slice mode advances by exactly +-1, so frac is always 0 there and the
+     * interpolation is pure waste — and it is double-precision waste, which
+     * NEON cannot vectorise. Loop mode still needs it for tempo-following. */
+    if (frac == 0.0) {
+        *l = s->loop_l[a];
+        *r = s->loop_r[a];
+        return;
+    }
     const int b = lb_loop_wrap(i0 + 1, len);
     *l = (float)(s->loop_l[a] * (1.0 - frac) + s->loop_l[b] * frac);
     *r = (float)(s->loop_r[a] * (1.0 - frac) + s->loop_r[b] * frac);

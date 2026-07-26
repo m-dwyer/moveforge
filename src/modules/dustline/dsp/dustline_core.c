@@ -71,12 +71,18 @@ void dustline_process_float(dustline_core_t *s,
     mf_svf_coeffs_t svf_c;
     mf_svf_set(&svf_c, cutoff_hz, s->resonance / DUSTLINE_RESONANCE_MAX);
 
-    for (int i = 0; i < frames; i++) {
-        float bend_mul = powf(2.0f, (s->pitch_bend * s->bend_range) / 12.0f);
-        s->freq += (s->target_freq * bend_mul - s->freq) * 0.002f;
+    /* Every one of these depends only on parameters, which the host can change
+     * between blocks but never within one — so computing them per sample was
+     * pure waste: one powf and two expf on every sample, about 260 cycles.
+     * Hoisting is bit-identical, not an approximation. */
+    float bend_mul = powf(2.0f, (s->pitch_bend * s->bend_range) / 12.0f);
+    float attack_coeff = mf_env_coeff_seconds(s->attack);
+    float release_coeff = mf_env_coeff_seconds(s->release);
+    float target_freq_bent = s->target_freq * bend_mul;
 
-        float attack_coeff = 1.0f - expf(-1.0f / (s->attack * MOVEFORGE_SAMPLE_RATE));
-        float release_coeff = 1.0f - expf(-1.0f / (s->release * MOVEFORGE_SAMPLE_RATE));
+    for (int i = 0; i < frames; i++) {
+        s->freq += (target_freq_bent - s->freq) * 0.002f;
+
         s->env += ((s->gate > 0.5f ? 1.0f : 0.0f) - s->env) * (s->gate > 0.5f ? attack_coeff : release_coeff);
 
         s->phase += moveforge_clampf(s->freq, 1.0f, 16000.0f) / MOVEFORGE_SAMPLE_RATE;
