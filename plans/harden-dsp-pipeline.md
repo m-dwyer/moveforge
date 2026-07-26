@@ -470,8 +470,7 @@ worth doing when they trade sound for a fraction of a percent.
       (bit-identical, they depend only on parameters). Measured: median 3-5 us ->
       2-3 us, p99 5-7 -> 3-4. Uses `mf_env_coeff_seconds` from the shared header.
 
-- [x] **4.9 Lobber's capture is no longer a multi-megabyte memcpy in the audio
-      callback.** Amortised into `LOBBER_CAPTURE_CHUNK`-sized steps, one per
+- [x] **4.9 done** — lobber's capture is no longer a multi-megabyte memcpy in the audio callback. Amortised into `LOBBER_CAPTURE_CHUNK`-sized steps, one per
       block. Measured on the same worst case (16-beat loop, capture fired
       mid-render): **max block 107 us -> 18 us**. A typical 4-beat loop now
       completes in 3 blocks (8.7 ms) and the worst case in 11-16 (32-46 ms), a
@@ -485,7 +484,6 @@ worth doing when they trade sound for a fraction of a percent.
       Staging into a second buffer would avoid the brief gap but would add
       another 4 MB to a core already at 8 MB against the CM4's 1 MB of L2.
 
-      *(original text)* **4.9 Lobber's capture is a multi-megabyte memcpy in the audio callback.**
       `lobber_core.c:147-176`, called from the render path at `:222`/`:231`. At
       `loop_beats=16, bpm=40` that is 4 MB of scattered ring reads inside one
       128-frame block (2.9 ms budget) — a guaranteed xrun on device, fired on
@@ -500,7 +498,7 @@ worth doing when they trade sound for a fraction of a percent.
       Identical results. Measured effect on westfold: none visible above noise,
       consistent with the 0.04%-of-budget estimate — done as hygiene, not perf.
 
-- [ ] **4.12 Westfold: 11 libm calls/sample** (`sinf` ×4, `expf`, `powf`,
+- [~] **4.12 DROPPED (not deferred) — westfold's 11 libm calls/sample** (`sinf` ×4, `expf`, `powf`,
       `tanhf` ×5, plus 4 × `floorf`), none short-circuited when `chaos == 0`.
       `mf_tanh_approx` + `mf_sin_poly` from 4.2 cut this by an order of
       magnitude inaudibly.
