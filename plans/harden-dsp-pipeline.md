@@ -91,6 +91,62 @@ Collapsing Trail to mono moves `stereo_correlation` 0.953 → 1.0, inside the
 
 ---
 
+## Working method
+
+Not process for its own sake — every one of these caught a real mistake during
+Phases 1-6, and a fresh session picking this up cold will not otherwise know to
+do them.
+
+**Prove the bug before fixing it.** Build the pre-fix code and run a probe
+against it. `git show HEAD:<path> > /tmp/pre/<file>`, compile the probe against
+both, print the difference. Every fix in Phases 1-6 was verified this way, and
+twice the measured behaviour was *worse* than the audit claimed (dustline's
+"noise" had autocorrelation 1.0000 at lag 651, not the estimated 7412-sample
+period; lobber's Slice overflow reached +-2, not a theoretical maximum).
+
+**Make the test fail on the pre-fix code.** A test that passes before and after
+is testing nothing. Every regression test added here was run against the old
+core first; several needed rewriting when they passed unchanged.
+
+**Prefer a behavioural assertion to a timing one.** Timing is machine-dependent
+and noisy: a single OS preemption produced 289 us on a module whose median is
+5 us, and 3177 us on one whose p99 is 16 us. lobber's capture regression is
+asserted by *counting blocks* (1 pre-fix, 11 post-fix), which holds anywhere.
+See tools/render_timing.h for what the timing gate will and will not fail on.
+
+**Measure instead of reasoning, wherever there is a way to.** Cheap methods that
+worked here:
+
+  - counting transcendentals and divides in the *generated* Faust C, which showed
+    trail going from 2 tanf + 12 divides per sample to 0 + 4
+  - band_energy in dB, which caught both the PRNG fix and the zipper noise while
+    peak and rms barely moved
+  - autocorrelation, for periodicity a level metric cannot see
+  - rendering at a known small scale to find a true unclipped peak (faust_voice's
+    was 1.377, so `level` needed 0.65, not the 0.85 I first guessed)
+
+**Four things I got wrong by reasoning rather than measuring**, as a warning: a
+Pade 3/2 tanh (27x too coarse), an impulse-invariant one-pole standing in for a
+bilinear lowpass (leaked 8.8 dB of highs), a timing gate keyed on max (flaky by
+construction), and assuming `si.smooth` starts at its parameter's value (it
+starts at zero, so every FX swallowed its first 20 ms).
+
+### Repo-specific gotchas
+
+  - Run tasks via `mise run ...`, not the scripts directly — most of them call
+    bare `node`, which is not on PATH outside mise.
+  - `mise run bless-renders` with no `MODULE_ID` blesses *every* module. Scope it.
+  - Re-render before blessing; bless does not re-render.
+  - Do not round-trip `module.json` through a JSON library to make a small edit —
+    it reformats one-line param objects into multi-line ones and turns a one-word
+    change into a 94-line diff. Use a targeted text substitution.
+  - `docker run --platform linux/arm64` runs the C tests on the target ISA with
+    gcc and glibc. This has found two bugs that the host toolchain accepted
+    (`M_PI` under `-std=c11`, and an `int8_t <= 127` comparison). Timing measured
+    there is meaningless.
+  - Marking an item done: *replace* the `- [ ]` line, do not insert a `- [x]`
+    above it. Doing the latter left eight items counted as both done and open.
+
 ## Phase 1 — Fix the live bug, and make it un-writable later
 
 Do this first: it is the actual defect, and it becomes the regression test for
