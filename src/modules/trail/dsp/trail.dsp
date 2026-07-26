@@ -18,19 +18,21 @@
 //   - "_dtime" is an internal control slider, not a module.json param.
 
 import("stdfaust.lib");
+// sm, lpSmoothed, hpSmoothed, satTanh — see src/modules/_shared/moveforge.lib
+import("moveforge.lib");
 
 // Max fractional-delay length in samples. MUST match TRAIL_MAXDELAY in
 // trail_core.h. 2^17 ~= 2.97 s at 44.1 kHz.
 MAXDELAY = 131072;
 
-// --- ~20 ms one-pole de-zipper. Applied to the gain/level controls so
-//     loading a preset or turning a knob ramps instead of stepping (no click),
-//     and so params fade up cleanly from zero at instance start. ---
-sm(x) = x : si.smooth(ba.tau2pole(0.02));
-
 // --- user params (1:1 with module.json) ---
 fb    = hslider("feedback", 0.22, 0, 0.88, 0.01) : sm;
-tone  = hslider("tone", 0.55, 0, 1, 0.01) : sm;
+// `tone` is deliberately NOT smoothed here. It feeds two filter cutoffs, and a
+// smoothed cutoff is a per-sample signal, so Faust has to redo the bilinear
+// warping every sample: this file used to generate 2 tanf and 12 divides per
+// sample with nothing hoisted. The filters below smooth their *coefficients*
+// instead, which is click-free and keeps the transcendentals at block rate.
+tone  = hslider("tone", 0.55, 0, 1, 0.01);
 modd  = hslider("mod", 0.12, 0, 1, 0.01) : sm;
 width = hslider("width", 0.5, 0, 1, 0.01) : sm;
 drive = hslider("drive", 0.12, 0, 1, 0.01) : sm;
@@ -46,7 +48,7 @@ dtime = hslider("_dtime", 13230, 1, MAXDELAY - 8, 1);
 //     down + gentle highpass thinning); high tone = open/bright. ---
 lpCut = 350.0 + tone * tone * 11000.0;       // ~350 Hz .. ~11.4 kHz
 hpCut = 25.0 + (1.0 - tone) * 275.0;         // up to ~300 Hz when dark
-fbColor(x) = x : fi.highpass(1, hpCut) : fi.lowpass(1, lpCut);
+fbColor(x) = x : hpSmoothed(hpCut) : lpSmoothed(lpCut);
 
 // --- tape-style saturation in the feedback path. Unity-ish at drive=0. ---
 sat(x) = ma.tanh(x * (1.0 + drive * 4.0)) / (1.0 + drive * 1.5);

@@ -1,0 +1,131 @@
+//====================================================================
+// moveforge.lib — shared Faust building blocks
+//
+// The Faust-side counterpart to modules/_shared/mf_dsp.h. Imported with
+//   import("moveforge.lib");
+// which resolves because scripts/gen-faust.ts passes -I src/modules/_shared.
+//
+// Everything here exists because it was copy-pasted, missing, or wrong in at
+// least one module. See plans/harden-dsp-pipeline.md.
+//====================================================================
+
+declare name "moveforge";
+declare author "moveforge";
+
+import("stdfaust.lib");
+
+//--------------------------------------------------------------------
+// sm(x) — ~20 ms parameter de-zipper.
+//
+// Apply to anything that scales a signal (gain, mix, level, feedback, drive).
+// An unsmoothed control steps once per block, which is a 344 Hz buzz while a
+// knob moves and a click on every preset load. trail defined this inline;
+// faust_drive and faust_voice had nothing at all.
+//
+// Do NOT apply this to a filter cutoff — see lpSmoothed below for why.
+//--------------------------------------------------------------------
+smTau = 0.02;
+
+//--------------------------------------------------------------------
+// isFirstSample — 1 on the very first sample of an instance, 0 after.
+//
+// `1 : mem` is 0 at n=0 and 1 thereafter, so this inverts to a one-sample
+// startup pulse. Used to zero the smoothing pole on the first sample, which
+// makes a smoother *snap* to its parameter's initial value instead of ramping
+// up from silence.
+//
+// Without this, every smoothed control fades in over smTau whenever an instance
+// is created: a synth's first note is quieter than the rest, and an FX swallows
+// anything in its first 20 ms. faust_drive's impulse stress render measured an
+// RMS of 0.00002 — the impulse landed entirely inside the fade-in.
+//--------------------------------------------------------------------
+isFirstSample = 1.0 - (1.0 : mem);
+smoothFrom(pole) = si.smooth(pole * (1.0 - isFirstSample));
+
+sm(x) = x : smoothFrom(ba.tau2pole(smTau));
+
+//--------------------------------------------------------------------
+// smGain(x) — de-zipper for an output level, with a hard mute at zero.
+//
+// Use this rather than sm() for anything that scales the *final* output. A plain
+// one-pole never reaches zero, so `level = 0` would leave an audible tail
+// instead of muting; both dustline and faust_voice have tests asserting that a
+// zero level silences a held note, and plain sm() breaks them.
+//
+// The gate is on the raw target, so the only discontinuity is at exactly zero —
+// which is the intended hard mute. Every non-zero move is still smoothed, and
+// coming back up from zero ramps from silence. Mirrors mf_smooth_init_gain in
+// mf_dsp.h.
+//--------------------------------------------------------------------
+smGain(x) = (x : smoothFrom(ba.tau2pole(smTau))) * (x > 0.0);
+
+//--------------------------------------------------------------------
+// One-pole filters with a smoothed *coefficient* rather than a smoothed cutoff.
+//
+// This is the important one. Writing `fi.lowpass(1, sm(cutoff))` looks right and
+// is expensive: a smoothed cutoff is a per-sample signal, so Faust must redo the
+// bilinear warping — a tanf and several divides — on every single sample. trail
+// did exactly that and its generated compute loop carried 2 tanf, 2 tanhf and 12
+// divides per sample, with nothing hoisted to block rate.
+//
+// Computing the pole from the raw (block-constant) control keeps the
+// transcendental at block rate, and smoothing the pole instead of the cutoff
+// still ramps click-free. The cutoff then moves slightly non-linearly during a
+// sweep, which is inaudible and the right trade.
+//
+// These use the same bilinear design as fi.lowpass(1)/fi.highpass(1), not the
+// cheaper impulse-invariant one-pole. That matters: the bilinear form has a zero
+// at Nyquist and the exponential one-pole does not, so substituting the latter
+// leaks high frequencies badly. Measured on faust_drive's saturated output, an
+// exponential one-pole put 8.8 dB MORE energy in the top band than
+// fi.lowpass(1) — the opposite of what a tone control is for.
+//
+//   lpSmoothed(fc)  1st-order lowpass, coefficient-smoothed
+//   hpSmoothed(fc)  1st-order highpass, coefficient-smoothed
+//--------------------------------------------------------------------
+
+// Bilinear pre-warp, clamped below Nyquist. Block-constant when fc is.
+lpW(fc) = tan(ma.PI * max(1.0, min(fc, 0.49 * ma.SR)) / ma.SR);
+
+// Lowpass: b0 = b1 = w/(1+w), a1 = (w-1)/(1+w). Unity at DC, zero at Nyquist.
+lpB(fc)  = lpW(fc) / (1.0 + lpW(fc));
+lpA1(fc) = (lpW(fc) - 1.0) / (1.0 + lpW(fc));
+lpSmoothed(fc) = fi.tf1(sm(lpB(fc)), sm(lpB(fc)), sm(lpA1(fc)));
+
+// Highpass: b0 = 1/(1+w), b1 = -b0, same a1. Zero at DC, unity at Nyquist.
+hpB(fc) = 1.0 / (1.0 + lpW(fc));
+hpSmoothed(fc) = fi.tf1(sm(hpB(fc)), sm(0.0 - hpB(fc)), sm(lpA1(fc)));
+
+//--------------------------------------------------------------------
+// satTanh(pre, x) — tanh saturation with unity-ish gain compensation.
+//
+// `pre` is the pre-gain; the output is scaled back so raising drive changes
+// character rather than just level.
+//--------------------------------------------------------------------
+satTanh(pre, x) = ma.tanh(x * pre) / (1.0 + (pre - 1.0) * 0.375);
+
+//--------------------------------------------------------------------
+// softLimit(x) — exactly identity below the knee, asymptotic to +-1 above.
+//
+// Mirrors mf_soft_limit in mf_dsp.h. Use where a signal is normally in range
+// and only occasionally overshoots: unlike tanh this leaves in-range audio
+// untouched, so it can sit in a passthrough path.
+//--------------------------------------------------------------------
+softLimitKnee = 0.75;
+softLimit(x) = ba.if(abs(x) <= softLimitKnee, x, ma.signum(x) * limited)
+with {
+    head = 1.0 - softLimitKnee;
+    over = abs(x) - softLimitKnee;
+    limited = softLimitKnee + head * (over / (over + head));
+};
+
+//--------------------------------------------------------------------
+// divBeats(i) — beats per step for a musical-division index.
+//
+// Provided for new modules only. trail and lobber keep their own tables on
+// purpose: the index order is part of each module's published parameter
+// contract, so remapping it would silently change saved presets.
+//
+//   0=1/1  1=1/2  2=1/4  3=1/8  4=1/16  5=1/4T  6=1/8T  7=1/16T
+//--------------------------------------------------------------------
+divBeats(i) = ba.take(int(i) + 1, (4.0, 2.0, 1.0, 0.5, 0.25, 2.0/3.0, 1.0/3.0, 1.0/6.0));

@@ -4,25 +4,25 @@
     "channels": 2,
     "frames": 176400,
     "duration_seconds": 4,
-    "peak": 0.70172,
-    "rms": 0.00479,
-    "dc_offset": 0.00004,
+    "peak": 0.57553,
+    "rms": 0.00396,
+    "dc_offset": 0.000034,
     "dc_offset_per_channel": [
-      0.00004,
-      0.00004
+      0.000034,
+      0.000034
     ],
     "silence_ratio": 0.9992,
     "clipped_samples": 0,
     "zero_crossing_rate": [
       0.00605,
-      0.00648
+      0.00649
     ],
-    "stereo_correlation": 0.9971,
-    "slew_ratio": 0.00181,
+    "stereo_correlation": 0.9958,
+    "slew_ratio": 0.00201,
     "time_profile": [
       0,
-      -37.45,
-      -54.68,
+      -35.8,
+      -53.02,
       -60,
       -60,
       -60,
@@ -45,24 +45,24 @@
     "channels": 2,
     "frames": 132300,
     "duration_seconds": 3,
-    "peak": 0.70166,
-    "rms": 0.00565,
-    "dc_offset": 0.000057,
+    "peak": 0.50534,
+    "rms": 0.0042,
+    "dc_offset": 0.000045,
     "dc_offset_per_channel": [
-      0.000057,
-      0.000057
+      0.000045,
+      0.000045
     ],
-    "silence_ratio": 0.9991,
+    "silence_ratio": 0.9992,
     "clipped_samples": 0,
     "zero_crossing_rate": [
       0.00744,
-      0.00791
+      0.00794
     ],
-    "stereo_correlation": 0.9998,
-    "slew_ratio": 0.00226,
+    "stereo_correlation": 0.9997,
+    "slew_ratio": 0.00268,
     "time_profile": [
       0,
-      -53.6,
+      -51.03,
       -60,
       -60,
       -60,
@@ -72,13 +72,13 @@
     ],
     "band_energy": [
       -14.51,
-      -12.57,
-      -9.04,
-      -5.31,
+      -12.58,
+      -9.05,
+      -5.32,
       -4.43,
       -11.26,
-      -13.6,
-      -19.55
+      -13.58,
+      -19.34
     ]
   },
   "02-dub.wav": {
@@ -86,30 +86,30 @@
     "channels": 2,
     "frames": 220500,
     "duration_seconds": 5,
-    "peak": 0.70166,
-    "rms": 0.00434,
-    "dc_offset": 0.00004,
+    "peak": 0.5264,
+    "rms": 0.00333,
+    "dc_offset": 0.000034,
     "dc_offset_per_channel": [
-      0.00004,
-      0.00004
+      0.000034,
+      0.000034
     ],
     "silence_ratio": 0.9936,
     "clipped_samples": 0,
     "zero_crossing_rate": [
       0.01287,
-      0.01354
+      0.01355
     ],
-    "stereo_correlation": 0.9925,
-    "slew_ratio": 0.00342,
+    "stereo_correlation": 0.9873,
+    "slew_ratio": 0.00423,
     "time_profile": [
-      -0.23,
-      -13.5,
-      -23.44,
-      -28.95,
-      -35.17,
-      -40.78,
-      -46.3,
-      -53.69
+      -0.39,
+      -11.18,
+      -21.12,
+      -26.63,
+      -32.84,
+      -38.45,
+      -43.98,
+      -51.37
     ],
     "band_energy": [
       -14.69,
@@ -119,7 +119,7 @@
       -4.82,
       -11.92,
       -15.28,
-      -25.35
+      -25.34
     ]
   },
   "03-hypno-dub.wav": {
@@ -127,12 +127,12 @@
     "channels": 2,
     "frames": 264600,
     "duration_seconds": 6,
-    "peak": 0.70166,
-    "rms": 0.00398,
-    "dc_offset": 0.000039,
+    "peak": 0.50534,
+    "rms": 0.00295,
+    "dc_offset": 0.000033,
     "dc_offset_per_channel": [
-      0.000039,
-      0.000039
+      0.000033,
+      0.000034
     ],
     "silence_ratio": 0.9866,
     "clipped_samples": 0,
@@ -140,26 +140,26 @@
       0.01396,
       0.01444
     ],
-    "stereo_correlation": 0.9882,
-    "slew_ratio": 0.00458,
+    "stereo_correlation": 0.9785,
+    "slew_ratio": 0.00593,
     "time_profile": [
-      -0.05,
-      -21.36,
-      -25.64,
-      -36.33,
-      -39.2,
-      -49.87,
-      -52.48,
+      -0.08,
+      -18.74,
+      -23.03,
+      -33.72,
+      -36.58,
+      -47.25,
+      -49.86,
       -60
     ],
     "band_energy": [
-      -14.54,
+      -14.55,
       -12.11,
       -7.74,
       -4.8,
       -4.79,
       -12.55,
-      -18,
+      -17.99,
       -33.01
     ]
   },
@@ -168,28 +168,28 @@
     "channels": 2,
     "frames": 176400,
     "duration_seconds": 4,
-    "peak": 0.70169,
-    "rms": 0.00485,
-    "dc_offset": 0.000044,
+    "peak": 0.53342,
+    "rms": 0.00376,
+    "dc_offset": 0.000036,
     "dc_offset_per_channel": [
-      0.000044,
-      0.000044
+      0.000036,
+      0.000036
     ],
     "silence_ratio": 0.9975,
     "clipped_samples": 0,
     "zero_crossing_rate": [
-      0.01027,
+      0.01028,
       0.01061
     ],
-    "stereo_correlation": 0.9574,
-    "slew_ratio": 0.00261,
+    "stereo_correlation": 0.9292,
+    "slew_ratio": 0.00311,
     "time_profile": [
-      -0.02,
-      -23.24,
-      -30.85,
-      -44.93,
-      -49.53,
-      -56.16,
+      -0.04,
+      -20.97,
+      -28.58,
+      -42.66,
+      -47.26,
+      -53.89,
       -60,
       -60
     ],
@@ -200,8 +200,8 @@
       -4.03,
       -8.3,
       -13.47,
-      -15.07,
-      -17.74
+      -15.08,
+      -17.77
     ]
   },
   "05-cavern.wav": {
@@ -209,28 +209,28 @@
     "channels": 2,
     "frames": 264600,
     "duration_seconds": 6,
-    "peak": 0.70166,
-    "rms": 0.00396,
-    "dc_offset": 0.000076,
+    "peak": 0.5264,
+    "rms": 0.00303,
+    "dc_offset": 0.000071,
     "dc_offset_per_channel": [
-      0.000076,
-      0.000076
+      0.000071,
+      0.000071
     ],
     "silence_ratio": 0.9392,
     "clipped_samples": 0,
     "zero_crossing_rate": [
       0.01771,
-      0.01859
+      0.0186
     ],
-    "stereo_correlation": 0.953,
-    "slew_ratio": 0.01467,
+    "stereo_correlation": 0.92,
+    "slew_ratio": 0.01894,
     "time_profile": [
-      -0.13,
-      -15.44,
-      -28.66,
-      -36.98,
-      -48.01,
-      -58.32,
+      -0.23,
+      -13.06,
+      -26.27,
+      -34.59,
+      -45.62,
+      -55.93,
       -60,
       -60
     ],
@@ -242,7 +242,7 @@
       -5.03,
       -14.04,
       -18.25,
-      -28.5
+      -28.46
     ]
   }
 }

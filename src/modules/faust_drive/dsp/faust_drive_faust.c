@@ -7,7 +7,7 @@
 /* ------------------------------------------------------------
 name: "faust_drive"
 Code generated with Faust 2.85.5 (https://faust.grame.fr)
-Compilation options: -a src/host/faust_module_arch.c.in -lang c -fpga-mem-th 4 -ct 1 -cn faust_drive_faust -es 1 -mcd 16 -mdd 1024 -mdy 33 -single -ftz 0
+Compilation options: -a src/host/faust_module_arch.c.in -lang c -fpga-mem-th 4 -ct 1 -cn faust_drive_faust -es 1 -mcd 16 -mdd 1024 -mdy 33 -single -ftz 1
 ------------------------------------------------------------ */
 
 #ifndef  __faust_drive_faust_H__
@@ -80,15 +80,24 @@ inline int faustmini(int a, int b) { return (a < b) ? a : b; }
 
 typedef struct {
 	FAUSTFLOAT fHslider0;
-	FAUSTFLOAT fHslider1;
+	float fVec0[2];
 	int fSampleRate;
 	float fConst0;
-	FAUSTFLOAT fHslider2;
-	FAUSTFLOAT fHslider3;
-	float fVec0[2];
+	float fConst1;
 	float fRec0[2];
-	float fVec1[2];
+	FAUSTFLOAT fHslider1;
 	float fRec1[2];
+	float fConst2;
+	FAUSTFLOAT fHslider2;
+	float fConst3;
+	float fRec3[2];
+	FAUSTFLOAT fHslider3;
+	float fRec4[2];
+	float fVec1[2];
+	float fRec5[2];
+	float fRec2[2];
+	float fVec2[2];
+	float fRec6[2];
 } faust_drive_faust;
 
 faust_drive_faust* newfaust_drive_faust() { 
@@ -101,29 +110,28 @@ void deletefaust_drive_faust(faust_drive_faust* dsp) {
 }
 
 void metadatafaust_drive_faust(MetaGlue* m) { 
-	m->declare(m->metaInterface, "compile_options", "-a src/host/faust_module_arch.c.in -lang c -fpga-mem-th 4 -ct 1 -cn faust_drive_faust -es 1 -mcd 16 -mdd 1024 -mdy 33 -single -ftz 0");
+	m->declare(m->metaInterface, "basics.lib/name", "Faust Basic Element Library");
+	m->declare(m->metaInterface, "basics.lib/version", "1.22.0");
+	m->declare(m->metaInterface, "compile_options", "-a src/host/faust_module_arch.c.in -lang c -fpga-mem-th 4 -ct 1 -cn faust_drive_faust -es 1 -mcd 16 -mdd 1024 -mdy 33 -single -ftz 1");
 	m->declare(m->metaInterface, "filename", "faust_drive.dsp");
-	m->declare(m->metaInterface, "filters.lib/lowpass0_highpass1", "Copyright (C) 2003-2019 by Julius O. Smith III <jos@ccrma.stanford.edu>");
-	m->declare(m->metaInterface, "filters.lib/lowpass0_highpass1:author", "Julius O. Smith III");
-	m->declare(m->metaInterface, "filters.lib/lowpass:author", "Julius O. Smith III");
-	m->declare(m->metaInterface, "filters.lib/lowpass:copyright", "Copyright (C) 2003-2019 by Julius O. Smith III <jos@ccrma.stanford.edu>");
-	m->declare(m->metaInterface, "filters.lib/lowpass:license", "MIT-style STK-4.3 license");
+	m->declare(m->metaInterface, "filters.lib/lowpass0_highpass1", "MIT-style STK-4.3 license");
 	m->declare(m->metaInterface, "filters.lib/name", "Faust Filters Library");
 	m->declare(m->metaInterface, "filters.lib/tf1:author", "Julius O. Smith III");
 	m->declare(m->metaInterface, "filters.lib/tf1:copyright", "Copyright (C) 2003-2019 by Julius O. Smith III <jos@ccrma.stanford.edu>");
 	m->declare(m->metaInterface, "filters.lib/tf1:license", "MIT-style STK-4.3 license");
-	m->declare(m->metaInterface, "filters.lib/tf1s:author", "Julius O. Smith III");
-	m->declare(m->metaInterface, "filters.lib/tf1s:copyright", "Copyright (C) 2003-2019 by Julius O. Smith III <jos@ccrma.stanford.edu>");
-	m->declare(m->metaInterface, "filters.lib/tf1s:license", "MIT-style STK-4.3 license");
 	m->declare(m->metaInterface, "filters.lib/version", "1.7.1");
 	m->declare(m->metaInterface, "maths.lib/author", "GRAME");
 	m->declare(m->metaInterface, "maths.lib/copyright", "GRAME");
 	m->declare(m->metaInterface, "maths.lib/license", "LGPL with exception");
 	m->declare(m->metaInterface, "maths.lib/name", "Faust Math Library");
 	m->declare(m->metaInterface, "maths.lib/version", "2.9.0");
+	m->declare(m->metaInterface, "moveforge.lib/author", "moveforge");
+	m->declare(m->metaInterface, "moveforge.lib/name", "moveforge");
 	m->declare(m->metaInterface, "name", "faust_drive");
 	m->declare(m->metaInterface, "platform.lib/name", "Generic Platform Library");
 	m->declare(m->metaInterface, "platform.lib/version", "1.3.0");
+	m->declare(m->metaInterface, "signals.lib/name", "Faust Routing Library");
+	m->declare(m->metaInterface, "signals.lib/version", "1.6.0");
 }
 
 int getSampleRatefaust_drive_faust(faust_drive_faust* RESTRICT dsp) {
@@ -166,21 +174,66 @@ void instanceClearfaust_drive_faust(faust_drive_faust* dsp) {
 	{
 		int l2;
 		for (l2 = 0; l2 < 2; l2 = l2 + 1) {
-			dsp->fVec1[l2] = 0.0f;
+			dsp->fRec1[l2] = 0.0f;
 		}
 	}
 	/* C99 loop */
 	{
 		int l3;
 		for (l3 = 0; l3 < 2; l3 = l3 + 1) {
-			dsp->fRec1[l3] = 0.0f;
+			dsp->fRec3[l3] = 0.0f;
+		}
+	}
+	/* C99 loop */
+	{
+		int l4;
+		for (l4 = 0; l4 < 2; l4 = l4 + 1) {
+			dsp->fRec4[l4] = 0.0f;
+		}
+	}
+	/* C99 loop */
+	{
+		int l5;
+		for (l5 = 0; l5 < 2; l5 = l5 + 1) {
+			dsp->fVec1[l5] = 0.0f;
+		}
+	}
+	/* C99 loop */
+	{
+		int l6;
+		for (l6 = 0; l6 < 2; l6 = l6 + 1) {
+			dsp->fRec5[l6] = 0.0f;
+		}
+	}
+	/* C99 loop */
+	{
+		int l7;
+		for (l7 = 0; l7 < 2; l7 = l7 + 1) {
+			dsp->fRec2[l7] = 0.0f;
+		}
+	}
+	/* C99 loop */
+	{
+		int l8;
+		for (l8 = 0; l8 < 2; l8 = l8 + 1) {
+			dsp->fVec2[l8] = 0.0f;
+		}
+	}
+	/* C99 loop */
+	{
+		int l9;
+		for (l9 = 0; l9 < 2; l9 = l9 + 1) {
+			dsp->fRec6[l9] = 0.0f;
 		}
 	}
 }
 
 void instanceConstantsfaust_drive_faust(faust_drive_faust* dsp, int sample_rate) {
 	dsp->fSampleRate = sample_rate;
-	dsp->fConst0 = 3.1415927f / fminf(1.92e+05f, fmaxf(1.0f, (float)(dsp->fSampleRate)));
+	dsp->fConst0 = fminf(1.92e+05f, fmaxf(1.0f, (float)(dsp->fSampleRate)));
+	dsp->fConst1 = expf(-(5e+01f / dsp->fConst0));
+	dsp->fConst2 = 3.1415927f / dsp->fConst0;
+	dsp->fConst3 = 0.49f * dsp->fConst0;
 }
 	
 void instanceInitfaust_drive_faust(faust_drive_faust* dsp, int sample_rate) {
@@ -208,33 +261,56 @@ void computefaust_drive_faust(faust_drive_faust* dsp, int count, FAUSTFLOAT** RE
 	FAUSTFLOAT* input1 = inputs[1];
 	FAUSTFLOAT* output0 = outputs[0];
 	FAUSTFLOAT* output1 = outputs[1];
-	float fSlow0 = 0.92f * (float)(dsp->fHslider0);
-	float fSlow1 = (float)(dsp->fHslider1);
-	float fSlow2 = 1.0f - fSlow1;
-	float fSlow3 = 1.0f / tanf(dsp->fConst0 * (7.8e+03f * (float)(dsp->fHslider2) + 2e+02f));
-	float fSlow4 = 1.0f / (fSlow3 + 1.0f);
-	float fSlow5 = 1.0f - fSlow3;
-	float fSlow6 = 29.0f * (float)(dsp->fHslider3) + 1.0f;
+	float fSlow0 = (float)(dsp->fHslider0);
+	float fSlow1 = 0.92f * (float)(fSlow0 > 0.0f);
+	float fSlow2 = (float)(dsp->fHslider1);
+	float fSlow3 = tanf(dsp->fConst2 * fmaxf(1.0f, fminf(7.8e+03f * (float)(dsp->fHslider2) + 2e+02f, dsp->fConst3)));
+	float fSlow4 = fSlow3 + 1.0f;
+	float fSlow5 = fSlow3 / fSlow4;
+	float fSlow6 = (float)(dsp->fHslider3);
+	float fSlow7 = (fSlow3 + -1.0f) / fSlow4;
 	/* C99 loop */
 	{
 		int i0;
 		for (i0 = 0; i0 < count; i0 = i0 + 1) {
-			float fTemp0 = (float)(input0[i0]);
-			float fTemp1 = tanhf(fSlow6 * fTemp0);
-			dsp->fVec0[0] = fTemp1;
-			dsp->fRec0[0] = -(fSlow4 * (fSlow5 * dsp->fRec0[1] - (fTemp1 + dsp->fVec0[1])));
-			float fTemp2 = fSlow2 * fTemp0 + fSlow1 * dsp->fRec0[0];
-			output0[i0] = (FAUSTFLOAT)(fSlow0 * (fTemp2 / (0.35f * fabsf(fSlow0 * fTemp2) + 1.0f)));
-			float fTemp3 = (float)(input1[i0]);
-			float fTemp4 = tanhf(fSlow6 * fTemp3);
-			dsp->fVec1[0] = fTemp4;
-			dsp->fRec1[0] = -(fSlow4 * (fSlow5 * dsp->fRec1[1] - (fTemp4 + dsp->fVec1[1])));
-			float fTemp5 = fSlow2 * fTemp3 + fSlow1 * dsp->fRec1[0];
-			output1[i0] = (FAUSTFLOAT)(fSlow0 * (fTemp5 / (0.35f * fabsf(fSlow0 * fTemp5) + 1.0f)));
+			dsp->fVec0[0] = 1.0f;
+			float fTemp0 = 1.0f - dsp->fConst1 * dsp->fVec0[1];
+			float fTemp1 = fSlow0 * fTemp0 + dsp->fConst1 * dsp->fVec0[1] * dsp->fRec0[1];
+			dsp->fRec0[0] = ((fabsf(fTemp1) > 1.1754944e-38f) ? fTemp1 : 0.0f);
+			float fTemp2 = (float)(input0[i0]);
+			float fTemp3 = fSlow2 * fTemp0 + dsp->fConst1 * dsp->fVec0[1] * dsp->fRec1[1];
+			dsp->fRec1[0] = ((fabsf(fTemp3) > 1.1754944e-38f) ? fTemp3 : 0.0f);
+			float fTemp4 = 1.0f - dsp->fRec1[0];
+			float fTemp5 = fSlow5 * fTemp0 + dsp->fConst1 * dsp->fVec0[1] * dsp->fRec3[1];
+			dsp->fRec3[0] = ((fabsf(fTemp5) > 1.1754944e-38f) ? fTemp5 : 0.0f);
+			float fTemp6 = fSlow6 * fTemp0 + dsp->fConst1 * dsp->fVec0[1] * dsp->fRec4[1];
+			dsp->fRec4[0] = ((fabsf(fTemp6) > 1.1754944e-38f) ? fTemp6 : 0.0f);
+			float fTemp7 = 29.0f * dsp->fRec4[0] + 1.0f;
+			float fTemp8 = tanhf(fTemp2 * fTemp7);
+			dsp->fVec1[0] = fTemp8;
+			float fTemp9 = fSlow7 * fTemp0 + dsp->fConst1 * dsp->fVec0[1] * dsp->fRec5[1];
+			dsp->fRec5[0] = ((fabsf(fTemp9) > 1.1754944e-38f) ? fTemp9 : 0.0f);
+			float fTemp10 = dsp->fRec3[0] * (fTemp8 + dsp->fVec1[1]) - dsp->fRec5[0] * dsp->fRec2[1];
+			dsp->fRec2[0] = ((fabsf(fTemp10) > 1.1754944e-38f) ? fTemp10 : 0.0f);
+			float fTemp11 = dsp->fRec0[0] * (fTemp2 * fTemp4 + dsp->fRec1[0] * dsp->fRec2[0]);
+			output0[i0] = (FAUSTFLOAT)(fSlow1 * (fTemp11 / (0.35f * fabsf(fSlow1 * fTemp11) + 1.0f)));
+			float fTemp12 = (float)(input1[i0]);
+			float fTemp13 = tanhf(fTemp12 * fTemp7);
+			dsp->fVec2[0] = fTemp13;
+			float fTemp14 = dsp->fRec3[0] * (fTemp13 + dsp->fVec2[1]) - dsp->fRec5[0] * dsp->fRec6[1];
+			dsp->fRec6[0] = ((fabsf(fTemp14) > 1.1754944e-38f) ? fTemp14 : 0.0f);
+			float fTemp15 = dsp->fRec0[0] * (fTemp12 * fTemp4 + dsp->fRec1[0] * dsp->fRec6[0]);
+			output1[i0] = (FAUSTFLOAT)(fSlow1 * (fTemp15 / (0.35f * fabsf(fSlow1 * fTemp15) + 1.0f)));
 			dsp->fVec0[1] = dsp->fVec0[0];
 			dsp->fRec0[1] = dsp->fRec0[0];
-			dsp->fVec1[1] = dsp->fVec1[0];
 			dsp->fRec1[1] = dsp->fRec1[0];
+			dsp->fRec3[1] = dsp->fRec3[0];
+			dsp->fRec4[1] = dsp->fRec4[0];
+			dsp->fVec1[1] = dsp->fVec1[0];
+			dsp->fRec5[1] = dsp->fRec5[0];
+			dsp->fRec2[1] = dsp->fRec2[0];
+			dsp->fVec2[1] = dsp->fVec2[0];
+			dsp->fRec6[1] = dsp->fRec6[0];
 		}
 	}
 }

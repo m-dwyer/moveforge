@@ -75,7 +75,25 @@ export async function generate(options: GenerateOptions = {}): Promise<number> {
     const tmpOut = join(tmpDir, `${moduleId}_faust.c`);
     const result = spawnSync(
       "faust",
-      ["-lang", "c", "-cn", cn, "-a", ARCH_FILE, dspPath, "-o", tmpOut],
+      [
+        "-lang", "c",
+        "-cn", cn,
+        "-a", ARCH_FILE,
+        /* Flush denormals to zero inside the generated DSP.
+         *
+         * Faust defaults to -ftz 0. The device sets FPCR.FZ but only on the SPI
+         * thread and not DAZ, and the offline renders and browser run with
+         * denormals fully live — so a decaying feedback path (trail's Freeverb
+         * combs at 0.88 plus a 3 s delay line) grinds through denormal
+         * arithmetic on every path except the device's own audio thread. That is
+         * both a CPU spike when a track goes quiet and a host-vs-device numeric
+         * difference. */
+        "-ftz", "1",
+        /* So .dsp files can import("moveforge.lib") from _shared. */
+        "-I", "src/modules/_shared",
+        dspPath,
+        "-o", tmpOut
+      ],
       { encoding: "utf8" }
     );
     if (result.status !== 0) {

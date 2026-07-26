@@ -16,6 +16,8 @@
 // zones by label via buildUserInterface, not by index.
 
 import("stdfaust.lib");
+// sm, smGain — see src/modules/_shared/moveforge.lib
+import("moveforge.lib");
 
 // --- Control inputs (C-driven) ----------------------------------------------
 freq = hslider("freq", 220.0, 16.0, 12544.0, 0.001);
@@ -23,11 +25,14 @@ gate = hslider("gate", 0.0, 0.0, 1.0, 1.0);
 gain = hslider("gain", 0.8, 0.0, 1.0, 0.001);
 
 // --- User params ------------------------------------------------------------
+// cutoff and resonance stay unsmoothed: they feed fi.resonlp's coefficients,
+// and smoothing a filter control forces its warping into the sample loop.
 cutoff    = hslider("cutoff",    0.6,   0.0,   1.0, 0.01);
 resonance = hslider("resonance", 0.3,   0.0,   1.0, 0.01);
 attack    = hslider("attack",    0.01,  0.001, 1.0, 0.001);
 release   = hslider("release",   0.3,   0.01,  4.0, 0.01);
-level     = hslider("level",     0.7,   0.0,   1.0, 0.01);
+// A gain, so de-zipper it — a preset load used to step this in one block.
+level     = hslider("level",     0.7,   0.0,   1.0, 0.01) : smGain;
 
 // cutoff (0..1) -> 60..14000 Hz log
 cutoffHz = 60.0 * pow(14000.0 / 60.0, cutoff);
