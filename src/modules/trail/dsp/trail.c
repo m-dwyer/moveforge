@@ -68,7 +68,19 @@ static void set_param(void *instance, const char *key, const char *val) {
     trail_plugin_t *p = (trail_plugin_t*)instance;
     if (!p || !key || !val) return;
     if (strcmp(key, "preset") == 0) {
-        p->current_preset = trail_clamp_preset_index(atoi(val));
+        /* Idempotent on purpose: the host re-sends this even when it has not
+         * changed.
+         *
+         * chain_host enrols smoothable params in an audio-thread smoother and
+         * then re-sends *every* enrolled key whenever any one of them is moving.
+         * is_smoothable_float("0") and ("1") both return 1 — the integer-index
+         * guard only rejects values outside 0..1 — so on preset 0 or 1 this key
+         * gets enrolled, and turning any other knob re-delivers it. Applying it
+         * unconditionally therefore reset every parameter on each detent of an
+         * unrelated encoder. */
+        int next = trail_clamp_preset_index(atoi(val));
+        if (next == p->current_preset) return;
+        p->current_preset = next;
         trail_apply_preset(&p->core, p->current_preset);
         return;
     }

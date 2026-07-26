@@ -61,6 +61,7 @@ type ValidationGroup = {
   moduleId: string;
 };
 
+const HOST_PARAM_TYPES = ["float", "int", "enum"];
 const VALID_COMPONENT_TYPES = new Set([
   "sound_generator",
   "audio_fx",
@@ -220,7 +221,30 @@ function validateParams(moduleId: string, params: Param[], errors: string[]): vo
     }
     if (seen.has(p.key)) errors.push(`duplicate param key "${p.key}"`);
     seen.add(p.key);
-    if (!p.type) errors.push(`param ${p.key} missing type`);
+    /* The host accepts exactly float | int | enum (chain_params.c:206-214).
+     * Anything else makes parse_param_object return -1, which fails
+     * parse_chain_params, which makes the host reject the whole module — it
+     * installs and verifies clean and then simply does not load. Note our own
+     * gen-ui-chain happily accepts "bool" as a discrete type, so this is a real
+     * trap rather than a theoretical one. */
+    if (!p.type) {
+      errors.push(`param ${p.key} missing type`);
+    } else if (!HOST_PARAM_TYPES.includes(p.type)) {
+      errors.push(
+        `param ${p.key}: type "${p.type}" is not one of ${HOST_PARAM_TYPES.join(" | ")} — ` +
+          `the host rejects the entire module rather than just this param`
+      );
+    }
+    /* A discrete control declared "float" gets enrolled in the host's
+     * audio-thread smoother and ramped through intermediate values over ~90ms,
+     * so e.g. a sync division sweeps through every setting on the way. */
+    if (p.type === "float" && typeof p.step === "number" && p.step >= 1) {
+      errors.push(
+        `param ${p.key}: step ${p.step} makes this a discrete control, so type must be ` +
+          `"int" or "enum" — the host smooths float params on the audio thread and would ` +
+          `ramp it through intermediate values`
+      );
+    }
     if (typeof p.min !== "number" || typeof p.max !== "number") {
       errors.push(`param ${p.key} missing min/max`);
       continue;

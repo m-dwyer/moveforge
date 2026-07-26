@@ -700,6 +700,16 @@ worth doing when they trade sound for a fraction of a percent.
 These are the "works locally, dead on device" set. None is described by any
 header, and none is visible to any local check.
 
+- [x] **6.1 done** — `capabilities.requires_continuous_processing: true` on
+      `lobber` (the ring write pointer and slice clock must keep advancing) and
+      `trail` (delay line, LFO and reverb tail). Verified the flag survives into
+      the packaged `dist/<id>/module.json`, which is what the host reads
+      (`chain_host.c:311-337`, via `json_get_int_in_section`).
+
+      Nothing local can test this: the offline harness and the browser both call
+      `render_block` unconditionally. It is a declaration whose only observable
+      effect is on hardware — 6.8 is what would actually confirm it.
+
 - [ ] **6.1 Set `capabilities.requires_continuous_processing`** on `lobber` and
       `trail`. `SW/src/schwung_shim.c:613-614` — after ~1 s of output below
       ±4 LSB (`DSP_IDLE_THRESHOLD 344`, `DSP_SILENCE_LEVEL 4`) the host **stops
@@ -709,6 +719,24 @@ header, and none is visible to any local check.
       `SW/src/modules/chain/dsp/chain_host.c:315-340`; **no moveforge module
       sets it today.** MIDI-FX `tick()` is called from inside the chain's
       `v2_render_block`, so an arpeggiator's clock is gated by audio silence too.
+- [x] **6.2 done** — 15 params retyped from `float` to `int` across arpy
+      (pattern, chord), lobber (12, including the 0/1 toggles and bpm) and trail
+      (sync). The host only enrols `KNOB_TYPE_FLOAT` in its audio-thread
+      smoother, so these no longer ramp through intermediate values: changing
+      `sync` 0 -> 4 used to sweep through every division on the way.
+
+      No local behaviour change, and no generated-file drift — `gen-ui-chain`
+      already treated `step >= 1` as discrete, so it produces identical output,
+      and the web UI only passes `type` through without branching on it.
+
+      **`bool` would have been a trap.** `gen-ui-chain` accepts it as a discrete
+      type, but the host's parser returns -1 for anything other than
+      float/int/enum (`chain_params.c:206-214`), which fails
+      `parse_chain_params` and makes it **reject the whole module** — it installs
+      and verifies clean, then simply does not load. `validate-params` now
+      rejects both an out-of-set `type` and a `step >= 1` param still declared
+      `float`; both were checked against a deliberately broken module.json.
+
 - [ ] **6.2 Declare discrete params as `int`/`enum`, not `float`.** The host
       runs a parameter smoother **on the audio thread**
       (`SW/src/modules/chain/dsp/chain_host.c:1972-2002`, `SMOOTH_COEFF 0.15`,
@@ -717,6 +745,20 @@ header, and none is visible to any local check.
       `lobber.mode` are all `{"type":"float", step:1}` today, so changing
       `sync` 0 → 4 sweeps through every division on the way. Schwung's own
       modules use `enum`/`int`.
+- [x] **6.3 done** — preset application is now idempotent in all three wrappers
+      that expose presets (westfold, trail, lobber): if the index has not
+      changed, return.
+
+      Fixed module-side rather than by trying to avoid enrolment, because the
+      host's guard is `if (!pinfo || pinfo->type == KNOB_TYPE_FLOAT)` and
+      `preset` is not a `module.json` param at all — so `pinfo` is NULL and it
+      gets enrolled regardless of anything we declare. Idempotence is correct
+      whatever the host does.
+
+      westfold was the worst case: it ran `all_notes_off` plus a full preset
+      reload, so on preset 0 or 1 turning any unrelated encoder killed the held
+      note and reset every parameter.
+
 - [ ] **6.3 Stop `preset` being re-fired on every knob turn.** Traced
       `is_smoothable_float("0")` at `SW/.../chain_params.c:139-143`: the
       integer-index guard is `strchr(val,'.')==NULL && (f<0 || f>1)`, which is

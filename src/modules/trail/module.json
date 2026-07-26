@@ -16,6 +16,7 @@
     "midi_in": false,
     "midi_out": false,
     "chainable": true,
+    "requires_continuous_processing": true,
     "component_type": "audio_fx",
     "ui_hierarchy": {
       "levels": {
@@ -26,7 +27,7 @@
           "name_param": "preset_name",
           "params": [
             { "key": "time", "name": "Time", "type": "float", "min": 0, "max": 1, "default": 0.12, "step": 0.01 },
-            { "key": "sync", "name": "Sync", "type": "float", "min": 0, "max": 9, "default": 0, "step": 1 },
+            { "key": "sync", "name": "Sync", "type": "int", "min": 0, "max": 9, "default": 0, "step": 1 },
             { "key": "feedback", "name": "Feedback", "type": "float", "min": 0, "max": 0.88, "default": 0.22, "step": 0.01 },
             { "key": "tone", "name": "Tone", "type": "float", "min": 0, "max": 1, "default": 0.55, "step": 0.01 },
             { "key": "mod", "name": "Mod", "type": "float", "min": 0, "max": 1, "default": 0.2, "step": 0.01 },
