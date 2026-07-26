@@ -6,9 +6,11 @@
 #include "host/plugin_api_v1.h"
 #include "modules/_shared/dsp_runtime.h"
 #include "dustline_core.h"
+#include "dustline_presets.gen.inc"
 
 typedef struct {
     dustline_core_t core;
+    int current_preset;
 } dustline_plugin_t;
 
 static const host_api_v1_t *g_host = NULL;
@@ -19,6 +21,8 @@ static void* create_instance(const char *module_dir, const char *json_defaults) 
     dustline_plugin_t *p = (dustline_plugin_t*)calloc(1, sizeof(dustline_plugin_t));
     if (!p) return NULL;
     dustline_init(&p->core);
+    p->current_preset = dustline_clamp_preset_index(0);
+    dustline_apply_preset(&p->core, p->current_preset);
     return p;
 }
 
@@ -48,12 +52,33 @@ static void set_param(void *instance, const char *key, const char *val) {
         dustline_all_notes_off(&p->core);
         return;
     }
+    if (strcmp(key, "preset") == 0) {
+        /* Idempotent on purpose — see the note in westfold.c: the host enrols
+         * "preset" in its audio-thread smoother when the index is 0 or 1, and
+         * then re-sends it whenever any other enrolled key moves. Applying it
+         * unconditionally would reset every parameter on each detent of an
+         * unrelated encoder. */
+        int next = dustline_clamp_preset_index(atoi(val));
+        if (next == p->current_preset) return;
+        p->current_preset = next;
+        dustline_apply_preset(&p->core, p->current_preset);
+        return;
+    }
     dustline_set_param(&p->core, dustline_param_id(key), (float)atof(val));
 }
 
 static int get_param(void *instance, const char *key, char *buf, int buf_len) {
     dustline_plugin_t *p = (dustline_plugin_t*)instance;
     if (!p || !key || !buf || buf_len <= 0) return -1;
+    if (strcmp(key, "preset_count") == 0) {
+        return snprintf(buf, (size_t)buf_len, "%d", dustline_preset_count());
+    }
+    if (strcmp(key, "preset") == 0) {
+        return snprintf(buf, (size_t)buf_len, "%d", p->current_preset);
+    }
+    if (strcmp(key, "preset_name") == 0) {
+        return snprintf(buf, (size_t)buf_len, "%s", dustline_preset_name(p->current_preset));
+    }
     int param_id = dustline_param_id(key);
     if (param_id < 0) return -1;
     return snprintf(buf, (size_t)buf_len, "%.6f", dustline_get_param(&p->core, param_id));

@@ -154,12 +154,33 @@ async function validateModule(moduleId: string, errors: string[]): Promise<void>
     errors.push(`ui_chain "${moduleJson.ui_chain}" referenced but file missing`);
   }
 
+  /* The host drives the solo screen by calling globalThis.init/tick. It never
+   * imports a named export, so a ui.js that only exports functions is never
+   * called and the screen is simply blank — with no error anywhere. */
+  if (moduleJson.ui) {
+    const uiPath = `${paths.moduleDir}/${moduleJson.ui}`;
+    if (!(await fileExists(uiPath))) {
+      errors.push(`ui "${moduleJson.ui}" referenced but file missing`);
+    } else {
+      const ui = await readFile(uiPath, "utf8");
+      for (const hook of ["init", "tick"]) {
+        if (!new RegExp(`globalThis\\s*\\.\\s*${hook}\\s*=`).test(ui)) {
+          errors.push(
+            `${moduleJson.ui} never assigns globalThis.${hook} — the host calls that to drive ` +
+              `the solo screen, so the module's screen would stay blank`
+          );
+        }
+      }
+    }
+  }
+
   const params = caps.ui_hierarchy?.levels?.root?.params;
   if (params) {
     validateParams(moduleId, params, errors);
     validateSoundGeneratorLevelParams(caps.component_type, params, errors);
     await validateGenInc(moduleId, errors);
     validatePresets(presetsJson, params, errors);
+    await validatePresetsAreExposed(moduleId, presetsJson, errors);
     validateMetadata(moduleId, metadataJson, params, errors);
     const coreHeader = await readFile(paths.coreHeader, "utf8");
     validateCoreStruct(moduleId, params, coreHeader, errors);
@@ -466,6 +487,34 @@ function validateZoneSizing(moduleId: string, header: string, errors: string[]):
           `zones[${upper}_PARAM_COUNT] (from ${moduleId}_params.gen.h) so it cannot ` +
           `overflow into the next struct field when a param is added`
       );
+    }
+  }
+}
+
+/* Shipping presets.json and generating the helper is not enough — the wrapper
+ * has to include it and answer preset / preset_count / preset_name, or the
+ * chain UI's preset-browse screen is dead for that module while everything
+ * about the build looks correct. Four of seven wrappers were in exactly that
+ * state (plan 7.1). */
+async function validatePresetsAreExposed(
+  moduleId: string,
+  presetsJson: PresetsJson,
+  errors: string[]
+): Promise<void> {
+  if (!presetsJson.presets?.length) return;
+  const paths = modulePaths(moduleId);
+  const wrapper = await readFile(paths.wrapperC, "utf8").catch(() => "");
+  if (!wrapper) return;
+  if (!wrapper.includes(`${moduleId}_presets.gen.inc`)) {
+    errors.push(
+      `${moduleId}.c does not include ${moduleId}_presets.gen.inc, so the ${presetsJson.presets.length} ` +
+        `preset(s) in presets.json cannot be reached on device — the chain UI's preset screen is dead`
+    );
+    return;
+  }
+  for (const key of ["preset_count", "preset_name"]) {
+    if (!wrapper.includes(`"${key}"`)) {
+      errors.push(`${moduleId}.c includes the generated presets but never answers get_param("${key}")`);
     }
   }
 }

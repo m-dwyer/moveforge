@@ -15,8 +15,11 @@ export function useSequencer() {
 
   useEffect(() => {
     if (!playing) return;
-    const noteOffTimers = new Set<number>();
-    const activeNotes = new Set<number>();
+    // Keyed by note, not a flat set: retriggering a note has to cancel that
+    // note's pending note-off, or the previous timer fires part-way into the
+    // new note and cuts it short. With drone_hold (gateSteps 16) at length 8
+    // the stale timer lands 3.5 steps in and chops the drone.
+    const noteOffTimers = new Map<number, number>();
 
     const tick = () => {
       const state = useStore.getState();
@@ -31,24 +34,30 @@ export function useSequencer() {
       });
       if (!event) return;
 
-      if (activeNotes.has(event.note)) noteOff(event.note);
-      activeNotes.add(event.note);
+      const pending = noteOffTimers.get(event.note);
+      if (pending !== undefined) {
+        clearTimeout(pending);
+        noteOffTimers.delete(event.note);
+        noteOff(event.note);
+      }
       void noteOn(event.note, event.velocity);
       const gateMs = Math.max(15, Math.round(intervalMs * Math.min(0.98, state.audition.gate) * event.gateSteps));
       const timer = window.setTimeout(() => {
+        noteOffTimers.delete(event.note);
         noteOff(event.note);
-        activeNotes.delete(event.note);
-        noteOffTimers.delete(timer);
       }, gateMs);
-      noteOffTimers.add(timer);
+      noteOffTimers.set(event.note, timer);
     };
 
     tick();
     const id = setInterval(tick, intervalMs);
     return () => {
       clearInterval(id);
-      for (const timer of noteOffTimers) clearTimeout(timer);
-      for (const note of activeNotes) noteOff(note);
+      for (const [note, timer] of noteOffTimers) {
+        clearTimeout(timer);
+        noteOff(note);
+      }
+      noteOffTimers.clear();
     };
   }, [playing, intervalMs]);
 }

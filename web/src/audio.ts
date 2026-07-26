@@ -150,12 +150,11 @@ export function sendParamUpdates(updates: HostParamUpdate[]): void {
 
 export async function reloadModuleWasm(moduleId: string | null): Promise<void> {
   // moduleId === null means a shared host header changed; reload every loaded slot.
-  const state = useStore.getState();
-  for (const track of state.tracks) {
-    for (const slot of track.chain) {
-      if (slot.kind === "settings") continue;
-      if (moduleId !== null && slot.moduleId !== moduleId) continue;
-      if (engine.hasSlot(slot.id)) await engine.reloadSlot(slot.id);
-    }
+  // Driven off the engine's own slot table rather than the store's tracks: slot
+  // ids are identical across tracks, so iterating tracks reloaded the one engine
+  // slot once per track (4 audio-thread instantiations per save on the default
+  // state) and, with two tracks on different modules, reloaded the wrong one.
+  for (const slotId of engine.loadedSlotIds(moduleId)) {
+    await engine.reloadSlot(slotId);
   }
 }

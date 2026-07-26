@@ -1,13 +1,16 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "host/audio_fx_api_v2.h"
 #include "modules/_shared/dsp_runtime.h"
 #include "faust_drive_core.h"
+#include "faust_drive_presets.gen.inc"
 
 typedef struct {
     faust_drive_core_t core;
+    int current_preset;
     float in_l[MOVEFORGE_BLOCK_FRAMES];
     float in_r[MOVEFORGE_BLOCK_FRAMES];
     float out_l[MOVEFORGE_BLOCK_FRAMES];
@@ -18,7 +21,11 @@ static void* create_instance(const char *module_dir, const char *config_json) {
     (void)module_dir;
     (void)config_json;
     faust_drive_plugin_t *p = (faust_drive_plugin_t*)calloc(1, sizeof(faust_drive_plugin_t));
-    if (p) faust_drive_init(&p->core);
+    if (p) {
+        faust_drive_init(&p->core);
+        p->current_preset = faust_drive_clamp_preset_index(0);
+        faust_drive_apply_preset(&p->core, p->current_preset);
+    }
     return p;
 }
 
@@ -40,12 +47,30 @@ static void process_block(void *instance, int16_t *audio_inout, int frames) {
 
 static void set_param(void *instance, const char *key, const char *val) {
     faust_drive_plugin_t *p = (faust_drive_plugin_t*)instance;
-    if (p && key && val) faust_drive_set_param(&p->core, faust_drive_param_id(key), (float)atof(val));
+    if (!p || !key || !val) return;
+    if (strcmp(key, "preset") == 0) {
+        /* Idempotent on purpose — see the note in westfold.c. */
+        int next = faust_drive_clamp_preset_index(atoi(val));
+        if (next == p->current_preset) return;
+        p->current_preset = next;
+        faust_drive_apply_preset(&p->core, p->current_preset);
+        return;
+    }
+    faust_drive_set_param(&p->core, faust_drive_param_id(key), (float)atof(val));
 }
 
 static int get_param(void *instance, const char *key, char *buf, int buf_len) {
     faust_drive_plugin_t *p = (faust_drive_plugin_t*)instance;
     if (!p || !key || !buf || buf_len <= 0) return -1;
+    if (strcmp(key, "preset_count") == 0) {
+        return snprintf(buf, (size_t)buf_len, "%d", faust_drive_preset_count());
+    }
+    if (strcmp(key, "preset") == 0) {
+        return snprintf(buf, (size_t)buf_len, "%d", p->current_preset);
+    }
+    if (strcmp(key, "preset_name") == 0) {
+        return snprintf(buf, (size_t)buf_len, "%s", faust_drive_preset_name(p->current_preset));
+    }
     int id = faust_drive_param_id(key);
     if (id < 0) return -1;
     return snprintf(buf, (size_t)buf_len, "%.6f", faust_drive_get_param(&p->core, id));
