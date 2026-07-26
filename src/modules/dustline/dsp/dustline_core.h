@@ -19,6 +19,7 @@ typedef struct {
     mf_dcblock_t dc_pre;   /* before the output saturator */
     mf_dcblock_t dc_post;  /* after it — tanh reintroduces DC on asymmetric input */
     mf_rng_t rng;
+    mf_voice_t voice;
     int active_note;
     float pitch_bend;
 

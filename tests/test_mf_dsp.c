@@ -339,6 +339,79 @@ static void test_rng(void) {
     require_true(mf_rng_next_u32(&z) != 0u, "zero seed still generates");
 }
 
+static void test_voice_held_note_stack(void) {
+    mf_voice_t v;
+    int n = -1;
+    float vel = 0.0f;
+
+    mf_voice_init(&v);
+    require_true(mf_voice_current(&v) == -1, "nothing sounds before any note");
+    require_true(mf_voice_note_off(&v, 60, &n, &vel) == MF_VOICE_UNCHANGED,
+                 "a note-off with nothing held is ignored");
+
+    /* The bug this exists for: press A, press B, release B -> A must resume. */
+    require_true(mf_voice_note_on(&v, 60, 1.0f, &n, &vel) == MF_VOICE_START, "A starts");
+    require_true(n == 60, "A is the sounding note");
+    require_true(mf_voice_note_on(&v, 64, 0.5f, &n, &vel) == MF_VOICE_START, "B takes over");
+    require_true(n == 64, "B is the sounding note");
+    require_true(mf_voice_note_off(&v, 64, &n, &vel) == MF_VOICE_START,
+                 "releasing B falls back rather than stopping");
+    require_true(n == 60, "the fallback is the still-held A");
+    require_true(absf_local(vel - 1.0f) < 1e-6f, "the fallback restores A's velocity");
+    require_true(mf_voice_note_off(&v, 60, &n, &vel) == MF_VOICE_STOP,
+                 "releasing the last held note stops the voice");
+    require_true(mf_voice_current(&v) == -1, "nothing sounds once all are released");
+
+    /* Releasing a note that is not the sounding one changes nothing. */
+    mf_voice_init(&v);
+    mf_voice_note_on(&v, 60, 1.0f, &n, &vel);
+    mf_voice_note_on(&v, 64, 1.0f, &n, &vel);
+    require_true(mf_voice_note_off(&v, 60, &n, &vel) == MF_VOICE_UNCHANGED,
+                 "releasing an underlying note does not disturb the sounding one");
+    require_true(mf_voice_current(&v) == 64, "B keeps sounding");
+    require_true(mf_voice_note_off(&v, 64, &n, &vel) == MF_VOICE_STOP,
+                 "and releasing B then stops, with no ghost entry for A");
+
+    /* Retriggering a held note must not leave a duplicate behind. */
+    mf_voice_init(&v);
+    mf_voice_note_on(&v, 60, 1.0f, &n, &vel);
+    mf_voice_note_on(&v, 64, 1.0f, &n, &vel);
+    mf_voice_note_on(&v, 60, 0.8f, &n, &vel);
+    require_true(mf_voice_current(&v) == 60, "retriggered A is on top");
+    require_true(mf_voice_note_off(&v, 60, &n, &vel) == MF_VOICE_START && n == 64,
+                 "releasing it falls back to B");
+    require_true(mf_voice_note_off(&v, 64, &n, &vel) == MF_VOICE_STOP,
+                 "no duplicate A remains on the stack");
+
+    /* all-off clears everything. */
+    mf_voice_init(&v);
+    for (int i = 0; i < 5; i++) mf_voice_note_on(&v, 60 + i, 1.0f, &n, &vel);
+    require_true(mf_voice_all_off(&v) == MF_VOICE_STOP, "all-off stops the voice");
+    require_true(mf_voice_current(&v) == -1, "all-off empties the stack");
+
+    /* Overflow drops the oldest rather than refusing the newest, and the stack
+     * stays consistent afterwards. */
+    mf_voice_init(&v);
+    for (int i = 0; i < MF_VOICE_MAX_HELD + 4; i++) {
+        mf_voice_note_on(&v, 40 + i, 1.0f, &n, &vel);
+        require_true(v.count <= MF_VOICE_MAX_HELD, "stack never exceeds its bound");
+    }
+    require_true(mf_voice_current(&v) == 40 + MF_VOICE_MAX_HELD + 3,
+                 "the newest note still sounds after overflow");
+    int releases = 0;
+    while (mf_voice_current(&v) >= 0 && releases < 100) {
+        mf_voice_note_off(&v, mf_voice_current(&v), &n, &vel);
+        releases++;
+    }
+    require_true(v.count == 0, "the stack drains cleanly after overflow");
+
+    /* Out-of-range notes are rejected without corrupting state. */
+    mf_voice_init(&v);
+    require_true(mf_voice_note_on(&v, -1, 1.0f, &n, &vel) == MF_VOICE_UNCHANGED, "note -1 rejected");
+    require_true(mf_voice_note_on(&v, 128, 1.0f, &n, &vel) == MF_VOICE_UNCHANGED, "note 128 rejected");
+    require_true(v.count == 0, "rejected notes do not enter the stack");
+}
+
 static void test_beats_to_samples(void) {
     /* One beat at 60 BPM is one second. */
     require_true(mf_beats_to_samples(1.0f, 60.0f) == (int)MOVEFORGE_SAMPLE_RATE,
@@ -364,6 +437,7 @@ int main(void) {
     test_tanh_approx();
     test_soft_limit();
     test_rng();
+    test_voice_held_note_stack();
     test_beats_to_samples();
     test_svf_damping_mapping();
     test_svf_peak_tracks_cutoff();

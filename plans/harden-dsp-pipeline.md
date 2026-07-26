@@ -423,6 +423,20 @@ Currently rewritten per module:
 - [ ] **4.3 Add `src/modules/_shared/moveforge.lib`** for the Faust side: `sm`
       (the `si.smooth(ba.tau2pole(0.02))` idiom that currently exists only
       inside `trail.dsp:29`), `satTanh`, `divBeats`. Import it from every `.dsp`.
+- [x] **4.4 done — `mf_voice_t` with a held-note stack.** Last-note priority:
+      a new note takes over, releasing it falls back to whatever is still held,
+      and releasing an underlying note changes nothing. Retriggering a held note
+      moves it up the stack rather than leaving a duplicate that would strand a
+      later note-off.
+
+      The bug was real and shared by all three generators. Verified on westfold
+      before the fix: press A, press B, release B -> `gate 0, active_note -1`
+      with A still down. After: `gate 1, active_note 60`. Asserted per module
+      (all three fail on the pre-fix code) as well as against the shared block.
+
+      No golden drift: the render harness plays one note at a time, so single-note
+      sequences behave identically.
+
 - [ ] **4.4 Add a shared `mf_voice_t`** with a held-note stack. All three sound
       generators share the same latent bug: press A, press B, release B → sound
       stops while A is still held (`westfold_core.c:150-159`,

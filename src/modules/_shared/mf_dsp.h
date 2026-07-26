@@ -427,6 +427,116 @@ static inline float mf_rng_bipolar(mf_rng_t *r)
 }
 
 /* ---------------------------------------------------------------------------
+ * Monophonic voice allocation with a held-note stack
+ *
+ * All three sound generators tracked a single `active_note` and cleared the gate
+ * whenever a note-off matched it. That drops a still-held note: press A, press
+ * B, release B, and the voice goes silent even though A is down. Verified on
+ * westfold — gate 0, active_note -1, with A still held.
+ *
+ * Last-note priority with a stack, which is what a mono synth is expected to do:
+ * a new note takes over, and releasing it falls back to whatever is still held.
+ * Releasing a note that is not the sounding one changes nothing.
+ *
+ * The caller decides how to act on a fallback (retrigger the envelope, glide,
+ * or just repitch) — this only says which note should be sounding.
+ * ------------------------------------------------------------------------- */
+
+#define MF_VOICE_MAX_HELD 16
+
+typedef enum {
+    MF_VOICE_UNCHANGED = 0, /* the sounding note did not change */
+    MF_VOICE_START,         /* sound *out_note at *out_velocity, gate on */
+    MF_VOICE_STOP           /* nothing is held any more, gate off */
+} mf_voice_action_t;
+
+typedef struct {
+    uint8_t note[MF_VOICE_MAX_HELD];     /* oldest first, newest last */
+    float velocity[MF_VOICE_MAX_HELD];
+    int count;
+} mf_voice_t;
+
+static inline void mf_voice_init(mf_voice_t *v)
+{
+    if (!v) return;
+    v->count = 0;
+}
+
+/* The note that should currently be sounding, or -1 if none. */
+static inline int mf_voice_current(const mf_voice_t *v)
+{
+    if (!v || v->count <= 0) return -1;
+    return (int)v->note[v->count - 1];
+}
+
+static inline void mf_voice_remove_at(mf_voice_t *v, int idx)
+{
+    for (int i = idx; i < v->count - 1; i++) {
+        v->note[i] = v->note[i + 1];
+        v->velocity[i] = v->velocity[i + 1];
+    }
+    v->count--;
+}
+
+static inline mf_voice_action_t mf_voice_note_on(mf_voice_t *v, int note, float velocity,
+                                                 int *out_note, float *out_velocity)
+{
+    if (!v || note < 0 || note > 127) return MF_VOICE_UNCHANGED;
+
+    /* Retriggering a note already down moves it to the top rather than
+     * stacking a duplicate, so its later note-off cannot leave a ghost entry. */
+    for (int i = 0; i < v->count; i++) {
+        if (v->note[i] == (uint8_t)note) {
+            mf_voice_remove_at(v, i);
+            break;
+        }
+    }
+    /* A mono voice with 16 notes held is already pathological; drop the oldest
+     * rather than refusing the newest, which is what a player would expect. */
+    if (v->count == MF_VOICE_MAX_HELD) mf_voice_remove_at(v, 0);
+
+    v->note[v->count] = (uint8_t)note;
+    v->velocity[v->count] = moveforge_clampf(velocity, 0.0f, 1.0f);
+    v->count++;
+
+    if (out_note) *out_note = note;
+    if (out_velocity) *out_velocity = v->velocity[v->count - 1];
+    return MF_VOICE_START;
+}
+
+static inline mf_voice_action_t mf_voice_note_off(mf_voice_t *v, int note,
+                                                  int *out_note, float *out_velocity)
+{
+    if (!v || v->count <= 0) return MF_VOICE_UNCHANGED;
+
+    int idx = -1;
+    for (int i = v->count - 1; i >= 0; i--) {
+        if (v->note[i] == (uint8_t)note) {
+            idx = i;
+            break;
+        }
+    }
+    if (idx < 0) return MF_VOICE_UNCHANGED;   /* not held; ignore */
+
+    const int was_sounding = (idx == v->count - 1);
+    mf_voice_remove_at(v, idx);
+
+    if (!was_sounding) return MF_VOICE_UNCHANGED;
+    if (v->count == 0) return MF_VOICE_STOP;
+
+    if (out_note) *out_note = (int)v->note[v->count - 1];
+    if (out_velocity) *out_velocity = v->velocity[v->count - 1];
+    return MF_VOICE_START;
+}
+
+static inline mf_voice_action_t mf_voice_all_off(mf_voice_t *v)
+{
+    if (!v) return MF_VOICE_UNCHANGED;
+    v->count = 0;
+    return MF_VOICE_STOP;
+}
+
+/* ---------------------------------------------------------------------------
  * Tempo
  *
  * Division tables stay per-module: their index order is part of each module's

@@ -7,6 +7,8 @@
  * params (cutoff, resonance, attack, release, level) are driven through
  * the standard moveforge param API. */
 
+#include "modules/_shared/mf_dsp.h"
+
 typedef struct {
     /* User-facing params, populated by faust_voice_apply_defaults. */
     float cutoff;
@@ -16,6 +18,7 @@ typedef struct {
     float level;
 
     /* Mono voice state. */
+    mf_voice_t voice;      /* held-note stack; last-note priority */
     int   active_note;     /* MIDI note number, -1 when no voice held */
     float current_freq;    /* Hz */
     float current_gain;    /* 0..1 (scaled MIDI velocity) */

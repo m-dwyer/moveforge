@@ -19,6 +19,52 @@ static double rms(const float *buf, int n) {
     return sqrt(sum / (double)n);
 }
 
+
+/* Releasing a note while a lower one is still held must fall back to it, not go
+ * silent. All three sound generators tracked a single `active_note` and cleared
+ * the gate whenever a note-off matched it, so press A / press B / release B left
+ * the voice silent with A still down. Verified on faust_voice before the fix:
+ * gate 0, active_note -1. */
+static void test_held_note_falls_back(void) {
+    faust_voice_core_t v;
+    float l[128], r[128];
+
+    faust_voice_init(&v);
+    faust_voice_note_on(&v, 60, 1.0f);
+    faust_voice_process_float(&v, NULL, NULL, l, r, 128);
+    faust_voice_note_on(&v, 64, 1.0f);
+    faust_voice_process_float(&v, NULL, NULL, l, r, 128);
+
+    faust_voice_note_off(&v, 64);
+    faust_voice_process_float(&v, NULL, NULL, l, r, 128);
+    require_true(v.gate > 0.5f, "releasing the upper note leaves the voice sounding");
+    require_true(v.active_note == 60, "the still-held lower note takes over");
+
+    faust_voice_note_off(&v, 60);
+    faust_voice_process_float(&v, NULL, NULL, l, r, 128);
+    require_true(v.gate < 0.5f, "releasing the last held note stops the voice");
+    require_true(v.active_note == -1, "no note is tracked once all are released");
+
+    /* Releasing an underlying note must not disturb the sounding one. */
+    faust_voice_init(&v);
+    faust_voice_note_on(&v, 60, 1.0f);
+    faust_voice_note_on(&v, 64, 1.0f);
+    faust_voice_note_off(&v, 60);
+    require_true(v.gate > 0.5f && v.active_note == 64,
+                 "releasing an underlying note leaves the sounding note alone");
+    faust_voice_note_off(&v, 64);
+    require_true(v.gate < 0.5f, "and then releasing it stops, with no ghost entry");
+
+    /* all-notes-off clears the whole stack, not just the top. */
+    faust_voice_init(&v);
+    faust_voice_note_on(&v, 60, 1.0f);
+    faust_voice_note_on(&v, 64, 1.0f);
+    faust_voice_all_notes_off(&v);
+    require_true(v.gate < 0.5f && v.active_note == -1, "all-notes-off silences the voice");
+    faust_voice_note_off(&v, 60);
+    require_true(v.gate < 0.5f, "a stale note-off after all-notes-off does not revive it");
+}
+
 int main(void) {
     faust_voice_core_t v;
     static float out_l[FRAMES];
@@ -88,6 +134,9 @@ int main(void) {
     require_true(v.gate == 0.0f, "all_notes_off drops gate");
 
     faust_voice_destroy(&v);
+
+    test_held_note_falls_back();
+
     printf("faust_voice core tests passed\n");
     return 0;
 }

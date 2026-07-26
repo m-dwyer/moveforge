@@ -191,6 +191,52 @@ static void test_noise_source_is_actually_noise(void) {
     }
 }
 
+
+/* Releasing a note while a lower one is still held must fall back to it, not go
+ * silent. All three sound generators tracked a single `active_note` and cleared
+ * the gate whenever a note-off matched it, so press A / press B / release B left
+ * the voice silent with A still down. Verified on dustline before the fix:
+ * gate 0, active_note -1. */
+static void test_held_note_falls_back(void) {
+    dustline_core_t v;
+    float l[128], r[128];
+
+    dustline_init(&v);
+    dustline_note_on(&v, 60, 1.0f);
+    dustline_process_float(&v, NULL, NULL, l, r, 128);
+    dustline_note_on(&v, 64, 1.0f);
+    dustline_process_float(&v, NULL, NULL, l, r, 128);
+
+    dustline_note_off(&v, 64);
+    dustline_process_float(&v, NULL, NULL, l, r, 128);
+    require_true(v.gate > 0.5f, "releasing the upper note leaves the voice sounding");
+    require_true(v.active_note == 60, "the still-held lower note takes over");
+
+    dustline_note_off(&v, 60);
+    dustline_process_float(&v, NULL, NULL, l, r, 128);
+    require_true(v.gate < 0.5f, "releasing the last held note stops the voice");
+    require_true(v.active_note == -1, "no note is tracked once all are released");
+
+    /* Releasing an underlying note must not disturb the sounding one. */
+    dustline_init(&v);
+    dustline_note_on(&v, 60, 1.0f);
+    dustline_note_on(&v, 64, 1.0f);
+    dustline_note_off(&v, 60);
+    require_true(v.gate > 0.5f && v.active_note == 64,
+                 "releasing an underlying note leaves the sounding note alone");
+    dustline_note_off(&v, 64);
+    require_true(v.gate < 0.5f, "and then releasing it stops, with no ghost entry");
+
+    /* all-notes-off clears the whole stack, not just the top. */
+    dustline_init(&v);
+    dustline_note_on(&v, 60, 1.0f);
+    dustline_note_on(&v, 64, 1.0f);
+    dustline_all_notes_off(&v);
+    require_true(v.gate < 0.5f && v.active_note == -1, "all-notes-off silences the voice");
+    dustline_note_off(&v, 60);
+    require_true(v.gate < 0.5f, "a stale note-off after all-notes-off does not revive it");
+}
+
 int main(void) {
     dustline_core_t synth;
     float left[FRAMES];
@@ -254,6 +300,9 @@ int main(void) {
     test_noise_source_is_actually_noise();
     test_param_space_is_stable();
     test_resonance_is_wired_the_right_way_round();
+
+    test_held_note_falls_back();
+
 
     printf("dustline core tests passed\n");
     return 0;

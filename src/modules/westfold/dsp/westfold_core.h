@@ -1,6 +1,8 @@
 #ifndef WESTFOLD_CORE_H
 #define WESTFOLD_CORE_H
 
+#include "modules/_shared/mf_dsp.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -19,6 +21,7 @@ typedef struct {
     float hp_y;
     float chaos_phase;
     float note_rand;
+    mf_voice_t voice;
     int active_note;
     float pitch_bend;
 
