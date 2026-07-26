@@ -50,6 +50,71 @@ static void require_passthrough(lobber_core_t *fx, int phase, const char *msg) {
     }
 }
 
+/* Slice mode adds a one-shot on top of the live signal rather than crossfading,
+ * so dry + wet reaches +-2 at mix=1. The only thing downstream used to be the
+ * hard clamp in moveforge_float_to_i16 — harsh digital clipping.
+ *
+ * No shipped preset drives this hard enough to exercise it, so it is asserted
+ * directly here: feed near-full-scale audio, capture it, fire slices, and check
+ * the sum stays in range while idle passthrough remains bit-exact. */
+static void test_slice_sum_is_bounded_but_passthrough_is_exact(void) {
+    lobber_core_t *fx = (lobber_core_t *)malloc(sizeof(*fx));
+    require_true(fx != NULL, "slice test core allocates");
+    lobber_init(fx);
+
+    float in_l[BLOCK], in_r[BLOCK], out_l[BLOCK], out_r[BLOCK];
+
+    /* Record ~1 s of near-full-scale audio so a slice reads loud material. */
+    set(fx, "bpm", 120.0f);
+    for (int b = 0; b < 345; b++) {
+        for (int i = 0; i < BLOCK; i++) {
+            in_l[i] = 0.98f;
+            in_r[i] = -0.98f;
+        }
+        lobber_process_float(fx, in_l, in_r, out_l, out_r, BLOCK);
+    }
+
+    set(fx, "loop_beats", 2.0f);
+    set(fx, "capture", 1.0f);
+    for (int i = 0; i < BLOCK; i++) { in_l[i] = 0.98f; in_r[i] = -0.98f; }
+    lobber_process_float(fx, in_l, in_r, out_l, out_r, BLOCK);
+    set(fx, "capture", 0.0f);
+
+    set(fx, "mode", 2.0f);       /* Slice */
+    set(fx, "division", 2.0f);
+    set(fx, "mix", 1.0f);
+
+    /* Idle: bit-exact passthrough, even at near-full scale. */
+    set(fx, "active", 0.0f);
+    for (int i = 0; i < BLOCK; i++) { in_l[i] = 0.98f; in_r[i] = -0.98f; }
+    lobber_process_float(fx, in_l, in_r, out_l, out_r, BLOCK);
+    for (int i = 0; i < BLOCK; i++) {
+        require_true(out_l[i] == in_l[i] && out_r[i] == in_r[i],
+                     "idle slice mode is a bit-exact passthrough at full scale");
+    }
+
+    /* Active: fire slices continuously and check the additive sum stays bounded
+     * and never hard-clips at exactly +-1. */
+    set(fx, "active", 1.0f);
+    int saw_limiting = 0;
+    for (int b = 0; b < 400; b++) {
+        set(fx, "offset", (float)(b % 16));
+        for (int i = 0; i < BLOCK; i++) { in_l[i] = 0.98f; in_r[i] = -0.98f; }
+        lobber_process_float(fx, in_l, in_r, out_l, out_r, BLOCK);
+        for (int i = 0; i < BLOCK; i++) {
+            require_true(isfinite(out_l[i]) && isfinite(out_r[i]), "slice sum is finite");
+            require_true(out_l[i] <= 1.0f && out_l[i] >= -1.0f, "slice sum stays in range");
+            require_true(out_r[i] <= 1.0f && out_r[i] >= -1.0f, "slice sum stays in range");
+            /* A limited sample differs from the raw dry input — evidence the
+             * limiter engaged rather than the test simply never overflowing. */
+            if (out_l[i] != in_l[i]) saw_limiting = 1;
+        }
+    }
+    require_true(saw_limiting, "slice playback actually engaged the limiter");
+
+    free(fx);
+}
+
 int main(void) {
     /* Core is ~4 MB (embedded ring buffer) — heap, never the stack. */
     lobber_core_t *fx = (lobber_core_t*)malloc(sizeof(*fx));
@@ -212,6 +277,9 @@ int main(void) {
                  "channel-0 note still maps to a toss offset");
 
     free(fx);
+
+    test_slice_sum_is_bounded_but_passthrough_is_exact();
+
     printf("lobber core tests passed\n");
     return 0;
 }

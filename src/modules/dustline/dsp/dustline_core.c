@@ -8,14 +8,6 @@
 
 #include "modules/_shared/dsp_runtime.h"
 
-static float next_noise(dustline_core_t *s) {
-    uint32_t x = (uint32_t)(s->rng * 4294967295.0f);
-    if (x == 0) x = 0x12345678u;
-    x = x * 1664525u + 1013904223u;
-    s->rng = (float)x / 4294967295.0f;
-    return s->rng * 2.0f - 1.0f;
-}
-
 /* `resonance` is declared 0..0.95 in module.json; mf_svf_set wants 0..1. */
 #define DUSTLINE_RESONANCE_MAX 0.95f
 
@@ -23,7 +15,7 @@ void dustline_init(dustline_core_t *s) {
     if (!s) return;
     memset(s, 0, sizeof(*s));
     s->active_note = -1;
-    s->rng = 0.37f;
+    mf_rng_init(&s->rng, 0x5eed1234u);
     mf_svf_init(&s->svf);
     mf_dcblock_init(&s->dc_pre);
     mf_dcblock_init(&s->dc_post);
@@ -98,7 +90,7 @@ void dustline_process_float(dustline_core_t *s,
         float osc_a = saw * (1.0f - s->wave) + pulse * s->wave;
         float sub = (s->sub_phase < 0.5f ? 1.0f : -1.0f) * 0.38f;
         float source = osc_a * 0.72f + tri * 0.18f + sub;
-        source = source * (1.0f - s->noise) + next_noise(s) * s->noise;
+        source = source * (1.0f - s->noise) + mf_rng_bipolar(&s->rng) * s->noise;
 
         mf_svf_tick(&s->svf, &svf_c, source);
 

@@ -7,14 +7,28 @@
  * C11, allocation-free and safe to call from the audio thread.
  *
  * The rule this file exists to enforce: a module author should never be
- * hand-deriving a filter topology's stability condition. See
- * plans/harden-dsp-pipeline.md for the bug that motivated it.
+ * hand-deriving a filter topology's stability condition, a PRNG, or a
+ * denormal guard. Every block here replaced at least one hand-rolled copy that
+ * was subtly wrong. See plans/harden-dsp-pipeline.md for the specifics.
  *
- * Currently: denormal flush, state-variable filter.
- * Phase 4 of the plan adds the smoother, envelope, DC blocker, tanh
- * approximation, PRNG, beats->samples and voice/note-stack helpers. */
+ * Contents:
+ *   mf_flush_denorm      flush-to-zero for recursive state
+ *   mf_is_bad/mf_sanitize non-finite and out-of-range guards
+ *   mf_wrap_phase        wrap a normalized phase into [0, 1)
+ *   mf_dcblock_t         one-pole DC blocker
+ *   mf_onepole_t         one-pole lowpass with an Hz-set coefficient
+ *   mf_svf_t             TPT/ZDF state-variable filter (unconditionally stable)
+ *   mf_smooth_t          one-pole parameter smoother
+ *   mf_ar_t              attack/release envelope
+ *   mf_tanh_approx       rational tanh, ~7 ops instead of a libm call
+ *   mf_rng_t             integer LCG noise source
+ *   mf_beats_to_samples  tempo-relative lengths
+ *
+ * Sample rate is MOVEFORGE_SAMPLE_RATE throughout; nothing here reads the host
+ * rate, matching the rest of the project's fixed-rate assumption. */
 
 #include <math.h>
+#include <stdint.h>
 
 #include "modules/_shared/dsp_runtime.h"
 
@@ -32,6 +46,37 @@
 static inline float mf_flush_denorm(float x)
 {
     return (x > -MF_DENORM_FLOOR && x < MF_DENORM_FLOOR) ? 0.0f : x;
+}
+
+/* ---------------------------------------------------------------------------
+ * Non-finite and range guards
+ *
+ * A NaN cannot be detected downstream: moveforge_float_to_i16's clamp
+ * comparisons are both false for NaN, so it converts to 0 and a blowup renders
+ * as digital silence. Guard recursive state where it is produced.
+ * ------------------------------------------------------------------------- */
+
+#define MF_STATE_LIMIT 1.0e6f
+
+static inline int mf_is_bad(float x)
+{
+    return !isfinite(x) || x > MF_STATE_LIMIT || x < -MF_STATE_LIMIT;
+}
+
+/* Returns `fallback` for non-finite or absurd input, otherwise x unchanged. */
+static inline float mf_sanitize(float x, float fallback)
+{
+    return mf_is_bad(x) ? fallback : x;
+}
+
+/* ---------------------------------------------------------------------------
+ * Phase wrap
+ * ------------------------------------------------------------------------- */
+
+static inline float mf_wrap_phase(float phase)
+{
+    phase -= floorf(phase);
+    return phase < 0.0f ? phase + 1.0f : phase;
 }
 
 /* ---------------------------------------------------------------------------
@@ -162,6 +207,240 @@ static inline void mf_svf_tick(mf_svf_t *s, const mf_svf_coeffs_t *c, float in)
     s->lp = v2;
     s->bp = v1;
     s->hp = in - c->k * v1 - v2;
+}
+
+/* ---------------------------------------------------------------------------
+ * One-pole lowpass
+ *
+ * The `y += a * (x - y)` filter every module ends up writing. Coefficient set
+ * from a corner frequency so callers stop repeating the 2*pi*hz/sr conversion.
+ * ------------------------------------------------------------------------- */
+
+typedef struct {
+    float y;
+    float a;
+} mf_onepole_t;
+
+static inline void mf_onepole_init(mf_onepole_t *f)
+{
+    if (!f) return;
+    f->y = 0.0f;
+    f->a = 1.0f;
+}
+
+static inline void mf_onepole_set_hz(mf_onepole_t *f, float hz)
+{
+    if (!f) return;
+    f->a = moveforge_clampf(MOVEFORGE_TWO_PI * hz / MOVEFORGE_SAMPLE_RATE, 0.0002f, 0.95f);
+}
+
+static inline float mf_onepole_tick(mf_onepole_t *f, float x)
+{
+    f->y += f->a * (x - f->y);
+    f->y = mf_flush_denorm(f->y);
+    return f->y;
+}
+
+/* ---------------------------------------------------------------------------
+ * Parameter smoother
+ *
+ * Unsmoothed parameters step once per block, which is a 344 Hz buzz while a
+ * knob moves and a click on every preset load. Three incompatible versions of
+ * this existed across the modules and four had none at all.
+ *
+ * Use mf_smooth_init_gain for anything that scales the output: it collapses to
+ * silence faster than it rises, so `volume = 0` mutes promptly instead of
+ * leaving an audible tail, and snaps to exact zero rather than decaying forever.
+ * ------------------------------------------------------------------------- */
+
+#define MF_SMOOTH_ZERO_EPS 1.0e-6f
+
+typedef struct {
+    float value;
+    float coeff;       /* normal approach rate  */
+    float mute_coeff;  /* rate when heading to zero */
+} mf_smooth_t;
+
+/* Coefficient for a one-pole reaching ~63% of a step in `ms`. */
+static inline float mf_smooth_coeff_ms(float ms)
+{
+    float samples = (ms <= 0.0f) ? 1.0f : ms * 0.001f * MOVEFORGE_SAMPLE_RATE;
+    if (samples < 1.0f) samples = 1.0f;
+    return 1.0f / samples;
+}
+
+static inline void mf_smooth_init(mf_smooth_t *s, float ms)
+{
+    if (!s) return;
+    s->value = 0.0f;
+    s->coeff = mf_smooth_coeff_ms(ms);
+    s->mute_coeff = s->coeff;
+}
+
+static inline void mf_smooth_init_gain(mf_smooth_t *s, float ms, float mute_ms)
+{
+    if (!s) return;
+    mf_smooth_init(s, ms);
+    s->mute_coeff = mf_smooth_coeff_ms(mute_ms);
+}
+
+/* Jump straight to a value — use on note-on so a fresh note does not glide in
+ * from whatever the previous one left behind. */
+static inline void mf_smooth_snap(mf_smooth_t *s, float value)
+{
+    if (!s) return;
+    s->value = value;
+}
+
+static inline float mf_smooth_tick(mf_smooth_t *s, float target)
+{
+    float c = (target <= MF_SMOOTH_ZERO_EPS) ? s->mute_coeff : s->coeff;
+    s->value += (target - s->value) * c;
+    if (target <= MF_SMOOTH_ZERO_EPS && s->value < MF_SMOOTH_ZERO_EPS) s->value = 0.0f;
+    return s->value;
+}
+
+/* ---------------------------------------------------------------------------
+ * Attack / release envelope
+ *
+ * `sustain` is the level held while the gate is open, so this covers both a
+ * plain AR (sustain 1.0) and the decay-to-a-hold-level shape westfold uses.
+ * Coefficients are per-block work, not per-sample: set them once outside the
+ * loop.
+ * ------------------------------------------------------------------------- */
+
+typedef struct {
+    float value;
+    float attack_coeff;
+    float release_coeff;
+} mf_ar_t;
+
+/* 1 - exp(-1/(t*sr)): reaches ~63% of the way in `seconds`. */
+static inline float mf_env_coeff_seconds(float seconds)
+{
+    if (seconds <= 0.0f) return 1.0f;
+    float c = 1.0f - expf(-1.0f / (seconds * MOVEFORGE_SAMPLE_RATE));
+    return moveforge_clampf(c, 0.0f, 1.0f);
+}
+
+static inline void mf_ar_init(mf_ar_t *e)
+{
+    if (!e) return;
+    e->value = 0.0f;
+    e->attack_coeff = 1.0f;
+    e->release_coeff = 1.0f;
+}
+
+static inline void mf_ar_set_times(mf_ar_t *e, float attack_s, float release_s)
+{
+    if (!e) return;
+    e->attack_coeff = mf_env_coeff_seconds(attack_s);
+    e->release_coeff = mf_env_coeff_seconds(release_s);
+}
+
+static inline float mf_ar_tick(mf_ar_t *e, int gate_open, float sustain)
+{
+    float target = gate_open ? sustain : 0.0f;
+    float c = gate_open ? e->attack_coeff : e->release_coeff;
+    e->value += (target - e->value) * c;
+    e->value = mf_flush_denorm(e->value);
+    return e->value;
+}
+
+/* ---------------------------------------------------------------------------
+ * Soft clip
+ *
+ * Rational approximation of tanh: ~6 multiplies, 5 adds and a divide against a
+ * libm call. westfold alone makes five tanhf calls per sample.
+ *
+ * Pade 5/4, chosen by measuring candidates rather than by reputation. Max
+ * absolute error 0.00087 over |x| <= 6, monotonic (so it cannot introduce
+ * fold-back of its own), and it stays inside full scale across its clamped
+ * range. For reference the obvious Pade 3/2 — x(27+x^2)/(27+9x^2) — is off by
+ * 0.024 near x = 1.57, which is audible as a different saturation curve, and
+ * Pade 7/6 is more accurate but overshoots +-1 without an output clamp.
+ * ------------------------------------------------------------------------- */
+
+static inline float mf_tanh_approx(float x)
+{
+    float c = moveforge_clampf(x, -4.0f, 4.0f);
+    float c2 = c * c;
+    float num = c * (10395.0f + c2 * (1260.0f + c2 * 21.0f));
+    float den = 10395.0f + c2 * (4725.0f + c2 * (210.0f + c2));
+    /* Belt and braces: the rational is bounded inside the clamp, but a
+     * saturator that can exceed full scale is a clipping bug waiting to happen. */
+    return moveforge_clampf(num / den, -1.0f, 1.0f);
+}
+
+/* ---------------------------------------------------------------------------
+ * Soft limiter
+ *
+ * Exactly identity below the knee, C1-continuous through it, and asymptotic to
+ * +-1 above. Use this instead of mf_tanh_approx where a signal is normally in
+ * range and only occasionally overshoots: tanh alters everything it touches,
+ * which breaks any "passes audio through unchanged" contract.
+ * ------------------------------------------------------------------------- */
+
+#define MF_SOFT_LIMIT_KNEE 0.75f
+
+static inline float mf_soft_limit(float x)
+{
+    float a = fabsf(x);
+    if (a <= MF_SOFT_LIMIT_KNEE) return x;
+    const float head = 1.0f - MF_SOFT_LIMIT_KNEE;
+    float over = a - MF_SOFT_LIMIT_KNEE;
+    float y = MF_SOFT_LIMIT_KNEE + head * (over / (over + head));
+    return x < 0.0f ? -y : y;
+}
+
+/* ---------------------------------------------------------------------------
+ * Noise
+ *
+ * Integer LCG, full 2^32 period. Never round-trip PRNG state through a float:
+ * dustline did, which cost the low 8 bits of state every sample. Measured
+ * through the module, its "noise" had an autocorrelation of exactly 1.0 at a lag
+ * of 651 samples — a perfectly periodic 67.7 Hz buzz, not noise. With this
+ * generator the worst autocorrelation over lags 200..40000 is 0.013.
+ * ------------------------------------------------------------------------- */
+
+typedef struct {
+    uint32_t state;
+} mf_rng_t;
+
+static inline void mf_rng_init(mf_rng_t *r, uint32_t seed)
+{
+    if (!r) return;
+    r->state = seed ? seed : 0x12345678u;
+}
+
+static inline uint32_t mf_rng_next_u32(mf_rng_t *r)
+{
+    r->state = r->state * 1664525u + 1013904223u;
+    return r->state;
+}
+
+/* Uniform in [-1, 1). Takes the high bits: an LCG's low bits are poor. */
+static inline float mf_rng_bipolar(mf_rng_t *r)
+{
+    int32_t hi = (int32_t)mf_rng_next_u32(r) >> 8;   /* -8388608 .. 8388607 */
+    return (float)hi * (1.0f / 8388608.0f);
+}
+
+/* ---------------------------------------------------------------------------
+ * Tempo
+ *
+ * Division tables stay per-module: their index order is part of each module's
+ * published parameter contract (trail has 10 entries, lobber 6, in different
+ * orders), so unifying them would silently remap saved presets.
+ * ------------------------------------------------------------------------- */
+
+static inline int mf_beats_to_samples(float beats, float bpm)
+{
+    if (bpm < 1.0f) bpm = 1.0f;
+    if (beats < 0.0f) beats = 0.0f;
+    float samples = (60.0f / bpm) * beats * MOVEFORGE_SAMPLE_RATE;
+    if (samples > 2.0e9f) samples = 2.0e9f;
+    return (int)samples;
 }
 
 #endif

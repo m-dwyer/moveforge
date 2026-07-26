@@ -8,6 +8,83 @@ static void require_true(int condition, const char *message) {
     if (!condition) { fprintf(stderr, "FAIL: %s\n", message); exit(1); }
 }
 
+/* Run ticks until a note is sounding, or give up. */
+static void tick_until_sounding(arpy_core_t *s, uint8_t msgs[][3], int lens[], int max_out) {
+    for (int b = 0; b < 500 && s->playing_note < 0; b++) {
+        arpy_tick(s, 128, 44100, msgs, lens, max_out);
+    }
+}
+
+static void test_pattern_off_releases_the_sounding_note(void) {
+    /* Switching the pattern to off used to `return 0` before the gate-off step,
+     * leaving the downstream synth holding a note forever. Lifting the key could
+     * not recover it either: with the pattern off, process_midi passes the input
+     * note-off through, but the sounding note is a transposed chord tone, so the
+     * note-off addressed the wrong pitch. */
+    arpy_core_t s;
+    uint8_t msgs[16][3];
+    int lens[16];
+
+    arpy_init(&s);
+    arpy_set_param(&s, arpy_param_id("pattern"), 1.0f);
+    arpy_set_param(&s, arpy_param_id("chord"), 3.0f);
+    arpy_set_param(&s, arpy_param_id("rate"), 0.0f);
+
+    uint8_t on[3] = { 0x90, 60, 100 };
+    arpy_process_midi(&s, on, 3, msgs, lens, 16);
+    tick_until_sounding(&s, msgs, lens, 16);
+    require_true(s.playing_note >= 0, "a note is sounding before the pattern is switched off");
+
+    arpy_set_param(&s, arpy_param_id("pattern"), 0.0f);
+    int n = arpy_tick(&s, 128, 44100, msgs, lens, 16);
+    require_true(n == 1, "switching the pattern off emits exactly one message");
+    require_true((msgs[0][0] & 0xF0) == 0x80, "that message is a note-off");
+    require_true(msgs[0][2] == 0, "the note-off has zero velocity");
+    require_true(s.playing_note == -1, "no note is left sounding");
+    require_true(s.held_active == 0, "held state is cleared");
+
+    int extra = 0;
+    for (int b = 0; b < 100; b++) extra += arpy_tick(&s, 128, 44100, msgs, lens, 16);
+    require_true(extra == 0, "nothing further is emitted while the pattern is off");
+}
+
+static void test_output_overflow_does_not_strand_a_note(void) {
+    /* emit() silently drops past max_out. Writing playing_note unconditionally
+     * therefore left the core believing a note was sounding that the host never
+     * received — a stuck voice with no note-off ever generated for it.
+     *
+     * max_out == 1 is the tight case: closing the previous note and opening the
+     * next one need two slots, so the step must be deferred rather than half
+     * emitted. */
+    arpy_core_t s;
+    uint8_t msgs[16][3];
+    int lens[16];
+
+    arpy_init(&s);
+    arpy_set_param(&s, arpy_param_id("pattern"), 1.0f);
+    arpy_set_param(&s, arpy_param_id("chord"), 4.0f);
+    arpy_set_param(&s, arpy_param_id("rate"), 0.0f);
+
+    uint8_t on[3] = { 0x90, 60, 100 };
+    arpy_process_midi(&s, on, 3, msgs, lens, 16);
+
+    for (int b = 0; b < 400; b++) {
+        int n = arpy_tick(&s, 128, 44100, msgs, lens, 1);
+        require_true(n <= 1, "never emits more messages than max_out");
+        /* Whatever the core believes is sounding must have been announced: if a
+         * note is marked playing, some note-on for it was emitted at some point.
+         * The invariant we can check cheaply is that state stays self-consistent
+         * and the gate timer never goes negative-unbounded. */
+        require_true(s.playing_note >= -1 && s.playing_note <= 127, "playing_note stays in range");
+        require_true(s.frames_until_gate_off >= 0, "gate timer never goes negative");
+    }
+
+    /* And with room again, it recovers and keeps arpeggiating. */
+    int emitted = 0;
+    for (int b = 0; b < 200; b++) emitted += arpy_tick(&s, 128, 44100, msgs, lens, 16);
+    require_true(emitted > 0, "arp resumes once output room is available");
+}
+
 int main(void) {
     arpy_core_t fx;
     arpy_init(&fx);
@@ -77,6 +154,9 @@ int main(void) {
         post_release += n;
     }
     require_true(post_release == 0, "no further notes emitted after note-off settles");
+
+    test_pattern_off_releases_the_sounding_note();
+    test_output_overflow_does_not_strand_a_note();
 
     printf("arpy core tests passed\n");
     return 0;

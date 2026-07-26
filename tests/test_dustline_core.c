@@ -130,6 +130,67 @@ static void test_resonance_is_wired_the_right_way_round(void) {
     require_true(high > mid * 1.5, "high resonance rings more than mid (knob is not inverted)");
 }
 
+/* Normalized autocorrelation of a buffer at one lag. 1.0 means the signal
+ * repeats exactly at that spacing. */
+static double autocorrelation(const float *x, int n, int lag) {
+    const int from = n / 8;           /* skip the attack */
+    const int to = n - lag - 1;
+    double num = 0.0;
+    double da = 0.0;
+    double db = 0.0;
+    for (int i = from; i < to; i++) {
+        num += (double)x[i] * (double)x[i + lag];
+        da += (double)x[i] * (double)x[i];
+        db += (double)x[i + lag] * (double)x[i + lag];
+    }
+    return num / (sqrt(da * db) + 1e-30);
+}
+
+static void test_noise_source_is_actually_noise(void) {
+    /* The PRNG used to round-trip its 32-bit state through a float, losing the
+     * low 8 bits every sample. Measured through the module that produced an
+     * autocorrelation of exactly 1.0 at a lag of 651 samples — a periodic
+     * 67.7 Hz buzz rather than noise. Nothing in the metric suite could see it:
+     * peak, rms and DC are all perfectly reasonable for a periodic signal. */
+    enum { N = 132300 };              /* 3 s */
+    static float buf[N];
+    dustline_core_t s;
+    float l[128];
+    float r[128];
+
+    dustline_init(&s);
+    dustline_set_param(&s, dustline_param_id("noise"), 1.0f);      /* noise only */
+    dustline_set_param(&s, dustline_param_id("cutoff"), 1.0f);     /* filter wide open */
+    dustline_set_param(&s, dustline_param_id("resonance"), 0.0f);
+    dustline_set_param(&s, dustline_param_id("drive"), 0.0f);
+    dustline_set_param(&s, dustline_param_id("volume"), 1.0f);
+    dustline_set_param(&s, dustline_param_id("attack"), 0.001f);
+    dustline_note_on(&s, 60, 1.0f);
+
+    for (int i = 0; i < N; i += 128) {
+        dustline_process_float(&s, NULL, NULL, l, r, 128);
+        for (int j = 0; j < 128 && i + j < N; j++) buf[i + j] = l[j];
+    }
+
+    require_true(autocorrelation(buf, N, 651) < 0.2,
+                 "noise does not repeat at the old 651-sample period");
+
+    /* Scan for any strong periodicity, not just the one we knew about. */
+    double worst = 0.0;
+    int worst_lag = 0;
+    for (int lag = 200; lag < 30000; lag += 7) {
+        double a = fabs(autocorrelation(buf, N, lag));
+        if (a > worst) {
+            worst = a;
+            worst_lag = lag;
+        }
+    }
+    if (worst > 0.2) {
+        fprintf(stderr, "FAIL: noise repeats with autocorrelation %.4f at lag %d\n", worst, worst_lag);
+        exit(1);
+    }
+}
+
 int main(void) {
     dustline_core_t synth;
     float left[FRAMES];
@@ -190,6 +251,7 @@ int main(void) {
     require_true(dustline_param_id("cutoff") >= 0, "param lookup works");
     require_true(dustline_param_id("does_not_exist") < 0, "unknown param lookup fails");
 
+    test_noise_source_is_actually_noise();
     test_param_space_is_stable();
     test_resonance_is_wired_the_right_way_round();
 

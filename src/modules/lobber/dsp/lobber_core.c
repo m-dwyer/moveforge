@@ -3,6 +3,7 @@
 #include <string.h>
 
 #include "modules/_shared/dsp_runtime.h"
+#include "modules/_shared/mf_dsp.h"
 #include "lobber_params.gen.inc"
 
 /* Beats per slice for each division index, matching the device note keys:
@@ -428,7 +429,9 @@ void lobber_process_float(lobber_core_t *s,
         } else {
             /* ----- Slice: live passthrough with one-shot slices layered on top ----- */
             float sl = 0.0f, sr = 0.0f;
+            int slice_playing = 0;
             if (s->slice_active && s->loop_filled && s->loop_len > 0) {
+                slice_playing = 1;
                 lb_loop_read_sample(s, s->slice_read, &sl, &sr);
                 s->slice_read += (double)s->slice_dir;
                 while (s->slice_read >= (double)s->loop_len) s->slice_read -= (double)s->loop_len;
@@ -437,8 +440,18 @@ void lobber_process_float(lobber_core_t *s,
             }
             const float dl = mute ? 0.0f : dry_l;
             const float dr = mute ? 0.0f : dry_r;
-            out_l = dl + sl * mix;
-            out_r = dr + sr * mix;
+            /* Slice layers a one-shot on top of the live signal, so dry + wet
+             * can reach +-2 at mix=1. Unlike Live and Loop this is additive, not
+             * a crossfade, and the only thing downstream was the hard clamp in
+             * moveforge_float_to_i16 — i.e. harsh digital clipping.
+             *
+             * The limiter only engages while a slice is actually sounding, so
+             * idle Slice mode stays a bit-exact passthrough (a slicer must not
+             * colour the dry signal while doing nothing). During a slice the dry
+             * path may be very slightly compressed, which is inaudible against
+             * the slice itself. */
+            out_l = slice_playing ? mf_soft_limit(dl + sl * mix) : dl;
+            out_r = slice_playing ? mf_soft_limit(dr + sr * mix) : dr;
         }
 
         out_left[i]  = out_l;

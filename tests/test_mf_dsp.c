@@ -130,8 +130,241 @@ static void test_flush_denorm(void) {
     require_true(mf_flush_denorm(-0.5f) == -0.5f, "normal negative passes through");
 }
 
+static void test_sanitize(void) {
+    require_true(mf_is_bad(NAN), "NaN is bad");
+    require_true(mf_is_bad(INFINITY), "inf is bad");
+    require_true(mf_is_bad(-INFINITY), "-inf is bad");
+    require_true(mf_is_bad(1.0e9f), "absurd magnitude is bad");
+    require_true(!mf_is_bad(0.0f), "zero is fine");
+    require_true(!mf_is_bad(-0.9f), "normal value is fine");
+    require_true(mf_sanitize(NAN, 0.0f) == 0.0f, "NaN sanitizes to the fallback");
+    require_true(mf_sanitize(0.5f, 0.0f) == 0.5f, "good value passes through");
+}
+
+static void test_wrap_phase(void) {
+    require_true(absf_local(mf_wrap_phase(0.25f) - 0.25f) < 1e-6f, "in-range phase unchanged");
+    require_true(absf_local(mf_wrap_phase(1.25f) - 0.25f) < 1e-6f, "phase above 1 wraps down");
+    require_true(absf_local(mf_wrap_phase(-0.25f) - 0.75f) < 1e-6f, "negative phase wraps up");
+    require_true(mf_wrap_phase(5.0f) >= 0.0f && mf_wrap_phase(5.0f) < 1.0f, "large phase lands in range");
+    require_true(mf_wrap_phase(-5.5f) >= 0.0f && mf_wrap_phase(-5.5f) < 1.0f, "large negative lands in range");
+}
+
+static void test_onepole(void) {
+    mf_onepole_t f;
+    mf_onepole_init(&f);
+    mf_onepole_set_hz(&f, 1000.0f);
+
+    /* A step settles toward the input and never overshoots it. */
+    float prev = 0.0f;
+    for (int i = 0; i < 2000; i++) {
+        float y = mf_onepole_tick(&f, 1.0f);
+        require_true(y >= prev - 1e-6f, "one-pole step response is monotonic");
+        require_true(y <= 1.0f + 1e-6f, "one-pole does not overshoot");
+        prev = y;
+    }
+    require_true(prev > 0.99f, "one-pole settles to its input");
+
+    /* Higher corner means faster settling. */
+    mf_onepole_t slow, fast;
+    mf_onepole_init(&slow);
+    mf_onepole_init(&fast);
+    mf_onepole_set_hz(&slow, 100.0f);
+    mf_onepole_set_hz(&fast, 4000.0f);
+    for (int i = 0; i < 100; i++) {
+        mf_onepole_tick(&slow, 1.0f);
+        mf_onepole_tick(&fast, 1.0f);
+    }
+    require_true(fast.y > slow.y, "higher corner settles faster");
+}
+
+static void test_smooth(void) {
+    /* Reaches ~63% of a step in the nominal time, and all of it eventually. */
+    mf_smooth_t s;
+    mf_smooth_init(&s, 5.0f);
+    int n = (int)(0.005f * MOVEFORGE_SAMPLE_RATE);
+    for (int i = 0; i < n; i++) mf_smooth_tick(&s, 1.0f);
+    require_true(s.value > 0.55f && s.value < 0.70f, "smoother hits ~63% at its time constant");
+    for (int i = 0; i < n * 10; i++) mf_smooth_tick(&s, 1.0f);
+    require_true(s.value > 0.999f, "smoother converges");
+
+    /* It must actually smooth: a step never arrives in one sample. */
+    mf_smooth_t step;
+    mf_smooth_init(&step, 5.0f);
+    require_true(mf_smooth_tick(&step, 1.0f) < 0.1f, "a step does not arrive instantly");
+
+    /* snap bypasses smoothing, for note-on. */
+    mf_smooth_snap(&step, 0.42f);
+    require_true(step.value == 0.42f, "snap sets the value directly");
+
+    /* Gain variant collapses to exact zero, and faster than it rises. */
+    mf_smooth_t gain;
+    mf_smooth_init_gain(&gain, 5.0f, 0.5f);
+    mf_smooth_snap(&gain, 1.0f);
+    int mute_samples = 0;
+    while (gain.value != 0.0f && mute_samples < 100000) {
+        mf_smooth_tick(&gain, 0.0f);
+        mute_samples++;
+    }
+    require_true(gain.value == 0.0f, "gain smoother reaches exact zero");
+    require_true(mute_samples < (int)(0.02f * MOVEFORGE_SAMPLE_RATE),
+                 "gain smoother mutes within ~20ms");
+}
+
+static void test_ar_envelope(void) {
+    mf_ar_t e;
+    mf_ar_init(&e);
+    mf_ar_set_times(&e, 0.01f, 0.05f);
+
+    for (int i = 0; i < (int)(0.1f * MOVEFORGE_SAMPLE_RATE); i++) mf_ar_tick(&e, 1, 1.0f);
+    require_true(e.value > 0.99f, "envelope reaches sustain while gated");
+
+    for (int i = 0; i < (int)(0.5f * MOVEFORGE_SAMPLE_RATE); i++) mf_ar_tick(&e, 0, 1.0f);
+    require_true(e.value < 0.001f, "envelope releases to silence");
+
+    /* A sustain below 1 is held, not overshot — the decay-to-hold shape. */
+    mf_ar_t hold;
+    mf_ar_init(&hold);
+    mf_ar_set_times(&hold, 0.005f, 0.05f);
+    for (int i = 0; i < (int)(0.2f * MOVEFORGE_SAMPLE_RATE); i++) mf_ar_tick(&hold, 1, 0.4f);
+    require_true(absf_local(hold.value - 0.4f) < 0.01f, "envelope holds at the sustain level");
+
+    /* Zero and negative times must not produce NaN or run away. */
+    mf_ar_t degenerate;
+    mf_ar_init(&degenerate);
+    mf_ar_set_times(&degenerate, 0.0f, -1.0f);
+    for (int i = 0; i < 100; i++) {
+        float v = mf_ar_tick(&degenerate, i < 50, 1.0f);
+        require_true(isfinite(v) && v >= 0.0f && v <= 1.0f, "degenerate envelope times stay bounded");
+    }
+}
+
+static void test_tanh_approx(void) {
+    /* Bounded to full scale for every input, including absurd ones. */
+    const float probes[] = { -1.0e9f, -100.0f, -3.0f, -1.0f, 0.0f, 1.0f, 3.0f, 100.0f, 1.0e9f };
+    for (int i = 0; i < (int)(sizeof(probes) / sizeof(probes[0])); i++) {
+        float y = mf_tanh_approx(probes[i]);
+        require_true(isfinite(y), "tanh approx is finite");
+        require_true(y >= -1.0f && y <= 1.0f, "tanh approx stays within full scale");
+    }
+    require_true(mf_tanh_approx(0.0f) == 0.0f, "tanh approx is zero at zero");
+    require_true(mf_tanh_approx(-0.5f) == -mf_tanh_approx(0.5f), "tanh approx is odd");
+
+    /* Close enough to the real thing to substitute for it in a saturator. */
+    float worst = 0.0f;
+    float worst_at = 0.0f;
+    for (float x = -6.0f; x <= 6.0f; x += 0.002f) {
+        float err = absf_local(mf_tanh_approx(x) - tanhf(x));
+        if (err > worst) {
+            worst = err;
+            worst_at = x;
+        }
+    }
+    /* Measured 0.00087 for the Pade 5/4 in use; 0.002 leaves headroom without
+     * silently admitting a much coarser approximation. */
+    if (worst > 0.002f) {
+        fprintf(stderr, "FAIL: tanh approx error %.5f at x=%.3f exceeds 0.002\n", worst, worst_at);
+        exit(1);
+    }
+    /* Monotonic, so it cannot introduce fold-back distortion of its own. */
+    float prev = mf_tanh_approx(-6.0f);
+    for (float x = -6.0f; x <= 6.0f; x += 0.005f) {
+        float y = mf_tanh_approx(x);
+        require_true(y >= prev - 1e-6f, "tanh approx is monotonic");
+        prev = y;
+    }
+}
+
+static void test_soft_limit(void) {
+    /* Exactly identity below the knee — this is what lets a limiter sit in a
+     * passthrough path without breaking it. */
+    require_true(mf_soft_limit(0.0f) == 0.0f, "soft limit is identity at zero");
+    require_true(mf_soft_limit(0.5f) == 0.5f, "soft limit is identity below the knee");
+    require_true(mf_soft_limit(-0.5f) == -0.5f, "soft limit is identity below the knee (negative)");
+    require_true(mf_soft_limit(MF_SOFT_LIMIT_KNEE) == MF_SOFT_LIMIT_KNEE, "identity at the knee");
+
+    /* Bounded, monotonic, odd, and continuous through the knee. */
+    float prev = mf_soft_limit(-8.0f);
+    for (float x = -8.0f; x <= 8.0f; x += 0.001f) {
+        float y = mf_soft_limit(x);
+        require_true(isfinite(y), "soft limit is finite");
+        require_true(y >= -1.0f && y <= 1.0f, "soft limit never exceeds full scale");
+        require_true(y >= prev - 1e-6f, "soft limit is monotonic");
+        require_true(absf_local(y - prev) < 0.01f, "soft limit has no jump discontinuity");
+        prev = y;
+    }
+    require_true(absf_local(mf_soft_limit(2.0f) + mf_soft_limit(-2.0f)) < 1e-6f, "soft limit is odd");
+    require_true(mf_soft_limit(1000.0f) > 0.99f, "soft limit approaches full scale");
+
+    /* And it actually compresses rather than passing overshoot through. */
+    require_true(mf_soft_limit(1.5f) < 1.0f, "overshoot is limited");
+    require_true(mf_soft_limit(1.5f) > MF_SOFT_LIMIT_KNEE, "limited value stays above the knee");
+}
+
+static void test_rng(void) {
+    mf_rng_t r;
+    mf_rng_init(&r, 0x12345678u);
+
+    /* Range, and a mean near zero over a long run. */
+    double sum = 0.0;
+    int n = 200000;
+    for (int i = 0; i < n; i++) {
+        float v = mf_rng_bipolar(&r);
+        require_true(v >= -1.0f && v < 1.0f, "rng output is in [-1, 1)");
+        sum += v;
+    }
+    require_true(absf_local((float)(sum / n)) < 0.01f, "rng mean is near zero");
+
+    /* No short period: dustline's float round-trip repeated every 7412 samples.
+     * Walk far past that and confirm the state never returns to its seed. */
+    mf_rng_t p;
+    mf_rng_init(&p, 0x12345678u);
+    uint32_t seed_state = p.state;
+    for (int i = 0; i < 2000000; i++) {
+        if (mf_rng_next_u32(&p) == seed_state) {
+            fprintf(stderr, "FAIL: rng period is only %d samples\n", i + 1);
+            exit(1);
+        }
+    }
+
+    /* Deterministic from a seed — renders have to be reproducible. */
+    mf_rng_t a, b;
+    mf_rng_init(&a, 99u);
+    mf_rng_init(&b, 99u);
+    for (int i = 0; i < 1000; i++) {
+        require_true(mf_rng_next_u32(&a) == mf_rng_next_u32(&b), "rng is deterministic per seed");
+    }
+    /* A zero seed must not lock the generator at zero. */
+    mf_rng_t z;
+    mf_rng_init(&z, 0u);
+    require_true(mf_rng_next_u32(&z) != 0u, "zero seed still generates");
+}
+
+static void test_beats_to_samples(void) {
+    /* One beat at 60 BPM is one second. */
+    require_true(mf_beats_to_samples(1.0f, 60.0f) == (int)MOVEFORGE_SAMPLE_RATE,
+                 "1 beat at 60bpm is 1 second");
+    require_true(mf_beats_to_samples(2.0f, 120.0f) == (int)MOVEFORGE_SAMPLE_RATE,
+                 "2 beats at 120bpm is 1 second");
+    require_true(mf_beats_to_samples(0.25f, 120.0f) == (int)(MOVEFORGE_SAMPLE_RATE / 8),
+                 "a sixteenth at 120bpm is an eighth of a second");
+    /* Degenerate inputs are clamped rather than producing huge or negative
+     * lengths that would index out of a delay buffer. */
+    require_true(mf_beats_to_samples(1.0f, 0.0f) > 0, "zero bpm is clamped");
+    require_true(mf_beats_to_samples(-5.0f, 120.0f) == 0, "negative beats clamp to zero");
+    require_true(mf_beats_to_samples(1.0e9f, 0.001f) <= 2000000000, "absurd length is capped");
+}
+
 int main(void) {
     test_flush_denorm();
+    test_sanitize();
+    test_wrap_phase();
+    test_onepole();
+    test_smooth();
+    test_ar_envelope();
+    test_tanh_approx();
+    test_soft_limit();
+    test_rng();
+    test_beats_to_samples();
     test_svf_damping_mapping();
     test_svf_peak_tracks_cutoff();
     test_svf_is_unconditionally_stable();
