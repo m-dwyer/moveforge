@@ -1,0 +1,708 @@
+# Hardening the DSP pipeline — working plan
+
+Status: **in progress on branch `harden-dsp-pipeline`.** This is the working
+document for that branch, not a retrospective. Check items off as they land.
+
+Every finding below was verified against the code at branch point (`fe81dc5`).
+Line references are to that commit. Upstream Schwung references are to
+`/Users/em/src/move-spike/overture/schwung` (schwung 0.11.4) and are marked `SW/`.
+
+---
+
+## Why this branch exists
+
+moveforge's **authoring** side is strong: `module.json` as single source of
+truth, four generators, working scaffolds, a transparent plain-C/Faust switch,
+and the same wrapper compiled for device, host and browser.
+
+Its **verification** side has not kept pace. Concretely:
+
+1. **Nothing gates anything.** `.github/workflows/deploy-pages.yml` is the only
+   workflow; it triggers on `push` only and runs `pnpm install` →
+   `build-wasm.sh` → `build:web` → deploy. No `validate`, no C tests, no
+   `check-renders`, no cross-compile. `.git/hooks/` is empty.
+   `scripts/install-to-move.sh` runs no checks at all.
+   `README.md:78`, `README.md:249` and `skills/schwung-dsp-development/SKILL.md:165`
+   all describe a CI gate that does not exist.
+2. **The audio-quality signal is weaker than the failures it is meant to catch.**
+   Seven scalar metrics per file, compared only against a previously-blessed
+   copy of themselves, with absolute-first tolerances that are frequently wider
+   than the quantity being measured.
+3. **The local model diverges from the device in behaviours that live in no
+   header** — the idle gate, the audio-thread parameter smoother, and the CPU
+   watchdog. None of them are visible to any local check.
+
+Underneath all three: there is no shared DSP layer, so every module re-derives
+its own primitives, and the Schwung wrappers are ~95% copy-paste.
+
+### The case that proves it
+
+`dustline`'s Chamberlin SVF caps `q` against the wrong stability condition.
+`src/modules/dustline/dsp/dustline_core.c:96-97` enforces `fq < 2` via
+`q_max = 1.8f / (f + 1e-6f)`. The binding Jury condition for this topology is
+`f² + 2fq < 4`. Compiling the exact code and sweeping the shipped presets:
+
+```
+Init           cutoff=0.48 res=0.16  f=0.404 q=0.958  f²+2fq=0.937  stable
+Dust Bass      cutoff=0.24 res=0.08  f=0.096 q=0.654  f²+2fq=0.135  stable
+Air Noise      cutoff=0.70 res=0.56  f=0.888 q=2.027  f²+2fq=4.388  DIVERGES -> NaN
+Pin Lead       cutoff=0.86 res=0.30  f=0.950 q=1.490  f²+2fq=3.734  stable
+Glass Keys     cutoff=0.62 res=0.64  f=0.692 q=2.600  f²+2fq=4.079  DIVERGES -> NaN
+Filter Sweep   cutoff=0.36 res=0.86  f=0.220 q=3.618  f²+2fq=1.642  stable
+```
+
+The two divergent presets are exactly the two whose blessed goldens are silent
+(`goldens/dustline/metrics.json`):
+
+```
+02-air-noise.wav   peak=0.01611 rms=0.00029 silence_ratio=0.9991
+04-glass-keys.wav  peak=0.40930 rms=0.02789 silence_ratio=0.9933
+```
+
+NaN casts to 0 through `moveforge_float_to_i16` (`src/modules/_shared/dsp_runtime.h:26-32` —
+both clamp comparisons are false for NaN), so a filter explosion renders as
+digital silence. **The goldens are the blowup.**
+
+Git history closes the loop: `39bb936` found and fixed this ("these presets had
+been quietly broken since they were first blessed"), then `28fe216` — commit
+body: one line, "Fix module stress failures" — re-blessed `02-air-noise` from
+`rms 0.05947` back down to `0.00029`, a 46 dB collapse.
+
+Each gate that missed it is separately fixable, and that is the shape of this plan:
+
+- `check-renders` compares only to the golden, and checks `abs` first
+  (`scripts/check-renders.ts:245-250`). Golden `rms` is 0.00029 against an `abs`
+  tolerance of 0.01 — the metric is a no-op across the entire range from digital
+  silence to +7 dB.
+- `tests/test_dustline_core.c:37` sweeps cutoff only at the default resonance
+  0.18, which is stable.
+- Nothing anywhere checks for NaN/Inf, and nothing has an absolute
+  "must not be silent" floor.
+- `bless-renders` is one unconditional `writeFile` + `copyFile`
+  (`scripts/check-renders.ts:64-72`): no diff printed, no confirmation, and it
+  blesses whatever WAVs are on disk without re-rendering.
+
+The same class of hole exists elsewhere. **Trail's entire wet path can be
+deleted and 2 of 6 presets still pass all seven metrics** — every Trail preset
+renders an impulse, so golden `rms` (0.004-0.006) sits below its own 0.01
+tolerance, and the 8-sample dry impulse accounts for ~97% of measured energy.
+Collapsing Trail to mono moves `stereo_correlation` 0.953 → 1.0, inside the
+0.05 band, on every preset.
+
+---
+
+## Phase 1 — Fix the live bug, and make it un-writable later
+
+Do this first: it is the actual defect, and it becomes the regression test for
+everything below.
+
+- [ ] **1.1 Fix the SVF stability cap.** `dustline_core.c:96-97`. Cap `q`
+      against `min(2/f, (4 - f²) / (2f))`, or replace the topology with a
+      TPT/ZDF SVF (unconditionally stable, and the block we want in `_shared`
+      anyway — see 4.2). Prefer the replacement; the cap is a patch on a
+      topology we should not be hand-rolling per module.
+- [ ] **1.2 Check the resonance mapping while in there.** `q` is the *damping*
+      term in `hp = source - lp - q*bp`, and `q_desired = 0.35f + s->resonance * 3.8f`
+      increases damping as `resonance` rises. Confirm against the intended
+      behaviour before re-blessing; the fix in 1.1 changes what the knob does at
+      the top of its range either way.
+- [ ] **1.3 Add a parameter-space sweep test.** `tests/test_dustline_core.c`
+      currently tests one point. Sweep the full `cutoff` × `resonance` grid and
+      assert finite + bounded at every node. Do the same for any module with a
+      feedback or resonant path (`westfold`, `trail`).
+- [ ] **1.4 Re-render and re-bless deliberately**, after 2.x lands so the new
+      floors have to pass. Note the before/after metrics in the commit body —
+      the one-line "Fix module stress failures" commit is exactly the failure
+      mode 2.4 is meant to prevent.
+
+**Done when:** the sweep test fails on the pre-fix core and passes after, and
+`02-air-noise` / `04-glass-keys` goldens have healthy `rms` and
+`silence_ratio < 0.5`.
+
+---
+
+## Phase 2 — Make the quality signal able to fail
+
+The goal is that a golden can no longer be quieter than its own tolerance, and
+that some checks hold without reference to any golden at all.
+
+- [ ] **2.1 Relative-first tolerances with a real floor.**
+      `scripts/check-renders.ts:13-21,245-250`. Replace absolute-first
+      short-circuiting with `abs = max(1e-4, 0.02 × |golden|)` per metric, so a
+      metric can never be smaller than its own tolerance band. Re-check every
+      existing golden against the new bands before proceeding.
+- [ ] **2.2 Absolute sanity floors, independent of the golden.** For any render
+      not explicitly flagged sparse in `presets.json`: `peak > 0.02`,
+      `rms > 0.002`, `silence_ratio < 0.99`, `|dc_offset| < 0.02`. Dustline
+      `02-air-noise` fails all four today.
+- [ ] **2.3 NaN/Inf trap.** Add an explicit non-finite check in
+      `tools/render_wav.c` and `tools/render_fx.c` that fails the render loudly,
+      plus a `mf_sanitize`-style guard in `_shared` (see 4.2). Today a blowup is
+      indistinguishable from silence because `moveforge_float_to_i16` casts NaN
+      to 0 (`dsp_runtime.h:26-32`).
+- [ ] **2.4 Make `bless` show its work.** Print a per-metric before/after diff,
+      require `--force` (or `--reason`) past a ~20% move on any metric, and
+      re-render before blessing instead of trusting whatever is in
+      `renders/<id>-suite/`. Consider refusing a bare `pnpm run bless-renders`
+      with no `MODULE_ID` — it currently blesses all seven modules at once.
+- [ ] **2.5 Add an 8-band log energy vector to `scripts/wav-metrics.ts`.**
+      Highest-value single metric addition: catches aliasing, filter inversion,
+      and Trail's dead wet path, none of which any current metric can see. The
+      spectrum panel in `tools/plot_renders.py:105-139` is the only
+      frequency-domain view in the project and nothing asserts on it.
+- [ ] **2.6 Compare the metrics that are already recorded but ignored.**
+      `check-renders.ts:22` derives `METRIC_FIELDS` from `Object.keys(TOLERANCES)`,
+      so `frames`, `duration_seconds`, `sample_rate` and `channels` are written
+      into every golden and never checked. A truncated or wrong-rate render
+      passes today.
+- [ ] **2.7 Add a discontinuity metric** (`sum(|x[n] - x[n-1]|)` normalised) to
+      catch envelope clicks and delay-time jumps, which no current metric sees.
+- [ ] **2.8 Exercise params during a render.** `render_fx.c:174-177` and
+      `render_wav.c:94-96` set parameters once, before the loop, so **no render
+      in the project ever changes a parameter mid-stream** — zipper noise and
+      coefficient-jump clicks are structurally invisible. Add a `--automate`
+      mode driven from `presets.json`.
+- [ ] **2.9 Fix the `noise` test signal.** `tools/render_fx.c:96-105`:
+      `(int32_t)(s >> 16)` is 0..65535, `× 0.7` overflows `int16_t` on
+      conversion. Result is +0.128 DC, 71% positive, bimodal, and formally UB.
+      `faust_drive`'s golden `dc_offset: 0.1816` is mostly the test signal's own
+      bias. Centre it, remove the UB, re-bless `faust_drive` and `lobber`
+      deliberately.
+- [ ] **2.10 Extend the sweep signal past 8 kHz.** `render_fx.c:108` sweeps
+      50 Hz → 8 kHz, so the top 2.5 octaves are never tested — exactly where
+      `faust_drive`'s 30× pre-gain `ma.tanh` (`faust_drive.dsp:22-27`, no
+      oversampling) aliases.
+
+**Done when:** deliberately breaking a module (delete Trail's wet path, mute
+Dustline's filter, mono-collapse a stereo FX) fails `check-renders` for every
+affected preset.
+
+---
+
+## Phase 3 — Turn the gate on
+
+- [ ] **3.1 Add a `pull_request` CI job** running `mise run check` **and**
+      `make move` (the aarch64 artifact that actually ships is currently never
+      built in CI).
+- [ ] **3.2 `-Wall -Wextra` on all seven compile lines**, then `-Werror` in
+      `scripts/test.sh` and CI. There are currently **zero** warning flags
+      anywhere in the repo (`scripts/{test,build,build-host,build-wasm,render-demo}.sh`).
+- [ ] **3.3 ASan/UBSan pass in `scripts/test.sh`.** One extra `cc` line,
+      ~2× test runtime. Targets the fixed-size ring buffers
+      (`lobber_core.h:9-14` masked indexing, Trail's delay lines) and the
+      float→int conversions.
+- [ ] **3.4 Put `check-stress` into `make check`.** `Makefile:66-88` omits it;
+      it holds the only *absolute* thresholds in the project
+      (`scripts/check-stress.ts:53-62`: clipping, `|dc| > 0.05`, peak bounds,
+      stereo imbalance). `SKILL.md:159` warns it is expected to fail on older
+      modules — that is a reason to fix them, not to exclude the check.
+- [ ] **3.5 Reconcile the two "gate" definitions.** `scripts/deploy-to-move.sh:7-11`
+      omits `typecheck`, `test:ui-chain`, `check-renders` and `plot`, so
+      `mise run deploy` ships to hardware without ever comparing renders to
+      goldens.
+- [ ] **3.6 Emit `compile_commands.json`.** All include paths and flags already
+      live in `scripts/lib/modules.ts`; today they exist only inside bash string
+      interpolation, so clangd cannot resolve `#include "host/plugin_api_v1.h"`
+      in any editor. Matters for humans and for agents working in this repo.
+- [ ] **3.7 Add `.clang-format`** and a format task (already listed as
+      Suggested Improvement #4 in `CLAUDE.md`).
+
+**Also worth folding in here** (cheap, same area):
+
+- [ ] `make check` renders the whole suite twice — `Makefile:16` declares
+      `plot: suite` and `check` invokes `suite` separately as a sub-make.
+- [ ] `make check-all` re-runs suite/check-renders/plot/host for `dustline` a
+      second time; `check` with no `MODULE_ID` already covers all modules.
+- [ ] `scripts/module-target.ts` is spawned ~6× per module per script
+      (~42 ms each, ~145 spawns ≈ 6 s across `make check`). One
+      `module-target ids --json` call per script removes it.
+- [ ] Mount a named volume at the emsdk cache dir in `scripts/build-wasm.sh:128-133`.
+      `~/.emscripten_cache` currently lives inside the ephemeral container, so
+      emscripten's sysroot cache is rebuilt from cold on **every** `docker run`.
+      Largest single wall-clock win in the dev loop.
+- [ ] `scripts/build.sh:59-60` only builds the Docker image if it does not
+      exist, so editing `scripts/Dockerfile` never rebuilds it.
+- [ ] Pin `faust` and `pnpm` in `mise.toml [tools]`. `node = "lts"` is floating
+      while every `scripts/*.ts` relies on Node ≥22.6 type-stripping.
+- [ ] `mise run validate` fails for anyone without Faust installed
+      (`scripts/gen-faust.ts:34-44` counts a missing binary as drift), directly
+      contradicting `README.md:78`. Compare the recorded Faust version banner
+      instead.
+
+**Done when:** a PR that breaks a C test, drifts a generated file, or moves a
+golden cannot be merged green.
+
+---
+
+## Phase 4 — Build the shared DSP layer
+
+`src/modules/_shared` is 290 lines, roughly 30 of which are DSP. Every module
+re-derives its own primitives, and the dustline bug is a direct symptom.
+
+Currently rewritten per module:
+
+| Block | Where | State |
+|---|---|---|
+| one-pole smoother | `westfold_core.c:47-50`, `:52-59`, `trail.dsp:29` | 3 incompatible impls; 4 modules have none |
+| DC blocker | `westfold_core.c:263-265`, `dustline_core.c:107-109` | 2 identical copies |
+| AR/ADSR envelope | `westfold_core.c:212-222`, `dustline_core.c:74-76`, `faust_voice.dsp:39` | 3 different shapes |
+| resonant filter | `dustline_core.c:92-101` (buggy), `fi.resonlp` | — |
+| soft clip | raw `tanhf` at `westfold_core.c:108,119,260,269,270`, `dustline_core.c:106,110`, `faust_drive.dsp:26`, `trail.dsp:52` | no approximation anywhere |
+| PRNG | `dustline_core.c:11-17` | **broken** — see 4.1 |
+| NaN sanitize | `westfold_core.c:61-64,79-103`; `dustline_core.c:37-38` | westfold per block, dustline only on note-on, 4 modules never |
+| denormal flush | nowhere | — |
+| BPM/division → samples | `lobber_core.c:97-117`, `trail_adapter.c:16-27,53-71` | 2 different tables and conventions |
+| linear ramp / declick | `lobber_core.c:387-393` **and** `:419-425` | same 7 lines twice in one function |
+| voice alloc / note stack | nowhere | 5 ad-hoc gate representations across 6 modules |
+
+- [ ] **4.1 Fix the PRNG.** `dustline_core.c:11-17` round-trips a 32-bit LCG
+      state through a `float` every sample, destroying the low 8 bits.
+      Measured period: **7412 samples ≈ 168 ms** — a 5.95 Hz repeating loop, not
+      noise. `rng` can also reach exactly `1.0f`, making the next
+      `(uint32_t)(1.0f * 4294967295.0f)` an out-of-range conversion. Keep the
+      state in `uint32_t`; never leave integer domain.
+- [ ] **4.2 Add `src/modules/_shared/mf_dsp.h`** (~200 lines): `mf_smooth_t`,
+      `mf_ar_t`, `mf_svf_t` (TPT/ZDF), `mf_dcblock_t`, `mf_tanh_approx`,
+      `mf_flush_denorm`, `mf_rng_t`, `mf_beats_to_samples`, `mf_sanitize`.
+      Phase 1 should consume `mf_svf_t` rather than patching the Chamberlin form.
+- [ ] **4.3 Add `src/modules/_shared/moveforge.lib`** for the Faust side: `sm`
+      (the `si.smooth(ba.tau2pole(0.02))` idiom that currently exists only
+      inside `trail.dsp:29`), `satTanh`, `divBeats`. Import it from every `.dsp`.
+- [ ] **4.4 Add a shared `mf_voice_t`** with a held-note stack. All three sound
+      generators share the same latent bug: press A, press B, release B → sound
+      stops while A is still held (`westfold_core.c:150-159`,
+      `dustline_core.c:41-47`, `faust_voice_adapter.c:80-87` — none keeps a
+      stack). None of them handle CC 120/123 either. `render_wav.c:103-116`
+      plays strictly one note at a time, so the harness cannot see it.
+
+### Parameter smoothing and denormals (do with 4.2/4.3)
+
+- [ ] **4.5 `faust_drive` smooths nothing.** `faust_drive.dsp:14-17` — the
+      generated code hoists `fSlow0/1/6` and applies them as hard steps at each
+      128-sample block boundary (`faust_drive_faust.c:208-214`): a 344 Hz buzz
+      while the encoder moves, and a click on every preset load. `faust_voice`
+      has the same problem for `cutoff`/`resonance`/`level`
+      (`faust_voice_faust.c:248-262`), where it also jumps the `resonlp`
+      coefficients discontinuously at high Q.
+- [ ] **4.6 Trail smooths the one control where it is most expensive.**
+      Smoothing `tone` (`trail.dsp:32-38,47-49`) promotes it from a block
+      constant to a per-sample signal, forcing Faust to recompute the bilinear
+      `tan` mapping **every sample** for both filters and both channels
+      (`trail_faust.c:1034-1048`). Smooth gains/mix; pre-warp or block-rate the
+      cutoff coefficients.
+- [ ] **4.7 Regenerate Faust with `-ftz 1`.** All generated C currently carries
+      `-ftz 0` (`src/modules/*/dsp/*_faust.c:7`), and nothing anywhere sets FZ
+      for the host or WASM builds. Trail's 16 Freeverb combs at 0.88 feedback
+      plus a 3-second delay line all decay into the denormal range on silence.
+      Note the device sets FPCR **FZ but not DAZ**
+      (`SW/src/schwung_shim.c:4227-4241`), per-thread — so
+      `SKILL.md`'s "denormals are silently flushed, don't add guards" is only
+      half true, and offline renders run with denormals live regardless.
+
+### Per-sample cost (ARM)
+
+- [ ] **4.8 Hoist Dustline's block-constant math out of the sample loop.**
+      `dustline_core.c:70-92` computes 2 × `powf`, 2 × `expf` and 1 × `sinf`
+      per sample from inputs that are all block-constant — ~7 libm calls/sample
+      where only the 2 `tanhf` need to be per-sample. `westfold_core.c:188-192`
+      already does this correctly. Roughly a 3-5× CPU cut for zero sonic change.
+- [ ] **4.9 Lobber's capture is a multi-megabyte memcpy in the audio callback.**
+      `lobber_core.c:147-176`, called from the render path at `:222`/`:231`. At
+      `loop_beats=16, bpm=40` that is 4 MB of scattered ring reads inside one
+      128-frame block (2.9 ms budget) — a guaranteed xrun on device, fired on
+      every CAPTURE press. Make it a pointer/length swap, or amortise it behind
+      a state machine.
+- [ ] **4.10 Lobber allocates 8 MB per instance and zeroes it twice.**
+      `lobber_core.h:39-40,62-63` (`float[1<<19]` × 4); `lobber.c:33` `calloc`s
+      it and `lobber_core.c:16` then `memset`s the same 8 MB.
+      `trail_faust` adds 2.81 MB per instance plus a 256 KB static global sine
+      table that `classInittrail_faust` refills on every init.
+- [ ] **4.11 `_shared/scope.h:144` does a 64-bit integer division per sample**
+      (`(long)s->pos * MF_SCOPE_COLS / s->window`) in the audio path — ~20-40
+      cycles, non-pipelined on A53, ~4000 wasted cycles/block for a display
+      feature. Use an incremental counter or reciprocal multiply.
+- [ ] **4.12 Westfold: 11 libm calls/sample** (`sinf` ×4, `expf`, `powf`,
+      `tanhf` ×5, plus 4 × `floorf`), none short-circuited when `chaos == 0`.
+      `mf_tanh_approx` + `mf_sin_poly` from 4.2 cut this by an order of
+      magnitude inaudibly.
+- [ ] **4.13 Lobber uses double-precision interpolation for integer reads.**
+      `lobber_core.c:132-141,433` — `slice_read` advances by exactly ±1, so
+      `frac` is always 0, yet it pays a full double 2-tap interpolation per
+      sample. Keep the position in double; interpolate in float; skip when
+      `frac == 0`.
+- [ ] **4.14 Lobber Slice mode has no output bound.** `lobber_core.c:440-441`
+      (`out_l = dl + sl * mix`, both up to ±1) — no limiter, no DC blocker, no
+      soft clip anywhere in lobber. The only bound is the hard clamp inside
+      `moveforge_float_to_i16`.
+- [ ] **4.15 Arpy hangs notes when the pattern is switched off.**
+      `arpy_core.c:126-127` returns before the gate-off step, leaving
+      `playing_note` sounding forever. Related: with `pattern == 0`,
+      `process_midi` passes the *input* note-off through (`:103`) but the
+      sounding note is the transposed chord note, so it addresses the wrong
+      pitch; `held_active` is never cleared. `emit()` also drops messages past
+      `max_out` (`:43`) while `arpy_tick:165` sets `playing_note` regardless.
+
+**Done when:** `mf_dsp.h` and `moveforge.lib` are consumed by every module, and
+`grep -c tanhf src/modules/*/dsp/*_core.c` finds no raw uses.
+
+---
+
+## Phase 5 — Make the browser loop stop lying
+
+- [ ] **5.1 Fix the WASM rebuild dependency list.** `scripts/build-wasm.sh:76-104`
+      omits `*_params.gen.inc`, `*_presets.gen.inc`, `*_scope.gen.inc`,
+      `_shared/scope.h`, `src/host/faust_adapter.h`, `<id>.dsp` and
+      `module.json` — all of which are `#include`d into the compiled TU or are
+      upstream of one. **Correctness bug:** add a param, run `gen-params`,
+      rebuild → prints `cached`, and the new knob silently does nothing because
+      `<id>_param_id()` in the stale WASM returns -1.
+- [ ] **5.2 Fix `reloadModuleWasm`.** `web/src/audio.ts:151-161` iterates all
+      four tracks over slot IDs that are globally identical (`"sound"`,
+      `"audio-fx-1"`, …, `web/src/chain-state.ts:232-254`) while the engine only
+      holds the selected track's slots. Default state (4 tracks on westfold)
+      means **4 audio-thread WASM instantiations per save**; and with track 0 on
+      westfold and track 1 on dustline, editing dustline reloads westfold.
+      Key by engine slot, not by track × slot ID.
+- [ ] **5.3 Compile WASM off the audio thread.** `web/module-worklet.js:32-34`
+      calls `WebAssembly.instantiate` inside `AudioWorkletGlobalScope` — an
+      audible dropout on every hot-swap. `WebAssembly.compile()` on the main
+      thread in `audio-engine.ts:145-160`, transfer the `Module`.
+- [ ] **5.4 Make the dev watcher run the generators.** `vite.config.ts:211-226`
+      spawns only `build-wasm.sh`, so editing a `.dsp` in the dev loop prints
+      `cached` and you keep hearing the old sound — contradicting `README.md:133`.
+      Also `vite.config.ts:189-190` skips `_`-prefixed dirs, so
+      `_shared/*.h` edits trigger no rebuild at all.
+- [ ] **5.5 Don't fire the HMR event when the build reports `cached`**
+      (`vite.config.ts:220-222`), and debounce the watcher ~150 ms. Editing a
+      `MANUAL.md` inside a module dir currently resets your audio (×4, per 5.2).
+- [ ] **5.6 Add `depends = ["wasm"]` to `mise.toml`'s `dev`** (`:110-112`);
+      `web` has it, `dev` does not, and `web/wasm/` is gitignored — so a fresh
+      clone runs `mise run dev` and gets a UI with zero working modules.
+- [ ] **5.7 Export `sch_get_param` from the WASM glue** and add it to
+      `SCH_EXPORTS` (`build-wasm.sh:42`). Params are currently write-only in the
+      browser, which is the structural reason the scope, meters and any DSP-side
+      telemetry cannot reach the UI. Then render the existing `"__scope"`
+      128-column format on a `<canvas>` — the device already has this
+      (`_shared/scope.h:210-226`, `ui_chain.js:377-393`) and the browser cannot
+      reach it at all.
+- [ ] **5.8 Send `store.bpm` into the worklet.** `schwung_wasm_glue_fx.c:36-37`
+      hardcodes `get_bpm() → 120` and `get_clock_status() → UNAVAILABLE`, so
+      **Trail's sync mode always auditions at 120 BPM** regardless of the
+      sequencer tempo. `lobber.c:49-68` degrades gracefully; `trail.c:50-59`
+      does not.
+- [ ] **5.9 Wire up sound-generator bypass.** `web/module-worklet.js:152` has a
+      `soundBypass` handler that **nothing ever posts**; `buildSpec`
+      (`audio.ts:25`) only drops disabled `midi_fx`/`audio_fx`. Meanwhile
+      `ChainSlot.tsx:128` promises "Bypassed: synth is silent". Either send it or
+      remove the affordance. Separately, audio-FX bypass currently *disposes* the
+      instance (`audio-engine.ts:59-61`), hard-cutting delay/reverb tails and
+      making bypass useless for A/B on time-based FX.
+- [ ] **5.10 Fix the test glob.** `vite.config.ts:54` is `tests/**/*.spec.ts`,
+      so `web/tests/KeyboardPlay.spec.tsx` **never runs** — three tests silently
+      excluded.
+- [ ] **5.11 `initialize()` silently empties `moduleIndex` in tests.**
+      `module-metadata.ts:98-109` filters every module through `hasWasmBuild`,
+      which fetches the real `.wasm` (absent in CI), so every `AppRoot` mount
+      test runs with empty pickers. Also: `hasWasmBuild` downloads each module's
+      **full** `.wasm` just to check 4 magic bytes, with `cache: "no-store"`.
+- [ ] **5.12 Add a `process()` timing counter** in `module-worklet.js:208` as a
+      device-headroom proxy — the browser context is pinned to exactly
+      44100 Hz / 128 frames, so the ratio against the 2.9 ms quantum is
+      meaningful. See also 6.5.
+- [ ] **5.13 Fix the stale note-off timers in `useSequencer`.**
+      `web/src/lib/useSequencer.ts:34-43` starts a new timer on retrigger
+      without cancelling the old one. With `drone_hold` (`gateSteps: 16`) at
+      `length: 8`, the previous timer fires 3.5 steps into the new note and
+      chops the drone. `noteOffTimers` is a flat `Set` with no per-note key.
+- [ ] **5.14 Rewrite or delete `docs/move-emulator-toolchain.md`** — it
+      advertises 8 encoders, wheel controls, an OLED canvas, a preset browser
+      and Web MIDI. None of that exists in `web/src` (grep for
+      `encoder|jog|oled|canvas|requestMIDIAccess` → zero hits). It will actively
+      mislead a module author about what can be checked locally.
+
+**Done when:** a `.dsp` edit is audible in the browser without a manual
+`gen-faust`, and one save produces exactly one slot reload.
+
+---
+
+## Phase 6 — Close the device-fidelity gaps
+
+These are the "works locally, dead on device" set. None is described by any
+header, and none is visible to any local check.
+
+- [ ] **6.1 Set `capabilities.requires_continuous_processing`** on `lobber` and
+      `trail`. `SW/src/schwung_shim.c:613-614` — after ~1 s of output below
+      ±4 LSB (`DSP_IDLE_THRESHOLD 344`, `DSP_SILENCE_LEVEL 4`) the host **stops
+      calling `render_block`**, probing roughly twice a second
+      (`:1626-1638`, FX gated separately at `:1758-1785`). Loopers, delay write
+      pointers, LFO phase and arp clocks freeze. The flag is read at
+      `SW/src/modules/chain/dsp/chain_host.c:315-340`; **no moveforge module
+      sets it today.** MIDI-FX `tick()` is called from inside the chain's
+      `v2_render_block`, so an arpeggiator's clock is gated by audio silence too.
+- [ ] **6.2 Declare discrete params as `int`/`enum`, not `float`.** The host
+      runs a parameter smoother **on the audio thread**
+      (`SW/src/modules/chain/dsp/chain_host.c:1972-2002`, `SMOOTH_COEFF 0.15`,
+      ~90 ms to converge) and enrols anything typed `KNOB_TYPE_FLOAT`
+      (`:830-838`). `trail.sync` (0-9), `arpy.pattern`, `arpy.chord`,
+      `lobber.mode` are all `{"type":"float", step:1}` today, so changing
+      `sync` 0 → 4 sweeps through every division on the way. Schwung's own
+      modules use `enum`/`int`.
+- [ ] **6.3 Stop `preset` being re-fired on every knob turn.** Traced
+      `is_smoothable_float("0")` at `SW/.../chain_params.c:139-143`: the
+      integer-index guard is `strchr(val,'.')==NULL && (f<0 || f>1)`, which is
+      **false** for "0" and "1", so both fall through and return 1. Once
+      enrolled, `smoother_update` re-sends **every** active key whenever any one
+      of them is moving. So on preset 0 or 1, turning `fold` re-delivers
+      `set_param("preset","0.000000")` → `westfold.c:63-68` runs
+      `all_notes_off` + a full preset reset. Note also `MAX_SMOOTH_PARAMS 16`:
+      westfold has 15 params + `preset` = exactly 16.
+- [ ] **6.4 Make `set_param` audio-thread-safe by contract.** Per 6.2/6.3 it is
+      called from the SPI (RT) thread, and `create_instance` reaches
+      `dlopen`/`calloc`/`fopen` from there by design
+      (`SW/docs/REALTIME_SAFETY.md:112-118`). Document this in `SKILL.md` and
+      `CLAUDE.md`; today both treat `set_param` as a UI-thread call. While
+      there: `SKILL.md` says SCHED_FIFO 90 — the DSP runs at **FIFO 70**
+      (`SW/docs/REALTIME_SAFETY.md:9-14`).
+- [ ] **6.5 Measure CPU time.** `SW/src/schwung_shim.c:4207-4208`:
+      `OVERRUN_THRESHOLD_US 2850`, `SKIP_DSP_THRESHOLD 3` — three consecutive
+      overruns and **the host drops your DSP**, and that 2900 µs budget is
+      shared across 4 slots, their FX, master FX, LFOs, resampling, EQ, display
+      and LEDs. moveforge measures nothing:
+      `grep -rn "clock_gettime\|CLOCKS_PER_SEC\|performance.now" tools/ scripts/ src/ tests/`
+      returns zero hits. A `rendered_seconds / elapsed_seconds` ratio in
+      `render_wav.c`/`render_fx.c` is ~10 lines and would immediately flag
+      Trail's always-on Freeverb and Lobber's 4 MB working set.
+- [ ] **6.6 Reconcile MIDI FX `max_out`: 8 / 16 / 32.**
+      `tools/trace_midi_fx.c:35` is 8, `SW/src/host/midi_fx_api_v1.h:19` is 16,
+      `src/host/midi_fx_wasm_glue.c:7` is 32. The byte-exact golden trace is
+      captured against the *least* representative of the three. Import
+      `MIDI_FX_MAX_OUT_MSGS` rather than redefining it — moveforge's copy of the
+      header omits both `MIDI_FX_MAX_OUT_MSGS` and `MIDI_FX_INIT_SYMBOL`, and
+      renames the version macro and include guard. (Struct layouts are otherwise
+      clean: `plugin_api_v1.h` is byte-identical to upstream, and
+      `audio_fx_api_v2.h` differs only in comments.)
+- [ ] **6.7 Populate the host struct in `trace_midi_fx.c:88`** — it passes
+      `host_api_v1_t host = {0}`, so `sample_rate == 0` and every callback is
+      NULL. The device always supplies a populated struct
+      (`SW/.../chain_host.c:69-74`), so an arpy variant that reads
+      `get_clock_status()` is untestable locally and NULL-derefs on device.
+- [ ] **6.8 Wire up `pytest-schwung` as a post-install load probe.**
+      `SW/tools/pytest-schwung` is a line protocol over TCP to `schwung-testd`
+      with `SET_PARAM`/`GET_PARAM`/`WAIT_FRAME`/`SNAPSHOT_PAD_LEDS`/
+      `SUBSCRIBE midi_out`/`RESTART_MOVE`, a pytest plugin, and it **skips
+      cleanly when no device is attached**. This is the "did it actually load"
+      check the deploy loop has never had — and it also gives arpy a device-side
+      MIDI golden at the real `max_out = 16`, and a way to actually test 6.1
+      and 6.3.
+- [ ] **6.9 Make the install atomic.** `scripts/install-to-move.sh:118` plain
+      `scp`s over a `.so` the host may have `dlopen`'d
+      (`SW/.../chain_host.c:422`, `:247`, `chain_midi.c:155`), truncating a file
+      mapped `PROT_EXEC` in the middle of the audio callback. `scp` to `.new`
+      then `mv` is free and atomic.
+- [ ] **6.10 Verify what actually got installed.** `install-to-move.sh:120-125`
+      byte-count-compares **only** `dsp.so`, but the chain host loads audio FX
+      from `<id>/<id>.so` (`SW/.../chain_host.c:243-244`). `module.json`,
+      `ui.js`, `ui_chain.js` and `presets.json` are unverified. Use a checksum,
+      and cover every shipped file.
+- [ ] **6.11 Add a dirty-tree guard** — `SKILL.md:169` claims
+      `install-to-move.sh` refuses one by default. There is no `git status`
+      check anywhere in `scripts/`. Device builds are currently untraceable to
+      a commit.
+- [ ] **6.12 Add an uninstall / recovery path.** A module that segfaults in
+      `create_instance` or `render_block` crash-loops: each of the 4 chain slots
+      re-loads its autosave `slot_N.json` at boot
+      (`SW/src/host/shadow_chain_mgmt.c:1047-1140`) and re-`dlopen`s the
+      offender. Recovery today is SSH-only and undocumented. Also enable
+      `debug_log_on` *before* installing — every load-failure path in
+      `chain_host.c:295-310,439-500` is silent otherwise.
+- [ ] **6.13 Validate against the host's real `module.json` limits.**
+      `SW/.../chain_internal.h:103-116` and `chain_params.c:527-565`: key ≤ 31
+      chars, name ≤ 63, `module.json` < 64 KiB, ≤ 256 params, and a **duplicate
+      key anywhere across all levels rejects the module load**.
+      `scripts/validate-params.ts:142` only walks `levels.root`.
+- [ ] **6.14 Correct `CLAUDE.md`'s chain-UI discovery description.** It states
+      the host decides from the `"ui_chain"` field and that there is no fallback
+      editor. `SW/src/shadow/shadow_ui.js:2185-2224` defaults to
+      `<moduleDir>/ui_chain.js` with no `module.json` field required and falls
+      back to `ui.js`; `:2338-2344` provides a preset-browser fallback editor.
+      Also note `SW/src/modules/chain/ui.js:172-192` searches top-level only,
+      so it never finds a module installed under `modules/<kind>/<id>/`.
+
+**Done when:** installing a module reports whether it loaded, and the idle gate
+and param smoother are exercised by something before hardware.
+
+---
+
+## Phase 7 — Delete the copy-paste
+
+Roughly 4,300 lines of generated/copy-paste duplication. The cost is not disk —
+it is that every fix has to be made seven times.
+
+- [ ] **7.1 Shared/generated Schwung wrapper.** `westfold.c` vs `faust_voice.c`
+      differ by ~28 lines out of 125; `westfold.c` vs `dustline.c` by ~30;
+      `trail.c` vs `faust_drive.c` by ~35. `on_midi` is byte-identical across
+      all three sound generators. ~670 of 706 wrapper lines are mechanically
+      derivable from `module.json` + the core header.
+      **Concrete cost today:** four of seven wrappers never `#include` their
+      generated `_presets.gen.inc` (`dustline.c`, `arpy.c`, `faust_drive.c`,
+      `faust_voice.c`), so those modules **cannot expose presets on device**
+      despite shipping `presets.json` and a generated helper — the chain UI's
+      preset-browse screen is dead for them. A shared wrapper makes that
+      impossible.
+- [ ] **7.2 Generate the Faust adapter.** `faust_drive_adapter.c` contains zero
+      module-specific logic; `capture_slider`, `push_params_to_faust`, `init`,
+      `destroy` and `process_float` are identical across all three.
+      `src/host/faust_adapter.h` already generalises the UIGlue half — the
+      missing piece is a `MOVEFORGE_FAUST_ADAPTER(prefix, core_t, PARAM_COUNT)`
+      macro plus two hooks: `MF_FAUST_EXTRA_ZONES(label)` for
+      `gate`/`freq`/`gain`/`_dtime`, and `MF_FAUST_PRE_COMPUTE(s)` for
+      `compute_dtime`. This is Suggested Improvement #6 in `CLAUDE.md`, and it
+      is fully achievable today.
+- [ ] **7.3 Size `zones[]` from the generated count.**
+      `faust_voice_core.h:30` is `zones[5]`, `faust_drive_core.h:26` is
+      `zones[4]`, and **both Faust scaffolding templates ship `zones[1]`/`zones[2]`**
+      — so adding one param to a freshly scaffolded Faust module is an
+      out-of-bounds write in `capture_slider`, with no compiler warning, no
+      validate error and no test failure. `trail_core.h:22` has the mirror
+      variant (`TRAIL_NUM_PARAMS 9` duplicating `TRAIL_PARAM_COUNT`, mixed
+      between `trail_adapter.c:38` and `:44`). One-line fix:
+      `void *zones[<UPPER>_PARAM_COUNT];`.
+- [ ] **7.4 Emit `ui_chain.js` as a thin call into a shared `.mjs`.**
+      `diff src/modules/trail/ui_chain.js src/modules/faust_drive/ui_chain.js`
+      → 26 differing lines out of ~470, all data. Modules already import
+      `constants.mjs` / `input_filter.mjs` / `menu_layout.mjs` from
+      `/data/UserData/schwung/shared/`, so the mechanism exists; the generator
+      just inlines ~440 lines of behaviour instead of emitting
+      `globalThis.chain_ui = makeChainUI({ title, params, knobs, hasPresets })`.
+      Today a chain-editor bug fix means regenerating and redeploying all seven
+      modules.
+- [ ] **7.5 Use `knob_engine.mjs`.** Every native chain/master-FX param edit
+      goes through it (`SW/src/shared/knob_engine.mjs`, enforced by
+      `SW/tests/shadow/test_shadow_uses_knob_engine.sh`); the generated
+      `ui_chain.js` uses raw `decodeDelta` + a fixed step
+      (`templates/generated/ui_chain.js.tmpl:191-194,407-451`), so encoder feel
+      diverges from every stock module — no acceleration, no self-reset, no
+      enum divisor.
+- [ ] **7.6 Batch `fetchParams()`.** `host_module_get_param` is a synchronous
+      SHM round-trip serviced once per SPI frame (~2.9 ms,
+      `SW/src/shadow/shadow_ui.c:810-830`). `ui_chain.js.tmpl:157-161` does one
+      call **per param**, and `changePreset()` calls it on every jog detent
+      (`:229`) — ~18 × 2.9 ms ≈ 50 ms of lag per detent for westfold.
+- [ ] **7.7 Deduplicate the small stuff.** `<id>_params_clampf_` is a 7× copy of
+      `moveforge_clampf`; `schwung_wasm_glue_fx.c:105-119` reimplements the
+      `_shared/dsp_runtime.h` int16 helpers inline; `<id>_apply_preset` does an
+      O(n²) `strcmp` walk instead of emitting indices.
+
+**Done when:** adding a parameter to a Faust module touches `module.json`, the
+`.dsp`, and nothing else hand-written.
+
+---
+
+## Phase 8 — Validation and docs debt
+
+Cheap, and it stops the earlier phases from silently regressing.
+
+- [ ] **8.1 `await` the floating promise.** `scripts/validate-params.ts:146`
+      calls the `async` `validateGenInc` without `await`; its pushes land after
+      `validateModule()` resolves, so line 82 has already read an empty array.
+      If a module has no other errors, the whole group is dropped and validate
+      exits 0. (Masked in `mise run validate` because the byte comparison runs
+      first, but `validate-params.ts` is runnable standalone.)
+- [ ] **8.2 Delete orphaned generated files.** All four generators `continue`
+      when their input is absent and nothing ever cleans up. Remove
+      `capabilities.scope` from a `module.json` and `<id>_scope.gen.inc` is
+      frozen forever while the wrapper still `#include`s it and still compiles
+      (`gen-params.ts:84`; same shape at `gen-faust.ts:31`,
+      `gen-ui-chain.ts:127-129`).
+- [ ] **8.3 Validate `step`, `type`, and reserved names.** `step` is never
+      checked at all — and `gen-ui-chain.ts:49-55` **ignores the declared step
+      for continuous params**, using `range/100` instead, so `module.json`'s
+      `step` is a lie on every device encoder (`westfold.bend_range` declares
+      0.1 over [0,12] and moves in 0.12). `type` is checked for presence only.
+      The key regex accepts every lowercase C keyword, and a param named
+      `count` collides with the generated `<UPPER>_PARAM_COUNT` macro.
+- [ ] **8.4 Cross-check `.dsp` hslider labels against `module.json` keys.** A
+      typo'd label means `<id>_param_id()` returns -1, the zone is never
+      captured, and `push_params_to_faust` silently skips it — **a dead knob
+      with zero diagnostics** that compiles, validates, renders and ships.
+      Defaults already drift: `trail.dsp:34` declares `hslider("mod", 0.12,…)`
+      against `trail/module.json:32`'s `0.2`.
+- [ ] **8.5 Escape `new-module` inputs.** `--name` and `--abbrev` are
+      unescaped (`scripts/new-module.ts:48-49`); `--name 'A"B'` writes corrupt
+      JSON into `module.json` and every subsequent read fails.
+      `scripts/lib/c.ts:7-9` handles only `\` and `"` — a preset name with a
+      newline produces an unterminated C string literal. `gen-params.ts:129`
+      interpolates `p.key` into a C string literal without `escapeCString` at
+      all, unlike `gen-presets.ts`.
+- [ ] **8.6 Don't strand a half-scaffolded module.** `gen-faust.ts:57` calls
+      `process.exit()` from inside a library function that `new-module.ts:106`
+      imports, so a Faust failure leaves the directory written but unregistered,
+      and re-running hits "refusing to overwrite existing directory".
+- [ ] **8.7 Reconcile the three "add a parameter" rituals.** `CLAUDE.md:57-68`
+      (10 steps), `README.md:150-161` (12) and `SKILL.md:87-101` (11) disagree,
+      and all three are wrong in the same way: they scope the
+      `float <key>;` core-struct edit to "plain C only", but
+      `validate-params.ts:277-284` runs `validateCoreStruct` for **every**
+      module including Faust ones. A Faust author following the docs exactly
+      gets a compile error and a validate failure. None of the three mentions
+      growing `zones[N]` (7.3), and only `SKILL.md` mentions the mandatory
+      `metadata.json` `randomize` entry (`validate-params.ts:178-182`).
+      Collapse to one canonical list — ideally one that shrinks as 7.1-7.3 land.
+- [ ] **8.8 Cross-check `index.json`.** `kind` and `name` are a third
+      independent copy, never compared against `module.json`
+      (`validate-params.ts:96-106`). `arpy/module.json:11` declares
+      `"api_version": 2` while `arpy.c:52` sets `MOVE_MIDI_FX_API_VERSION` (1);
+      nothing validates it. `lobber` is missing from the module table in
+      `CLAUDE.md:13-20` despite being the largest module in the repo.
+- [ ] **8.9 Model the real chain-UI runtime in the test harness.**
+      `tests/ui-chain/harness.ts:73,92-93` strips imports with a regex and runs
+      the source in a Node `vm` in **sloppy script** mode; the device evaluates
+      with `JS_EVAL_FLAG_STRICT | JS_EVAL_TYPE_MODULE`
+      (`SW/src/shadow/shadow_ui.c:654-657`). An accidental implicit global
+      passes locally and throws on device — and the symptom there is a silently
+      dead slot, since a failed load just falls back to the preset browser.
+      `drawMenuList` and friends are no-op stubs (`harness.ts:52-55`), so the
+      real ~20-option `menu_layout.mjs:134` contract is never exercised.
+      Borrow the pattern from `SW/tests/shadow/` (~60 grep/behaviour tests over
+      the shared `.mjs` files).
+- [ ] **8.10 Fix `dustline/ui.js`** — it exports `render(ctx, state)` instead of
+      setting `globalThis.init`/`tick`, so it will never be called by the host.
+      Dustline's solo screen is dead.
+- [ ] **8.11 Handle blocks properly instead of truncating.** Every wrapper does
+      `if (frames > MOVEFORGE_BLOCK_FRAMES) frames = MOVEFORGE_BLOCK_FRAMES;`
+      (`westfold.c:104`, `dustline.c:74`, `faust_voice.c:87`, `trail.c:45`,
+      `faust_drive.c:34`, `lobber.c:48`) and then writes only 128 frames,
+      leaving the remainder **uninitialised** for sound generators. The ABI says
+      frames is always 128 — but a chunked loop costs nothing and removes the
+      failure class. Fold into 7.1.
+- [ ] **8.12 Fix `update-upstream-schwung.sh`** (`:27-30` requires
+      `upstream/schwung/.git`, which is gitignored and absent) and pin the three
+      reference headers to a schwung revision with a drift check in
+      `mise run check`.
+
+---
+
+## Sequencing
+
+Phases 1-3 are roughly a day and change the confidence level of everything
+after them: after Phase 3, nothing in Phases 4-8 can silently regress.
+
+```
+1  Fix dustline + sweep test          ── the live bug, and the regression test
+2  Quality signal can fail            ── depends on 1 for something to catch
+3  CI gate + warnings + sanitizers    ── locks in 1 and 2
+4  Shared DSP layer                   ── makes the Phase 1 class of bug unwritable
+5  Browser loop                       ── independent of 4; can run in parallel
+6  Device fidelity                    ── needs 3 (CI) to be worth automating
+7  Delete copy-paste                  ── safest after 3, and 7.1 unblocks presets
+8  Validation + docs debt             ── continuous; 8.7 should land with 7.1-7.3
+```
+
+Phases 5 and 6 are independent of 4 and of each other. 8.1-8.6 are small enough
+to pick up opportunistically.
+
+## Out of scope for this branch
+
+- New modules or new DSP features.
+- The adaptive scope work in `docs/scope-adaptive-plan.md`.
+- Publishing to `SW/module-catalog.json` (worth doing, but after the gate exists).
