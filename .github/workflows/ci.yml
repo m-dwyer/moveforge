@@ -116,3 +116,48 @@ jobs:
             echo "ok: $id"
           done
           exit $status
+
+  # Run the C tests on the target ISA, with the target's compiler and libc.
+  #
+  # The host tests run under Apple clang or x86 gcc; the device runs aarch64
+  # glibc built by gcc. That gap has already hidden two real bugs: M_PI (a POSIX
+  # extension glibc does not define under -std=c11, so it compiled on macOS and
+  # failed the cross-compile) and a tautological int8_t comparison that clang
+  # accepted but gcc rejects under -Werror=type-limits. Both were found by
+  # actually running on aarch64, not by cross-compiling.
+  #
+  # This is for correctness only. Timing measured here means nothing — see
+  # tools/render_timing.h — so the render suite stays on the check job.
+  arm-tests:
+    # Native arm64 runners are free for public repos. If that label is
+    # unavailable, swap to ubuntu-latest plus docker/setup-qemu-action and run
+    # the same script under --platform linux/arm64; it is slower but equivalent.
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify we are actually on aarch64
+        run: |
+          test "$(uname -m)" = "aarch64" || { echo "::error::not aarch64"; exit 1; }
+          gcc --version | head -1
+          ldd --version | head -1
+
+      - name: C tests on the target ISA
+        run: |
+          set -euo pipefail
+          CFLAGS="-std=c11 -O2 -Wall -Wextra -Werror -Isrc"
+          # shellcheck disable=SC2086
+          gcc $CFLAGS tests/test_mf_dsp.c -o /tmp/t_shared -lm && /tmp/t_shared
+          for m in westfold dustline lobber arpy faust_voice trail faust_drive; do
+            impl="src/modules/$m/dsp/${m}_core.c"
+            [ -f "src/modules/$m/dsp/$m.dsp" ] && impl="src/modules/$m/dsp/${m}_adapter.c"
+            # shellcheck disable=SC2086
+            gcc $CFLAGS -Isrc/modules/$m/dsp "tests/test_${m}_core.c" "$impl" -o "/tmp/t_$m" -lm
+            "/tmp/t_$m"
+            if [ -f "tests/test_${m}_plugin.c" ]; then
+              # shellcheck disable=SC2086
+              gcc $CFLAGS -Isrc/modules/$m/dsp "tests/test_${m}_plugin.c" \
+                "src/modules/$m/dsp/$m.c" "$impl" -o "/tmp/p_$m" -lm
+              "/tmp/p_$m"
+            fi
+          done

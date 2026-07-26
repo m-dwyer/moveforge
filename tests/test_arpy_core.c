@@ -75,7 +75,10 @@ static void test_output_overflow_does_not_strand_a_note(void) {
          * note is marked playing, some note-on for it was emitted at some point.
          * The invariant we can check cheaply is that state stays self-consistent
          * and the gate timer never goes negative-unbounded. */
-        require_true(s.playing_note >= -1 && s.playing_note <= 127, "playing_note stays in range");
+        /* playing_note is int8_t, so an upper bound of 127 is tautological —
+         * GCC on aarch64 rejects it under -Werror=type-limits. -1 is the only
+         * meaningful sentinel to check. */
+        require_true(s.playing_note >= -1, "playing_note stays a valid note or -1");
         require_true(s.frames_until_gate_off >= 0, "gate timer never goes negative");
     }
 
