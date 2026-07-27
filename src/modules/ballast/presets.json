@@ -1,0 +1,96 @@
+{
+  "presets": [
+    {
+      "name": "Init",
+      "params": { "tune": 33, "punch": 0.5, "drop": 0.45, "decay": 0.45, "drive": 0.3, "tone": 0.5, "dirt": 0, "volume": 0.75, "track": 0, "sweep": 0.22, "shape": 0.35, "phase": 0, "curve": 0, "body": 0.2, "vel_depth": 0.6, "human": 0 },
+      "render": { "file": "00-init.wav", "notes": [36, 36, 36, 36, 36, 36, 36, 36], "note_blocks": 155, "gate_blocks": 20, "seconds": 4, "velocity": 100, "tail_seconds": 1 }
+    },
+    {
+      "name": "Deep Round",
+      "params": { "tune": 31, "punch": 0.24, "drop": 0.5, "decay": 0.95, "drive": 0.24, "tone": 0.34, "dirt": 0, "volume": 0.74, "track": 0, "sweep": 0.55, "shape": 0.18, "phase": 0.12, "curve": 0, "body": 0.08, "vel_depth": 0.55, "human": 0.12 },
+      "render": { "file": "01-deep-round.wav", "notes": [36, 36, 36, 36, 36, 36, 36, 36], "note_blocks": 155, "gate_blocks": 20, "seconds": 5, "tail_seconds": 1, "velocity": 100 }
+    },
+    {
+      "name": "Deep Tunnel",
+      "params": { "tune": 32, "punch": 0.4, "drop": 0.42, "decay": 0.26, "drive": 0.3, "tone": 0.34, "dirt": 0.04, "volume": 0.78, "track": 0, "sweep": 0.18, "shape": 0.45, "phase": 0.22, "curve": 0, "body": 0.1, "vel_depth": 0.65, "human": 0.14 },
+      "render": { "file": "02-deep-tunnel.wav", "notes": [36, 36, 36, 36, 36, 36, 36, 36], "note_blocks": 155, "gate_blocks": 20, "seconds": 4, "velocity": 100, "tail_seconds": 1 }
+    },
+    {
+      "name": "Deep Rumble",
+      "params": { "tune": 30, "punch": 0.3, "drop": 0.55, "decay": 1, "drive": 0.62, "tone": 0.44, "dirt": 0.2, "volume": 0.68, "track": 0, "sweep": 0.6, "shape": 0.12, "phase": 0.08, "curve": 1, "body": 0.18, "vel_depth": 0.5, "human": 0.26 },
+      "render": { "file": "03-deep-rumble.wav", "notes": [36, 36, 36, 36, 36, 36, 36, 36], "note_blocks": 155, "gate_blocks": 20, "seconds": 5, "tail_seconds": 1, "velocity": 100 }
+    },
+    {
+      "name": "Dub Boom",
+      "params": { "tune": 29, "punch": 0.12, "drop": 0.55, "decay": 1.8, "drive": 0.18, "tone": 0.24, "dirt": 0, "volume": 0.66, "track": 0, "sweep": 0.8, "shape": 0.12, "phase": 0.05, "curve": 0, "body": 0.05, "vel_depth": 0.5, "human": 0.08 },
+      "render": { "file": "04-dub-boom.wav", "notes": [36, 36, 36, 36], "note_blocks": 310, "gate_blocks": 20, "seconds": 8, "tail_seconds": 2, "velocity": 100 }
+    },
+    {
+      "name": "Dub Dive",
+      "params": { "tune": 28, "punch": 0.5, "drop": 0.95, "decay": 1.25, "drive": 0.36, "tone": 0.46, "dirt": 0.1, "volume": 0.74, "track": 0, "sweep": 1, "shape": 0.22, "phase": 0.2, "curve": 1, "body": 0.16, "vel_depth": 0.6, "human": 0.1 },
+      "render": { "file": "05-dub-dive.wav", "notes": [36, 36, 36, 36], "note_blocks": 310, "gate_blocks": 20, "seconds": 8, "tail_seconds": 2, "velocity": 100 }
+    },
+    {
+      "name": "Drive Tight",
+      "params": { "tune": 34, "punch": 0.64, "drop": 0.46, "decay": 0.4, "drive": 0.48, "tone": 0.54, "dirt": 0.1, "volume": 0.78, "track": 0, "sweep": 0.2, "shape": 0.4, "phase": 0.22, "curve": 1, "body": 0.24, "vel_depth": 0.65, "human": 0.15 },
+      "render": { "file": "06-drive-tight.wav", "notes": [36, 36, 36, 36, 36, 36, 36, 36], "note_blocks": 155, "gate_blocks": 20, "seconds": 4, "velocity": 100, "tail_seconds": 1 }
+    },
+    {
+      "name": "Drive Click",
+      "params": { "tune": 35, "punch": 0.95, "drop": 0.3, "decay": 0.18, "drive": 0.4, "tone": 0.62, "dirt": 0.14, "volume": 0.78, "track": 0, "sweep": 0.1, "shape": 0.6, "phase": 0.25, "curve": 2, "body": 0.3, "vel_depth": 0.7, "human": 0.12 },
+      "render": { "file": "07-drive-click.wav", "notes": [36, 36, 36, 36, 36, 36, 36, 36], "note_blocks": 155, "gate_blocks": 20, "seconds": 4, "velocity": 100, "tail_seconds": 1 }
+    },
+    {
+      "name": "Tool Clip",
+      "params": { "tune": 35, "punch": 0.6, "drop": 0.38, "decay": 0.34, "drive": 0.62, "tone": 0.66, "dirt": 0.16, "volume": 0.7, "track": 0, "sweep": 0.18, "shape": 0.4, "phase": 0.25, "curve": 2, "body": 0.3, "vel_depth": 0.5, "human": 0.12 },
+      "render": {
+        "file": "08-tool-clip.wav",
+        "notes": [36, 36, 36, 36, 36, 36, 36, 36],
+        "note_blocks": 155,
+        "gate_blocks": 20,
+        "seconds": 4,
+        "velocity": 100,
+        "tail_seconds": 1,
+        "_comment": "tone sweeps across the render so the goldens cover parameter automation; the suite had none, so a smoothing regression could only be caught by the unit test",
+        "automate": [
+          { "key": "tone", "from": 0.2, "to": 0.9 }
+        ]
+      }
+    },
+    {
+      "name": "Tool Gate",
+      "params": { "tune": 36, "punch": 0.56, "drop": 0.35, "decay": 0.3, "drive": 0.36, "tone": 0.55, "dirt": 0.1, "volume": 0.58, "track": 0, "sweep": 0.15, "shape": 0.85, "phase": 0.25, "curve": 2, "body": 0.26, "vel_depth": 0.25, "human": 0.05 },
+      "render": { "file": "09-tool-gate.wav", "notes": [36, 36, 36, 36, 36, 36, 36, 36], "note_blocks": 155, "gate_blocks": 20, "seconds": 4, "velocity": 100, "tail_seconds": 1 }
+    },
+    {
+      "name": "Grit Fold",
+      "params": { "tune": 33, "punch": 0.55, "drop": 0.48, "decay": 0.5, "drive": 0.32, "tone": 0.58, "dirt": 0.3, "volume": 0.72, "track": 0, "sweep": 0.24, "shape": 0.36, "phase": 0.2, "curve": 3, "body": 0.28, "vel_depth": 0.55, "human": 0.25 },
+      "render": { "file": "10-grit-fold.wav", "notes": [36, 36, 36, 36, 36, 36, 36, 36], "note_blocks": 155, "gate_blocks": 20, "seconds": 4, "velocity": 100, "tail_seconds": 1 }
+    },
+    {
+      "name": "Grit Crush",
+      "params": { "tune": 32, "punch": 0.68, "drop": 0.55, "decay": 0.58, "drive": 0.5, "tone": 0.5, "dirt": 0.32, "volume": 0.74, "track": 0, "sweep": 0.26, "shape": 0.3, "phase": 0.28, "curve": 4, "body": 0.32, "vel_depth": 0.45, "human": 0.3 },
+      "render": { "file": "11-grit-crush.wav", "notes": [36, 36, 36, 36, 36, 36, 36, 36], "note_blocks": 155, "gate_blocks": 20, "seconds": 4, "velocity": 100, "tail_seconds": 1 }
+    },
+    {
+      "name": "Tom Low",
+      "params": { "tune": 47, "punch": 0.34, "drop": 0.5, "decay": 0.55, "drive": 0.32, "tone": 0.48, "dirt": 0.12, "volume": 0.76, "track": 0.8, "sweep": 0.35, "shape": 0.3, "phase": 0.15, "curve": 0, "body": 0.32, "vel_depth": 0.8, "human": 0.2 },
+      "render": { "file": "12-tom-low.wav", "notes": [48, 52, 45, 48, 55, 48, 43, 48], "note_blocks": 116, "gate_blocks": 20, "seconds": 4, "velocity": 100, "tail_seconds": 1 }
+    },
+    {
+      "name": "Tom High",
+      "params": { "tune": 55, "punch": 0.38, "drop": 0.45, "decay": 0.38, "drive": 0.34, "tone": 0.55, "dirt": 0.16, "volume": 0.82, "track": 0.8, "sweep": 0.28, "shape": 0.35, "phase": 0.15, "curve": 0, "body": 0.38, "vel_depth": 0.8, "human": 0.2 },
+      "render": { "file": "13-tom-high.wav", "notes": [48, 55, 50, 48, 57, 48, 52, 48], "note_blocks": 116, "gate_blocks": 20, "seconds": 4, "velocity": 100, "tail_seconds": 1 }
+    },
+    {
+      "name": "Sub 808",
+      "params": { "tune": 60, "punch": 0.14, "drop": 0.1, "decay": 1.5, "drive": 0.22, "tone": 0.32, "dirt": 0, "volume": 0.68, "track": 1, "sweep": 0.3, "shape": 0.14, "phase": 0, "curve": 0, "body": 0.06, "vel_depth": 0.55, "human": 0.04 },
+      "render": { "file": "14-sub-808.wav", "notes": [36, 36, 43, 36, 39, 36, 41, 36], "note_blocks": 232, "gate_blocks": 20, "seconds": 8, "tail_seconds": 2, "velocity": 100 }
+    },
+    {
+      "name": "Sub Rubber",
+      "params": { "tune": 60, "punch": 0.2, "drop": 0.15, "decay": 1.1, "drive": 0.55, "tone": 0.45, "dirt": 0.06, "volume": 0.7, "track": 1, "sweep": 0.24, "shape": 0.16, "phase": 0.05, "curve": 3, "body": 0.45, "vel_depth": 0.6, "human": 0.06 },
+      "render": { "file": "15-sub-rubber.wav", "notes": [36, 38, 36, 43, 36, 41, 36, 39], "note_blocks": 232, "gate_blocks": 20, "seconds": 8, "tail_seconds": 2, "velocity": 100 }
+    }
+  ]
+}

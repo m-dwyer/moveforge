@@ -30,6 +30,7 @@ typedef struct {
     int note_blocks;
     int gate_blocks;
     int seconds;
+    int tail_seconds;
     int velocity;
     const mf_automate_set_t *automation;
 } render_case_t;
@@ -112,9 +113,20 @@ static int render_case(plugin_api_v2_t *api, const render_case_t *rc, const char
     mf_timing_t timing;
     mf_timing_init(&timing, (int)(total_frames / 128) + 1);
 
+    /* Stop issuing note-ons before the end so the last hit's tail is actually
+     * captured. Without this the recorded tail is whatever `total_blocks mod
+     * note_blocks` happens to be — it can never exceed one note interval no
+     * matter how long `seconds` is, so a preset with a 2 s decay renders with
+     * its tail chopped at -10 dB regardless. */
+    uint32_t tail_blocks = (uint32_t)rc->tail_seconds * 44100u / 128u;
+    uint32_t total_blocks = total_frames / 128;
+    uint32_t last_trigger_block = (tail_blocks < total_blocks)
+                                ? total_blocks - tail_blocks : total_blocks;
+
     for (uint32_t frame = 0; frame < total_frames; frame += 128) {
         uint32_t block_index = frame / 128;
-        if (block_index % (uint32_t)rc->note_blocks == 0) {
+        if (block_index < last_trigger_block
+            && block_index % (uint32_t)rc->note_blocks == 0) {
             int step = (block_index / (uint32_t)rc->note_blocks) % rc->note_count;
             if (step > 0) send_midi(api, inst, 0x80, (uint8_t)rc->notes[step - 1], 0);
             send_midi(api, inst, 0x90, (uint8_t)rc->notes[step], (uint8_t)rc->velocity);
@@ -172,10 +184,15 @@ int main(int argc, char **argv) {
         param_t params[32];
         int param_count = 0;
         mf_automate_set_t automation = {0};
+        int tail_seconds = 0;
         int note_count = parse_notes(argv[7], notes, 64);
         for (int i = 8; i < argc && param_count < 32; i++) {
             if (strcmp(argv[i], "--automate") == 0 && i + 1 < argc) {
                 if (mf_automate_add(&automation, argv[++i]) != 0) return 2;
+                continue;
+            }
+            if (strcmp(argv[i], "--tail-seconds") == 0 && i + 1 < argc) {
+                tail_seconds = atoi(argv[++i]);
                 continue;
             }
             char *eq = strchr(argv[i], '=');
@@ -194,6 +211,7 @@ int main(int argc, char **argv) {
             atoi(argv[4]),
             atoi(argv[5]),
             atoi(argv[3]),
+            tail_seconds,
             atoi(argv[6]),
             &automation
         };
@@ -202,7 +220,7 @@ int main(int argc, char **argv) {
 
     const char *out_path = argc > 1 ? argv[1] : "westfold-demo.wav";
     const render_case_t demo = {
-        "demo", p_demo, ARRAY_LEN(p_demo), seq_demo, ARRAY_LEN(seq_demo), 86, 64, 8, 102, NULL
+        "demo", p_demo, ARRAY_LEN(p_demo), seq_demo, ARRAY_LEN(seq_demo), 86, 64, 8, 0, 102, NULL
     };
     return render_case(api, &demo, out_path);
 }

@@ -427,6 +427,185 @@ static void test_beats_to_samples(void) {
     require_true(mf_beats_to_samples(1.0e9f, 0.001f) <= 2000000000, "absurd length is capped");
 }
 
+static void test_tilt(void) {
+    mf_tilt_t t;
+    float gl, gh;
+
+    /* The reason for the complementary-crossover form: at 0 dB the filter must
+     * be transparent exactly, not approximately. A shelving-biquad tilt ripples
+     * at its centre detent, so a control reading "flat" changes the tone. */
+    mf_tilt_gains(0.0f, 24.0f, &gl, &gh);
+    require_true(absf_local(gl - 1.0f) < 1e-6f, "tilt centre leaves lows at unity");
+    require_true(absf_local(gh - 1.0f) < 1e-6f, "tilt centre leaves highs at unity");
+
+    mf_tilt_init(&t, 700.0f);
+    for (int i = 0; i < 512; i++) {
+        float x = sinf(0.05f * (float)i) * 0.7f + sinf(0.9f * (float)i) * 0.3f;
+        require_true(absf_local(mf_tilt_tick(&t, x, gl, gh) - x) < 1e-6f,
+                     "tilt at centre passes the signal unchanged");
+    }
+
+    /* Symmetric in dB about the pivot, and the two ends are reciprocal. */
+    mf_tilt_gains(1.0f, 24.0f, &gl, &gh);
+    require_true(gh > 3.9f && gh < 4.1f, "full tilt lifts highs by 12 dB");
+    require_true(absf_local(gl * gh - 1.0f) < 1e-4f, "tilt gains are reciprocal");
+
+    float gl_down, gh_down;
+    mf_tilt_gains(-1.0f, 24.0f, &gl_down, &gh_down);
+    require_true(absf_local(gl_down - gh) < 1e-4f, "tilt is symmetric end to end");
+
+    /* Tilting up must actually make a bright signal louder than a dark one. */
+    mf_tilt_init(&t, 700.0f);
+    double dark = 0.0;
+    for (int i = 0; i < 2048; i++) {
+        float y = mf_tilt_tick(&t, sinf(0.014f * (float)i), gl, gh);   /* ~100 Hz */
+        dark += (double)y * y;
+    }
+    mf_tilt_init(&t, 700.0f);
+    double bright = 0.0;
+    for (int i = 0; i < 2048; i++) {
+        float y = mf_tilt_tick(&t, sinf(0.71f * (float)i), gl, gh);    /* ~5 kHz */
+        bright += (double)y * y;
+    }
+    require_true(bright > dark * 4.0, "tilting up favours highs over lows");
+}
+
+static void test_fold(void) {
+    /* Identity inside [-1, 1] — a folder that colours its passband is a
+     * distortion with an unusable bottom half. */
+    for (int i = -100; i <= 100; i++) {
+        float x = (float)i / 100.0f;
+        require_true(absf_local(mf_fold(x) - x) < 1e-6f, "fold is identity in range");
+    }
+
+    /* Reflects rather than wraps: 1.5 folds back to 0.5, not to -0.5. */
+    require_true(absf_local(mf_fold(1.5f) - 0.5f) < 1e-5f, "1.5 folds to 0.5");
+    require_true(absf_local(mf_fold(2.0f) - 0.0f) < 1e-5f, "2.0 folds to 0");
+    require_true(absf_local(mf_fold(3.0f) + 1.0f) < 1e-5f, "3.0 folds to -1");
+    require_true(absf_local(mf_fold(-1.5f) + 0.5f) < 1e-5f, "-1.5 folds to -0.5");
+
+    /* Continuous everywhere. A modulo-based folder steps by full scale at the
+     * fold points, which sounds like a fault rather than a wavefolder. */
+    float prev = mf_fold(-8.0f);
+    for (int i = -7999; i <= 8000; i++) {
+        float y = mf_fold((float)i / 1000.0f);
+        require_true(absf_local(y - prev) < 0.01f, "fold has no discontinuity");
+        require_true(y >= -1.0f && y <= 1.0f, "fold stays in range");
+        prev = y;
+    }
+}
+
+static void test_drive(void) {
+    mf_drive_t state;
+    mf_drive_coeffs_t c;
+
+    for (int curve = 0; curve < MF_DRIVE_COUNT; curve++) {
+        /* Drive zero is clean for every curve. Without this the knob is a dead
+         * zone in some modes and a distortion in others, and the curve
+         * selector stops being an A/B. */
+        mf_drive_init(&state);
+        mf_drive_set(&c, curve, 0.0f);
+        double err = 0.0;
+        for (int i = 0; i < 2048; i++) {
+            float x = sinf(0.03f * (float)i) * 0.9f;
+            float d = mf_drive_tick(&state, &c, x) - x;
+            err += (double)d * d;
+        }
+        require_true(err / 2048.0 < 1.0e-4, "drive at zero is clean");
+
+        /* Peak-normalised, so raising drive changes character and not level. */
+        for (int step = 0; step <= 10; step++) {
+            mf_drive_init(&state);
+            mf_drive_set(&c, curve, (float)step / 10.0f);
+            float peak = 0.0f;
+            for (int i = 0; i < 4096; i++) {
+                float y = mf_drive_tick(&state, &c, sinf(0.03f * (float)i));
+                require_true(isfinite(y), "drive output is finite");
+                require_true(y >= -1.05f && y <= 1.05f, "drive stays inside full scale");
+                float a = absf_local(y);
+                if (a > peak) peak = a;
+            }
+            /* Every curve measures exactly 1.000 here, so `> 0.6` asserted
+             * peak-normalisation only to +-4.4 dB and caught nothing. */
+            require_true(peak > 0.9f && peak < 1.05f,
+                         "drive keeps its level as it is pushed");
+        }
+    }
+
+    /* Every curve must actually be a curve. Without this, `return x` — the
+     * nonlinearity doing nothing at all — passes for soft, clip and fold,
+     * which is three of the five. Measured deviation from the input at full
+     * drive is 0.27 (crush, the weakest) to 1.08 (fold), so 0.15 has better
+     * than 1.8x margin on the closest case. */
+    for (int curve = 0; curve < MF_DRIVE_COUNT; curve++) {
+        mf_drive_init(&state);
+        mf_drive_set(&c, curve, 1.0f);
+        double dev = 0.0;
+        for (int i = 0; i < 4096; i++) {
+            float x = sinf(0.03f * (float)i);
+            float d = mf_drive_tick(&state, &c, x) - x;
+            dev += (double)d * d;
+        }
+        require_true(sqrt(dev / 4096.0) > 0.15, "a driven curve changes its input");
+    }
+
+    /* Shape fingerprints, so one curve cannot be silently substituted for
+     * another. Fold is the only non-monotone curve — that is what makes it a
+     * folder rather than a clipper, and asserting it is what catches
+     * FOLD being replaced by hard clip. */
+    for (int curve = 0; curve < MF_DRIVE_COUNT; curve++) {
+        mf_drive_init(&state);
+        mf_drive_set(&c, curve, 1.0f);
+        /* Crush's sample-and-hold starts at zero, so without a warm-up its
+         * first update falls to the ramp's starting value and reads as
+         * non-monotone. That is an initialisation artefact, not a shape. */
+        for (int i = 0; i < 64; i++) mf_drive_tick(&state, &c, -1.0f);
+        int falls = 0;
+        float prev = mf_drive_tick(&state, &c, -1.0f);
+        for (int i = 1; i <= 2000; i++) {
+            float y = mf_drive_tick(&state, &c, -1.0f + 2.0f * (float)i / 2000.0f);
+            if (y < prev - 1.0e-6f) falls++;
+            prev = y;
+        }
+        if (curve == MF_DRIVE_FOLD) {
+            require_true(falls > 100, "fold folds back on itself");
+        } else {
+            require_true(falls == 0, "every curve but fold is monotone");
+        }
+    }
+
+    /* An out-of-range curve index falls back rather than reading past the
+     * switch — set_param clamps, but the enum and the clamp are separate. */
+    mf_drive_set(&c, 99, 0.5f);
+    require_true(c.curve == MF_DRIVE_SOFT, "an unknown curve falls back to soft");
+
+    /* Asym is what it says: a symmetric input comes out with a DC offset,
+     * which is where its even harmonics come from. Soft must not. */
+    mf_drive_init(&state);
+    mf_drive_set(&c, MF_DRIVE_ASYM, 1.0f);
+    double asym_sum = 0.0;
+    for (int i = 0; i < 4410; i++) asym_sum += mf_drive_tick(&state, &c, sinf(0.06f * (float)i));
+    mf_drive_init(&state);
+    mf_drive_set(&c, MF_DRIVE_SOFT, 1.0f);
+    double soft_sum = 0.0;
+    for (int i = 0; i < 4410; i++) soft_sum += mf_drive_tick(&state, &c, sinf(0.06f * (float)i));
+    require_true(fabs(asym_sum) > fabs(soft_sum) * 10.0 + 1.0,
+                 "asym produces the DC offset that soft does not");
+
+    /* Crush holds its output between updates; that sample-and-hold is the
+     * decimation, and without it the curve is only a bit reducer. */
+    mf_drive_init(&state);
+    mf_drive_set(&c, MF_DRIVE_CRUSH, 1.0f);
+    int repeats = 0;
+    float prev = mf_drive_tick(&state, &c, 0.0f);
+    for (int i = 1; i < 2048; i++) {
+        float y = mf_drive_tick(&state, &c, sinf(0.03f * (float)i));
+        if (y == prev) repeats++;
+        prev = y;
+    }
+    require_true(repeats > 1800, "crush decimates by holding samples");
+}
+
 int main(void) {
     test_flush_denorm();
     test_sanitize();
@@ -443,6 +622,9 @@ int main(void) {
     test_svf_peak_tracks_cutoff();
     test_svf_is_unconditionally_stable();
     test_svf_resonance_direction_and_evenness();
+    test_tilt();
+    test_fold();
+    test_drive();
     printf("mf_dsp shared block tests passed\n");
     return 0;
 }

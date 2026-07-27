@@ -26,6 +26,7 @@ type SoundGenRender = CommonRender & {
   note_blocks: number;
   notes: number[];
   seconds: number;
+  tail_seconds?: number;
   velocity: number;
 };
 
@@ -91,6 +92,11 @@ for (const target of await selectedModuleTargets()) {
         String(sg.velocity),
         sg.notes.join(",")
       ];
+      /* Stop triggering before the end so a long decay is actually captured;
+       * without it the recorded tail can never exceed one note interval. */
+      if (sg.tail_seconds !== undefined) {
+        args.push("--tail-seconds", String(sg.tail_seconds));
+      }
     }
 
     for (const [key, value] of Object.entries(preset.params)) {
