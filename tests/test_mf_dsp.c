@@ -525,7 +525,52 @@ static void test_drive(void) {
                 float a = absf_local(y);
                 if (a > peak) peak = a;
             }
-            require_true(peak > 0.6f, "drive keeps its level as it is pushed");
+            /* Every curve measures exactly 1.000 here, so `> 0.6` asserted
+             * peak-normalisation only to +-4.4 dB and caught nothing. */
+            require_true(peak > 0.9f && peak < 1.05f,
+                         "drive keeps its level as it is pushed");
+        }
+    }
+
+    /* Every curve must actually be a curve. Without this, `return x` — the
+     * nonlinearity doing nothing at all — passes for soft, clip and fold,
+     * which is three of the five. Measured deviation from the input at full
+     * drive is 0.27 (crush, the weakest) to 1.08 (fold), so 0.15 has better
+     * than 1.8x margin on the closest case. */
+    for (int curve = 0; curve < MF_DRIVE_COUNT; curve++) {
+        mf_drive_init(&state);
+        mf_drive_set(&c, curve, 1.0f);
+        double dev = 0.0;
+        for (int i = 0; i < 4096; i++) {
+            float x = sinf(0.03f * (float)i);
+            float d = mf_drive_tick(&state, &c, x) - x;
+            dev += (double)d * d;
+        }
+        require_true(sqrt(dev / 4096.0) > 0.15, "a driven curve changes its input");
+    }
+
+    /* Shape fingerprints, so one curve cannot be silently substituted for
+     * another. Fold is the only non-monotone curve — that is what makes it a
+     * folder rather than a clipper, and asserting it is what catches
+     * FOLD being replaced by hard clip. */
+    for (int curve = 0; curve < MF_DRIVE_COUNT; curve++) {
+        mf_drive_init(&state);
+        mf_drive_set(&c, curve, 1.0f);
+        /* Crush's sample-and-hold starts at zero, so without a warm-up its
+         * first update falls to the ramp's starting value and reads as
+         * non-monotone. That is an initialisation artefact, not a shape. */
+        for (int i = 0; i < 64; i++) mf_drive_tick(&state, &c, -1.0f);
+        int falls = 0;
+        float prev = mf_drive_tick(&state, &c, -1.0f);
+        for (int i = 1; i <= 2000; i++) {
+            float y = mf_drive_tick(&state, &c, -1.0f + 2.0f * (float)i / 2000.0f);
+            if (y < prev - 1.0e-6f) falls++;
+            prev = y;
+        }
+        if (curve == MF_DRIVE_FOLD) {
+            require_true(falls > 100, "fold folds back on itself");
+        } else {
+            require_true(falls == 0, "every curve but fold is monotone");
         }
     }
 

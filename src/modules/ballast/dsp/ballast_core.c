@@ -53,6 +53,13 @@
 #define BALLAST_DRIVE_ENV_FLOOR 0.12f
 #endif
 
+/* Per-block glide toward a new tilt/dirt target, so a full-range jump takes
+ * about 15 ms rather than landing inside one 2.9 ms block. Ramping to the raw
+ * target within a single block is click-free but still moves a 12 dB tilt
+ * swing nearly 4x faster than the signal's own slew, which is audible as a
+ * lurch when a Route Motion lane steps in hold mode. */
+#define BALLAST_CTRL_GLIDE  0.20f
+
 #define BALLAST_DECLICK_S   0.0007f
 /* Below this the previous output is silence, and a fresh attack is wanted. */
 #define BALLAST_DECLICK_FLOOR 0.002f
@@ -272,6 +279,16 @@ void ballast_process_float(ballast_core_t *s,
     float vel_pitch = 1.0f - vd * 0.50f * (1.0f - vel);
     float vel_drive = 1.0f - vd * 0.40f * (1.0f - vel);
 
+    /* The noise layers scale with velocity *squared*, i.e. steeper than level.
+     * Without this they stayed at full level while the body was attenuated, so
+     * a soft hit came out relatively brighter than a hard one — measured
+     * spectral centroid ran backwards, 180 Hz at velocity 0.25 down to 146 Hz
+     * at full. That is the opposite of how a struck drum behaves, and it is
+     * most of why velocity read as a level control rather than an expressive
+     * one. Squared rather than linear because the attack transient is what
+     * carries perceived hardness, so it has to move faster than loudness. */
+    float vel_bright = 1.0f - vd * (1.0f - vel * vel);
+
     /* Drive is smoothed at block rate rather than per sample: its coefficients
      * are a whole struct including a curve selector, so ramping them per sample
      * would mean running the nonlinearity twice. A 15 ms glide turns a hold-mode
@@ -288,8 +305,8 @@ void ballast_process_float(ballast_core_t *s,
     float tilt_low, tilt_high;
     mf_tilt_gains((s->tone - 0.5f) * 2.0f, BALLAST_TILT_MAX_DB, &tilt_low, &tilt_high);
     float inv_frames = 1.0f / (float)frames;
-    float tilt_low_step = (tilt_low - s->tilt_low_cur) * inv_frames;
-    float tilt_high_step = (tilt_high - s->tilt_high_cur) * inv_frames;
+    float tilt_low_step = (tilt_low - s->tilt_low_cur) * BALLAST_CTRL_GLIDE * inv_frames;
+    float tilt_high_step = (tilt_high - s->tilt_high_cur) * BALLAST_CTRL_GLIDE * inv_frames;
 
     mf_svf_coeffs_t dirt_co;
     mf_svf_set(&dirt_co, 1200.0f + s->dirt * 2200.0f, 0.45f);
@@ -314,9 +331,9 @@ void ballast_process_float(ballast_core_t *s,
 
     float body = moveforge_clampf(s->body, 0.0f, 1.0f);
     float shape = moveforge_clampf(s->shape, 0.0f, 1.0f);
-    float click_level = s->punch * BALLAST_CLICK_GAIN;
-    float dirt_level = moveforge_clampf(s->dirt, 0.0f, 1.0f);
-    float dirt_step = (dirt_level - s->dirt_cur) * inv_frames;
+    float click_level = s->punch * BALLAST_CLICK_GAIN * vel_bright;
+    float dirt_level = moveforge_clampf(s->dirt, 0.0f, 1.0f) * vel_bright;
+    float dirt_step = (dirt_level - s->dirt_cur) * BALLAST_CTRL_GLIDE * inv_frames;
     float out_gain = vel_gain * s->hit_level * BALLAST_OUT_TRIM;
     float phase_inc_scale = 1.0f / sr;
 

@@ -29,6 +29,7 @@ type StressCase = {
   file: string;
   label: string;
   expect_silence?: boolean;
+  velocity?: number;
   params: Record<string, number>;
 };
 
@@ -61,7 +62,8 @@ for (const target of await selectedModuleTargets()) {
     const outPath = join(stressDir, stressCase.file);
     const args = componentType === "audio_fx"
       ? [outPath, "--signal", stressCase.file.includes("impulse") ? "impulse" : "sweep", "--seconds", "4"]
-      : ["--render", outPath, "5", "36", "18", "127", "36,43,48,55,60"];
+      : ["--render", outPath, "5", "36", "18", String(stressCase.velocity ?? 127),
+         "36,43,48,55,60"];
 
     for (const [key, value] of Object.entries(stressCase.params)) {
       args.push(`${key}=${value}`);
@@ -82,11 +84,13 @@ for (const target of await selectedModuleTargets()) {
 
 function buildCases(params: Param[], defaults: Record<string, number>, kind: string): StressCase[] {
   const cases: StressCase[] = [];
-  const add = (label: string, values: Record<string, number>, expectSilence = false) => {
+  const add = (label: string, values: Record<string, number>, expectSilence = false,
+               velocity?: number) => {
     cases.push({
       file: `${String(cases.length).padStart(2, "0")}-${slug(label)}.wav`,
       label,
       expect_silence: expectSilence || undefined,
+      velocity,
       params: values
     });
   };
@@ -117,6 +121,23 @@ function buildCases(params: Param[], defaults: Record<string, number>, kind: str
     }
   }
   add("Hot Fast", hot);
+
+  /* Every other sound-generator case renders at velocity 127, which makes any
+   * velocity-depth parameter a no-op: `1 - depth * (1 - 1)` is 1 whatever the
+   * depth is, so `Vel Depth Min` and `Vel Depth Max` came out byte-identical
+   * to `Default` and the whole velocity path went unexercised. A soft hit at
+   * full depth is where velocity scaling can actually misbehave. */
+  if (kind === "sound_generator") {
+    const velKeys = params.filter((param) => /^(vel|velocity)(_|$)/i.test(param.key));
+    const soft = { ...defaults };
+    for (const param of velKeys) soft[param.key] = param.max;
+    add("Soft Hit", soft, false, 12);
+    if (velKeys.length > 0) {
+      const softHot = { ...hot };
+      for (const param of velKeys) softHot[param.key] = param.max;
+      add("Soft Hit Hot", softHot, false, 12);
+    }
+  }
 
   if (kind === "audio_fx") {
     add("Impulse Hot", hot);

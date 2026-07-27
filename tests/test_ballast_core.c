@@ -291,6 +291,133 @@ int main(void) {
         require_true(left[i] == copy[i], "renders are reproducible with human off");
     }
 
+    /* The -12 dBFS cross-engine gain reference, asserted absolutely.
+     *
+     * Four Schwung slots sum at unity into one int16 mailbox with no limiter
+     * anywhere in the master path, so every engine has to leave the headroom
+     * itself. The goldens only say "unchanged" — a bless can walk this away
+     * without anything noticing, which is why it belongs in C. */
+    ballast_init(&synth);
+    ballast_note_on(&synth, 36, 100.0f / 127.0f);
+    float ref = render_peak(&synth, FRAMES);
+    require_true(ref > 0.20f && ref < 0.29f,
+                 "default patch at velocity 100 peaks near -12 dBFS");
+
+    /* Velocity moves timbre, not only level. The noise layers scale with
+     * velocity squared, so a soft hit is duller as well as quieter; without
+     * that the attack band barely moved and the spectral centroid actually ran
+     * backwards. Compare the 2-6 kHz attack band against the hit's own peak,
+     * which is level-independent by construction. */
+    {
+        float rel[2];
+        float vels[2] = { 0.25f, 1.0f };
+        float peak[2];
+        for (int i = 0; i < 2; i++) {
+            ballast_init(&synth);
+            set(&synth, "vel_depth", 0.8f);
+            set(&synth, "punch", 0.6f);
+            set(&synth, "dirt", 0.15f);
+            ballast_note_on(&synth, 36, vels[i]);
+            ballast_process_float(&synth, NULL, NULL, left, right, FRAMES);
+            peak[i] = 0.0f;
+            for (int n = 0; n < FRAMES; n++) {
+                float a = absf_local(left[n]);
+                if (a > peak[i]) peak[i] = a;
+            }
+            float a1 = 0.0f, a2 = 0.0f, b1 = 0.0f, b2 = 0.0f, bpk = 0.0f;
+            const float ah = 2.0f * 3.14159265f * 2000.0f / 44100.0f;
+            const float al = 2.0f * 3.14159265f * 6000.0f / 44100.0f;
+            for (int n = 0; n < 441; n++) {
+                a1 += (left[n] - a1) * ah;
+                a2 += (a1 - a2) * ah;
+                float hp = left[n] - a2;
+                b1 += (hp - b1) * al;
+                b2 += (b1 - b2) * al;
+                if (absf_local(b2) > bpk) bpk = absf_local(b2);
+            }
+            rel[i] = bpk / (peak[i] + 1e-9f);
+        }
+        require_true(peak[1] > peak[0] * 1.5f, "velocity moves level");
+        require_true(rel[1] > rel[0] * 2.0f, "velocity moves attack brightness, not just level");
+
+        /* vel_depth zero takes velocity out of the picture entirely. */
+        ballast_init(&synth);
+        set(&synth, "vel_depth", 0.0f);
+        ballast_note_on(&synth, 36, 0.2f);
+        float quiet = render_peak(&synth, 1024);
+        ballast_init(&synth);
+        set(&synth, "vel_depth", 0.0f);
+        ballast_note_on(&synth, 36, 1.0f);
+        float loud = render_peak(&synth, 1024);
+        require_true(absf_local(quiet - loud) < 1.0e-6f, "vel_depth zero ignores velocity");
+    }
+
+    /* `human` is the one thing a host LFO structurally cannot do, so it has to
+     * actually vary. Consecutive hits are not bit-identical even at human = 0
+     * (the noise generator keeps running), so compare the spread. */
+    {
+        double e0[2], e1[2];
+        ballast_init(&synth);
+        set(&synth, "human", 0.0f);
+        set(&synth, "decay", 0.1f);
+        for (int i = 0; i < 2; i++) {
+            ballast_note_on(&synth, 36, 1.0f);
+            e0[i] = render_energy(&synth, FRAMES);
+        }
+        ballast_init(&synth);
+        set(&synth, "human", 1.0f);
+        set(&synth, "decay", 0.1f);
+        for (int i = 0; i < 2; i++) {
+            ballast_note_on(&synth, 36, 1.0f);
+            e1[i] = render_energy(&synth, FRAMES);
+        }
+        double flat = absf_local((float)(e0[1] / e0[0] - 1.0));
+        double varied = absf_local((float)(e1[1] / e1[0] - 1.0));
+        require_true(flat < 0.02, "hits are consistent with human off");
+        require_true(varied > flat * 3.0, "human varies hit to hit");
+    }
+
+    /* Parameters must survive being re-issued every block, which is how Route
+     * Motion delivers a hold-mode lane. Jump `tone` between its extremes on
+     * alternate blocks and require the step at a block boundary to stay in the
+     * same league as the signal's own slew. Unsmoothed, tone measured 64x. */
+    {
+        ballast_init(&synth);
+        set(&synth, "volume", 0.8f);
+        set(&synth, "decay", 3.0f);
+        set(&synth, "punch", 0.0f);
+        set(&synth, "dirt", 0.0f);
+        ballast_note_on(&synth, 36, 1.0f);
+
+        /* Baseline: the signal's own largest sample-to-sample step, measured
+         * in the same 128-frame blocks so the boundary pairs are comparable. */
+        float steady = 0.0f;
+        float prev_last = 0.0f;
+        for (int block = 0; block < 8; block++) {
+            ballast_process_float(&synth, NULL, NULL, left, right, 128);
+            for (int i = 1; i < 128; i++) {
+                float d = absf_local(left[i] - left[i - 1]);
+                if (d > steady) steady = d;
+            }
+            prev_last = left[127];
+        }
+
+        float boundary = 0.0f;
+        for (int block = 0; block < 24; block++) {
+            set(&synth, "tone", (block % 2) ? 1.0f : 0.0f);
+            ballast_process_float(&synth, NULL, NULL, left, right, 128);
+            float d = absf_local(left[0] - prev_last);
+            if (d > boundary) boundary = d;
+            prev_last = left[127];
+        }
+        if (!(boundary < steady * 2.0f)) {
+            fprintf(stderr, "  boundary %.6f steady %.6f ratio %.2f\n",
+                    boundary, steady, boundary / steady);
+        }
+        require_true(boundary < steady * 2.0f,
+                     "a parameter re-issued every block does not step the output");
+    }
+
     printf("ballast core tests passed\n");
     return 0;
 }

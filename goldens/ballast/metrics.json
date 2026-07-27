@@ -4,491 +4,655 @@
     "channels": 2,
     "frames": 176400,
     "duration_seconds": 4,
-    "peak": 0.23367,
-    "rms": 0.05976,
-    "dc_offset": -0.000005,
+    "peak": 0.22974,
+    "rms": 0.0527,
+    "dc_offset": 0.000002,
     "dc_offset_per_channel": [
-      -0.000005,
-      -0.000005
+      0.000002,
+      0.000002
     ],
-    "silence_ratio": 0.0368,
+    "silence_ratio": 0.2434,
     "clipped_samples": 0,
     "zero_crossing_rate": [
-      0.0028,
-      0.0028
+      0.00223,
+      0.00223
     ],
     "stereo_correlation": 1,
-    "slew_ratio": 0.00804,
+    "slew_ratio": 0.00662,
     "time_profile": [
-      -7.66,
-      -8.65,
-      -9.11,
-      -9.29,
-      -9.4,
-      -9.46,
-      -9.5,
-      -9.53
+      -6.57,
+      -7.56,
+      -8.02,
+      -8.2,
+      -8.31,
+      -8.37,
+      -27.13,
+      -60
     ],
     "band_energy": [
-      -0.2,
-      -13.85,
-      -27.61,
-      -38.21,
-      -42.3,
-      -35.92,
-      -34.29,
-      -35.05
+      -0.19,
+      -13.91,
+      -27.69,
+      -38.76,
+      -44.09,
+      -37.77,
+      -36.66,
+      -37.49
     ]
   },
   "01-deep-round.wav": {
     "sample_rate": 44100,
     "channels": 2,
-    "frames": 176400,
-    "duration_seconds": 4,
-    "peak": 0.26883,
-    "rms": 0.10987,
-    "dc_offset": 0.000049,
+    "frames": 220500,
+    "duration_seconds": 5,
+    "peak": 0.26266,
+    "rms": 0.09225,
+    "dc_offset": -0.000018,
     "dc_offset_per_channel": [
-      0.000049,
-      0.000049
+      -0.000018,
+      -0.000018
     ],
-    "silence_ratio": 0.006,
+    "silence_ratio": 0.1059,
     "clipped_samples": 0,
     "zero_crossing_rate": [
-      0.00242,
-      0.00242
+      0.00235,
+      0.00235
     ],
     "stereo_correlation": 1,
-    "slew_ratio": 0.00627,
+    "slew_ratio": 0.00564,
     "time_profile": [
-      -8.04,
-      -8.59,
-      -9.01,
-      -9.24,
-      -9.31,
-      -9.3,
-      -9.43,
-      -9.53
+      -6.86,
+      -9.03,
+      -7.63,
+      -8.19,
+      -9.13,
+      -7.05,
+      -15.93,
+      -39.75
     ],
     "band_energy": [
-      -0.11,
-      -16.09,
-      -29.53,
-      -36.49,
-      -46.46,
-      -52.36,
-      -55.21,
-      -55.74
+      -0.14,
+      -15.36,
+      -28.83,
+      -34.47,
+      -42.71,
+      -48.78,
+      -51.01,
+      -53.68
     ]
   },
-  "02-driving-tight.wav": {
+  "02-deep-tunnel.wav": {
     "sample_rate": 44100,
     "channels": 2,
     "frames": 176400,
     "duration_seconds": 4,
-    "peak": 0.22415,
-    "rms": 0.0457,
-    "dc_offset": 0,
+    "peak": 0.26642,
+    "rms": 0.06214,
+    "dc_offset": -0.000016,
     "dc_offset_per_channel": [
-      0,
-      0
+      -0.000016,
+      -0.000016
     ],
-    "silence_ratio": 0.3466,
+    "silence_ratio": 0.5548,
     "clipped_samples": 0,
     "zero_crossing_rate": [
-      0.0026,
-      0.0026
+      0.00146,
+      0.00146
     ],
     "stereo_correlation": 1,
-    "slew_ratio": 0.00897,
+    "slew_ratio": 0.00416,
     "time_profile": [
-      -7.36,
-      -8.79,
-      -9.18,
-      -9.34,
-      -9.44,
-      -9.43,
-      -9.49,
-      -9.71
+      -6.15,
+      -7.76,
+      -8.07,
+      -8.27,
+      -8.41,
+      -8.52,
+      -60,
+      -60
     ],
     "band_energy": [
-      -0.48,
-      -10.48,
-      -19.84,
-      -26.82,
-      -29.88,
-      -32.43,
-      -32.67,
-      -33.1
+      -0.24,
+      -13.25,
+      -22.72,
+      -29.1,
+      -33.86,
+      -38.33,
+      -42.26,
+      -45.65
     ]
   },
-  "03-loop-tool.wav": {
-    "sample_rate": 44100,
-    "channels": 2,
-    "frames": 176400,
-    "duration_seconds": 4,
-    "peak": 0.25296,
-    "rms": 0.09201,
-    "dc_offset": -0.000107,
-    "dc_offset_per_channel": [
-      -0.000107,
-      -0.000107
-    ],
-    "silence_ratio": 0.2142,
-    "clipped_samples": 0,
-    "zero_crossing_rate": [
-      0.00452,
-      0.00452
-    ],
-    "stereo_correlation": 1,
-    "slew_ratio": 0.01412,
-    "time_profile": [
-      -7.7,
-      -8.65,
-      -9.05,
-      -9.28,
-      -9.38,
-      -9.4,
-      -9.5,
-      -9.64
-    ],
-    "band_energy": [
-      -0.75,
-      -9.69,
-      -15.72,
-      -21.26,
-      -20.13,
-      -24.97,
-      -26.71,
-      -26.63
-    ]
-  },
-  "04-industrial.wav": {
-    "sample_rate": 44100,
-    "channels": 2,
-    "frames": 176400,
-    "duration_seconds": 4,
-    "peak": 0.23953,
-    "rms": 0.04024,
-    "dc_offset": -0.000009,
-    "dc_offset_per_channel": [
-      -0.000009,
-      -0.000009
-    ],
-    "silence_ratio": 0.1497,
-    "clipped_samples": 0,
-    "zero_crossing_rate": [
-      0.00629,
-      0.00629
-    ],
-    "stereo_correlation": 1,
-    "slew_ratio": 0.03602,
-    "time_profile": [
-      -7.4,
-      -8.98,
-      -9.09,
-      -9.37,
-      -9.38,
-      -9.31,
-      -9.61,
-      -9.55
-    ],
-    "band_energy": [
-      -1.57,
-      -8.26,
-      -16.45,
-      -19.01,
-      -11.08,
-      -16.12,
-      -19.58,
-      -22.36
-    ]
-  },
-  "05-dub-boom.wav": {
+  "03-deep-rumble.wav": {
     "sample_rate": 44100,
     "channels": 2,
     "frames": 220500,
     "duration_seconds": 5,
-    "peak": 0.26917,
-    "rms": 0.12176,
-    "dc_offset": 0.000241,
+    "peak": 0.23956,
+    "rms": 0.06646,
+    "dc_offset": 0.000028,
     "dc_offset_per_channel": [
-      0.000241,
-      0.000241
+      0.000028,
+      0.000028
     ],
-    "silence_ratio": 0.0057,
+    "silence_ratio": 0.0978,
     "clipped_samples": 0,
     "zero_crossing_rate": [
-      0.00212,
-      0.00212
+      0.00296,
+      0.00296
     ],
     "stereo_correlation": 1,
-    "slew_ratio": 0.00515,
+    "slew_ratio": 0.0078,
     "time_profile": [
-      -7.81,
-      -8.29,
-      -11.27,
-      -9.4,
-      -8.21,
-      -9.75,
-      -10.96,
-      -7.97
+      -6.7,
+      -9.27,
+      -7.58,
+      -8.23,
+      -9.12,
+      -7.02,
+      -16.6,
+      -35.77
+    ],
+    "band_energy": [
+      -0.45,
+      -10.73,
+      -19.8,
+      -28.96,
+      -26.16,
+      -36.31,
+      -43.32,
+      -53.15
+    ]
+  },
+  "04-dub-boom.wav": {
+    "sample_rate": 44100,
+    "channels": 2,
+    "frames": 352800,
+    "duration_seconds": 8,
+    "peak": 0.24521,
+    "rms": 0.09052,
+    "dc_offset": 0.000088,
+    "dc_offset_per_channel": [
+      0.000088,
+      0.000088
+    ],
+    "silence_ratio": 0.1152,
+    "clipped_samples": 0,
+    "zero_crossing_rate": [
+      0.00209,
+      0.00209
+    ],
+    "stereo_correlation": 1,
+    "slew_ratio": 0.00456,
+    "time_profile": [
+      -6.96,
+      -7.46,
+      -7.97,
+      -8.15,
+      -8.24,
+      -8.27,
+      -21.27,
+      -45.48
     ],
     "band_energy": [
       -0.07,
-      -18.35,
-      -29.21,
-      -38.64,
-      -51.39,
-      -59.07,
+      -18.44,
+      -29.41,
+      -39.21,
+      -51.79,
+      -59.11,
       -60,
       -60
     ]
   },
-  "06-click-kick.wav": {
+  "05-dub-dive.wav": {
+    "sample_rate": 44100,
+    "channels": 2,
+    "frames": 352800,
+    "duration_seconds": 8,
+    "peak": 0.24789,
+    "rms": 0.05405,
+    "dc_offset": -0.000012,
+    "dc_offset_per_channel": [
+      -0.000012,
+      -0.000012
+    ],
+    "silence_ratio": 0.1859,
+    "clipped_samples": 0,
+    "zero_crossing_rate": [
+      0.00198,
+      0.00198
+    ],
+    "stereo_correlation": 1,
+    "slew_ratio": 0.00622,
+    "time_profile": [
+      -6.5,
+      -7.66,
+      -8.14,
+      -8.22,
+      -8.3,
+      -8.29,
+      -23.48,
+      -60
+    ],
+    "band_energy": [
+      -1.05,
+      -6.8,
+      -23.25,
+      -33.24,
+      -35.54,
+      -43.05,
+      -45.19,
+      -46.49
+    ]
+  },
+  "06-drive-tight.wav": {
     "sample_rate": 44100,
     "channels": 2,
     "frames": 176400,
     "duration_seconds": 4,
-    "peak": 0.25391,
-    "rms": 0.06557,
-    "dc_offset": 0.00003,
+    "peak": 0.24042,
+    "rms": 0.04835,
+    "dc_offset": 0.000002,
     "dc_offset_per_channel": [
-      0.00003,
-      0.00003
+      0.000002,
+      0.000002
     ],
-    "silence_ratio": 0.6435,
+    "silence_ratio": 0.3199,
     "clipped_samples": 0,
     "zero_crossing_rate": [
-      0.00184,
-      0.00184
+      0.00247,
+      0.00247
     ],
     "stereo_correlation": 1,
-    "slew_ratio": 0.00841,
+    "slew_ratio": 0.00715,
     "time_profile": [
-      -7.01,
-      -8.63,
-      -9.26,
-      -9.56,
-      -9.61,
-      -9.65,
-      -9.58,
-      -9.71
+      -6.42,
+      -7.73,
+      -8.09,
+      -8.2,
+      -8.3,
+      -8.31,
+      -28.85,
+      -60
     ],
     "band_energy": [
-      -0.53,
-      -10.69,
-      -18.43,
-      -20.73,
-      -26.26,
-      -29.18,
-      -26.66,
-      -28.69
+      -0.39,
+      -11.16,
+      -21.6,
+      -28.82,
+      -30.98,
+      -35.53,
+      -37.18,
+      -37.79
     ]
   },
-  "07-sub-drop.wav": {
-    "sample_rate": 44100,
-    "channels": 2,
-    "frames": 220500,
-    "duration_seconds": 5,
-    "peak": 0.2594,
-    "rms": 0.08378,
-    "dc_offset": 0.000033,
-    "dc_offset_per_channel": [
-      0.000033,
-      0.000033
-    ],
-    "silence_ratio": 0.0099,
-    "clipped_samples": 0,
-    "zero_crossing_rate": [
-      0.00219,
-      0.00219
-    ],
-    "stereo_correlation": 1,
-    "slew_ratio": 0.00605,
-    "time_profile": [
-      -7.8,
-      -8.16,
-      -10.51,
-      -10.23,
-      -8.08,
-      -9.16,
-      -12.26,
-      -7.93
-    ],
-    "band_energy": [
-      -0.66,
-      -8.61,
-      -26.42,
-      -36.06,
-      -46.06,
-      -49.1,
-      -48.92,
-      -49.5
-    ]
-  },
-  "08-tom-low.wav": {
+  "07-drive-click.wav": {
     "sample_rate": 44100,
     "channels": 2,
     "frames": 176400,
     "duration_seconds": 4,
-    "peak": 0.23172,
-    "rms": 0.06863,
-    "dc_offset": -0.000155,
+    "peak": 0.26468,
+    "rms": 0.06102,
+    "dc_offset": -0.000012,
     "dc_offset_per_channel": [
-      -0.000155,
-      -0.000155
+      -0.000012,
+      -0.000012
     ],
-    "silence_ratio": 0.0108,
+    "silence_ratio": 0.683,
     "clipped_samples": 0,
     "zero_crossing_rate": [
-      0.00292,
-      0.00292
+      0.00146,
+      0.00146
     ],
     "stereo_correlation": 1,
-    "slew_ratio": 0.00994,
+    "slew_ratio": 0.00663,
     "time_profile": [
+      -6.06,
+      -7.57,
+      -8.21,
+      -8.52,
+      -8.37,
+      -8.54,
+      -60,
+      -60
+    ],
+    "band_energy": [
+      -0.57,
+      -10.14,
+      -19.32,
+      -20.54,
+      -25.75,
+      -30.36,
+      -31.81,
+      -29.94
+    ]
+  },
+  "08-tool-clip.wav": {
+    "sample_rate": 44100,
+    "channels": 2,
+    "frames": 176400,
+    "duration_seconds": 4,
+    "peak": 0.25388,
+    "rms": 0.07328,
+    "dc_offset": -0.000076,
+    "dc_offset_per_channel": [
+      -0.000076,
+      -0.000076
+    ],
+    "silence_ratio": 0.3943,
+    "clipped_samples": 0,
+    "zero_crossing_rate": [
+      0.00273,
+      0.00273
+    ],
+    "stereo_correlation": 1,
+    "slew_ratio": 0.00735,
+    "time_profile": [
+      -6.26,
+      -7.53,
+      -8.05,
+      -8.35,
+      -8.45,
+      -8.52,
+      -31.34,
+      -60
+    ],
+    "band_energy": [
+      -0.95,
+      -9.21,
+      -12.33,
+      -19.11,
+      -23.99,
+      -30.32,
+      -32.2,
+      -33.17
+    ]
+  },
+  "09-tool-gate.wav": {
+    "sample_rate": 44100,
+    "channels": 2,
+    "frames": 176400,
+    "duration_seconds": 4,
+    "peak": 0.2204,
+    "rms": 0.07831,
+    "dc_offset": -0.000076,
+    "dc_offset_per_channel": [
+      -0.000076,
+      -0.000076
+    ],
+    "silence_ratio": 0.4787,
+    "clipped_samples": 0,
+    "zero_crossing_rate": [
+      0.00208,
+      0.00208
+    ],
+    "stereo_correlation": 1,
+    "slew_ratio": 0.00672,
+    "time_profile": [
+      -6.84,
+      -7.42,
       -7.8,
-      -10.49,
-      -8.26,
-      -9.95,
-      -8.72,
-      -9.51,
-      -9.59,
-      -8.58
+      -8.13,
+      -8.32,
+      -8.39,
+      -60,
+      -60
     ],
     "band_energy": [
       -0.47,
-      -10.17,
-      -23.97,
-      -29.51,
-      -32.41,
-      -38.94,
-      -39.77,
-      -40.07
+      -10.85,
+      -17.75,
+      -28.53,
+      -32.22,
+      -35.61,
+      -36.09,
+      -36.17
     ]
   },
-  "09-tom-high.wav": {
+  "10-grit-fold.wav": {
     "sample_rate": 44100,
     "channels": 2,
     "frames": 176400,
     "duration_seconds": 4,
-    "peak": 0.22989,
-    "rms": 0.05126,
-    "dc_offset": -0.000112,
+    "peak": 0.27032,
+    "rms": 0.06298,
+    "dc_offset": -0.000006,
     "dc_offset_per_channel": [
-      -0.000112,
-      -0.000112
+      -0.000006,
+      -0.000006
     ],
-    "silence_ratio": 0.0227,
+    "silence_ratio": 0.2091,
     "clipped_samples": 0,
     "zero_crossing_rate": [
-      0.0051,
-      0.0051
+      0.00406,
+      0.00406
     ],
     "stereo_correlation": 1,
-    "slew_ratio": 0.01675,
+    "slew_ratio": 0.02823,
     "time_profile": [
-      -7.72,
-      -10.65,
-      -8.17,
-      -10.1,
-      -8.51,
-      -9.76,
-      -9.47,
-      -8.69
-    ],
-    "band_energy": [
-      -5.29,
-      -1.69,
-      -17.03,
-      -25.49,
-      -26.3,
-      -33.57,
-      -34.51,
-      -34.9
-    ]
-  },
-  "10-808-sub.wav": {
-    "sample_rate": 44100,
-    "channels": 2,
-    "frames": 220500,
-    "duration_seconds": 5,
-    "peak": 0.27005,
-    "rms": 0.15008,
-    "dc_offset": 0.000498,
-    "dc_offset_per_channel": [
-      0.000498,
-      0.000498
-    ],
-    "silence_ratio": 0.0031,
-    "clipped_samples": 0,
-    "zero_crossing_rate": [
-      0.00337,
-      0.00337
-    ],
-    "stereo_correlation": 1,
-    "slew_ratio": 0.00857,
-    "time_profile": [
-      -8.42,
-      -8.86,
-      -9.32,
-      -9.59,
-      -8.79,
-      -8.67,
-      -9.22,
-      -9.53
-    ],
-    "band_energy": [
-      -0.18,
-      -14.1,
-      -28.23,
-      -44.77,
-      -58.13,
-      -59.99,
-      -58.94,
-      -58.11
-    ]
-  },
-  "11-rubber-sub.wav": {
-    "sample_rate": 44100,
-    "channels": 2,
-    "frames": 220500,
-    "duration_seconds": 5,
-    "peak": 0.24146,
-    "rms": 0.08267,
-    "dc_offset": -0.000073,
-    "dc_offset_per_channel": [
-      -0.000073,
-      -0.000073
-    ],
-    "silence_ratio": 0.0088,
-    "clipped_samples": 0,
-    "zero_crossing_rate": [
-      0.01036,
-      0.01036
-    ],
-    "stereo_correlation": 1,
-    "slew_ratio": 0.03146,
-    "time_profile": [
-      -7.94,
-      -9.11,
-      -9.53,
-      -9.94,
+      -6.54,
+      -7.6,
+      -8.13,
+      -8.34,
       -8.32,
-      -8.74,
-      -9.42,
-      -9.64
+      -8.18,
+      -23.28,
+      -60
     ],
     "band_energy": [
-      -9.07,
-      -2.14,
-      -5.94,
-      -20.62,
-      -28.68,
-      -36.34,
-      -37.94,
-      -37.59
+      -0.49,
+      -12.05,
+      -17.86,
+      -24.04,
+      -17.3,
+      -24.01,
+      -28.93,
+      -32.07
+    ]
+  },
+  "11-grit-crush.wav": {
+    "sample_rate": 44100,
+    "channels": 2,
+    "frames": 176400,
+    "duration_seconds": 4,
+    "peak": 0.25745,
+    "rms": 0.05257,
+    "dc_offset": -0.000032,
+    "dc_offset_per_channel": [
+      -0.000032,
+      -0.000032
+    ],
+    "silence_ratio": 0.1937,
+    "clipped_samples": 0,
+    "zero_crossing_rate": [
+      0.00311,
+      0.00311
+    ],
+    "stereo_correlation": 1,
+    "slew_ratio": 0.01644,
+    "time_profile": [
+      -6.49,
+      -7.69,
+      -8.16,
+      -8.36,
+      -8.31,
+      -8.12,
+      -22.61,
+      -60
+    ],
+    "band_energy": [
+      -0.36,
+      -12.48,
+      -21.9,
+      -25.34,
+      -19.69,
+      -27.97,
+      -29.29,
+      -33.11
+    ]
+  },
+  "12-tom-low.wav": {
+    "sample_rate": 44100,
+    "channels": 2,
+    "frames": 176400,
+    "duration_seconds": 4,
+    "peak": 0.2381,
+    "rms": 0.06411,
+    "dc_offset": -0.000091,
+    "dc_offset_per_channel": [
+      -0.000091,
+      -0.000091
+    ],
+    "silence_ratio": 0.1976,
+    "clipped_samples": 0,
+    "zero_crossing_rate": [
+      0.00311,
+      0.00311
+    ],
+    "stereo_correlation": 1,
+    "slew_ratio": 0.00955,
+    "time_profile": [
+      -6.72,
+      -9.17,
+      -6.72,
+      -9.06,
+      -7,
+      -8.98,
+      -24.71,
+      -60
+    ],
+    "band_energy": [
+      -1.32,
+      -5.96,
+      -21.37,
+      -29.41,
+      -32.44,
+      -41.27,
+      -42.65,
+      -43.4
+    ]
+  },
+  "13-tom-high.wav": {
+    "sample_rate": 44100,
+    "channels": 2,
+    "frames": 176400,
+    "duration_seconds": 4,
+    "peak": 0.2627,
+    "rms": 0.05346,
+    "dc_offset": -0.000084,
+    "dc_offset_per_channel": [
+      -0.000084,
+      -0.000084
+    ],
+    "silence_ratio": 0.2443,
+    "clipped_samples": 0,
+    "zero_crossing_rate": [
+      0.00505,
+      0.00505
+    ],
+    "stereo_correlation": 1,
+    "slew_ratio": 0.01583,
+    "time_profile": [
+      -6.62,
+      -9.27,
+      -6.57,
+      -9.32,
+      -6.86,
+      -9.2,
+      -33.78,
+      -60
+    ],
+    "band_energy": [
+      -23.92,
+      -0.3,
+      -12.48,
+      -24.59,
+      -26.2,
+      -34.21,
+      -36.5,
+      -37.49
+    ]
+  },
+  "14-sub-808.wav": {
+    "sample_rate": 44100,
+    "channels": 2,
+    "frames": 352800,
+    "duration_seconds": 8,
+    "peak": 0.24329,
+    "rms": 0.08573,
+    "dc_offset": 0.000166,
+    "dc_offset_per_channel": [
+      0.000166,
+      0.000166
+    ],
+    "silence_ratio": 0.1538,
+    "clipped_samples": 0,
+    "zero_crossing_rate": [
+      0.00306,
+      0.00306
+    ],
+    "stereo_correlation": 1,
+    "slew_ratio": 0.00692,
+    "time_profile": [
+      -6.82,
+      -9.04,
+      -6.83,
+      -9.11,
+      -6.82,
+      -9.03,
+      -24.39,
+      -60
+    ],
+    "band_energy": [
+      -0.2,
+      -13.61,
+      -28.8,
+      -45.78,
+      -60,
+      -59.38,
+      -56.79,
+      -57.07
+    ]
+  },
+  "15-sub-rubber.wav": {
+    "sample_rate": 44100,
+    "channels": 2,
+    "frames": 352800,
+    "duration_seconds": 8,
+    "peak": 0.23837,
+    "rms": 0.05561,
+    "dc_offset": -0.000038,
+    "dc_offset_per_channel": [
+      -0.000038,
+      -0.000038
+    ],
+    "silence_ratio": 0.2068,
+    "clipped_samples": 0,
+    "zero_crossing_rate": [
+      0.00808,
+      0.00808
+    ],
+    "stereo_correlation": 1,
+    "slew_ratio": 0.02408,
+    "time_profile": [
+      -6.71,
+      -9.21,
+      -6.77,
+      -9.22,
+      -6.71,
+      -9.29,
+      -22.83,
+      -60
+    ],
+    "band_energy": [
+      -9.15,
+      -2.15,
+      -5.88,
+      -20.48,
+      -27.9,
+      -35.78,
+      -38.11,
+      -38.68
     ]
   }
 }

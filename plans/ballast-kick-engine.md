@@ -418,3 +418,75 @@ the seconds display, which is the useful thing about the control, or make
 automation non-linear in time, which is worse for a Route Motion lane. With
 295 encoder detents over the range, 30 of them land in that window, which is
 enough. Left alone.
+
+## Third pass — velocity, presets, tests
+
+### Velocity now moves timbre
+
+The noise layers were not velocity-scaled, so a soft hit kept full click and
+dirt while the body was attenuated — measured spectral centroid ran *backwards*,
+180 Hz at velocity 0.25 down to 146 Hz at full, and the attack band moved only
+1.2 dB across the whole velocity range. That is why velocity read as a level
+control despite the plan calling velocity-as-timbre a first-class requirement.
+
+Click and dirt now scale with velocity **squared**, steeper than level, because
+the attack transient is what carries perceived hardness. The attack band now
+moves 7.5 dB across velocity and the centroid rises with it.
+
+### 16 presets
+
+Adopted the review's lineup, naming and ordering; re-derived every value
+against the current engine, since `sweep` semantics and the drive both changed
+after it measured them.
+
+Family-first names in role blocks — `Init`, `Deep` x3, `Dub` x2, `Drive` x2,
+`Tool` x2, `Grit` x2, `Tom` x2, `Sub` x2 — because that is the only form that
+survives being read one row at a time on a 128x64 display, and because a later
+percussion engine can mirror the families so the same-named preset across
+engines gives a coherent kit.
+
+What it fixed: `Deep Round` / `Dub Boom` / `Sub Drop` were one sound at three
+lengths, so `Sub Drop` became `Dub Dive` with real character; `Tom Low` was at
+53 Hz, below the kick presets, so it moves to `tune` 47; the missing long-and-
+driven rumble, a short-and-dark, a fold preset and a gated one fill the empty
+regions; `dirt`, `human` and `shape > 0.7` were barely exercised and now are.
+
+Measured: peak spread **1.77 dB**, perceived-loudness spread **5.3 dB** (was
+10.0 in the original twelve), 32 stress renders passing.
+
+### `tail_seconds`
+
+The suite could not capture a tail longer than one note interval, because
+`render_wav.c` fired note-ons forever — so a 2 s decay rendered with its tail
+chopped at -10 dB no matter what `seconds` said, and the plan's own
+verification step "check the decay shape matches `shape`" was not actually
+performable. `tail_seconds` stops triggering that far before the end. Every
+preset now ends below -77 dBFS, most in true silence.
+
+### Tests
+
+Closed the gaps a mutation-testing review found, each verified by reverting the
+fix and watching the assertion go red:
+
+- **`test_drive` passed with three of five curves replaced by `return x`.**
+  Soft, clip and fold had no character assertion at all, and swapping fold for
+  hard clip was undetectable. Now every curve must deviate from its input under
+  drive, and each carries a monotonicity fingerprint — fold is the only
+  non-monotone curve, which is exactly what makes it a folder.
+- **`peak > 0.6` asserted nothing** — every curve measures exactly 1.000.
+  Tightened to [0.9, 1.05].
+- **The -12 dBFS reference had no absolute assertion**, only "unchanged"
+  goldens that a bless can walk away. Now pinned in C.
+- **Velocity, `human` and per-block automation had no coverage.** All three
+  now asserted; the automation one measures a boundary step of 90x the signal's
+  own slew when the tilt ramp is removed.
+- **Every stress render used velocity 127**, which makes any velocity-depth
+  parameter a no-op, so the whole velocity path went unexercised. Added soft-hit
+  cases to the generated suite for all sound generators.
+- **No preset used `automate`**, so the goldens had zero automation coverage.
+  `Tool Clip` now sweeps `tone` across its render.
+
+One implementation change came out of writing those tests: tilt and dirt were
+ramping to their target within a single block, which is click-free but still
+moves a 12 dB swing nearly 4x faster than the signal's own slew. They now glide
+over about 15 ms.
