@@ -34,7 +34,7 @@ is the conceptual map.
 
        Single source of truth for metadata + params:
        src/modules/<id>/module.json
-       Drives codegen (*_params.gen.inc), UI (browser + on-device),
+       Drives codegen (*_params.gen.{h,inc}), UI (browser + on-device),
        and validation.
 ```
 
@@ -113,9 +113,10 @@ For every module, **one file** declares everything else needs to know:
   grouped into banks of 8 by the generated chain UI
 
 From this one file, `scripts/gen-params.ts` emits
-`src/modules/<id>/dsp/<id>_params.gen.inc` which gives the C core a typed
-enum, `<module>_set_param` (with clamps), `<module>_get_param`, and
-`<module>_apply_defaults`. The same `params` block drives:
+`src/modules/<id>/dsp/<id>_params.gen.h` (the param count and enum, included
+by `<id>_core.h` so arrays indexed by param id can be sized from it) and
+`<id>_params.gen.inc` (which gives the C core `<module>_set_param` with
+clamps, `<module>_get_param`, and `<module>_apply_defaults`). The same `params` block drives:
 
 - Move's on-device chain host (when the .schw is loaded)
 - The browser harness's param sliders (via `loadModuleMetadata` →

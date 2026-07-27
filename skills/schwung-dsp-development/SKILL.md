@@ -45,6 +45,7 @@ src/modules/<id>/
 ├── ui_chain.js              GENERATED chain-mode UI: preset browser, then 8-encoder paged param editor
 └── dsp/
     ├── <id>_core.h          public API contract (shared)
+    ├── <id>_params.gen.h    GENERATED from module.json — never edit by hand
     ├── <id>_params.gen.inc  GENERATED from module.json — never edit by hand
     ├── <id>_presets.gen.inc GENERATED from presets.json — never edit by hand
     ├── <id>.c               Schwung wrapper (plugin_api_v2 / audio_fx_api_v2 / midi_fx_api_v1)
@@ -162,7 +163,7 @@ Run `mise run check` (or `mise run check-all` for every module) before suggestin
 
 These are load-bearing — violating them causes real bugs or wastes time:
 
-1. **Never edit generated files by hand.** `_params.gen.inc`, `_presets.gen.inc`, `ui_chain.js`, and `_faust.c` are produced by `gen-params`, `gen-presets`, `gen-ui-chain`, and `gen-faust`. Hand edits will be silently overwritten the next time those run, and `validate` will flag drift in CI. If you want different output, edit the source (`module.json`, `presets.json`, or `.dsp`) or the generator.
+1. **Never edit generated files by hand.** `_params.gen.h`, `_params.gen.inc`, `_presets.gen.inc`, `ui_chain.js`, and `_faust.c` are produced by `gen-params`, `gen-presets`, `gen-ui-chain`, and `gen-faust`. Hand edits will be silently overwritten the next time those run, and `validate` will flag drift in CI. If you want different output, edit the source (`module.json`, `presets.json`, or `.dsp`) or the generator.
 
 2. **Always re-run generators after editing their sources.** Run `gen-params` and `gen-ui-chain` after editing `module.json`, `gen-presets` after editing `presets.json`, and `gen-faust` after editing `.dsp`. `pnpm run validate` includes check steps that fail on stale generated output.
 

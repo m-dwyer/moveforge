@@ -323,8 +323,11 @@ parameters under automation (band_energy in dB).
       lengths), use Git LFS, or generate the golden side on demand from a
       pinned build.
 - [x] **2.12 done** — the `expect_silence` regex now covers mute-at-max
-      (`render-stress.ts:133`) and the headroom bugs were fixed; all 7 modules
+      (`render-stress.ts:134`) and the headroom bugs were fixed; all 7 modules
       pass and 3.4 landed on top of it. The checkbox was simply never flipped.
+
+---
+
 ## Phase 3 — Turn the gate on
 
 - [x] **3.1 Added `.github/workflows/ci.yml`** with `pull_request` + `push`
@@ -572,7 +575,18 @@ worth doing when they trade sound for a fraction of a percent.
       `presets.json` / `.dsp` they are generated from.
 - [x] **5.2 done** — driven off `engine.loadedSlotIds(moduleId)` rather than
       the store's tracks, so one save reloads each engine slot exactly once and
-      never reloads a different track's module.
+      never reloads a slot belonging to a module that did not change.
+
+      Two corrections to how this was originally written up. It never loaded
+      the *wrong binary*: `reloadSlot` resolves the module from the engine's
+      own slot table, so the fault was a spurious reload of the correctly
+      loaded module, N times over. And keying by slot only made it once-per-save
+      *per event* — the watcher fires per file with no debounce (5.5), and
+      overlapping calls each started their own pass, so reloads are now
+      serialized with a single catch-up pass folding in whatever arrives
+      mid-flight. Dropping the extra events instead would reintroduce the
+      stale-artifact bug at a different level: the build that fired the second
+      event may have landed after the first pass fetched.
 - [ ] **5.3 Compile WASM off the audio thread.** `web/module-worklet.js:32-34`
       calls `WebAssembly.instantiate` inside `AudioWorkletGlobalScope` — an
       audible dropout on every hot-swap. `WebAssembly.compile()` on the main
@@ -584,7 +598,9 @@ worth doing when they trade sound for a fraction of a percent.
       `_shared/*.h` edits trigger no rebuild at all.
 - [ ] **5.5 Don't fire the HMR event when the build reports `cached`**
       (`vite.config.ts:220-222`), and debounce the watcher ~150 ms. Editing a
-      `MANUAL.md` inside a module dir currently resets your audio (×4, per 5.2).
+      `MANUAL.md` inside a module dir still resets your audio — once per
+      loaded slot since 5.2, and no longer once per event since reloads are
+      serialized, but the event should not fire at all.
 - [ ] **5.6 Add `depends = ["wasm"]` to `mise.toml`'s `dev`** (`:110-112`);
       `web` has it, `dev` does not, and `web/wasm/` is gitignored — so a fresh
       clone runs `mise run dev` and gets a UI with zero working modules.
@@ -777,11 +793,23 @@ header, and none is visible to any local check.
       and cross-level duplicate keys are all validated, and the duplicate walk
       covers every level rather than just `root`.
 
-      **Correction to this item:** the name limit is 31, not 63.
-      `chain_param_info_t.name` is `char[64]`, but `chain_params.c:660` clamps
-      the copy to 31 exactly as it does for `key` — the field size is
-      misleading. Truncation is silent, so an over-long key becomes a key the
-      module itself does not answer to.
+      **The "correction" this item used to carry was itself wrong, and has
+      been reverted.** It claimed the name limit is 31 rather than 63, citing
+      `chain_params.c:660`. That line is in the *legacy* `chain_params` array
+      parser, which `parse_chain_params` reaches only when `ui_hierarchy` is
+      absent or yields no inline params (`:574-594`). Every module here has
+      inline `ui_hierarchy` params, so the live path is `parse_param_object`:
+      key is clamped at `sizeof(param->key)-1` = 31 (`:173`) and name at
+      `sizeof(param->name)-1` = **63** (`:189`). The original 63 was right.
+
+      Two further gaps found afterwards: `shared_params` is parsed into the
+      same array as the levels (`:446-491`), so it shares the duplicate check
+      and the 256 cap and had to be walked too; and lengths are compared in
+      UTF-8 bytes now rather than UTF-16 units, since the host `memcpy`s raw
+      JSON bytes.
+
+      Truncation is silent, so an over-long key becomes a key the module itself
+      does not answer to.
 - [ ] **6.14 Correct `CLAUDE.md`'s chain-UI discovery description.** It states
       the host decides from the `"ui_chain"` field and that there is no fallback
       editor. `SW/src/shadow/shadow_ui.js:2185-2224` defaults to
@@ -789,6 +817,40 @@ header, and none is visible to any local check.
       back to `ui.js`; `:2338-2344` provides a preset-browser fallback editor.
       Also note `SW/src/modules/chain/ui.js:172-192` searches top-level only,
       so it never finds a module installed under `modules/<kind>/<id>/`.
+
+- [x] **6.15 done — no wrapper elects a preset at `create_instance`.** Every
+      wrapper ran `<id>_apply_preset(0)` straight after `<id>_init`, so preset
+      0 rather than `module.json`'s declared defaults was the power-on state.
+      Wrong owner: the host elects presets itself, sending
+      `set_param("preset", …)` immediately after `v2_load_synth` when it
+      restores a patch (`SW/.../chain_patch.c:1345`, comment "Set preset
+      first"), and on a fresh insert it pushes nothing — the only `set_param`
+      loop on the load path (`chain_host.c:1981`) is the smoother, which
+      replays only params a knob has already touched.
+
+      It diverged wherever preset 0 and the defaults disagree: arpy (1 param),
+      dustline (8), trail (3), westfold (14). The host seeds a CC knob's
+      `current_value` from `module.json`'s default
+      (`chain_host.c:1101` -> `chain_params.c:239`), so knob and DSP started
+      apart and the first detent jumped. arpy was worst: preset 0 is "Off"
+      (`pattern: 0`), which `arpy_core` treats as MIDI pass-through, so an
+      arpeggiator inserted into a chain did nothing until the user opened the
+      preset browser.
+
+      `<id>_init` already calls `<id>_apply_defaults`, so removing the call
+      leaves exactly `module.json`'s values — what the host's knobs and the
+      browser (`web/src/audio.ts:36-70`) both already assume.
+      `current_preset` starts at -1, "none selected", which also keeps 6.3's
+      idempotence guard from swallowing the first selection of index 0.
+
+      **Nothing local could see it**, which is why it survived review: the WAV
+      harness sets every param explicitly before rendering
+      (`tools/render_wav.c:104-106`) and `validate-params` requires every
+      preset to carry every key, so preset 0 was always overwritten in the
+      suite; the browser seeds from `module.json`. No golden moved. The gap is
+      closed by plugin-level tests, which all seven modules now have — before
+      this branch, two did — and which the scaffolds now ship, since the
+      templates had both this bug and the pre-6.3 non-idempotent handler.
 
 **Done when:** installing a module reports whether it loaded, and the idle gate
 and param smoother are exercised by something before hardware.
@@ -805,12 +867,15 @@ it is that every fix has to be made seven times.
       `trail.c` vs `faust_drive.c` by ~35. `on_midi` is byte-identical across
       all three sound generators. ~670 of 706 wrapper lines are mechanically
       derivable from `module.json` + the core header.
-      **Concrete cost today:** four of seven wrappers never `#include` their
-      generated `_presets.gen.inc` (`dustline.c`, `arpy.c`, `faust_drive.c`,
-      `faust_voice.c`), so those modules **cannot expose presets on device**
-      despite shipping `presets.json` and a generated helper — the chain UI's
-      preset-browse screen is dead for them. A shared wrapper makes that
-      impossible.
+      **The concrete cost this item used to cite has been paid off
+      separately:** four of seven wrappers never `#include`d their generated
+      `_presets.gen.inc` (`dustline.c`, `arpy.c`, `faust_drive.c`,
+      `faust_voice.c`), so those modules could not expose presets on device at
+      all. All seven do now, every module has a plugin-level test covering
+      preset selection, and a wrapper that includes the helper without ever
+      calling `<id>_apply_preset` fails to compile (`-Werror`,
+      `-Wunused-function`). The argument for a shared wrapper stands on the
+      remaining ~670 of 706 mechanically derivable lines rather than on this.
 - [ ] **7.2 Generate the Faust adapter.** `faust_drive_adapter.c` contains zero
       module-specific logic; `capture_slider`, `push_params_to_faust`, `init`,
       `destroy` and `process_float` are identical across all three.
@@ -821,8 +886,21 @@ it is that every fix has to be made seven times.
       `compute_dtime`. This is Suggested Improvement #6 in `CLAUDE.md`, and it
       is fully achievable today.
 - [x] **7.3 done** — every Faust core and both scaffolding templates now
-      declare `void *zones[<UPPER>_PARAM_COUNT];`, `TRAIL_NUM_PARAMS` is gone,
-      and `validate-params` rejects any other spelling of the size.
+      declare `void *zones[<UPPER>_PARAM_COUNT];` and `TRAIL_NUM_PARAMS` is
+      gone. The size is checked by a `_Static_assert` that `gen-params` emits
+      into the `.inc`, comparing `sizeof(core.zones)` against the generated
+      count.
+
+      That replaced a `validate-params` text check which rejected "any other
+      spelling of the size" — and could be walked around three ways, two of
+      them silently: renaming the array removed the check rather than failing
+      it, `zones[]` as a flexible array member matched no pattern at all, and
+      a legitimate `#define X(s,i) ((s)->zones[i])` accessor was flagged with a
+      nonsense message, which would have blocked 7.2. Asking the compiler
+      covers all of it, and reports at build time with the reason attached.
+      What text matching is still right for is the one thing an assert cannot
+      see: the core header redefining the count out from under both the array
+      and the assert, which `#undef` makes warning-free.
 
       **The one-line fix in this item does not compile as written.** The core
       header cannot see `<UPPER>_PARAM_COUNT`: it lived in
@@ -874,6 +952,13 @@ Cheap, and it stops the earlier phases from silently regressing.
 
 - [x] **8.1 done** — proved first by making arpy's gen.inc stale: standalone
       `validate-params.ts` exited 0 and printed nothing. It now exits 1.
+
+      The awaited check was itself replaced: it re-derived staleness by
+      searching the output for each param's enum line, which could not see a
+      stale clamp, a stale count, or `<id>_params.gen.h` at all — and a stale
+      count is an undersized `zones[]`, the very thing 7.3 exists to prevent.
+      It now runs `gen-params` in check mode, which byte-compares. Less code,
+      exact answer, and it covers every generated params file.
 - [ ] **8.2 Delete orphaned generated files.** All four generators `continue`
       when their input is absent and nothing ever cleans up. Remove
       `capabilities.scope` from a `module.json` and `<id>_scope.gen.inc` is
@@ -892,6 +977,17 @@ Cheap, and it stops the earlier phases from silently regressing.
       adapter-computed params (`time`, `sync`) are declared in the `.dsp`
       itself via `// moveforge-adapter-controls:` / `-params:`, so anything
       else that does not match is reported rather than silently exempted.
+
+      **Read from the generated `<id>_faust.c`, not the `.dsp`.** Matching the
+      `.dsp` text meant a commented-out slider counted as a declaration, so the
+      check passed on precisely the dead knob it exists to catch; meanwhile
+      metadata labels (`"cutoff [style:knob]"`), group paths
+      (`"h:Filter/cutoff"`), `checkbox`, and macro- or library-defined sliders
+      were all rejected as typos, and any non-literal argument silently opted a
+      declaration out of the value comparison entirely. The Faust compiler has
+      already resolved every one of those, and `gen-faust --check` keeps its
+      output in step with the source. Values compare with a float32 tolerance,
+      since the generated literals have been through the compiler as floats.
 
       Found **two** live drifts, not the one recorded here: trail's `mod`
       (0.12 vs 0.2) and `drive` (0.12 vs 0.15). Both fixed in the `.dsp`, with
