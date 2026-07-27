@@ -8,6 +8,11 @@
  * trail_core.h; the guard makes the second include a no-op. */
 #include "trail_params.gen.h"
 
+/* zones[] is indexed by param id, so it must track TRAIL_PARAM_COUNT. */
+_Static_assert(sizeof(((trail_core_t *)0)->zones) / sizeof(void *)
+                   == TRAIL_PARAM_COUNT,
+               "trail_core_t.zones[] must be sized TRAIL_PARAM_COUNT");
+
 static inline float trail_params_clampf_(float x, float lo, float hi) {
     return x < lo ? lo : (x > hi ? hi : x);
 }

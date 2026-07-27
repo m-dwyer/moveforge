@@ -27,8 +27,11 @@ static void* create_instance(const char *module_dir, const char *json_defaults) 
     {{moduleId}}_plugin_t *p = ({{moduleId}}_plugin_t*)calloc(1, sizeof({{moduleId}}_plugin_t));
     if (!p) return NULL;
     {{moduleId}}_init(&p->core);
-    p->current_preset = {{moduleId}}_clamp_preset_index(0);
-    {{moduleId}}_apply_preset(&p->core, p->current_preset);
+    /* Deliberately no preset at create: {{moduleId}}_init has applied
+     * module.json's defaults, and preset selection is the host's
+     * (chain_patch.c:1345 sends set_param("preset")). -1 = none selected,
+     * so any first pick applies. */
+    p->current_preset = -1;
     mf_scope_init(&p->scope, {{moduleUpper}}_SCOPE_WINDOW, {{moduleUpper}}_SCOPE_MODE, {{moduleUpper}}_SCOPE_STYLE);
     return p;
 }
@@ -62,7 +65,15 @@ static void set_param(void *instance, const char *key, const char *val) {
         return;
     }
     if (strcmp(key, "preset") == 0) {
-        p->current_preset = {{moduleId}}_clamp_preset_index(atoi(val));
+        /* Idempotent on purpose. The host enrols "preset" in its audio-thread
+         * smoother — is_smoothable_float("0") and ("1") both return 1, and
+         * "preset" is not a module.json param so there is no type info to
+         * exclude it — then re-sends every enrolled key whenever any one of
+         * them moves. Applying it unconditionally therefore reset every
+         * parameter on each detent of an unrelated encoder. */
+        int next = {{moduleId}}_clamp_preset_index(atoi(val));
+        if (next == p->current_preset) return;
+        p->current_preset = next;
         {{moduleId}}_all_notes_off(&p->core);
         {{moduleId}}_apply_preset(&p->core, p->current_preset);
         return;

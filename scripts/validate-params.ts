@@ -1,5 +1,6 @@
 import { readFile, stat } from "node:fs/promises";
 import { modulePaths, selectedModuleIds } from "./lib/modules.ts";
+import { generate as genParams } from "./gen-params.ts";
 
 type Param = {
   default: number;
@@ -31,6 +32,7 @@ type Capabilities = {
         params?: Param[];
       };
     };
+    shared_params?: Param[];
   };
 };
 
@@ -76,16 +78,34 @@ const VALID_COMPONENT_TYPES = new Set([
   "overtake"
 ]);
 const VALID_RANDOMIZE_MODES = new Set(["around_default", "bounded", "full"]);
-/* Faust UI primitives that carry a label plus (init, min, max, step). */
-const FAUST_SLIDER_RE = /\b(?:hslider|vslider|nentry)\s*\(\s*"([^"]*)"\s*,([^)]*)\)/g;
+/* One buildUserInterface registration in the *generated* Faust C:
+ *   ui_interface->addHorizontalSlider(ui_interface->uiInterface, "drive",
+ *       &dsp->fHslider6, (FAUSTFLOAT)0.15f, (FAUSTFLOAT)0.0f, …);
+ * See validateFaustSliders for why this is read instead of the .dsp. */
+const FAUST_UI_RE =
+  /add(?:HorizontalSlider|VerticalSlider|NumEntry)\s*\([^,]*,\s*"([^"]*)"\s*,[^,]*,([^;]*)\)\s*;/g;
+const FAUST_UI_TOGGLE_RE = /add(?:CheckButton|Button)\s*\([^,]*,\s*"([^"]*)"\s*,[^;]*\)\s*;/g;
 /* Schwung chain-host limits — see validateHostLimits for provenance. */
 const HOST_MAX_KEY_CHARS = 31;
-const HOST_MAX_NAME_CHARS = 31;
+const HOST_MAX_NAME_CHARS = 63;
 const HOST_MAX_PARAMS = 256;
 const HOST_MAX_MODULE_JSON_BYTES = 65536;
 
 const moduleIds = await selectedModuleIds();
 const allErrors: ValidationGroup[] = [];
+
+/* Whether a generated file is stale is the generator's own question, and it
+ * can answer it exactly by re-rendering and byte-comparing. This used to be
+ * re-derived here by searching the output for each param's enum line, which
+ * could not see a stale clamp, a stale count, or the .gen.h at all. Running
+ * gen-params in check mode replaces all of that; it is a no-op second run when
+ * validate.ts has already called it. */
+if ((await genParams({ mode: "check", moduleIds })) > 0) {
+  allErrors.push({
+    moduleId: "generated params",
+    errors: ["generated param files are stale — run `mise run gen-params`"]
+  });
+}
 
 await validateIndex(moduleIds);
 
@@ -178,15 +198,19 @@ async function validateModule(moduleId: string, errors: string[]): Promise<void>
   if (params) {
     validateParams(moduleId, params, errors);
     validateSoundGeneratorLevelParams(caps.component_type, params, errors);
-    await validateGenInc(moduleId, errors);
     validatePresets(presetsJson, params, errors);
     await validatePresetsAreExposed(moduleId, presetsJson, errors);
     validateMetadata(moduleId, metadataJson, params, errors);
     const coreHeader = await readFile(paths.coreHeader, "utf8");
     validateCoreStruct(moduleId, params, coreHeader, errors);
-    validateZoneSizing(moduleId, coreHeader, errors);
+    validateParamCountNotRedefined(moduleId, coreHeader, errors);
     if (await fileExists(paths.faustDsp)) {
-      validateFaustSliders(params, await readFile(paths.faustDsp, "utf8"), errors);
+      validateFaustSliders(
+        params,
+        await readFile(paths.faustDsp, "utf8"),
+        await readFile(paths.faustC, "utf8").catch(() => ""),
+        errors
+      );
     }
     const knobs = caps.ui_hierarchy?.levels?.root?.knobs || [];
     const paramKeys = new Set(params.map((p) => p.key));
@@ -204,10 +228,17 @@ async function validateModule(moduleId: string, errors: string[]): Promise<void>
  *
  * Verified against schwung 0.11.4, src/modules/chain/dsp/:
  *   chain_internal.h:101  MAX_CHAIN_PARAMS 256
- *   chain_params.c:645,660  key and name are both truncated at 31 chars —
- *     note name is clamped to 31 even though chain_param_info_t.name is
- *     char[64], so the field size is misleading
- *   chain_params.c:561,774  module.json is rejected at >= 65536 bytes
+ *   chain_params.c:173,189  parse_param_object truncates key at
+ *     sizeof(param->key)-1 = 31 and name at sizeof(param->name)-1 = 63. This
+ *     is the path every module here takes: parse_chain_params tries
+ *     ui_hierarchy first (:574-594) and falls through to the legacy
+ *     chain_params array — which does clamp both to 31 (:645,660) — only when
+ *     ui_hierarchy is absent or yields no inline params.
+ *   chain_params.c:561,774  module.json is rejected at > 65536 by
+ *     parse_chain_params and at >= 65536 by parse_ui_hierarchy_cache, which
+ *     serves the FX and midi-FX slots; >= is the tightest true bound
+ *   chain_params.c:446-491  shared_params objects are parsed into the SAME
+ *     array as the levels, sharing the duplicate check and the 256 cap
  *   chain_params.c:531-541  a duplicate key across ANY two levels makes
  *     parse_chain_params return -1, which rejects the whole module
  * Truncation is silent, so an over-long key becomes a key the module itself
@@ -220,17 +251,30 @@ function validateHostLimits(moduleJson: ModuleJson, jsonBytes: number, errors: s
     );
   }
 
-  const levels = moduleJson.capabilities?.ui_hierarchy?.levels ?? {};
+  const hierarchy = moduleJson.capabilities?.ui_hierarchy;
   const seen = new Map<string, string>();
   let total = 0;
 
-  for (const [levelName, level] of Object.entries(levels)) {
-    for (const param of level?.params ?? []) {
+  /* shared_params lands in the same array as the levels, so it counts toward
+   * the cap and collides with level keys. Walking only `levels` left a
+   * duplicate there passing validation and rejecting the module on device. */
+  const groups: Array<[string, Param[]]> = [
+    ...Object.entries(hierarchy?.levels ?? {}).map(
+      ([name, level]) => [`levels.${name}`, level?.params ?? []] as [string, Param[]]
+    ),
+    ["shared_params", hierarchy?.shared_params ?? []]
+  ];
+
+  for (const [groupName, groupParams] of groups) {
+    for (const param of groupParams) {
       total++;
       if (typeof param.key === "string") {
-        if (param.key.length > HOST_MAX_KEY_CHARS) {
+        /* Bytes, not JS string length: the host memcpys raw JSON bytes, so a
+         * 31-character multi-byte name is well past its buffer. */
+        const keyBytes = Buffer.byteLength(param.key, "utf8");
+        if (keyBytes > HOST_MAX_KEY_CHARS) {
           errors.push(
-            `param ${param.key}: key is ${param.key.length} chars — the host truncates keys at ` +
+            `param ${param.key}: key is ${keyBytes} bytes — the host truncates keys at ` +
               `${HOST_MAX_KEY_CHARS}, so it would look up a key this module does not answer to`
           );
         }
@@ -238,25 +282,28 @@ function validateHostLimits(moduleJson: ModuleJson, jsonBytes: number, errors: s
         const previous = seen.get(param.key);
         if (previous !== undefined) {
           errors.push(
-            `param key "${param.key}" appears in both levels.${previous} and levels.${levelName} — ` +
+            `param key "${param.key}" appears in both ${previous} and ${groupName} — ` +
               `a duplicate key anywhere in ui_hierarchy makes the host reject the entire module`
           );
         } else {
-          seen.set(param.key, levelName);
+          seen.set(param.key, groupName);
         }
       }
-      if (typeof param.name === "string" && param.name.length > HOST_MAX_NAME_CHARS) {
-        errors.push(
-          `param ${param.key}: name "${param.name}" is ${param.name.length} chars — the host ` +
-            `truncates display names at ${HOST_MAX_NAME_CHARS}`
-        );
+      if (typeof param.name === "string") {
+        const nameBytes = Buffer.byteLength(param.name, "utf8");
+        if (nameBytes > HOST_MAX_NAME_CHARS) {
+          errors.push(
+            `param ${param.key}: name "${param.name}" is ${nameBytes} bytes — the host ` +
+              `truncates display names at ${HOST_MAX_NAME_CHARS}`
+          );
+        }
       }
     }
   }
 
   if (total > HOST_MAX_PARAMS) {
     errors.push(
-      `${total} params across all ui_hierarchy levels exceeds the host's ` +
+      `${total} params across all ui_hierarchy levels and shared_params exceeds the host's ` +
         `MAX_CHAIN_PARAMS (${HOST_MAX_PARAMS})`
     );
   }
@@ -362,23 +409,6 @@ function validateParams(moduleId: string, params: Param[], errors: string[]): vo
   }
 }
 
-async function validateGenInc(moduleId: string, errors: string[]): Promise<void> {
-  const paths = modulePaths(moduleId);
-  const existing = await readFile(paths.paramsGenInc, "utf8").catch(() => "");
-  if (!existing) {
-    errors.push(`${paths.paramsGenInc} is missing — run \`mise run gen-params\``);
-    return;
-  }
-  const moduleJson = await readJson<ModuleJson>(paths.moduleJson);
-  const params = moduleJson.capabilities?.ui_hierarchy?.levels?.root?.params || [];
-  for (const p of params) {
-    if (!existing.includes(`return ${moduleId.toUpperCase()}_PARAM_${p.key.toUpperCase()}`)) {
-      errors.push(`${paths.paramsGenInc} appears stale for param ${p.key} — run \`mise run gen-params\``);
-      return;
-    }
-  }
-}
-
 function validatePresets(presetsJson: PresetsJson, params: Param[], errors: string[]): void {
   const paramKeys = new Set(params.map((p) => p.key));
   const paramByKey = new Map(params.map((p) => [p.key, p]));
@@ -415,55 +445,80 @@ function declaredExemptions(dsp: string, tag: string): Set<string> {
   return names;
 }
 
-/* The adapter captures a Faust zone by matching the slider's label against
+/* The adapter captures a Faust zone by matching the control's label against
  * <id>_param_id(). A label that does not match any module.json key returns -1,
  * so the zone is never captured and push_params_to_faust skips it forever: a
- * knob that compiles, validates, renders and ships while doing nothing. The
- * only way to catch it is to compare the two lists directly. */
-function validateFaustSliders(params: Param[], dsp: string, errors: string[]): void {
+ * knob that compiles, validates, renders and ships while doing nothing.
+ *
+ * Read from the *generated* <id>_faust.c rather than the .dsp, because the
+ * Faust compiler has already answered every hard part: metadata
+ * (`"cutoff [style:knob]"`) and group paths (`"h:Filter/cutoff"`) are stripped
+ * to the bare label the adapter matches, macros and library definitions are
+ * expanded, `with { }` is flattened, non-literal bounds are folded to numbers,
+ * and comments are gone. Matching the .dsp text instead meant a commented-out
+ * slider counted as a declaration — passing the check on exactly the dead knob
+ * it exists to catch — while three ordinary Faust idioms were rejected.
+ * gen-faust --check already keeps this file in step with the .dsp. */
+function validateFaustSliders(
+  params: Param[],
+  dsp: string,
+  faustC: string,
+  errors: string[]
+): void {
+  /* Exemptions stay in the .dsp: they are the author's declaration of intent,
+   * and they are comments by design. */
   const adapterControls = declaredExemptions(dsp, "adapter-controls");
   const adapterParams = declaredExemptions(dsp, "adapter-params");
   const paramByKey = new Map(params.map((p) => [p.key, p]));
 
-  const sliders = new Map<string, string[]>();
-  for (const [, label, argText] of dsp.matchAll(FAUST_SLIDER_RE)) {
-    sliders.set(label, argText.split(",").map((s) => s.trim()));
+  /* null args = a checkbox/button, which carries no init/min/max/step. */
+  const controls = new Map<string, number[] | null>();
+  for (const [, label, argText] of faustC.matchAll(FAUST_UI_RE)) {
+    controls.set(
+      label,
+      argText.split(",").map((arg) => Number(arg.replace(/\(FAUSTFLOAT\)/g, "").trim().replace(/f$/, "")))
+    );
+  }
+  for (const [, label] of faustC.matchAll(FAUST_UI_TOGGLE_RE)) {
+    if (!controls.has(label)) controls.set(label, null);
   }
 
-  for (const [label, args] of sliders) {
+  for (const [label, args] of controls) {
     const param = paramByKey.get(label);
     if (!param) {
       /* An internal control slider is conventionally prefixed with "_". */
       if (label.startsWith("_") || adapterControls.has(label)) continue;
       errors.push(
-        `${label ? `.dsp declares hslider("${label}", …)` : `.dsp declares an unlabelled slider`} ` +
+        `${label ? `the .dsp registers a control labelled "${label}"` : `the .dsp registers an unlabelled control`} ` +
           `which is not a param in module.json — if the C adapter drives it, declare it with ` +
           `\`// moveforge-adapter-controls: ${label}\`; otherwise it is a typo and the knob is dead`
       );
       continue;
     }
+    if (args === null) continue;
     /* init, min, max, step — module.json is the single source of truth, so a
-     * mismatch means the two disagree about the same control. */
+     * mismatch means the two disagree about the same control. Compared with a
+     * float32 tolerance: these literals have been through the compiler as
+     * floats, so 0.1 can come back as 0.100000001. */
     const [init, min, max, step] = args;
     for (const [name, dspValue, jsonValue] of [
       ["default", init, param.default],
       ["min", min, param.min],
       ["max", max, param.max],
       ["step", step, param.step]
-    ] as Array<[string, string | undefined, number | undefined]>) {
+    ] as Array<[string, number | undefined, number | undefined]>) {
       if (dspValue === undefined || jsonValue === undefined) continue;
-      const parsed = Number(dspValue);
-      if (!Number.isFinite(parsed)) continue; // e.g. "MAXDELAY - 8"
-      if (parsed !== jsonValue) {
+      if (!Number.isFinite(dspValue)) continue;
+      if (Math.abs(dspValue - jsonValue) > 1e-6 * Math.max(1, Math.abs(jsonValue))) {
         errors.push(
-          `.dsp hslider("${label}") ${name} ${parsed} does not match module.json ${name} ${jsonValue}`
+          `.dsp control "${label}" ${name} ${dspValue} does not match module.json ${name} ${jsonValue}`
         );
       }
     }
   }
 
   for (const param of params) {
-    if (sliders.has(param.key) || adapterParams.has(param.key)) continue;
+    if (controls.has(param.key) || adapterParams.has(param.key)) continue;
     errors.push(
       `param ${param.key} has no matching hslider("${param.key}", …) in the .dsp, so its zone is ` +
         `never captured and the knob does nothing — if the adapter computes it, declare it with ` +
@@ -472,30 +527,40 @@ function validateFaustSliders(params: Param[], dsp: string, errors: string[]): v
   }
 }
 
-/* A Faust adapter captures one zone pointer per param into a fixed array
- * indexed by param id. Sized with a literal, adding a param to module.json
- * makes capture_slider write one past the end — into whatever field follows it
- * in the struct. There is no redzone between struct fields, so ASan cannot see
- * it, the compiler cannot warn, and nothing else in the pipeline notices.
- * Requiring the generated count makes the array grow with module.json. */
-function validateZoneSizing(moduleId: string, header: string, errors: string[]): void {
+/* Whether zones[] is sized correctly is now asserted by the compiler: the
+ * generated .inc carries a _Static_assert comparing sizeof(core.zones) against
+ * <UPPER>_PARAM_COUNT (scripts/gen-params.ts, renderZonesAssert). That covers
+ * every accidental form — a literal size, a stale count, a renamed member — in
+ * the one place that can see the real layout.
+ *
+ * The one thing it cannot see is the count being redefined out from under it,
+ * since the assert would then compare a poisoned macro against an array sized
+ * from the same poisoned macro, and every test that loops to the count would
+ * agree with both. That is a policy about the text of the header, so a text
+ * check is the honest tool for it. */
+function validateParamCountNotRedefined(moduleId: string, header: string, errors: string[]): void {
   const upper = moduleId.toUpperCase();
-  for (const [, size] of header.matchAll(/\bzones\s*\[\s*([^\]]+?)\s*\]/g)) {
-    if (size !== `${upper}_PARAM_COUNT`) {
-      errors.push(
-        `${moduleId}_core_t declares zones[${size}] — it must be sized ` +
-          `zones[${upper}_PARAM_COUNT] (from ${moduleId}_params.gen.h) so it cannot ` +
-          `overflow into the next struct field when a param is added`
-      );
-    }
+  if (new RegExp(`^\\s*#\\s*(?:define|undef)\\s+${upper}_PARAM_COUNT\\b`, "m").test(header)) {
+    errors.push(
+      `${moduleId}_core.h defines or undefines ${upper}_PARAM_COUNT — it must come only from the ` +
+        `generated ${moduleId}_params.gen.h, or anything sized or bounded by it silently ` +
+        `disagrees with module.json`
+    );
   }
 }
 
 /* Shipping presets.json and generating the helper is not enough — the wrapper
- * has to include it and answer preset / preset_count / preset_name, or the
- * chain UI's preset-browse screen is dead for that module while everything
- * about the build looks correct. Four of seven wrappers were in exactly that
- * state (plan 7.1). */
+ * has to reach it, or the chain UI's preset-browse screen lists every preset by
+ * name and selecting one does nothing. Four of seven wrappers were in that
+ * state (plan 7.1).
+ *
+ * "Selecting a preset changes a param" is behavioural, so it is asserted by
+ * tests/test_<id>_plugin.c against the real plugin ABI, not by searching the
+ * wrapper for an include and a couple of string literals — that search passed
+ * a wrapper whose set_param("preset") branch had been deleted outright, which
+ * is the defect itself. What is left here is the policy that makes the
+ * behavioural test exist in the first place, and file existence is a question
+ * text matching genuinely answers. */
 async function validatePresetsAreExposed(
   moduleId: string,
   presetsJson: PresetsJson,
@@ -503,19 +568,12 @@ async function validatePresetsAreExposed(
 ): Promise<void> {
   if (!presetsJson.presets?.length) return;
   const paths = modulePaths(moduleId);
-  const wrapper = await readFile(paths.wrapperC, "utf8").catch(() => "");
-  if (!wrapper) return;
-  if (!wrapper.includes(`${moduleId}_presets.gen.inc`)) {
+  if (!(await fileExists(paths.testPluginC))) {
     errors.push(
-      `${moduleId}.c does not include ${moduleId}_presets.gen.inc, so the ${presetsJson.presets.length} ` +
-        `preset(s) in presets.json cannot be reached on device — the chain UI's preset screen is dead`
+      `${moduleId} ships ${presetsJson.presets.length} preset(s) but has no ${paths.testPluginC} — ` +
+        `presets are only reachable on device through the wrapper's set_param("preset"), and a ` +
+        `plugin-level test is the only thing here that exercises it`
     );
-    return;
-  }
-  for (const key of ["preset_count", "preset_name"]) {
-    if (!wrapper.includes(`"${key}"`)) {
-      errors.push(`${moduleId}.c includes the generated presets but never answers get_param("${key}")`);
-    }
   }
 }
 
