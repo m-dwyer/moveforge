@@ -84,6 +84,34 @@ int main(void) {
     render_peak(&synth, FRAMES);            /* let the gain smoother collapse */
     require_true(render_peak(&synth, FRAMES) < 0.0001f, "volume zero mutes a sounding hit");
 
+    /* Changing a control while the voice is IDLE must still take effect on the
+     * next hit. The idle early-out skips the sample loop, so anything ramped
+     * inside it stops tracking while silent — without an explicit snap on
+     * note-on, a Ballast muted between hits still fires its whole transient at
+     * -13 dBFS. Distinct from muting a *sounding* note, which the test above
+     * covers and which cannot catch this. */
+    ballast_init(&synth);
+    set(&synth, "volume", 0.8f);
+    set(&synth, "decay", 0.05f);
+    ballast_note_on(&synth, 36, 1.0f);
+    for (int block = 0; block < 8; block++) render_energy(&synth, FRAMES);
+    set(&synth, "volume", 0.0f);            /* muted while idle */
+    ballast_note_on(&synth, 36, 1.0f);
+    require_true(render_peak(&synth, FRAMES) < 0.0001f,
+                 "volume set while idle applies to the next hit");
+
+    /* And the inverse: turning volume up while idle must not leave the next hit
+     * quiet. */
+    ballast_init(&synth);
+    set(&synth, "volume", 0.05f);
+    set(&synth, "decay", 0.05f);
+    ballast_note_on(&synth, 36, 1.0f);
+    for (int block = 0; block < 8; block++) render_energy(&synth, FRAMES);
+    set(&synth, "volume", 1.0f);
+    ballast_note_on(&synth, 36, 1.0f);
+    require_true(render_peak(&synth, FRAMES) > 0.15f,
+                 "volume raised while idle applies to the next hit");
+
     /* One-shot: the hit decays on its own, with no note-off involved. */
     ballast_init(&synth);
     set(&synth, "volume", 0.8f);
@@ -189,30 +217,50 @@ int main(void) {
     }
 
     /* Retriggering resets the oscillator phase; the declick ramp is what keeps
-     * that from being a step. Measured with the noise layers off so the only
-     * discontinuity available is the phase reset itself. */
-    ballast_init(&synth);
-    set(&synth, "volume", 0.8f);
-    set(&synth, "punch", 0.0f);
-    set(&synth, "dirt", 0.0f);
-    set(&synth, "decay", 3.0f);
-    set(&synth, "phase", 0.25f);
-    ballast_note_on(&synth, 36, 1.0f);
-    ballast_process_float(&synth, NULL, NULL, left, right, 1024);
-    float quiet_step = 0.0f;
-    for (int i = 1; i < 1024; i++) {
-        float d = absf_local(left[i] - left[i - 1]);
-        if (d > quiet_step) quiet_step = d;
+     * that from being a step.
+     *
+     * The discontinuity lands at the boundary BETWEEN two render calls, because
+     * MIDI is dispatched between blocks. An earlier version of this test scanned
+     * only inside the post-retrigger buffer and so never looked at the one sample
+     * pair that matters — it passed with the declick compiled out entirely.
+     * Measure across the boundary, with the noise layers off so the phase reset
+     * is the only discontinuity available. */
+    {
+        ballast_core_t d;
+        ballast_init(&d);
+        set(&d, "volume", 0.8f);
+        set(&d, "punch", 0.0f);
+        set(&d, "dirt", 0.0f);
+        set(&d, "decay", 3.0f);
+        set(&d, "phase", 0.25f);
+        set(&d, "track", 1.0f);
+        ballast_note_on(&d, 36, 1.0f);
+        ballast_process_float(&d, NULL, NULL, left, right, 1024);
+
+        float steady = 0.0f;
+        for (int i = 1; i < 1024; i++) {
+            float step = absf_local(left[i] - left[i - 1]);
+            if (step > steady) steady = step;
+        }
+        float boundary_before = left[1023];
+
+        ballast_note_on(&d, 36, 1.0f);       /* retrigger, same velocity */
+        ballast_process_float(&d, NULL, NULL, left, right, 1024);
+        float same_vel_step = absf_local(left[0] - boundary_before);
+        require_true(same_vel_step < steady * 2.0f,
+                     "retrigger does not step the output across the block boundary");
+
+        /* Move's pads are velocity sensitive, so consecutive hits at different
+         * velocities are the normal case, not an edge case. The declick has to
+         * sit downstream of the velocity gain to cover it — capture it upstream
+         * and the output still steps by the whole gain ratio. */
+        boundary_before = left[1023];
+        ballast_note_on(&d, 36, 0.05f);      /* retrigger, very different velocity */
+        ballast_process_float(&d, NULL, NULL, left, right, 1024);
+        float vel_change_step = absf_local(left[0] - boundary_before);
+        require_true(vel_change_step < steady * 2.0f,
+                     "retrigger at a different velocity does not step the output");
     }
-    ballast_note_on(&synth, 36, 1.0f);   /* retrigger mid-decay */
-    ballast_process_float(&synth, NULL, NULL, left, right, 1024);
-    float retrigger_step = 0.0f;
-    for (int i = 1; i < 1024; i++) {
-        float d = absf_local(left[i] - left[i - 1]);
-        if (d > retrigger_step) retrigger_step = d;
-    }
-    require_true(retrigger_step < quiet_step * 4.0f + 0.01f,
-                 "retrigger does not step the output");
 
     /* Once the tail is gone the voice short-circuits to exact silence. */
     ballast_init(&synth);

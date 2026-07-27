@@ -27,7 +27,18 @@ typedef struct {
     float note_semis;
     float velocity;
     float pitch_bend;
-    int   sounding;
+
+    /* Controls that would otherwise step once per block. Route Motion delivers
+     * stepped values — a lane in hold mode jumps a parameter mid-note — and a
+     * raw `tone` jump of 0.3 measures 64x the signal's own slew, which is a
+     * click. These ramp to their block target instead. They are also snapped
+     * on note-on: the idle early-out below skips the sample loop entirely, so
+     * anything smoothed inside it freezes while the voice is silent and the
+     * next hit would otherwise open at a stale value. */
+    float tilt_low_cur;
+    float tilt_high_cur;
+    float dirt_cur;
+    float drive_cur;
 
     /* oscillator */
     float osc_phase;
@@ -64,6 +75,7 @@ typedef struct {
     mf_dcblock_t dc;
     mf_drive_t drive_state;
     mf_smooth_t volume_sm;
+    mf_smooth_t drive_sm;
 
     /* params — one float per module.json key, in declaration order */
     float tune;

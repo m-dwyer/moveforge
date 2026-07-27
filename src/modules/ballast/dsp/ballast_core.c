@@ -29,6 +29,8 @@
 #define BALLAST_OUT_TRIM    0.44f
 
 #define BALLAST_DECLICK_S   0.0007f
+/* Below this the previous output is silence, and a fresh attack is wanted. */
+#define BALLAST_DECLICK_FLOOR 0.002f
 #define BALLAST_IDLE_EPS    1.0e-5f
 
 static void ballast_reset_voice(ballast_core_t *s)
@@ -43,7 +45,43 @@ static void ballast_reset_voice(ballast_core_t *s)
     s->pitch_slow = 0.0f;
     s->click_env = 0.0f;
     s->dirt_env = 0.0f;
-    s->sounding = 0;
+}
+
+/* Jump every ramped control to its parameter's current value.
+ *
+ * Needed because the idle early-out in ballast_process_float skips the sample
+ * loop, so a control that ramps inside it stops tracking while the voice is
+ * silent. Without this, changing volume with the transport stopped leaves the
+ * next hit opening at the stale value: a muted Ballast still fires its whole
+ * transient at -13 dBFS for ~29 ms, on every hit, forever. */
+static void ballast_snap_controls(ballast_core_t *s)
+{
+    mf_smooth_snap(&s->volume_sm, s->volume);
+    mf_tilt_gains((s->tone - 0.5f) * 2.0f, BALLAST_TILT_MAX_DB,
+                  &s->tilt_low_cur, &s->tilt_high_cur);
+    s->dirt_cur = moveforge_clampf(s->dirt, 0.0f, 1.0f);
+    s->drive_cur = moveforge_clampf(s->drive, 0.0f, 1.0f);
+    mf_smooth_snap(&s->drive_sm, s->drive_cur);
+}
+
+/* Recover from a non-finite in recursive state.
+ *
+ * mf_sanitize guards the output, but a NaN that reaches filter memory is
+ * permanent: it never decays, and because every comparison against it is false
+ * the idle check can never fire either, so the voice renders digital silence
+ * and burns CPU forever. No input is known to produce one — every state
+ * variable here is provably bounded — but the failure mode is silent and
+ * unrecoverable, which is the kind worth spending a few lines on. */
+static void ballast_sanitize_state(ballast_core_t *s)
+{
+    if (mf_is_bad(s->dc.x1) || mf_is_bad(s->dc.y1)) mf_dcblock_init(&s->dc);
+    if (mf_is_bad(s->click_lp.y)) s->click_lp.y = 0.0f;
+    if (mf_is_bad(s->dirt_bp.ic1eq) || mf_is_bad(s->dirt_bp.ic2eq)) mf_svf_init(&s->dirt_bp);
+    if (mf_is_bad(s->tilt.lp.y)) s->tilt.lp.y = 0.0f;
+    if (mf_is_bad(s->drive_state.hold)) mf_drive_init(&s->drive_state);
+    if (mf_is_bad(s->declick)) s->declick = 0.0f;
+    if (mf_is_bad(s->last_out)) s->last_out = 0.0f;
+    if (mf_is_bad(s->osc_phase)) s->osc_phase = 0.0f;
 }
 
 void ballast_init(ballast_core_t *s) {
@@ -66,9 +104,10 @@ void ballast_init(ballast_core_t *s) {
     mf_dcblock_init(&s->dc);
     mf_drive_init(&s->drive_state);
     mf_smooth_init_gain(&s->volume_sm, 15.0f, 5.0f);
+    mf_smooth_init(&s->drive_sm, 15.0f);
 
     ballast_apply_defaults(s);
-    mf_smooth_snap(&s->volume_sm, s->volume);
+    ballast_snap_controls(s);
 }
 
 /* Per-hit variation. A host LFO can move a parameter continuously but cannot
@@ -106,7 +145,9 @@ void ballast_note_on(ballast_core_t *s, int note, float velocity) {
     s->click_env = 1.0f;
     s->dirt_env = 1.0f;
     s->retrigger = 1;
-    s->sounding = 1;
+
+    ballast_sanitize_state(s);
+    ballast_snap_controls(s);
 }
 
 /* One-shot: `decay` owns the length of a hit, so a note-off is not a musical
@@ -125,7 +166,6 @@ void ballast_all_notes_off(ballast_core_t *s) {
     s->click_env = 0.0f;
     s->dirt_env = 0.0f;
     s->retrigger = 1;
-    s->sounding = 0;
 }
 
 void ballast_pitch_bend(ballast_core_t *s, float bend) {
@@ -157,7 +197,7 @@ void ballast_process_float(ballast_core_t *s,
                            int frames) {
     (void)in_left;
     (void)in_right;
-    if (!s || !out_left || !out_right) return;
+    if (!s || !out_left || !out_right || frames <= 0) return;
 
     /* A silent voice costs nothing. Schwung's own idle gate only stops
      * rendering a slot after a full second under -78 dBFS, which never happens
@@ -199,12 +239,24 @@ void ballast_process_float(ballast_core_t *s,
     float vel_pitch = 1.0f - vd * 0.50f * (1.0f - vel);
     float vel_drive = 1.0f - vd * 0.40f * (1.0f - vel);
 
+    /* Drive is smoothed at block rate rather than per sample: its coefficients
+     * are a whole struct including a curve selector, so ramping them per sample
+     * would mean running the nonlinearity twice. A 15 ms glide turns a hold-mode
+     * automation step from one -27 dBFS click into a handful of inaudible ones. */
+    s->drive_cur = mf_smooth_tick(&s->drive_sm, moveforge_clampf(s->drive, 0.0f, 1.0f));
     mf_drive_coeffs_t drive_co;
     mf_drive_set(&drive_co, (int)(s->curve + 0.5f),
-                 moveforge_clampf(s->drive * s->hit_drive * vel_drive, 0.0f, 1.0f));
+                 moveforge_clampf(s->drive_cur * s->hit_drive * vel_drive, 0.0f, 1.0f));
 
+    /* Tilt and dirt level ramp linearly to their block target instead. Both
+     * scale a signal directly, so a raw step is an amplitude discontinuity —
+     * a `tone` jump of 0.3 measures 64x the signal's own slew, which is a
+     * click. Two adds per sample, landing exactly on target at the block end. */
     float tilt_low, tilt_high;
     mf_tilt_gains((s->tone - 0.5f) * 2.0f, BALLAST_TILT_MAX_DB, &tilt_low, &tilt_high);
+    float inv_frames = 1.0f / (float)frames;
+    float tilt_low_step = (tilt_low - s->tilt_low_cur) * inv_frames;
+    float tilt_high_step = (tilt_high - s->tilt_high_cur) * inv_frames;
 
     mf_svf_coeffs_t dirt_co;
     mf_svf_set(&dirt_co, 1200.0f + s->dirt * 2200.0f, 0.45f);
@@ -231,6 +283,7 @@ void ballast_process_float(ballast_core_t *s,
     float shape = moveforge_clampf(s->shape, 0.0f, 1.0f);
     float click_level = s->punch * BALLAST_CLICK_GAIN;
     float dirt_level = moveforge_clampf(s->dirt, 0.0f, 1.0f);
+    float dirt_step = (dirt_level - s->dirt_cur) * inv_frames;
     float out_gain = vel_gain * s->hit_level * BALLAST_OUT_TRIM;
     float phase_inc_scale = 1.0f / sr;
 
@@ -256,34 +309,68 @@ void ballast_process_float(ballast_core_t *s,
         s->click_env = mf_flush_denorm(s->click_env * k_click);
         s->dirt_env = mf_flush_denorm(s->dirt_env * k_dirt);
 
-        /* ---- layers ---- */
-        float noise = mf_rng_bipolar(&s->rng);
-        float click = noise - mf_onepole_tick(&s->click_lp, noise);
+        /* ---- layers ----
+         * Two independent draws. Sharing one made the grain a band-passed copy
+         * of the click rather than a separate source, correlating two layers
+         * that are meant to sit in different places. */
+        float click_noise = mf_rng_bipolar(&s->rng);
+        float click = click_noise - mf_onepole_tick(&s->click_lp, click_noise);
 
-        mf_svf_tick(&s->dirt_bp, &dirt_co, noise);
+        mf_svf_tick(&s->dirt_bp, &dirt_co, mf_rng_bipolar(&s->rng));
         float grain = s->dirt_bp.bp;
+
+        s->dirt_cur += dirt_step;
 
         float mix = osc * amp * BALLAST_BODY_GAIN
                   + click * s->click_env * click_level
-                  + grain * s->dirt_env * dirt_level;
+                  + grain * s->dirt_env * s->dirt_cur;
 
         /* ---- character ---- */
-        float y = mf_tilt_tick(&s->tilt, mix, tilt_low, tilt_high);
+        s->tilt_low_cur += tilt_low_step;
+        s->tilt_high_cur += tilt_high_step;
+        float y = mf_tilt_tick(&s->tilt, mix, s->tilt_low_cur, s->tilt_high_cur);
         y = mf_drive_tick(&s->drive_state, &drive_co, y);
+        y = mf_dcblock_tick(&s->dc, y);
 
-        /* ---- declick ---- */
+        /* ---- output ----
+         * Two limiter stages, doing different jobs.
+         *
+         * The first runs at unity, upstream of the gain, and is doing real
+         * level control rather than only catching faults: `tone` can add up to
+         * 12 dB to whichever band the signal sits in, so a dark patch with a
+         * near-sine body arrives here well over full scale. Moving it below the
+         * gain spread the preset peaks from +-0.9 dB to 6.5 dB.
+         *
+         * The declick sits between the gain and a second limiter. It only makes
+         * continuous whatever node it sits on, so capturing it upstream of the
+         * gain would leave the real output free to step by the full gain ratio
+         * — exactly what happens between two hits at different velocities, the
+         * case the mechanism exists for. The second limiter then catches the
+         * one thing that can overshoot after it, a declick seeded from a loud
+         * previous hit; being monotonic and continuous it cannot reintroduce a
+         * step of its own. */
+        y = mf_soft_limit(y);
+        y *= mf_smooth_tick(&s->volume_sm, s->volume) * out_gain;
+
         if (s->retrigger) {
-            s->declick = s->last_out - y;
+            /* Only declick over something already sounding. Seeding this from
+             * silence would force the output to start at exactly zero, which
+             * cancels `phase` outright — the whole point of a start-phase
+             * control is that opening at the waveform peak is an instant
+             * full-amplitude excursion, and that is a transient to keep, not a
+             * discontinuity to hide. Measured: without this guard every `phase`
+             * setting produced the same first sample and the knob moved peak
+             * level by 0.27 dB across its entire travel. */
+            s->declick = (fabsf(s->last_out) > BALLAST_DECLICK_FLOOR)
+                       ? s->last_out - y
+                       : 0.0f;
             s->retrigger = 0;
         }
         y += s->declick;
         s->declick = mf_flush_denorm(s->declick * k_declick);
         s->last_out = y;
 
-        /* ---- output ---- */
-        y = mf_dcblock_tick(&s->dc, y);
         y = mf_soft_limit(y);
-        y *= mf_smooth_tick(&s->volume_sm, s->volume) * out_gain;
         y = mf_sanitize(y, 0.0f);
 
         out_left[i] = y;
