@@ -4,12 +4,12 @@
     "channels": 2,
     "frames": 308700,
     "duration_seconds": 7,
-    "peak": 0.65659,
-    "rms": 0.27421,
-    "dc_offset": 0.00111,
+    "peak": 0.65662,
+    "rms": 0.27423,
+    "dc_offset": 0.001111,
     "dc_offset_per_channel": [
       0.001124,
-      0.001096
+      0.001097
     ],
     "silence_ratio": 0.003,
     "clipped_samples": 0,
@@ -46,11 +46,11 @@
     "frames": 308700,
     "duration_seconds": 7,
     "peak": 0.90567,
-    "rms": 0.42256,
+    "rms": 0.42257,
     "dc_offset": -0.001144,
     "dc_offset_per_channel": [
       -0.001139,
-      -0.001149
+      -0.00115
     ],
     "silence_ratio": 0.0003,
     "clipped_samples": 0,
@@ -87,11 +87,11 @@
     "frames": 308700,
     "duration_seconds": 7,
     "peak": 0.94415,
-    "rms": 0.47175,
-    "dc_offset": -0.002814,
+    "rms": 0.47176,
+    "dc_offset": -0.002815,
     "dc_offset_per_channel": [
-      -0.00282,
-      -0.002808
+      -0.002821,
+      -0.002809
     ],
     "silence_ratio": 0.0001,
     "clipped_samples": 0,
@@ -127,12 +127,12 @@
     "channels": 2,
     "frames": 308700,
     "duration_seconds": 7,
-    "peak": 0.83932,
-    "rms": 0.3709,
-    "dc_offset": -0.003773,
+    "peak": 0.83936,
+    "rms": 0.37091,
+    "dc_offset": -0.003774,
     "dc_offset_per_channel": [
-      -0.003891,
-      -0.003655
+      -0.003892,
+      -0.003656
     ],
     "silence_ratio": 0.0016,
     "clipped_samples": 0,
@@ -169,7 +169,7 @@
     "frames": 264600,
     "duration_seconds": 6,
     "peak": 0.87292,
-    "rms": 0.27758,
+    "rms": 0.27759,
     "dc_offset": -0.000189,
     "dc_offset_per_channel": [
       -0.000171,
@@ -182,7 +182,7 @@
       0.05017
     ],
     "stereo_correlation": 0.9996,
-    "slew_ratio": 0.09612,
+    "slew_ratio": 0.09613,
     "time_profile": [
       -8.79,
       -8.87,
@@ -209,8 +209,8 @@
     "channels": 2,
     "frames": 441000,
     "duration_seconds": 10,
-    "peak": 0.78391,
-    "rms": 0.51437,
+    "peak": 0.78394,
+    "rms": 0.51439,
     "dc_offset": -0.000683,
     "dc_offset_per_channel": [
       -0.000773,
@@ -251,7 +251,7 @@
     "frames": 352800,
     "duration_seconds": 8,
     "peak": 0.75992,
-    "rms": 0.51518,
+    "rms": 0.51519,
     "dc_offset": -0.000709,
     "dc_offset_per_channel": [
       -0.000732,
@@ -292,17 +292,17 @@
     "frames": 264600,
     "duration_seconds": 6,
     "peak": 0.82458,
-    "rms": 0.43169,
+    "rms": 0.43171,
     "dc_offset": 0.003876,
     "dc_offset_per_channel": [
       0.005483,
       0.002269
     ],
-    "silence_ratio": 0.0073,
+    "silence_ratio": 0.0071,
     "clipped_samples": 0,
     "zero_crossing_rate": [
       0.0868,
-      0.08698
+      0.087
     ],
     "stereo_correlation": 0.9961,
     "slew_ratio": 0.21897,
@@ -332,11 +332,11 @@
     "channels": 2,
     "frames": 352800,
     "duration_seconds": 8,
-    "peak": 0.82904,
-    "rms": 0.5073,
-    "dc_offset": -0.003678,
+    "peak": 0.82907,
+    "rms": 0.50732,
+    "dc_offset": -0.003679,
     "dc_offset_per_channel": [
-      -0.003711,
+      -0.003712,
       -0.003645
     ],
     "silence_ratio": 0.0001,
@@ -374,16 +374,16 @@
     "frames": 308700,
     "duration_seconds": 7,
     "peak": 0.79562,
-    "rms": 0.42343,
-    "dc_offset": 0.002512,
+    "rms": 0.42345,
+    "dc_offset": 0.002514,
     "dc_offset_per_channel": [
-      0.00334,
-      0.001684
+      0.003342,
+      0.001685
     ],
-    "silence_ratio": 0.0031,
+    "silence_ratio": 0.003,
     "clipped_samples": 0,
     "zero_crossing_rate": [
-      0.06034,
+      0.06036,
       0.06004
     ],
     "stereo_correlation": 0.9966,
@@ -414,8 +414,8 @@
     "channels": 2,
     "frames": 264600,
     "duration_seconds": 6,
-    "peak": 0.71182,
-    "rms": 0.3454,
+    "peak": 0.71185,
+    "rms": 0.34541,
     "dc_offset": -0.000734,
     "dc_offset_per_channel": [
       -0.000752,
@@ -455,9 +455,9 @@
     "channels": 2,
     "frames": 396900,
     "duration_seconds": 9,
-    "peak": 0.87711,
-    "rms": 0.54441,
-    "dc_offset": -0.003248,
+    "peak": 0.87714,
+    "rms": 0.54442,
+    "dc_offset": -0.003249,
     "dc_offset_per_channel": [
       -0.00325,
       -0.003247

@@ -27,9 +27,10 @@ static inline float moveforge_midi_note_to_hz(float note_semis)
  *
  * This is the single point where every module's float output becomes int16, and
  * therefore the exact point where a NaN stops being detectable: both clamp
- * comparisons below are false for NaN, so `(int16_t)NaN` is 0 and a filter
- * blowup renders as digital silence. That is how dustline shipped two silent
- * presets whose goldens had been blessed twice.
+ * comparisons below are false for NaN, and converting NaN to an integer yields
+ * 0 on every target we build for, so a filter blowup renders as digital
+ * silence. That is how dustline shipped two silent presets whose goldens had
+ * been blessed twice.
  *
  * The offline harnesses compile with -DMOVEFORGE_COUNT_NONFINITE and fail the
  * render if the count is non-zero. Device and WASM builds do not define it, so
@@ -46,7 +47,12 @@ static inline int16_t moveforge_float_to_i16(float x)
     float y = x * 32767.0f;
     if (y > 32767.0f) y = 32767.0f;
     if (y < -32768.0f) y = -32768.0f;
-    return (int16_t)y;
+    /* Round, don't truncate. A truncating cast biases every sample toward zero
+     * and its error is correlated with the signal rather than noise-like —
+     * worst exactly where quiet decaying tails live. Upstream Schwung rounds at
+     * every float-to-int16 point it owns (lroundf in schwung_shim.c); this was
+     * the only place in the pipeline that didn't. */
+    return (int16_t)lroundf(y);
 }
 
 static inline float moveforge_midi_bend_normalized(uint8_t lsb, uint8_t msb)
