@@ -24,12 +24,17 @@ if [ -z "$CF" ]; then
   exit 1
 fi
 
+# Generated files are excluded here rather than left to .clang-format-ignore.
+# clang-format prints *nothing* for a file that file matches, so the --check
+# below (`clang-format "$f" | diff -q "$f" -`) reads the empty output as a
+# difference and reports every generated file as needing formatting — while
+# `-i` correctly skips it, so format and format-check could never agree.
 FILES="$(git ls-files \
   'src/modules/*/dsp/*.c' 'src/modules/*/dsp/*.h' \
   'src/modules/_shared/*.h' \
   'src/host/*.c' 'src/host/*.h' \
   'tools/*.c' 'tools/*.h' \
-  'tests/*.c' | grep -v '_faust\.c$' || true)"
+  'tests/*.c' | grep -vE '(_faust\.c|\.gen\.(c|h|inc))$' || true)"
 
 if [ -z "$FILES" ]; then
   echo "no C sources found"
