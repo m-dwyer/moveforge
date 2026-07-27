@@ -1,0 +1,54 @@
+{
+  "id": "ballast",
+  "name": "Ballast",
+  "abbrev": "BAL",
+  "version": "0.1.0",
+  "description": "Kick, tom and sub-bass from one low-end voice: two-stage pitch envelope, click and grain layers, tilt into five drive curves",
+  "author": "Local",
+  "ui": "ui.js",
+  "ui_chain": "ui_chain.js",
+  "dsp": "dsp.so",
+  "api_version": 2,
+  "capabilities": {
+    "audio_out": true,
+    "audio_in": false,
+    "midi_in": true,
+    "midi_out": false,
+    "chainable": true,
+    "component_type": "sound_generator",
+    "scope": {
+      "mode": "continuous",
+      "style": "envelope",
+      "window": 1024
+    },
+    "ui_hierarchy": {
+      "levels": {
+        "root": {
+          "name": "Ballast",
+          "list_param": "preset",
+          "count_param": "preset_count",
+          "name_param": "preset_name",
+          "params": [
+            { "key": "tune", "name": "Tune", "type": "float", "min": 24, "max": 72, "default": 33, "step": 0.01 },
+            { "key": "punch", "name": "Punch", "type": "float", "min": 0, "max": 1, "default": 0.5, "step": 0.01 },
+            { "key": "drop", "name": "Drop", "type": "float", "min": 0, "max": 1, "default": 0.45, "step": 0.01 },
+            { "key": "decay", "name": "Decay", "type": "float", "min": 0.05, "max": 3, "default": 0.45, "step": 0.01 },
+            { "key": "drive", "name": "Drive", "type": "float", "min": 0, "max": 1, "default": 0.3, "step": 0.01 },
+            { "key": "tone", "name": "Tone", "type": "float", "min": 0, "max": 1, "default": 0.5, "step": 0.01 },
+            { "key": "dirt", "name": "Dirt", "type": "float", "min": 0, "max": 1, "default": 0, "step": 0.01 },
+            { "key": "volume", "name": "Volume", "type": "float", "min": 0, "max": 1, "default": 0.75, "step": 0.01 },
+            { "key": "track", "name": "Track", "type": "float", "min": 0, "max": 1, "default": 0, "step": 0.01 },
+            { "key": "sweep", "name": "Sweep", "type": "float", "min": 0, "max": 1, "default": 0.45, "step": 0.01 },
+            { "key": "shape", "name": "Shape", "type": "float", "min": 0, "max": 1, "default": 0.35, "step": 0.01 },
+            { "key": "phase", "name": "Phase", "type": "float", "min": 0, "max": 1, "default": 0, "step": 0.01 },
+            { "key": "curve", "name": "Curve", "type": "int", "min": 0, "max": 4, "default": 0, "step": 1 },
+            { "key": "body", "name": "Body", "type": "float", "min": 0, "max": 1, "default": 0.2, "step": 0.01 },
+            { "key": "vel_depth", "name": "Vel Depth", "type": "float", "min": 0, "max": 1, "default": 0.6, "step": 0.01 },
+            { "key": "human", "name": "Human", "type": "float", "min": 0, "max": 1, "default": 0, "step": 0.01 }
+          ],
+          "knobs": ["tune", "punch", "drop", "decay", "drive", "tone", "dirt", "volume", "track", "sweep", "shape", "phase", "curve", "body", "vel_depth", "human"]
+        }
+      }
+    }
+  }
+}

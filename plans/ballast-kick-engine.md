@@ -1,6 +1,8 @@
 # Ballast — kick / tom / sub-bass engine
 
-Status: design, not yet scaffolded. Nothing here is built.
+Status: **built**. Scaffolded, implemented, 12 presets rendered, `mise run
+check` green. Sections below were revised where the implementation diverged
+from the original design; each divergence says why.
 
 **Name is provisional.** `ballast` reads well next to Westfold and Dustline and
 means "heavy material carried low for stability", which is the job. Alternates:
@@ -58,13 +60,13 @@ note ──┬──► pitch ──► [2-stage pitch env] ──► BODY  sine
                                                                              │
                                                         [ tilt EQ, pre-drive ]
                                                                              │
-                                                   [ 2× oversampled DRIVE    ]
+                                                   [ DRIVE                   ]
                                                    [ curve: soft/asym/clip/  ]
                                                    [        fold/crush       ]
                                                                              │
-                                                     [ level compensation    ]
+                                                   [ peak normalisation      ]
                                                                              │
-                                          [ DC block → HP 25 Hz → soft limit ]
+                                                    [ DC block → soft limit  ]
                                                                              │
                                                                              ▼
                                                             peak ≈ −12 dBFS
@@ -79,9 +81,15 @@ sounds like one object rather than three stacked ones.
 **Body.** Phase accumulator, sine↔triangle morph (`body`). Phase is reset on
 trigger to `phase`; start phase is a real and underrated punch control — a kick
 starting at the waveform peak hits differently from one starting at zero
-crossing. Retrigger while still sounding does a ~2 ms crossfade rather than a
-hard reset, so legato sub-bass lines do not click while kick-mode retriggers
-stay tight.
+crossing.
+
+Retrigger while still sounding would step the output. *Revised:* rather than
+the planned crossfade, which needs a second oscillator, the fix is a declick
+offset — seed a value with exactly the step the reset produced and decay it
+over ~0.7 ms. The output is then continuous by construction, at the cost of one
+float and two ops. Inaudible in kick mode, where the new transient masks it,
+and the difference between usable and unusable for legato sub lines.
+`all_notes_off` reuses the same ramp so panic fades rather than cuts.
 
 **Pitch envelope.** Two exponential stages summed:
 
@@ -105,19 +113,35 @@ character: tilt up and clip is the mid-forward driving register, tilt down and
 soft-saturate is the deep one. A fixed gentle post-compensation keeps
 perceived level roughly constant across the sweep.
 
-**Drive.** Five curves behind an `enum` parameter — soft (tanh), asymmetric,
-hard clip, wavefolder, crush (bit/rate reduction). Declared as `enum` with
-`options` so Schwung's shadow UI shows the label; Overture currently ignores
-`options` (`shared/sound-read-model.ts:26-31`) and will show a bare number until
-that is fixed, which is no worse than declaring it `int`.
+**Drive.** Five curves — soft (tanh), asymmetric, hard clip, wavefolder, crush
+(bit/rate reduction).
 
-2× oversampled with a short polyphase half-band. A hard-clipped 50 Hz sine puts
-its aliasing products around −50 dB, which is marginal on its own but not once
-the click and dirt layers are in the same clipper. Cheap enough to be worth it;
-measure and drop to 1× if the numbers say otherwise.
+*Revised:* declared `"type": "int"`, not `enum`. Every discrete selector already
+in this repo is an `int` (`trail`'s `sync`, `lobber`'s `mode`) and no module
+uses `enum` yet, so `enum` would have been the first untested path through
+gen-params, gen-ui-chain, validate and the web harness. It buys nothing in
+Overture either, which ignores `params[].options` entirely
+(`shared/sound-read-model.ts:26-31`). The curve names live in `metadata.json`
+instead, which is where this repo puts human-readable help.
 
-**Output.** DC block, first-order HP at 25 Hz (fixed — `tone` and `track` cover
-everything useful above it), soft limit, then level. Every module in the chain
+*Revised:* **no oversampling in v1.** The plan called for 2×. Two reasons to
+defer rather than build it: the body is a low sine, so a hard-clipped 55 Hz
+fundamental puts its folded energy around −52 dB and falling, and a short
+half-band good enough to be cheap only attenuates by about the same amount —
+so the first version would have cost real CPU to cancel roughly as much
+aliasing as it introduced ripple. Crush wants its aliasing regardless. This is
+a measurement to make against a rendered spectrum with the click and dirt
+layers hot, not an assumption to build in. Revisit if the top end of a driven
+`Industrial` or `Click Kick` patch measures dirty.
+
+**Output.** DC block, soft limit, then level.
+
+*Revised:* no separate 25 Hz highpass. `mf_dcblock_t`'s corner is already
+17.5 Hz, and stacking a 25 Hz first-order stage on top of it would cost about
+2 dB at 32.7 Hz — the bottom of `tune`, and exactly the fundamental a sub-bass
+patch is there to produce. One blocker does the job.
+
+Every module in the chain
 must clamp its own output: Schwung does **not** clamp between FX stages
 (`chain_host.c:2047-2060`), so an overshoot wraps rather than clips.
 `moveforge_float_to_i16` clamps, so this is belt-and-braces, but the soft limit
@@ -139,7 +163,7 @@ order, so the first eight are what you see first.
 | `drive` | Drive | float | 0 | 1 | 0.3 | saturation amount |
 | `tone` | Tone | float | 0 | 1 | 0.5 | pre-drive tilt; 0.5 = flat |
 | `dirt` | Dirt | float | 0 | 1 | 0.0 | noise grain layer |
-| `level` | Level | float | 0 | 1 | 0.75 | output |
+| `volume` | Volume | float | 0 | 1 | 0.75 | output |
 
 ### Page 2
 
@@ -149,13 +173,13 @@ order, so the first eight are what you see first.
 | `sweep` | Sweep | float | 0 | 1 | 0.45 | scales both pitch-envelope times |
 | `shape` | Shape | float | 0 | 1 | 0.35 | amp decay curve, exponential ↔ linear |
 | `phase` | Phase | float | 0 | 1 | 0.0 | oscillator start phase on trigger |
-| `curve` | Curve | enum | 0 | 4 | 0 | Soft / Asym / Clip / Fold / Crush |
+| `curve` | Curve | int | 0 | 4 | 0 | Soft / Asym / Clip / Fold / Crush |
 | `body` | Body | float | 0 | 1 | 0.2 | sine ↔ triangle |
-| `vel` | Velocity | float | 0 | 1 | 0.6 | velocity → level, pitch-env depth, drive |
+| `vel_depth` | Vel Depth | float | 0 | 1 | 0.6 | velocity → level, pitch-env depth, drive |
 | `human` | Human | float | 0 | 1 | 0.0 | per-hit variation in pitch, decay, drive |
 
-`knobs` order: `tune punch drop decay drive tone dirt level track sweep shape
-phase curve body vel human`.
+`knobs` order: `tune punch drop decay drive tone dirt volume track sweep shape
+phase curve body vel_depth human`.
 
 ### Scaling and smoothing
 
@@ -214,13 +238,24 @@ read `presets.json` or shipping these as Overture Sound Presets under
 Into `src/modules/_shared/`, because the later engines need the same pieces and
 sharing them is what makes the family sound like a family:
 
-- **`mf_drive.h`** — the five curves plus a 2× polyphase half-band
-  oversampler. This is the grit vocabulary for every engine that follows.
-- **`mf_tilt.h`** — bipolar one-pole shelf pair.
-- **Two-stage envelope** — extends what `mf_ar_t` does; pitch and amp both need
-  it, and so will every percussion voice later.
-- **Per-hit variation helper** — seeded from `mf_rng_t`, deterministic per
-  instance so offline renders stay reproducible.
+*Revised:* all of it went into `mf_dsp.h` rather than new `mf_drive.h` /
+`mf_tilt.h` headers. Saturation (`mf_tanh_approx`, `mf_soft_limit`) and the
+filters already live there, splitting them across three files would scatter one
+story, and `tests/test_mf_dsp.c` is then the single home for their coverage.
+
+- **`mf_drive_t` + `mf_drive_coeffs_t`** — the five curves behind one
+  interface, each clean at drive 0 and peak-normalised so the knob changes
+  character rather than level. This is the grit vocabulary for every engine
+  that follows.
+- **`mf_fold`** — triangle wavefolder, identity on [-1, 1] and continuous
+  everywhere, so it has no usable-range colouration and no wrap artefacts.
+- **`mf_tilt_t`** — complementary crossover rather than shelving biquads, so
+  0 dB is bit-exactly transparent instead of rippling at the centre detent.
+
+Not extracted: the two-stage envelope. Ballast crossfades a parallel
+exponential and linear envelope, which is two adds per sample and specific to
+wanting a `shape` morph. Worth promoting to `_shared` when the second engine
+needs the same thing and its real shape is known — not before.
 
 ## Constraints this must respect
 
@@ -230,7 +265,7 @@ Verified against upstream Schwung `a20cacd1` / v0.11.4.
 |---|---|---|
 | ~900 µs per block for all of Schwung, ~225 µs per slot | `schwung/docs/SPI_PROTOCOL.md:127-128` | ~2600 cycles/sample available. Comfortable for this engine; measure rather than assume. |
 | No clamp between FX stages — overshoot wraps | `chain_host.c:2047-2060` | Clamp our own output. Soft limit before the int16 conversion. |
-| No limiter anywhere in the master path; four slots sum at unity | `schwung_shim.c:2434-2443` | Peak ≈ −12 dBFS at velocity 100 with default `level`. This is the family gain reference. |
+| No limiter anywhere in the master path; four slots sum at unity | `schwung_shim.c:2434-2443` | Peak ≈ −12 dBFS at velocity 100 with default `volume`. This is the family gain reference. |
 | Schwung master FX process the ME bus only, not Move's audio | `schwung_shim.c:2406-2423` | Bus glue cannot be used to unify this engine with the Ableton engines. Cohesion has to come from matched gain staging and saturation character. |
 | `set_param` is stringly-typed and runs on the audio thread, re-issued per block while smoothing | `chain_host.c:1975-1986` | Generated setter is fine; do not add per-key work to it. |
 | MIDI has no sample offset; render is deferred one block | `plugin_api_v1.h:210`, `schwung_shim.c:1577-1580` | ~2.9 ms trigger quantisation, ~5.8 ms note-on to audio. Not fixable in the module. |
@@ -240,8 +275,12 @@ Verified against upstream Schwung `a20cacd1` / v0.11.4.
 
 ## Edge cases and safety
 
-- **Retrigger while sounding** — ~2 ms crossfade rather than a hard phase
-  reset. Kick-mode retriggers stay tight; legato sub lines do not click.
+- **Retrigger while sounding** — a ~0.7 ms declick offset ramp absorbs the
+  phase-reset step. Kick-mode retriggers stay tight; legato sub lines do not
+  click. Asserted in `tests/test_ballast_core.c` by comparing the largest
+  sample-to-sample step across a retrigger against the largest during steady
+  decay, with the noise layers off so the phase reset is the only
+  discontinuity available.
 - **Extreme drive + level + dirt** — soft limit holds it. Covered by
   `mise run stress`, which renders each param at min/max and all-max.
 - **Long decay into the idle gate** — a 3 s tail crossing −78 dBFS is already
@@ -293,3 +332,24 @@ Deferred, gated on later engines or on device use:
   outside Overture — Overture persists its own flat parameter map
   (`persistence/project-document.ts:34-46`) and never reads the engine back.
 - Factory preset delivery to device, as above.
+
+## Measured
+
+From the first green build, on an Apple-silicon dev machine — not the CM4, so
+treat these as a lower bound and re-measure on device before drawing
+conclusions.
+
+**CPU.** Median **3 µs** per 128-frame block across the twelve preset renders,
+p99 4 µs, worst single block 21 µs. The slot share is roughly 225 µs, so even
+allowing an order of magnitude for the A72 this sits comfortably inside
+budget — which is the evidence that the topology did not need pre-emptive
+trimming, and that the deferred oversampling has room if measurement later
+asks for it.
+
+**Gain staging.** All twelve presets peak between −12.8 and −11.2 dBFS, inside
+±0.9 dB of the −12 dBFS cross-engine reference. Worst DC offset across the
+suite is 0.00033.
+
+**Stress.** 30 generated parameter-extreme renders pass the metric gates
+(clipping, DC, silence, hotness, stereo balance).
+

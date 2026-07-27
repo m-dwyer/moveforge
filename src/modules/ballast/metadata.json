@@ -1,0 +1,38 @@
+{
+  "params": {
+    "tune": "Base pitch in semitones. This is the pitch at Track 0; note tracking transposes it relative to middle C, so 60 with Track at 1 plays exactly the note you press.",
+    "punch": "Attack character: depth of the fast pitch sweep, plus the click layer on top of it. This is most of what separates a thud from a kick.",
+    "drop": "Depth of the slower pitch fall into the fundamental. Small is tight, large is the classic 808 dive.",
+    "decay": "How long a hit lasts, in seconds. Short for driving, long for hypnotic and dub.",
+    "drive": "Saturation amount. At 0 the voice is clean whichever Curve is selected.",
+    "tone": "Tilts the spectrum before the drive, so it decides what gets distorted. Down is dark and round, up is mid-forward and cutting. 0.50 is flat.",
+    "dirt": "A band-passed noise layer above the fundamental. The grain that survives distortion.",
+    "volume": "Final output level. At 0.00 it mutes the voice.",
+    "track": "How much the note played moves the pitch. 0 is a fixed-pitch kick, 1 follows the keyboard for toms and sub-bass.",
+    "sweep": "Scales both pitch-envelope times together. Fast is a click, slow is a dive.",
+    "shape": "Amp decay curve, exponential through to linear. Exponential sounds natural, linear sounds tighter and more abrupt.",
+    "phase": "Oscillator start phase on each trigger. Starting at the waveform peak hits harder than starting at a zero crossing.",
+    "curve": "Drive character: 0 Soft, 1 Asym, 2 Clip, 3 Fold, 4 Crush.",
+    "body": "Oscillator waveform, sine through to triangle. Triangle brings out upper harmonics for toms and rubbery bass.",
+    "vel_depth": "How much velocity moves level, pitch-envelope depth and drive together.",
+    "human": "Per-hit variation in pitch, decay, drive and level, so consecutive hits are not identical copies."
+  },
+  "randomize": {
+    "tune": { "min": 28, "max": 42, "mode": "around_default" },
+    "punch": { "min": 0.15, "max": 0.85, "mode": "bounded" },
+    "drop": { "min": 0.2, "max": 0.8, "mode": "bounded" },
+    "decay": { "min": 0.15, "max": 1.2, "mode": "bounded" },
+    "drive": { "min": 0.1, "max": 0.7, "mode": "bounded" },
+    "tone": { "min": 0.25, "max": 0.75, "mode": "bounded" },
+    "dirt": { "min": 0, "max": 0.4, "mode": "bounded" },
+    "volume": { "min": 0.6, "max": 0.85, "mode": "around_default" },
+    "track": { "min": 0, "max": 0.2, "mode": "around_default" },
+    "sweep": { "min": 0.2, "max": 0.8, "mode": "bounded" },
+    "shape": { "min": 0.1, "max": 0.7, "mode": "bounded" },
+    "phase": { "min": 0, "max": 0.35, "mode": "bounded" },
+    "curve": { "min": 0, "max": 4, "mode": "full" },
+    "body": { "min": 0.05, "max": 0.5, "mode": "bounded" },
+    "vel_depth": { "min": 0.4, "max": 0.8, "mode": "around_default" },
+    "human": { "min": 0, "max": 0.3, "mode": "bounded" }
+  }
+}

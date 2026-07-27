@@ -18,9 +18,12 @@
  *   mf_dcblock_t         one-pole DC blocker
  *   mf_onepole_t         one-pole lowpass with an Hz-set coefficient
  *   mf_svf_t             TPT/ZDF state-variable filter (unconditionally stable)
+ *   mf_tilt_t            complementary tilt EQ, exactly transparent at 0 dB
  *   mf_smooth_t          one-pole parameter smoother
  *   mf_ar_t              attack/release envelope
  *   mf_tanh_approx       rational tanh, ~7 ops instead of a libm call
+ *   mf_fold              triangle wavefolder
+ *   mf_drive_t           five saturation curves behind one interface
  *   mf_rng_t             integer LCG noise source
  *   mf_beats_to_samples  tempo-relative lengths
  *
@@ -242,6 +245,55 @@ static inline float mf_onepole_tick(mf_onepole_t *f, float x)
 }
 
 /* ---------------------------------------------------------------------------
+ * Tilt EQ
+ *
+ * One knob that tilts the spectrum about a pivot: lows up and highs down, or
+ * the reverse. The most useful single tone control there is, and the one that
+ * decides what a downstream saturator actually chews on — tilt up into a
+ * clipper is a mid-forward, cutting sound; tilt down into a soft saturator is
+ * a round one. Same drive stage, opposite characters.
+ *
+ * Built as a complementary crossover rather than a pair of shelving biquads:
+ *
+ *     low  = onepole(x);  high = x - low;  y = low * gl + high * gh
+ *
+ * `low + high == x` holds identically whatever the one-pole's response is, so
+ * at 0 dB (gl == gh == 1) the filter is bit-exactly transparent rather than
+ * approximately so. A shelving-biquad tilt has ripple at its centre detent,
+ * which is audible as a tone change when a control that reads "flat" is not.
+ * ------------------------------------------------------------------------- */
+
+typedef struct {
+    mf_onepole_t lp;
+} mf_tilt_t;
+
+static inline void mf_tilt_init(mf_tilt_t *t, float pivot_hz)
+{
+    if (!t) return;
+    mf_onepole_init(&t->lp);
+    mf_onepole_set_hz(&t->lp, pivot_hz);
+}
+
+/* `tilt` is bipolar -1..1; positive lifts highs and cuts lows by `max_db`/2
+ * each, so the two ends are symmetric in dB and the midpoint is unity. */
+static inline void mf_tilt_gains(float tilt, float max_db,
+                                 float *gain_low, float *gain_high)
+{
+    float t = moveforge_clampf(tilt, -1.0f, 1.0f);
+    float db = t * max_db * 0.5f;
+    if (gain_high) *gain_high = powf(10.0f, db / 20.0f);
+    if (gain_low) *gain_low = powf(10.0f, -db / 20.0f);
+}
+
+static inline float mf_tilt_tick(mf_tilt_t *t, float x,
+                                 float gain_low, float gain_high)
+{
+    float low = mf_onepole_tick(&t->lp, x);
+    float high = x - low;
+    return low * gain_low + high * gain_high;
+}
+
+/* ---------------------------------------------------------------------------
  * Parameter smoother
  *
  * Unsmoothed parameters step once per block, which is a 344 Hz buzz while a
@@ -391,6 +443,166 @@ static inline float mf_soft_limit(float x)
     float over = a - MF_SOFT_LIMIT_KNEE;
     float y = MF_SOFT_LIMIT_KNEE + head * (over / (over + head));
     return x < 0.0f ? -y : y;
+}
+
+/* ---------------------------------------------------------------------------
+ * Triangle wavefolder
+ *
+ * Reflects about +-1 and repeats with period 4, so it is the identity on
+ * [-1, 1] and folds everything beyond back inside. Continuous everywhere (the
+ * reflection points are corners, not steps), which a modulo-based folder is
+ * not — a wrap produces a full-scale discontinuity and sounds like a fault.
+ * ------------------------------------------------------------------------- */
+
+static inline float mf_fold(float x)
+{
+    float y = x + 1.0f;
+    y -= 4.0f * floorf(y * 0.25f);   /* wrap into [0, 4) */
+    if (y > 2.0f) y = 4.0f - y;      /* reflect into [0, 2] */
+    return y - 1.0f;
+}
+
+/* ---------------------------------------------------------------------------
+ * Drive — five saturation curves behind one interface
+ *
+ * This exists so that every engine in a family distorts the same way. Grit is
+ * most of what makes a set of drum voices sound like one instrument rather
+ * than several, and the fastest way to lose that is for each module to grow
+ * its own tanh.
+ *
+ * Two properties hold for all five curves, and they are what make the control
+ * usable rather than merely present:
+ *
+ *   drive = 0 is clean. Not "nearly clean" — each curve's pre-gain starts
+ *   wherever that curve is the identity (0.2 for the tanh-like ones, which is
+ *   linear to within 1%; exactly 1.0 for clip and fold, which are identities
+ *   on [-1, 1]; 16 bits and no decimation for crush). So the bottom of the
+ *   knob is not a dead zone in some modes and a distortion in others.
+ *
+ *   Output is peak-normalised. `comp` is computed from the curve's own
+ *   response to a full-scale input, so turning drive up changes character
+ *   without changing level, and A/B-ing curves compares curves rather than
+ *   loudness.
+ *
+ * Coefficients are per-block work; only mf_drive_tick belongs in the sample
+ * loop. Same split as mf_svf_t.
+ *
+ * No oversampling. Clip, fold and crush all alias, and for crush that is the
+ * entire point. Whether the other four want a 2x path is a measurement to make
+ * against a rendered spectrum, not an assumption to build in — see
+ * plans/ballast-kick-engine.md.
+ * ------------------------------------------------------------------------- */
+
+typedef enum {
+    MF_DRIVE_SOFT = 0,  /* tanh — round, symmetric, odd harmonics        */
+    MF_DRIVE_ASYM = 1,  /* biased tanh — even harmonics, tube-ish        */
+    MF_DRIVE_CLIP = 2,  /* hard clip — mid-forward and cutting           */
+    MF_DRIVE_FOLD = 3,  /* triangle fold — inharmonic, metallic          */
+    MF_DRIVE_CRUSH = 4, /* bit + rate reduction — digital breakup        */
+    MF_DRIVE_COUNT = 5
+} mf_drive_curve_t;
+
+typedef struct {
+    int curve;
+    float pre;      /* pre-gain into the nonlinearity        */
+    float comp;     /* output scaling, peak-normalising      */
+    float bias;     /* asym only: operating-point offset     */
+    float bias_dc;  /* asym only: tanh(bias), removed        */
+    float steps;    /* crush only: quantiser levels          */
+    float rate;     /* crush only: sample-and-hold rate, 0..1 */
+} mf_drive_coeffs_t;
+
+typedef struct {
+    float hold;   /* crush sample-and-hold */
+    float phase;  /* crush decimation phase */
+} mf_drive_t;
+
+static inline void mf_drive_init(mf_drive_t *d)
+{
+    if (!d) return;
+    d->hold = 0.0f;
+    d->phase = 0.0f;
+}
+
+/* Exponential interpolation, so the knob is roughly constant in
+ * character-per-turn instead of doing everything in its last tenth. */
+static inline float mf_drive_gain_(float amount, float lo, float hi)
+{
+    return lo * powf(hi / lo, moveforge_clampf(amount, 0.0f, 1.0f));
+}
+
+static inline void mf_drive_set(mf_drive_coeffs_t *c, int curve, float drive)
+{
+    if (!c) return;
+    float d = moveforge_clampf(drive, 0.0f, 1.0f);
+    if (curve < 0 || curve >= MF_DRIVE_COUNT) curve = MF_DRIVE_SOFT;
+
+    c->curve = curve;
+    c->pre = 1.0f;
+    c->comp = 1.0f;
+    c->bias = 0.0f;
+    c->bias_dc = 0.0f;
+    c->steps = 32768.0f;
+    c->rate = 1.0f;
+
+    switch (curve) {
+    case MF_DRIVE_SOFT: {
+        c->pre = mf_drive_gain_(d, 0.2f, 25.0f);
+        c->comp = 1.0f / mf_tanh_approx(c->pre);
+        break;
+    }
+    case MF_DRIVE_ASYM: {
+        c->pre = mf_drive_gain_(d, 0.2f, 25.0f);
+        c->bias = 0.6f * d;
+        c->bias_dc = mf_tanh_approx(c->bias);
+        float hi = mf_tanh_approx(c->pre + c->bias) - c->bias_dc;
+        float lo = c->bias_dc - mf_tanh_approx(-c->pre + c->bias);
+        float peak = (hi > lo) ? hi : lo;
+        c->comp = (peak > 1.0e-6f) ? 1.0f / peak : 1.0f;
+        break;
+    }
+    case MF_DRIVE_CLIP:
+    case MF_DRIVE_FOLD: {
+        /* Both are the identity on [-1, 1], so a pre-gain below 1 would be a
+         * dead zone rather than a gentler setting. Start at unity. */
+        c->pre = mf_drive_gain_(d, 1.0f, (curve == MF_DRIVE_CLIP) ? 40.0f : 10.0f);
+        c->comp = 1.0f;
+        break;
+    }
+    case MF_DRIVE_CRUSH: {
+        float bits = 16.0f - 12.0f * d;              /* 16 down to 4      */
+        c->steps = powf(2.0f, bits - 1.0f);
+        c->rate = powf(1.0f / 16.0f, d);             /* 1x down to 1/16x  */
+        break;
+    }
+    default: break;
+    }
+}
+
+static inline float mf_drive_tick(mf_drive_t *d, const mf_drive_coeffs_t *c, float x)
+{
+    switch (c->curve) {
+    case MF_DRIVE_SOFT:
+        return mf_tanh_approx(x * c->pre) * c->comp;
+    case MF_DRIVE_ASYM:
+        return (mf_tanh_approx(x * c->pre + c->bias) - c->bias_dc) * c->comp;
+    case MF_DRIVE_CLIP:
+        return moveforge_clampf(x * c->pre, -1.0f, 1.0f);
+    case MF_DRIVE_FOLD:
+        return mf_fold(x * c->pre);
+    case MF_DRIVE_CRUSH: {
+        float q = moveforge_clampf(x, -1.0f, 1.0f);
+        q = (float)((int)(q * c->steps + (q >= 0.0f ? 0.5f : -0.5f))) / c->steps;
+        d->phase += c->rate;
+        if (d->phase >= 1.0f) {
+            d->phase -= floorf(d->phase);
+            d->hold = q;
+        }
+        return d->hold;
+    }
+    default:
+        return x;
+    }
 }
 
 /* ---------------------------------------------------------------------------
