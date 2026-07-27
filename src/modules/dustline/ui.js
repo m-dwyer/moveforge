@@ -1,15 +1,15 @@
-export function render(ctx, state) {
-  const params = state?.params || {};
-  ctx.clear();
-  ctx.text(0, 0, "Dustline");
-  ctx.text(0, 12, "Init  T1  Pg 1/1");
-  ctx.line(0, 26, 128, 26);
-  ctx.text(0, 38, `Volume ${fmt(params.volume)}`);
-  ctx.text(0, 50, `Wave   ${fmt(params.wave)}`);
-  ctx.text(0, 62, `Noise  ${fmt(params.noise)}`);
-  ctx.text(0, 74, `Cutoff ${fmt(params.cutoff)}`);
-}
+import { createSoundGeneratorUI } from '/data/UserData/schwung/shared/sound_generator_ui.mjs';
 
-function fmt(value) {
-  return Number(value ?? 0).toFixed(2);
-}
+// Solo-mode screen. The host calls globalThis.init / tick / onMidiMessage*; it
+// never imports a `render` export, so a module that only exports functions is
+// never called at all and its solo screen stays blank.
+const ui = createSoundGeneratorUI({
+  moduleName: 'Dustline',
+  showPolyphony: false,
+  showOctave: true
+});
+
+globalThis.init = ui.init;
+globalThis.tick = ui.tick;
+globalThis.onMidiMessageInternal = ui.onMidiMessageInternal;
+globalThis.onMidiMessageExternal = ui.onMidiMessageExternal;

@@ -18,3 +18,4 @@ web/tests/__screenshots__/
 # Golden WAVs are large; regenerated locally via `pnpm run bless-renders`.
 # Only metrics.json + .trace under goldens/ are checked in.
 goldens/**/*.wav
+compile_commands.json

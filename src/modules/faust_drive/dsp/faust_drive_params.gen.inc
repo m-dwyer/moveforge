@@ -4,14 +4,14 @@
 #ifndef FAUST_DRIVE_PARAMS_GEN_INC
 #define FAUST_DRIVE_PARAMS_GEN_INC
 
-#define FAUST_DRIVE_PARAM_COUNT 4
+/* FAUST_DRIVE_PARAM_COUNT and the FAUST_DRIVE_PARAM_* enum. Also included by
+ * faust_drive_core.h; the guard makes the second include a no-op. */
+#include "faust_drive_params.gen.h"
 
-enum {
-    FAUST_DRIVE_PARAM_DRIVE = 0,
-    FAUST_DRIVE_PARAM_TONE = 1,
-    FAUST_DRIVE_PARAM_MIX = 2,
-    FAUST_DRIVE_PARAM_LEVEL = 3
-};
+/* zones[] is indexed by param id, so it must track FAUST_DRIVE_PARAM_COUNT. */
+_Static_assert(sizeof(((faust_drive_core_t *)0)->zones) / sizeof(void *)
+                   == FAUST_DRIVE_PARAM_COUNT,
+               "faust_drive_core_t.zones[] must be sized FAUST_DRIVE_PARAM_COUNT");
 
 static inline float faust_drive_params_clampf_(float x, float lo, float hi) {
     return x < lo ? lo : (x > hi ? hi : x);

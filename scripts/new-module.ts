@@ -94,6 +94,7 @@ const renderedFiles = await renderTemplateTree({
     : join(targetDir, rel)
 });
 const generatedFiles = [
+  `${targetDir}/dsp/${id}_params.gen.h`,
   `${targetDir}/dsp/${id}_params.gen.inc`,
   `${targetDir}/dsp/${id}_presets.gen.inc`,
   ...(dsp === "faust" ? [`${targetDir}/dsp/${id}_faust.c`] : []),

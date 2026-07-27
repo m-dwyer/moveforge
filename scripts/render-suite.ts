@@ -2,7 +2,25 @@ import { readFile } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
 import { selectedModuleTargets } from "./lib/modules.ts";
 
-type SoundGenRender = {
+/* Optional block-rate parameter automation. Ramps catch zipper noise and
+ * unsmoothed gains; step lists catch discontinuities (a delay time jumping the
+ * read pointer, filter coefficients recomputed at a block boundary).
+ *
+ *   "automate": [{ "key": "cutoff", "from": 0.1, "to": 0.9 },
+ *                { "key": "sync", "steps": [0, 4, 7] }]
+ */
+type Automation =
+  | { key: string; from: number; to: number; cycles?: number }
+  | { key: string; steps: number[] };
+
+/* `sparse: true` marks a render that is legitimately mostly silence (a bare
+ * impulse into an FX). Read by check-renders; relaxes only the silence floor. */
+type CommonRender = {
+  automate?: Automation[];
+  sparse?: boolean;
+};
+
+type SoundGenRender = CommonRender & {
   file: string;
   gate_blocks: number;
   note_blocks: number;
@@ -11,13 +29,13 @@ type SoundGenRender = {
   velocity: number;
 };
 
-type AudioFxRender = {
+type AudioFxRender = CommonRender & {
   file: string;
   seconds?: number;
   signal?: "sweep" | "noise" | "impulse" | "silence";
 };
 
-type MidiFxRender = {
+type MidiFxRender = CommonRender & {
   file: string;
   blocks?: number;
   gate_blocks?: number;
@@ -79,7 +97,17 @@ for (const target of await selectedModuleTargets()) {
       args.push(`${key}=${value}`);
     }
 
+    for (const a of (render as CommonRender).automate ?? []) {
+      args.push("--automate", automationSpec(a));
+    }
+
     const result = spawnSync(renderBin, args, { stdio: "inherit" });
     if (result.status !== 0) process.exit(result.status ?? 1);
   }
+}
+
+function automationSpec(a: Automation): string {
+  if ("steps" in a) return `${a.key}=${a.steps.join(",")}`;
+  const cycles = a.cycles && a.cycles > 1 ? `x${a.cycles}` : "";
+  return `${a.key}=${a.from}..${a.to}${cycles}`;
 }

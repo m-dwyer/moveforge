@@ -26,7 +26,12 @@ int main(void) {
 
     {{moduleId}}_init(&v);
     require_true(v.fdsp != NULL, "faust dsp allocated");
-    require_true(v.zones[0] != NULL, "level zone captured");
+    /* Every declared param must have found a matching hslider label in the
+     * .dsp. A NULL zone means the label is missing or misspelled, which would
+     * otherwise ship as a knob that silently does nothing. */
+    for (int i = 0; i < {{moduleUpper}}_PARAM_COUNT; i++) {
+        require_true(v.zones[i] != NULL, "every param zone captured");
+    }
     require_true(v.zone_gate != NULL, "gate zone captured");
     require_true(v.zone_freq != NULL, "freq zone captured");
     require_true(v.zone_gain != NULL, "gain zone captured");

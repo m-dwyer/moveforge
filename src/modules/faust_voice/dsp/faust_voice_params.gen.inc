@@ -4,15 +4,14 @@
 #ifndef FAUST_VOICE_PARAMS_GEN_INC
 #define FAUST_VOICE_PARAMS_GEN_INC
 
-#define FAUST_VOICE_PARAM_COUNT 5
+/* FAUST_VOICE_PARAM_COUNT and the FAUST_VOICE_PARAM_* enum. Also included by
+ * faust_voice_core.h; the guard makes the second include a no-op. */
+#include "faust_voice_params.gen.h"
 
-enum {
-    FAUST_VOICE_PARAM_CUTOFF = 0,
-    FAUST_VOICE_PARAM_RESONANCE = 1,
-    FAUST_VOICE_PARAM_ATTACK = 2,
-    FAUST_VOICE_PARAM_RELEASE = 3,
-    FAUST_VOICE_PARAM_LEVEL = 4
-};
+/* zones[] is indexed by param id, so it must track FAUST_VOICE_PARAM_COUNT. */
+_Static_assert(sizeof(((faust_voice_core_t *)0)->zones) / sizeof(void *)
+                   == FAUST_VOICE_PARAM_COUNT,
+               "faust_voice_core_t.zones[] must be sized FAUST_VOICE_PARAM_COUNT");
 
 static inline float faust_voice_params_clampf_(float x, float lo, float hi) {
     return x < lo ? lo : (x > hi ? hi : x);

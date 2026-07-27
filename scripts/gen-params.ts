@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { modulePaths, selectedModuleIds } from "./lib/modules.ts";
@@ -7,6 +7,7 @@ import { renderTemplateString } from "./lib/templates.ts";
 import { type GenerateOptions, writeGeneratedFile } from "./lib/generated-files.ts";
 
 const TEMPLATE_PATH = "templates/generated/params.gen.inc.tmpl";
+const HEADER_TEMPLATE_PATH = "templates/generated/params.gen.h.tmpl";
 
 type Param = {
   default: number;
@@ -68,7 +69,16 @@ export async function generate(options: GenerateOptions = {}): Promise<number> {
       continue;
     }
 
-    const generated = renderInc(moduleId, params);
+    drift += await writeGeneratedFile({
+      generated: renderHeader(moduleId, params),
+      mode,
+      moduleId,
+      outPath: paths.paramsGenH,
+      staleMessage: "run `mise run gen-params`",
+      writeMessage: `wrote ${paths.paramsGenH}`
+    });
+
+    const generated = renderInc(moduleId, params, existsSync(paths.faustDsp));
     drift += await writeGeneratedFile({
       generated,
       mode,
@@ -118,12 +128,43 @@ function renderScopeInc(moduleId: string, scope: ScopeConfig): string {
   ].join("\n");
 }
 
-function renderInc(moduleId: string, params: Param[]): string {
+/* The param count and enum live in their own header so <id>_core.h can size
+ * arrays indexed by param id (e.g. a Faust adapter's zones[]) from the
+ * generated count rather than a hand-maintained literal. */
+function renderHeader(moduleId: string, params: Param[]): string {
+  const upper = moduleId.toUpperCase();
+  return renderTemplateString(readTemplate(HEADER_TEMPLATE_PATH), {
+    coreType: `${moduleId}_core_t`,
+    enumEntries: params.map((p, i) => `    ${enumName(upper, p.key)} = ${i}`).join(",\n"),
+    guard: `${upper}_PARAMS_GEN_H`,
+    moduleId,
+    paramCount: params.length,
+    upper
+  });
+}
+
+/* A Faust adapter captures one zone pointer per param into <id>_core_t.zones,
+ * indexed by param id, so the array has to track the param count exactly. Ask
+ * the compiler instead of searching the header text: this catches an
+ * undersized array, an oversized one, a renamed member (no `zones` to take the
+ * sizeof) and a stale count, none of which text matching sees reliably — and
+ * the failure lands at build time with the reason attached, rather than as an
+ * out-of-bounds write with no redzone for ASan to catch (plan 3.3/7.3). */
+function renderZonesAssert(moduleId: string, isFaust: boolean): string {
+  if (!isFaust) return "";
+  const upper = moduleId.toUpperCase();
+  return (
+    `\n/* zones[] is indexed by param id, so it must track ${upper}_PARAM_COUNT. */\n` +
+    `_Static_assert(sizeof(((${moduleId}_core_t *)0)->zones) / sizeof(void *)\n` +
+    `                   == ${upper}_PARAM_COUNT,\n` +
+    `               "${moduleId}_core_t.zones[] must be sized ${upper}_PARAM_COUNT");\n`
+  );
+}
+
+function renderInc(moduleId: string, params: Param[], isFaust: boolean): string {
   const upper = moduleId.toUpperCase();
   const coreT = `${moduleId}_core_t`;
   const guard = `${upper}_PARAMS_GEN_INC`;
-
-  const enumEntries = params.map((p, i) => `    ${enumName(upper, p.key)} = ${i}`).join(",\n");
 
   const idLookup = params
     .map((p) => `    if (strcmp(key, "${p.key}") == 0) return ${enumName(upper, p.key)};`)
@@ -142,25 +183,29 @@ function renderInc(moduleId: string, params: Param[]): string {
 
   const defaults = params.map((p) => `    s->${p.key} = ${cf(p.default, "param value")};`).join("\n");
 
-  return renderTemplateString(readTemplate(), {
+  return renderTemplateString(readTemplate(TEMPLATE_PATH), {
     coreType: coreT,
     defaults,
-    enumEntries,
     getCases,
     guard,
     idLookup,
     moduleId,
     paramCount: params.length,
     setCases,
-    upper
+    upper,
+    zonesAssert: renderZonesAssert(moduleId, isFaust)
   });
 }
 
-let template: string | undefined;
+const templates = new Map<string, string>();
 
-function readTemplate(): string {
-  if (template === undefined) template = readFileSync(TEMPLATE_PATH, "utf8");
-  return template;
+function readTemplate(path: string): string {
+  let cached = templates.get(path);
+  if (cached === undefined) {
+    cached = readFileSync(path, "utf8");
+    templates.set(path, cached);
+  }
+  return cached;
 }
 
 function enumName(upper: string, key: string): string {

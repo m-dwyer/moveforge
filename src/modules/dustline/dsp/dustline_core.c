@@ -8,46 +8,66 @@
 
 #include "modules/_shared/dsp_runtime.h"
 
-static float next_noise(dustline_core_t *s) {
-    uint32_t x = (uint32_t)(s->rng * 4294967295.0f);
-    if (x == 0) x = 0x12345678u;
-    x = x * 1664525u + 1013904223u;
-    s->rng = (float)x / 4294967295.0f;
-    return s->rng * 2.0f - 1.0f;
-}
+/* `resonance` is declared 0..0.95 in module.json; mf_svf_set wants 0..1. */
+#define DUSTLINE_RESONANCE_MAX 0.95f
 
 void dustline_init(dustline_core_t *s) {
     if (!s) return;
     memset(s, 0, sizeof(*s));
+    mf_voice_init(&s->voice);
     s->active_note = -1;
-    s->rng = 0.37f;
+    mf_rng_init(&s->rng, 0x5eed1234u);
+    mf_svf_init(&s->svf);
+    mf_dcblock_init(&s->dc_pre);
+    mf_dcblock_init(&s->dc_post);
     dustline_apply_defaults(s);
 }
 
-void dustline_note_on(dustline_core_t *s, int note, float velocity) {
-    if (!s) return;
+/* Begin sounding a note. Shared by a fresh note-on and by the fallback when a
+ * higher note is released while a lower one is still held. */
+static void dustline_start_note(dustline_core_t *s, int note, float velocity) {
     s->active_note = note;
     s->target_freq = moveforge_midi_note_to_hz((float)note);
     if (s->freq <= 0.0f) s->freq = s->target_freq;
     s->velocity = moveforge_clampf(velocity, 0.0f, 1.0f);
     s->gate = 1.0f;
-    /* Recover from any non-finite filter state left over from a prior
-     * unstable run (e.g. user loaded an older build that hit the SVF
-     * stability bug). */
-    if (!(s->lp == s->lp) || s->lp > 1e6f || s->lp < -1e6f) s->lp = 0.0f;
-    if (!(s->bp == s->bp) || s->bp > 1e6f || s->bp < -1e6f) s->bp = 0.0f;
+    /* The ZDF SVF is unconditionally stable, so filter state can only go
+     * non-finite if something upstream fed it a non-finite sample. Reset
+     * rather than let it persist for the life of the instance. */
+    if (!isfinite(s->svf.ic1eq) || !isfinite(s->svf.ic2eq)) mf_svf_init(&s->svf);
+}
+
+void dustline_note_on(dustline_core_t *s, int note, float velocity) {
+    if (!s) return;
+    int next_note = 0;
+    float next_velocity = 0.0f;
+    if (mf_voice_note_on(&s->voice, note, velocity, &next_note, &next_velocity) == MF_VOICE_START) {
+        dustline_start_note(s, next_note, next_velocity);
+    }
 }
 
 void dustline_note_off(dustline_core_t *s, int note) {
     if (!s) return;
-    if (s->active_note == note) {
-        s->gate = 0.0f;
-        s->active_note = -1;
+    int next_note = 0;
+    float next_velocity = 0.0f;
+    switch (mf_voice_note_off(&s->voice, note, &next_note, &next_velocity)) {
+        case MF_VOICE_START:
+            /* A lower note is still held — fall back to it rather than going
+             * silent, which is what this used to do. */
+            dustline_start_note(s, next_note, next_velocity);
+            break;
+        case MF_VOICE_STOP:
+            s->gate = 0.0f;
+            s->active_note = -1;
+            break;
+        default:
+            break;
     }
 }
 
 void dustline_all_notes_off(dustline_core_t *s) {
     if (!s) return;
+    mf_voice_all_off(&s->voice);
     s->gate = 0.0f;
     s->active_note = -1;
 }
@@ -67,12 +87,25 @@ void dustline_process_float(dustline_core_t *s,
     float *left = out_left;
     float *right = out_right;
 
-    for (int i = 0; i < frames; i++) {
-        float bend_mul = powf(2.0f, (s->pitch_bend * s->bend_range) / 12.0f);
-        s->freq += (s->target_freq * bend_mul - s->freq) * 0.002f;
+    /* Filter coefficients are block-constant: cutoff and resonance only change
+     * when the host delivers a parameter, which happens between blocks. Keeps
+     * tanf out of the sample loop. */
+    float cutoff_hz = 70.0f + powf(s->cutoff, 2.2f) * 14000.0f;
+    mf_svf_coeffs_t svf_c;
+    mf_svf_set(&svf_c, cutoff_hz, s->resonance / DUSTLINE_RESONANCE_MAX);
 
-        float attack_coeff = 1.0f - expf(-1.0f / (s->attack * MOVEFORGE_SAMPLE_RATE));
-        float release_coeff = 1.0f - expf(-1.0f / (s->release * MOVEFORGE_SAMPLE_RATE));
+    /* Every one of these depends only on parameters, which the host can change
+     * between blocks but never within one — so computing them per sample was
+     * pure waste: one powf and two expf on every sample, about 260 cycles.
+     * Hoisting is bit-identical, not an approximation. */
+    float bend_mul = powf(2.0f, (s->pitch_bend * s->bend_range) / 12.0f);
+    float attack_coeff = mf_env_coeff_seconds(s->attack);
+    float release_coeff = mf_env_coeff_seconds(s->release);
+    float target_freq_bent = s->target_freq * bend_mul;
+
+    for (int i = 0; i < frames; i++) {
+        s->freq += (target_freq_bent - s->freq) * 0.002f;
+
         s->env += ((s->gate > 0.5f ? 1.0f : 0.0f) - s->env) * (s->gate > 0.5f ? attack_coeff : release_coeff);
 
         s->phase += moveforge_clampf(s->freq, 1.0f, 16000.0f) / MOVEFORGE_SAMPLE_RATE;
@@ -86,28 +119,32 @@ void dustline_process_float(dustline_core_t *s,
         float osc_a = saw * (1.0f - s->wave) + pulse * s->wave;
         float sub = (s->sub_phase < 0.5f ? 1.0f : -1.0f) * 0.38f;
         float source = osc_a * 0.72f + tri * 0.18f + sub;
-        source = source * (1.0f - s->noise) + next_noise(s) * s->noise;
+        source = source * (1.0f - s->noise) + mf_rng_bipolar(&s->rng) * s->noise;
 
-        float cutoff_hz = 70.0f + powf(s->cutoff, 2.2f) * 14000.0f;
-        float f = moveforge_clampf(2.0f * sinf((MOVEFORGE_TWO_PI * 0.5f) * cutoff_hz / MOVEFORGE_SAMPLE_RATE), 0.002f, 0.95f);
-        /* Chamberlin SVF is conditionally stable: f*q must stay below ~2.
-         * Cap q to 1.8/f so high cutoff + high resonance can't blow up
-         * (was producing NaN at e.g. cutoff=0.86, resonance=0.76). */
-        float q_desired = 0.35f + s->resonance * 3.8f;
-        float q_max = 1.8f / (f + 1e-6f);
-        float q = q_desired < q_max ? q_desired : q_max;
-        s->lp += f * s->bp;
-        float hp = source - s->lp - q * s->bp;
-        s->bp += f * hp;
+        mf_svf_tick(&s->svf, &svf_c, source);
 
         float output_gain = s->volume;
         float amp = (0.12f + 0.88f * s->velocity) * s->env;
         float gain = 1.0f + s->drive * 12.0f;
-        float y = tanhf(s->lp * gain) * amp * 0.96f;
-        float hp_out = y - s->hp_x + 0.995f * s->hp_y;
-        s->hp_x = y;
-        s->hp_y = hp_out;
-        y = tanhf(hp_out) * output_gain * 0.94f;
+        float y = tanhf(s->svf.lp * gain) * amp * 0.96f;
+        y = mf_dcblock_tick(&s->dc_pre, y);
+        y = tanhf(y);
+        /* The output tanh above reintroduces DC whenever the waveform is
+         * asymmetric (a narrow pulse at high `wave`, for instance), so a
+         * blocker has to run after it too — dust-bass measured 4.5% DC with
+         * only the upstream one.
+         *
+         * It runs before the volume scale, not after: a highpass after the gain
+         * has decaying state, so volume=0 would leave a ~10 ms tail instead of
+         * muting. A constant gain cannot reintroduce DC, so blocking first is
+         * both correct and hard-mutable. */
+        y = mf_dcblock_tick(&s->dc_post, y);
+        /* 0.78, not 0.94: removing the DC offset freed up peak headroom, so the
+         * same nominal level now swings further. Measured pre-clamp peak at
+         * volume=max was 1.084 (defaults) and 1.138 (all-hot), i.e. the output
+         * was hard-clipping in moveforge_float_to_i16. This lands the worst case
+         * near 0.89 and keeps margin against the stress gate's 0.995. */
+        y = y * output_gain * 0.78f;
         left[i] = moveforge_clampf(y, -1.0f, 1.0f);
         right[i] = left[i];
     }

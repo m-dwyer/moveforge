@@ -146,3 +146,15 @@ run = "make check-all"
 [tasks.clean]
 description = "Remove build/, build-host/, dist/, dist-host/, rendered plots, and browser WASM"
 run = "make clean"
+
+[tasks.format]
+description = "Format hand-written C with clang-format"
+run = "pnpm run format"
+
+[tasks.format-check]
+description = "Check hand-written C formatting without rewriting"
+run = "pnpm run format-check"
+
+[tasks.gen-compile-commands]
+description = "Generate compile_commands.json for clangd / libclang tooling"
+run = "pnpm run gen-compile-commands"

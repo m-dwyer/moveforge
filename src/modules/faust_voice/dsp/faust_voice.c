@@ -11,9 +11,11 @@
  * (module.json) -> generated faust_voice_scope.gen.inc. faust_voice is a mono
  * harmonic saw, so it opts into the phase-locked "triggered" style. */
 #include "faust_voice_scope.gen.inc"
+#include "faust_voice_presets.gen.inc"
 
 typedef struct {
     faust_voice_core_t core;
+    int current_preset;
     mf_scope_t scope;
 } faust_voice_plugin_t;
 
@@ -25,6 +27,10 @@ static void* create_instance(const char *module_dir, const char *json_defaults) 
     faust_voice_plugin_t *p = (faust_voice_plugin_t*)calloc(1, sizeof(faust_voice_plugin_t));
     if (!p) return NULL;
     faust_voice_init(&p->core);
+    /* Deliberately no preset at create: faust_voice_init has applied module.json's
+     * defaults, and preset selection is the host's (chain_patch.c:1345 sends
+     * set_param("preset")). -1 = none selected, so any first pick applies. */
+    p->current_preset = -1;
     mf_scope_init(&p->scope, FAUST_VOICE_SCOPE_WINDOW, FAUST_VOICE_SCOPE_MODE, FAUST_VOICE_SCOPE_STYLE);
     return p;
 }
@@ -58,6 +64,14 @@ static void set_param(void *instance, const char *key, const char *val) {
         faust_voice_all_notes_off(&p->core);
         return;
     }
+    if (strcmp(key, "preset") == 0) {
+        /* Idempotent on purpose — see the note in westfold.c. */
+        int next = faust_voice_clamp_preset_index(atoi(val));
+        if (next == p->current_preset) return;
+        p->current_preset = next;
+        faust_voice_apply_preset(&p->core, p->current_preset);
+        return;
+    }
     faust_voice_set_param(&p->core, faust_voice_param_id(key), (float)atof(val));
 }
 
@@ -66,6 +80,15 @@ static int get_param(void *instance, const char *key, char *buf, int buf_len) {
     if (!p || !key || !buf || buf_len <= 0) return -1;
     if (strcmp(key, "__scope") == 0) {
         return mf_scope_serialize(&p->scope, buf, buf_len);
+    }
+    if (strcmp(key, "preset_count") == 0) {
+        return snprintf(buf, (size_t)buf_len, "%d", faust_voice_preset_count());
+    }
+    if (strcmp(key, "preset") == 0) {
+        return snprintf(buf, (size_t)buf_len, "%d", p->current_preset);
+    }
+    if (strcmp(key, "preset_name") == 0) {
+        return snprintf(buf, (size_t)buf_len, "%s", faust_voice_preset_name(p->current_preset));
     }
     int param_id = faust_voice_param_id(key);
     if (param_id < 0) return -1;

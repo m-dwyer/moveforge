@@ -1,6 +1,8 @@
 #ifndef DUSTLINE_CORE_H
 #define DUSTLINE_CORE_H
 
+#include "modules/_shared/mf_dsp.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -13,11 +15,11 @@ typedef struct {
     float velocity;
     float env;
     float gate;
-    float lp;
-    float bp;
-    float hp_x;
-    float hp_y;
-    float rng;
+    mf_svf_t svf;
+    mf_dcblock_t dc_pre;   /* before the output saturator */
+    mf_dcblock_t dc_post;  /* after it — tanh reintroduces DC on asymmetric input */
+    mf_rng_t rng;
+    mf_voice_t voice;
     int active_note;
     float pitch_bend;
 

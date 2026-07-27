@@ -1,6 +1,13 @@
 #ifndef {{moduleUpper}}_CORE_H
 #define {{moduleUpper}}_CORE_H
 
+/* {{moduleUpper}}_PARAM_COUNT and the {{moduleUpper}}_PARAM_* enum, generated
+ * from module.json by gen-params. zones[] must be sized from that count, never
+ * a literal: a hand-written size silently overflows into the next field the
+ * first time you add a param, and no sanitizer can see it (it is an
+ * intra-struct write). */
+#include "{{moduleId}}_params.gen.h"
+
 typedef struct {
     float level;
 
@@ -11,7 +18,7 @@ typedef struct {
     float pitch_bend_semis;
 
     void *fdsp;
-    void *zones[1];
+    void *zones[{{moduleUpper}}_PARAM_COUNT];
     void *zone_gate;
     void *zone_freq;
     void *zone_gain;

@@ -15,7 +15,16 @@
       },
       "render": {
         "file": "00-init.wav",
-        "notes": [48, 55, 60, 64, 67, 72, 67, 64],
+        "notes": [
+          48,
+          55,
+          60,
+          64,
+          67,
+          72,
+          67,
+          64
+        ],
         "note_blocks": 76,
         "gate_blocks": 54,
         "seconds": 7,
@@ -37,7 +46,16 @@
       },
       "render": {
         "file": "01-dust-bass.wav",
-        "notes": [36, 36, 43, 36, 39, 36, 48, 43],
+        "notes": [
+          36,
+          36,
+          43,
+          36,
+          39,
+          36,
+          48,
+          43
+        ],
         "note_blocks": 66,
         "gate_blocks": 42,
         "seconds": 7,
@@ -59,7 +77,14 @@
       },
       "render": {
         "file": "02-air-noise.wav",
-        "notes": [60, 67, 72, 79, 76, 72],
+        "notes": [
+          60,
+          67,
+          72,
+          79,
+          76,
+          72
+        ],
         "note_blocks": 138,
         "gate_blocks": 92,
         "seconds": 10,
@@ -81,7 +106,18 @@
       },
       "render": {
         "file": "03-pin-lead.wav",
-        "notes": [72, 74, 79, 76, 72, 67, 69, 72, 79, 84],
+        "notes": [
+          72,
+          74,
+          79,
+          76,
+          72,
+          67,
+          69,
+          72,
+          79,
+          84
+        ],
         "note_blocks": 46,
         "gate_blocks": 28,
         "seconds": 6,
@@ -103,7 +139,16 @@
       },
       "render": {
         "file": "04-glass-keys.wav",
-        "notes": [60, 64, 67, 72, 76, 79, 84, 79],
+        "notes": [
+          60,
+          64,
+          67,
+          72,
+          76,
+          79,
+          84,
+          79
+        ],
         "note_blocks": 72,
         "gate_blocks": 44,
         "seconds": 7,
@@ -125,11 +170,30 @@
       },
       "render": {
         "file": "05-filter-sweep.wav",
-        "notes": [45, 52, 57, 64, 60, 55],
+        "notes": [
+          45,
+          52,
+          57,
+          64,
+          60,
+          55
+        ],
         "note_blocks": 126,
         "gate_blocks": 96,
         "seconds": 10,
-        "velocity": 98
+        "velocity": 98,
+        "automate": [
+          {
+            "key": "cutoff",
+            "from": 0.05,
+            "to": 1.0
+          },
+          {
+            "key": "resonance",
+            "from": 0.0,
+            "to": 0.95
+          }
+        ]
       }
     }
   ]

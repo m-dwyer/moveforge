@@ -4,19 +4,14 @@
 #ifndef TRAIL_PARAMS_GEN_INC
 #define TRAIL_PARAMS_GEN_INC
 
-#define TRAIL_PARAM_COUNT 9
+/* TRAIL_PARAM_COUNT and the TRAIL_PARAM_* enum. Also included by
+ * trail_core.h; the guard makes the second include a no-op. */
+#include "trail_params.gen.h"
 
-enum {
-    TRAIL_PARAM_TIME = 0,
-    TRAIL_PARAM_SYNC = 1,
-    TRAIL_PARAM_FEEDBACK = 2,
-    TRAIL_PARAM_TONE = 3,
-    TRAIL_PARAM_MOD = 4,
-    TRAIL_PARAM_WIDTH = 5,
-    TRAIL_PARAM_DRIVE = 6,
-    TRAIL_PARAM_SPACE = 7,
-    TRAIL_PARAM_MIX = 8
-};
+/* zones[] is indexed by param id, so it must track TRAIL_PARAM_COUNT. */
+_Static_assert(sizeof(((trail_core_t *)0)->zones) / sizeof(void *)
+                   == TRAIL_PARAM_COUNT,
+               "trail_core_t.zones[] must be sized TRAIL_PARAM_COUNT");
 
 static inline float trail_params_clampf_(float x, float lo, float hi) {
     return x < lo ? lo : (x > hi ? hi : x);

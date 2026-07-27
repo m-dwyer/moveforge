@@ -32,6 +32,10 @@
  */
 
 #define MF_SCOPE_COLS 128   /* one column per display pixel-x (128x64 OLED) */
+/* Bounded so `pos * MF_SCOPE_COLS` stays inside int32 in mf_scope_accumulate,
+ * which lets that run as a 32-bit divide. 2^20 samples is 23.8 s at 44.1 kHz —
+ * far longer than any scope frame. */
+#define MF_SCOPE_MAX_WINDOW (1 << 20)
 #define MF_SCOPE_ROWS 64    /* display height; serialized value range */
 #define MF_SCOPE_ENC_BASE 48 /* printable ASCII base for encoded rows */
 #define MF_SCOPE_SQUELCH 0.02f /* frames quieter than this serve nothing (idle/silence) */
@@ -80,6 +84,7 @@ static inline void mf_scope_init(mf_scope_t *s, int window_samples, int mode, in
 {
     if (!s) return;
     if (window_samples < MF_SCOPE_COLS) window_samples = MF_SCOPE_COLS;
+    if (window_samples > MF_SCOPE_MAX_WINDOW) window_samples = MF_SCOPE_MAX_WINDOW;
     s->window = window_samples;
     s->mode = mode;
     s->style = style;
@@ -141,7 +146,11 @@ static inline void mf_scope_publish(mf_scope_t *s)
 
 static inline void mf_scope_accumulate(mf_scope_t *s, float v)
 {
-    long col = (long)s->pos * MF_SCOPE_COLS / s->window;
+    /* 32-bit, not 64-bit. `pos` never exceeds `window` and mf_scope_init clamps
+     * window to MF_SCOPE_MAX_WINDOW, so the product cannot overflow int32 — the
+     * (long) cast was forcing a 64-bit divide into the per-sample audio path for
+     * a display feature. Identical results, just narrower. */
+    int col = (s->pos * MF_SCOPE_COLS) / s->window;
     if (col < 0) col = 0;
     if (col >= MF_SCOPE_COLS) col = MF_SCOPE_COLS - 1;
     if (s->style == MF_SCOPE_LINE) {

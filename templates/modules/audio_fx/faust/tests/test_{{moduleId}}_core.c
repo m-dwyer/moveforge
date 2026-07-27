@@ -22,7 +22,12 @@ int main(void) {
 
     {{moduleId}}_init(&fx);
     require_true(fx.fdsp != NULL, "faust dsp allocated");
-    require_true(fx.zones[0] != NULL && fx.zones[1] != NULL, "param zones captured");
+    /* Every declared param must have found a matching hslider label in the
+     * .dsp. A NULL zone means the label is missing or misspelled, which would
+     * otherwise ship as a knob that silently does nothing. */
+    for (int i = 0; i < {{moduleUpper}}_PARAM_COUNT; i++) {
+        require_true(fx.zones[i] != NULL, "every param zone captured");
+    }
 
     int mix_id = {{moduleId}}_param_id("mix");
     int level_id = {{moduleId}}_param_id("level");

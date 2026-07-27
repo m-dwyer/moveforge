@@ -45,6 +45,7 @@ void faust_voice_init(faust_voice_core_t *s) {
     if (!s) return;
     memset(s, 0, sizeof(*s));
     faust_voice_apply_defaults(s);
+    mf_voice_init(&s->voice);
     s->active_note = -1;
     s->current_freq = 220.0f;
     s->current_gain = 0.0f;
@@ -69,25 +70,46 @@ void faust_voice_destroy(faust_voice_core_t *s) {
     }
 }
 
-void faust_voice_note_on(faust_voice_core_t *s, int note, float velocity) {
-    if (!s) return;
+/* Begin sounding a note. Shared by a fresh note-on and by the fallback when a
+ * higher note is released while a lower one is still held. */
+static void faust_voice_start_note(faust_voice_core_t *s, int note, float velocity) {
     s->active_note = note;
     s->current_gain = velocity;
     s->gate = 1.0f;
     recompute_freq(s);
 }
 
+void faust_voice_note_on(faust_voice_core_t *s, int note, float velocity) {
+    if (!s) return;
+    int next_note = 0;
+    float next_velocity = 0.0f;
+    if (mf_voice_note_on(&s->voice, note, velocity, &next_note, &next_velocity) == MF_VOICE_START) {
+        faust_voice_start_note(s, next_note, next_velocity);
+    }
+}
+
 void faust_voice_note_off(faust_voice_core_t *s, int note) {
     if (!s) return;
-    /* Mono: only release if the held note matches. */
-    if (s->active_note == note) {
-        s->gate = 0.0f;
-        s->active_note = -1;
+    int next_note = 0;
+    float next_velocity = 0.0f;
+    switch (mf_voice_note_off(&s->voice, note, &next_note, &next_velocity)) {
+        case MF_VOICE_START:
+            /* Mono with last-note priority: a lower note is still held, so fall
+             * back to it rather than going silent. */
+            faust_voice_start_note(s, next_note, next_velocity);
+            break;
+        case MF_VOICE_STOP:
+            s->gate = 0.0f;
+            s->active_note = -1;
+            break;
+        default:
+            break;
     }
 }
 
 void faust_voice_all_notes_off(faust_voice_core_t *s) {
     if (!s) return;
+    mf_voice_all_off(&s->voice);
     s->gate = 0.0f;
     s->active_note = -1;
 }

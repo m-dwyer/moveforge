@@ -125,15 +125,16 @@ void westfold_init(westfold_core_t *s)
     if (!s)
         return;
     memset(s, 0, sizeof(*s));
+    mf_voice_init(&s->voice);
     s->active_note = -1;
     westfold_apply_defaults(s);
     sync_smoothed_params(s);
 }
 
-void westfold_note_on(westfold_core_t *s, int note, float velocity)
+/* Begin sounding a note. Shared by a fresh note-on and by the fallback when a
+ * higher note is released while a lower one is still held. */
+static void westfold_start_note(westfold_core_t *s, int note, float velocity)
 {
-    if (!s)
-        return;
     s->active_note = note;
     s->target_freq = moveforge_midi_note_to_hz((float)note);
     if (s->freq <= 0.0f)
@@ -147,14 +148,35 @@ void westfold_note_on(westfold_core_t *s, int note, float velocity)
     s->gate = 1.0f;
 }
 
+void westfold_note_on(westfold_core_t *s, int note, float velocity)
+{
+    if (!s)
+        return;
+    int next_note = 0;
+    float next_velocity = 0.0f;
+    if (mf_voice_note_on(&s->voice, note, velocity, &next_note, &next_velocity) == MF_VOICE_START)
+        westfold_start_note(s, next_note, next_velocity);
+}
+
 void westfold_note_off(westfold_core_t *s, int note)
 {
     if (!s)
         return;
-    if (s->active_note == note)
+    int next_note = 0;
+    float next_velocity = 0.0f;
+    switch (mf_voice_note_off(&s->voice, note, &next_note, &next_velocity))
     {
+    case MF_VOICE_START:
+        /* A lower note is still held — fall back to it rather than going
+         * silent, which is what this used to do. */
+        westfold_start_note(s, next_note, next_velocity);
+        break;
+    case MF_VOICE_STOP:
         s->gate = 0.0f;
         s->active_note = -1;
+        break;
+    default:
+        break;
     }
 }
 
@@ -162,6 +184,7 @@ void westfold_all_notes_off(westfold_core_t *s)
 {
     if (!s)
         return;
+    mf_voice_all_off(&s->voice);
     s->gate = 0.0f;
     s->active_note = -1;
 }

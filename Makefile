@@ -1,4 +1,4 @@
-.PHONY: render suite stress stress-all plot plot-stress plot-stress-all test host move wasm install deploy gen-params gen-presets move-health move-logs move-cache move-restart move-screen check check-all dev-deps clean
+.PHONY: format format-check gen-compile-commands render suite stress stress-all plot plot-stress plot-stress-all test host move wasm install deploy gen-params gen-presets move-health move-logs move-cache move-restart move-screen check check-all dev-deps clean
 
 render:
 	./scripts/render-demo.sh
@@ -13,7 +13,10 @@ stress:
 stress-all:
 	status=0; for module in $$(node -e "const fs=require('fs'); const m=JSON.parse(fs.readFileSync('src/modules/index.json','utf8')).modules; console.log(m.filter(x => x.kind !== 'midi_fx').map(x => x.id).join(' '))"); do MODULE_ID=$$module ./scripts/render-demo.sh --stress || status=1; MODULE_ID=$$module pnpm run check-stress || status=1; done; exit $$status
 
-plot: suite
+# No `suite` prerequisite: `check` already renders the suite, and having it here
+# meant a separate sub-make re-rendered every WAV a second time.
+# Run `make suite plot` if you want plots from a clean render.
+plot:
 	.venv/bin/python tools/plot_renders.py
 
 plot-stress:
@@ -63,6 +66,8 @@ move-restart:
 move-screen:
 	node scripts/capture-move-screen.ts
 
+# The one non-device gate. With MODULE_ID unset every step already covers all
+# modules, so there is nothing for a separate check-all to add.
 check:
 	pnpm run typecheck
 	pnpm run validate
@@ -70,22 +75,21 @@ check:
 	$(MAKE) test
 	$(MAKE) suite
 	pnpm run check-renders
+	$(MAKE) stress
 	$(MAKE) plot
 	$(MAKE) host
 
-check-all:
-	pnpm run typecheck
-	pnpm run validate
-	pnpm run test:ui-chain
-	$(MAKE) test
-	$(MAKE) suite
-	pnpm run check-renders
-	$(MAKE) plot
-	$(MAKE) host
-	MODULE_ID=dustline $(MAKE) suite
-	MODULE_ID=dustline pnpm run check-renders
-	MODULE_ID=dustline $(MAKE) plot
-	MODULE_ID=dustline $(MAKE) host
+# Kept as an alias so existing docs and muscle memory keep working.
+check-all: check
+
+format:
+	pnpm run format
+
+format-check:
+	pnpm run format-check
+
+gen-compile-commands:
+	pnpm run gen-compile-commands
 
 dev-deps:
 	python3 -m venv .venv

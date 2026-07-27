@@ -18,7 +18,7 @@ for MODULE_ID in $MODULE_IDS; do
   HOST_SO="build-host/${MODULE_ID}-dsp.so"
   mkdir -p "dist-host/$MODULE_ID"
 
-  cc -std=c11 -O3 -g -shared -fPIC \
+  cc -std=c11 -O3 -g -Wall -Wextra -shared -fPIC \
     "$WRAPPER_C" \
     "$CORE_IMPL" \
     -o "$HOST_SO" \

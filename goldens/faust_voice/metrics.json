@@ -4,47 +4,122 @@
     "channels": 2,
     "frames": 264600,
     "duration_seconds": 6,
-    "peak": 0.67154,
-    "rms": 0.31918,
-    "dc_offset": 0.028398,
-    "silence_ratio": 0.002,
+    "peak": 0.51318,
+    "rms": 0.20554,
+    "dc_offset": -0.00002,
+    "dc_offset_per_channel": [
+      -0.00002,
+      -0.00002
+    ],
+    "silence_ratio": 0.003,
     "clipped_samples": 0,
     "zero_crossing_rate": [
-      0.0396,
-      0.0396
+      0.04078,
+      0.04078
     ],
-    "stereo_correlation": 1
+    "stereo_correlation": 1,
+    "slew_ratio": 0.09978,
+    "time_profile": [
+      -9.5,
+      -9.05,
+      -8.88,
+      -8.73,
+      -9.48,
+      -9.05,
+      -8.89,
+      -8.74
+    ],
+    "band_energy": [
+      -33.75,
+      -6.55,
+      -5.74,
+      -7.73,
+      -4.71,
+      -23.04,
+      -51.45,
+      -60
+    ]
   },
   "01-plucky.wav": {
     "sample_rate": 44100,
     "channels": 2,
     "frames": 264600,
     "duration_seconds": 6,
-    "peak": 0.6893,
-    "rms": 0.35306,
-    "dc_offset": 0.026982,
-    "silence_ratio": 0.0017,
+    "peak": 0.56097,
+    "rms": 0.2267,
+    "dc_offset": 0.000023,
+    "dc_offset_per_channel": [
+      0.000023,
+      0.000023
+    ],
+    "silence_ratio": 0.0025,
     "clipped_samples": 0,
     "zero_crossing_rate": [
-      0.0263,
-      0.0263
+      0.02637,
+      0.02637
     ],
-    "stereo_correlation": 1
+    "stereo_correlation": 1,
+    "slew_ratio": 0.06383,
+    "time_profile": [
+      -9,
+      -9.44,
+      -8.57,
+      -8.92,
+      -9.48,
+      -8.66,
+      -8.85,
+      -9.43
+    ],
+    "band_energy": [
+      -13.47,
+      -6.66,
+      -8.98,
+      -2.16,
+      -23.71,
+      -48.26,
+      -60,
+      -60
+    ]
   },
   "02-pad.wav": {
     "sample_rate": 44100,
     "channels": 2,
     "frames": 352800,
     "duration_seconds": 8,
-    "peak": 0.54935,
-    "rms": 0.22589,
-    "dc_offset": 0.014275,
-    "silence_ratio": 0.0075,
+    "peak": 0.42902,
+    "rms": 0.14247,
+    "dc_offset": -0.00001,
+    "dc_offset_per_channel": [
+      -0.00001,
+      -0.00001
+    ],
+    "silence_ratio": 0.0067,
     "clipped_samples": 0,
     "zero_crossing_rate": [
-      0.01245,
-      0.01245
+      0.01154,
+      0.01154
     ],
-    "stereo_correlation": 1
+    "stereo_correlation": 1,
+    "slew_ratio": 0.02792,
+    "time_profile": [
+      -9.79,
+      -8.57,
+      -9.52,
+      -8.44,
+      -8.86,
+      -8.87,
+      -8.95,
+      -9.43
+    ],
+    "band_energy": [
+      -7.52,
+      -5.63,
+      -2.69,
+      -19.56,
+      -41.2,
+      -60,
+      -60,
+      -60
+    ]
   }
 }

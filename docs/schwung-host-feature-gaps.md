@@ -87,6 +87,9 @@ Needed work:
 
 Reference upstream Schwung before implementing:
 
-- `/Users/em/src/schwung/schwung-manager/static/remote-ui.js`
-- `/Users/em/src/schwung/src/modules/chain/dsp/chain_host.c`
-- `/Users/em/src/schwung/CLAUDE.md`
+Paths are relative to the upstream checkout at `upstream/schwung`
+(override with `$UPSTREAM_DIR`; see `scripts/update-upstream-schwung.sh`).
+
+- `schwung-manager/static/remote-ui.js`
+- `src/modules/chain/dsp/chain_host.c`
+- `CLAUDE.md`

@@ -23,8 +23,26 @@ static inline float moveforge_midi_note_to_hz(float note_semis)
     return 440.0f * powf(2.0f, (note_semis - 69.0f) / 12.0f);
 }
 
+/* Offline-only non-finite trap.
+ *
+ * This is the single point where every module's float output becomes int16, and
+ * therefore the exact point where a NaN stops being detectable: both clamp
+ * comparisons below are false for NaN, so `(int16_t)NaN` is 0 and a filter
+ * blowup renders as digital silence. That is how dustline shipped two silent
+ * presets whose goldens had been blessed twice.
+ *
+ * The offline harnesses compile with -DMOVEFORGE_COUNT_NONFINITE and fail the
+ * render if the count is non-zero. Device and WASM builds do not define it, so
+ * the audio path is unchanged where it matters. */
+#ifdef MOVEFORGE_COUNT_NONFINITE
+extern unsigned long moveforge_nonfinite_count;
+#endif
+
 static inline int16_t moveforge_float_to_i16(float x)
 {
+#ifdef MOVEFORGE_COUNT_NONFINITE
+    if (!isfinite(x)) moveforge_nonfinite_count++;
+#endif
     float y = x * 32767.0f;
     if (y > 32767.0f) y = 32767.0f;
     if (y < -32768.0f) y = -32768.0f;

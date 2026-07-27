@@ -14,8 +14,14 @@
 //
 // The order of hslider declarations is irrelevant: the adapter captures
 // zones by label via buildUserInterface, not by index.
+//
+// The wrapper-driven group is declared below for validate-params, which
+// otherwise treats a slider with no matching module.json key as a typo.
+// moveforge-adapter-controls: freq, gate, gain
 
 import("stdfaust.lib");
+// sm, smGain — see src/modules/_shared/moveforge.lib
+import("moveforge.lib");
 
 // --- Control inputs (C-driven) ----------------------------------------------
 freq = hslider("freq", 220.0, 16.0, 12544.0, 0.001);
@@ -23,11 +29,14 @@ gate = hslider("gate", 0.0, 0.0, 1.0, 1.0);
 gain = hslider("gain", 0.8, 0.0, 1.0, 0.001);
 
 // --- User params ------------------------------------------------------------
+// cutoff and resonance stay unsmoothed: they feed fi.resonlp's coefficients,
+// and smoothing a filter control forces its warping into the sample loop.
 cutoff    = hslider("cutoff",    0.6,   0.0,   1.0, 0.01);
 resonance = hslider("resonance", 0.3,   0.0,   1.0, 0.01);
 attack    = hslider("attack",    0.01,  0.001, 1.0, 0.001);
 release   = hslider("release",   0.3,   0.01,  4.0, 0.01);
-level     = hslider("level",     0.7,   0.0,   1.0, 0.01);
+// A gain, so de-zipper it — a preset load used to step this in one block.
+level     = hslider("level",     0.7,   0.0,   1.0, 0.01) : smGain;
 
 // cutoff (0..1) -> 60..14000 Hz log
 cutoffHz = 60.0 * pow(14000.0 / 60.0, cutoff);
@@ -42,6 +51,20 @@ osc = os.sawtooth(freq);
 
 // tanh saturation after the resonant filter keeps high-Q peaks bounded
 // to [-1, 1] before the final level scale. Side benefit: more characterful.
-mono = osc * env * gain : fi.resonlp(cutoffHz, qVal, 1.0) : ma.tanh : *(level);
+//
+// fi.dcblocker comes *after* ma.tanh, not before: saturating an asymmetric
+// waveform (a sawtooth through a resonant lowpass) produces DC even though the
+// input is zero-mean, because tanh compresses tall peaks more than shallow
+// troughs. Without it the init and plucky presets measured ~2.8% DC.
+// The 0.65 is headroom, and it is measured rather than guessed. ma.tanh
+// saturates at +-1, but fi.dcblocker overshoots on the resulting near-square:
+// rendering the stress cases at a known small scale puts the true unit peak at
+// 1.377. Without this, `level` at maximum hard-clipped in the int16 conversion
+// (20256 clipped samples). 0.65 lands the worst case near 0.90, so the whole
+// declared range of `level` is usable.
+//
+// fi.highpass(1, 20) overshoots less (1.243, allowing 0.72) but fi.dcblocker
+// states the intent more clearly for under 1 dB of level.
+mono = osc * env * gain : fi.resonlp(cutoffHz, qVal, 1.0) : ma.tanh : fi.dcblocker : *(level * 0.65);
 
 process = mono <: _, _;

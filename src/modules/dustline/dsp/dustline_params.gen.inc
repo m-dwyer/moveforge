@@ -4,19 +4,9 @@
 #ifndef DUSTLINE_PARAMS_GEN_INC
 #define DUSTLINE_PARAMS_GEN_INC
 
-#define DUSTLINE_PARAM_COUNT 9
-
-enum {
-    DUSTLINE_PARAM_VOLUME = 0,
-    DUSTLINE_PARAM_WAVE = 1,
-    DUSTLINE_PARAM_NOISE = 2,
-    DUSTLINE_PARAM_CUTOFF = 3,
-    DUSTLINE_PARAM_RESONANCE = 4,
-    DUSTLINE_PARAM_ATTACK = 5,
-    DUSTLINE_PARAM_RELEASE = 6,
-    DUSTLINE_PARAM_DRIVE = 7,
-    DUSTLINE_PARAM_BEND_RANGE = 8
-};
+/* DUSTLINE_PARAM_COUNT and the DUSTLINE_PARAM_* enum. Also included by
+ * dustline_core.h; the guard makes the second include a no-op. */
+#include "dustline_params.gen.h"
 
 static inline float dustline_params_clampf_(float x, float lo, float hi) {
     return x < lo ? lo : (x > hi ? hi : x);

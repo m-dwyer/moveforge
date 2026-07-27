@@ -20,11 +20,23 @@
 #include <math.h>
 
 #include "host/audio_fx_api_v2.h"
+#include "render_automation.h"
+#include "render_timing.h"
 
 extern audio_fx_api_v2_t* move_audio_fx_init_v2(const host_api_v1_t *host);
 
+#ifdef MOVEFORGE_COUNT_NONFINITE
+/* Incremented by moveforge_float_to_i16 (modules/_shared/dsp_runtime.h) when a
+ * module emits a non-finite sample. Checked after the render loop. */
+unsigned long moveforge_nonfinite_count = 0;
+#endif
+
 #define SR 44100
 #define BLOCK 128
+
+/* Not M_PI: that is a POSIX extension and glibc does not define it under
+ * -std=c11, so using it builds on macOS and fails on Linux. */
+#define RENDER_TWO_PI 6.283185307179586476925286766559
 
 /* Tempo exposed to sync-aware FX (e.g. Trail). Settable via --bpm; defaults to
  * 120, which matches the NULL-get_bpm fallback so non-sync renders are stable. */
@@ -94,30 +106,41 @@ static void generate_signal(const char *kind, int16_t *buf, uint32_t frames) {
         return;
     }
     if (strcmp(kind, "noise") == 0) {
+        /* Centered white noise. `s >> 16` is unsigned 0..65535, so the previous
+         * `(int16_t)((int32_t)(s >> 16) * 0.7)` was both entirely positive and
+         * out of int16 range before conversion — undefined behaviour that
+         * happened to wrap, giving +0.128 DC and a bimodal distribution rather
+         * than noise. faust_drive's golden dc_offset of 0.18 was mostly this. */
         uint32_t s = 0x12345678u;
         for (uint32_t i = 0; i < frames; i++) {
             s = s * 1664525u + 1013904223u;
-            int16_t v = (int16_t)((int32_t)(s >> 16) * 0.7);
+            int32_t centered = (int32_t)(s >> 16) - 32768;   /* -32768..32767 */
+            int16_t v = (int16_t)((double)centered * 0.7);   /* -22938..22937 */
+            /* Both channels identical, as for sweep and impulse: keeps
+             * stereo_correlation a measure of the FX, not of the input. */
             buf[i * 2] = v;
             buf[i * 2 + 1] = v;
         }
         return;
     }
-    /* sweep: exponential 50Hz -> 8kHz over the buffer, -3dBFS sine */
+    /* sweep: exponential 50Hz -> 20kHz over the buffer, -3dBFS sine.
+     *
+     * Reaches the top of the audible band deliberately: stopping at 8kHz left
+     * the last 2.5 octaves untested, which is exactly where an un-oversampled
+     * saturator (faust_drive applies up to 30x pre-gain into ma.tanh) folds
+     * harmonics back down as aliasing. */
     double duration = (double)frames / (double)SR;
-    double f0 = 50.0, f1 = 8000.0;
-    double K = (f1 - f0) / log(f1 / f0);
+    double f0 = 50.0, f1 = 20000.0;
     double phase = 0.0;
     for (uint32_t i = 0; i < frames; i++) {
         double t = (double)i / (double)SR;
         double f = f0 * pow(f1 / f0, t / duration);
-        phase += 2.0 * M_PI * f / (double)SR;
-        if (phase > 2.0 * M_PI) phase -= 2.0 * M_PI;
+        phase += RENDER_TWO_PI * f / (double)SR;
+        if (phase > RENDER_TWO_PI) phase -= RENDER_TWO_PI;
         int16_t v = (int16_t)(sin(phase) * 23000.0);
         buf[i * 2] = v;
         buf[i * 2 + 1] = v;
     }
-    (void)K;
 }
 
 int main(int argc, char **argv) {
@@ -133,12 +156,17 @@ int main(int argc, char **argv) {
     typedef struct { const char *key; const char *value; } pair_t;
     pair_t params[32];
     int param_count = 0;
+    mf_automate_set_t automation = {0};
 
     for (int i = 2; i < argc; i++) {
         if (strcmp(argv[i], "--input") == 0 && i + 1 < argc) { input_path = argv[++i]; continue; }
         if (strcmp(argv[i], "--signal") == 0 && i + 1 < argc) { signal_kind = argv[++i]; continue; }
         if (strcmp(argv[i], "--seconds") == 0 && i + 1 < argc) { seconds = atoi(argv[++i]); continue; }
         if (strcmp(argv[i], "--bpm") == 0 && i + 1 < argc) { g_render_bpm = (float)atof(argv[++i]); continue; }
+        if (strcmp(argv[i], "--automate") == 0 && i + 1 < argc) {
+            if (mf_automate_add(&automation, argv[++i]) != 0) return 2;
+            continue;
+        }
         char *eq = strchr(argv[i], '=');
         if (eq && param_count < 32) {
             *eq = '\0';
@@ -179,21 +207,46 @@ int main(int argc, char **argv) {
     if (!f) { perror(out_path); free(input); return 1; }
     write_wav_header(f, total_frames);
 
+    mf_timing_t timing;
+    mf_timing_init(&timing, (int)(total_frames / BLOCK) + 1);
+
     int16_t block_buf[BLOCK * 2];
     for (uint32_t frame = 0; frame < total_frames; frame += BLOCK) {
         uint32_t this_block = total_frames - frame;
         if (this_block > BLOCK) this_block = BLOCK;
+        /* Block-rate automation, matching how the host delivers parameters. */
+        if (automation.count > 0) {
+            mf_automate_apply(&automation, (double)frame / (double)total_frames,
+                              inst, api->set_param);
+        }
         memcpy(block_buf, input + (size_t)frame * 2, (size_t)this_block * 2 * sizeof(int16_t));
         if (this_block < BLOCK) {
             memset(block_buf + this_block * 2, 0, (size_t)(BLOCK - this_block) * 2 * sizeof(int16_t));
         }
+        mf_timing_begin(&timing);
         api->process_block(inst, block_buf, (int)this_block);
+        mf_timing_end(&timing);
         fwrite(block_buf, sizeof(int16_t), (size_t)this_block * 2, f);
     }
 
     api->destroy_instance(inst);
     fclose(f);
     free(input);
+
+    int timing_failed = mf_timing_report(&timing, out_path, BLOCK, SR);
+    mf_timing_free(&timing);
+    if (timing_failed) return 1;
+
+#ifdef MOVEFORGE_COUNT_NONFINITE
+    if (moveforge_nonfinite_count > 0) {
+        fprintf(stderr,
+                "ERROR: %s emitted %lu non-finite sample(s) — these become silence in the WAV, "
+                "so the render would otherwise look merely quiet\n",
+                out_path, moveforge_nonfinite_count);
+        return 1;
+    }
+#endif
+
     fprintf(stderr, "Wrote %s (%d s, %s)\n", out_path, seconds, input_path ? input_path : signal_kind);
     return 0;
 }

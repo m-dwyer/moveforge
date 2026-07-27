@@ -124,9 +124,27 @@ int arpy_tick(arpy_core_t *s,
               uint8_t out_msgs[][3], int out_lens[], int max_out) {
     if (!s || frames <= 0 || sample_rate <= 0 || max_out < 1) return 0;
     int pattern = param_mode(s->pattern, 3);
-    if (pattern == 0) return 0;
 
     int n = 0;
+
+    /* Pattern switched to off while a note was sounding: release it and clear
+     * the held state, then stop.
+     *
+     * Returning early here without the release left `playing_note` sounding on
+     * the downstream synth forever. It could not be recovered by lifting the
+     * key either: with the pattern off, process_midi passes the *input*
+     * note-off straight through, but the sounding note is a transposed chord
+     * tone (root+7, root+12, ...), so the note-off addressed the wrong pitch. */
+    if (pattern == 0) {
+        if (s->playing_note >= 0) {
+            n = emit(out_msgs, out_lens, max_out, n, 0x80 | s->held_channel,
+                     (uint8_t)s->playing_note, 0);
+            s->playing_note = -1;
+            s->frames_until_gate_off = 0;
+        }
+        s->held_active = 0;
+        return n;
+    }
     int step_frames = rate_to_frames(s->rate, sample_rate);
     int gate_frames = (step_frames * 7) / 10; /* 70% gate */
 
@@ -152,6 +170,17 @@ int arpy_tick(arpy_core_t *s,
             int offset = k_chord_notes[chord_mode][idx];
             int note = (int)s->held_note + offset;
             if (note >= 0 && note <= 127) {
+                /* Closing the previous note and opening the next one need two
+                 * output slots. If both do not fit, emit nothing and leave the
+                 * step clock alone so this step fires on the next tick instead.
+                 *
+                 * emit() silently drops past max_out, so writing `playing_note`
+                 * unconditionally used to leave the core believing a note was
+                 * sounding that the host never received — a permanently stuck
+                 * voice, with no note-off ever generated for it. */
+                int slots_needed = (s->playing_note >= 0) ? 2 : 1;
+                if (n + slots_needed > max_out) break;
+
                 /* Close any still-sounding arp note before starting the next
                  * one — keeps the synth envelope behavior predictable on a
                  * monophonic generator and avoids overlapping note-offs. */

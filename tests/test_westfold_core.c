@@ -19,6 +19,99 @@ static float absf_local(float x) {
     return x < 0.0f ? -x : x;
 }
 
+/* Pairwise extremes across the params with feedback or nonlinearity in their
+ * path. Single-param stress (scripts/render-stress.ts) misses the combinations
+ * that actually destabilise DSP — a resonant filter blows up at high cutoff AND
+ * high resonance, not at either alone. Values are set far outside the declared
+ * range so the generated clamps in westfold_set_param are exercised too. */
+static void test_param_extremes_are_stable(void) {
+    static const char *keys[] = {
+        "fold", "fm", "ratio", "chaos", "strike",
+        "lpg", "drive", "tone", "width", "volume"
+    };
+    const int n = (int)(sizeof(keys) / sizeof(keys[0]));
+    float l[256];
+    float r[256];
+
+    for (int a = 0; a < n; a++) {
+        for (int b = 0; b < n; b++) {
+            for (int va = 0; va <= 1; va++) {
+                for (int vb = 0; vb <= 1; vb++) {
+                    westfold_core_t s;
+                    int ia = westfold_param_id(keys[a]);
+                    int ib = westfold_param_id(keys[b]);
+                    require_true(ia >= 0 && ib >= 0, "stress param keys exist");
+
+                    westfold_init(&s);
+                    westfold_set_param(&s, ia, va ? 1.0e9f : -1.0e9f);
+                    westfold_set_param(&s, ib, vb ? 1.0e9f : -1.0e9f);
+                    westfold_note_on(&s, 60, 1.0f);
+
+                    for (int block = 0; block < 80; block++) {
+                        if (block == 60) westfold_note_off(&s, 60);
+                        westfold_process_float(&s, NULL, NULL, l, r, 256);
+                        for (int i = 0; i < 256; i++) {
+                            if (!isfinite(l[i]) || !isfinite(r[i]) ||
+                                absf_local(l[i]) > 1.0f || absf_local(r[i]) > 1.0f) {
+                                fprintf(stderr, "FAIL: unstable at %s=%s %s=%s\n",
+                                        keys[a], va ? "max" : "min",
+                                        keys[b], vb ? "max" : "min");
+                                exit(1);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+
+/* Releasing a note while a lower one is still held must fall back to it, not go
+ * silent. All three sound generators tracked a single `active_note` and cleared
+ * the gate whenever a note-off matched it, so press A / press B / release B left
+ * the voice silent with A still down. Verified on westfold before the fix:
+ * gate 0, active_note -1. */
+static void test_held_note_falls_back(void) {
+    westfold_core_t v;
+    float l[128], r[128];
+
+    westfold_init(&v);
+    westfold_note_on(&v, 60, 1.0f);
+    westfold_process_float(&v, NULL, NULL, l, r, 128);
+    westfold_note_on(&v, 64, 1.0f);
+    westfold_process_float(&v, NULL, NULL, l, r, 128);
+
+    westfold_note_off(&v, 64);
+    westfold_process_float(&v, NULL, NULL, l, r, 128);
+    require_true(v.gate > 0.5f, "releasing the upper note leaves the voice sounding");
+    require_true(v.active_note == 60, "the still-held lower note takes over");
+
+    westfold_note_off(&v, 60);
+    westfold_process_float(&v, NULL, NULL, l, r, 128);
+    require_true(v.gate < 0.5f, "releasing the last held note stops the voice");
+    require_true(v.active_note == -1, "no note is tracked once all are released");
+
+    /* Releasing an underlying note must not disturb the sounding one. */
+    westfold_init(&v);
+    westfold_note_on(&v, 60, 1.0f);
+    westfold_note_on(&v, 64, 1.0f);
+    westfold_note_off(&v, 60);
+    require_true(v.gate > 0.5f && v.active_note == 64,
+                 "releasing an underlying note leaves the sounding note alone");
+    westfold_note_off(&v, 64);
+    require_true(v.gate < 0.5f, "and then releasing it stops, with no ghost entry");
+
+    /* all-notes-off clears the whole stack, not just the top. */
+    westfold_init(&v);
+    westfold_note_on(&v, 60, 1.0f);
+    westfold_note_on(&v, 64, 1.0f);
+    westfold_all_notes_off(&v);
+    require_true(v.gate < 0.5f && v.active_note == -1, "all-notes-off silences the voice");
+    westfold_note_off(&v, 60);
+    require_true(v.gate < 0.5f, "a stale note-off after all-notes-off does not revive it");
+}
+
 int main(void) {
     westfold_core_t synth;
     float left[FRAMES];
@@ -177,6 +270,11 @@ int main(void) {
     require_true(westfold_param_id("tone") >= 0, "tone param lookup works");
     require_true(westfold_param_id("width") >= 0, "width param lookup works");
     require_true(westfold_param_id("does_not_exist") < 0, "unknown param lookup fails");
+
+    test_param_extremes_are_stable();
+
+    test_held_note_falls_back();
+
 
     printf("westfold core tests passed\n");
     return 0;

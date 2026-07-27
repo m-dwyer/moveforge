@@ -4,24 +4,9 @@
 #ifndef LOBBER_PARAMS_GEN_INC
 #define LOBBER_PARAMS_GEN_INC
 
-#define LOBBER_PARAM_COUNT 14
-
-enum {
-    LOBBER_PARAM_ACTIVE = 0,
-    LOBBER_PARAM_OFFSET = 1,
-    LOBBER_PARAM_DIVISION = 2,
-    LOBBER_PARAM_MODE = 3,
-    LOBBER_PARAM_LOOP = 4,
-    LOBBER_PARAM_RATCHET = 5,
-    LOBBER_PARAM_REVERSE = 6,
-    LOBBER_PARAM_FREEZE = 7,
-    LOBBER_PARAM_MUTE = 8,
-    LOBBER_PARAM_CAPTURE = 9,
-    LOBBER_PARAM_LOOP_BEATS = 10,
-    LOBBER_PARAM_MIX = 11,
-    LOBBER_PARAM_BPM = 12,
-    LOBBER_PARAM_XFADE = 13
-};
+/* LOBBER_PARAM_COUNT and the LOBBER_PARAM_* enum. Also included by
+ * lobber_core.h; the guard makes the second include a no-op. */
+#include "lobber_params.gen.h"
 
 static inline float lobber_params_clampf_(float x, float lo, float hi) {
     return x < lo ? lo : (x > hi ? hi : x);

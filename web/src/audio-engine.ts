@@ -50,6 +50,21 @@ export class AudioEngine {
     return this.#slots.has(slotId);
   }
 
+  /* Slot ids currently loaded, optionally narrowed to one module. The engine
+   * only ever holds the selected track's slots, and slot ids repeat across
+   * tracks ("sound", "audio-fx-1", …), so this is the only sound basis for
+   * deciding what to reload — walking the store's tracks reloads the same
+   * engine slot once per track and picks the wrong module outright when two
+   * tracks differ. */
+  loadedSlotIds(moduleId?: string | null): string[] {
+    const ids: string[] = [];
+    for (const slot of this.#slots.values()) {
+      if (moduleId != null && slot.moduleId !== moduleId) continue;
+      ids.push(slot.slotId);
+    }
+    return ids;
+  }
+
   async enableChain(slots: ChainSlotSpec[], config: AudioEngineConfig): Promise<void> {
     if (!this.#audio) await this.#startContext(config);
     this.#config = config;

@@ -5,6 +5,7 @@
 
 import("stdfaust.lib");
 
+// moveforge-adapter-controls: freq, gate, gain
 freq = hslider("freq", 220.0, 16.0, 12544.0, 0.001);
 gate = hslider("gate", 0.0, 0.0, 1.0, 1.0);
 gain = hslider("gain", 0.8, 0.0, 1.0, 0.001);
