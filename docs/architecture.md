@@ -1,8 +1,9 @@
 # Architecture
 
-A one-page mental model of how the layers fit together. CLAUDE.md is the
-procedural reference (commands, conventions, how to add a param); this doc
-is the conceptual map.
+A one-page mental model of how the layers fit together. `AGENTS.md` is the
+orientation (layout, the rules, where to go next) and
+`skills/schwung-dsp-development/SKILL.md` the procedural reference (how to add
+a param, the dev loop); this doc is the conceptual map.
 
 ## Stack
 
@@ -159,9 +160,9 @@ on Move, modulo block-rate jitter from Web Audio.
 
 ## Where to look for specific topics
 
-- **Adding a param / adding a module:** `CLAUDE.md` ("When adding a parameter",
-  "Adding a new module").
-- **Common commands:** `CLAUDE.md` "Common Commands" section.
+- **Adding a param / adding a module:** `skills/schwung-dsp-development/SKILL.md`.
+- **Common commands:** `README.md`.
+- **What a module should sound like, and real-time safety:** `docs/module-design.md`.
 - **Schwung audio_fx wrapper template details:** `docs/audio-fx-template.md`.
 - **Why the browser runs the Schwung-wrapped WASM (vs. a leaner ABI):**
   `docs/browser-wrapper-modes.md`.
@@ -174,7 +175,7 @@ on Move, modulo block-rate jitter from Web Audio.
 
 ## What this doc deliberately doesn't cover
 
-- Step-by-step procedures (CLAUDE.md).
+- Step-by-step procedures (`skills/schwung-dsp-development/SKILL.md`).
 - DSP internals of any specific module (read the `_core.c`).
 - The Move device's internal Schwung runtime (closed-source, third-party).
 - Specific commit-by-commit history of the React migration (git log).

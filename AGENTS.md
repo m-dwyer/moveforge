@@ -1,119 +1,99 @@
-# Codex guidance: Schwung synth, FX, and MIDI FX modules
+# moveforge
 
-You are helping build Schwung modules for Ableton Move, focused on high-quality electronic music tools, especially hypnotic techno, dub techno, industrial techno, minimal techno, and experimental groove-based music.
+A local development harness for building custom [Schwung](https://github.com/charlesvestal/schwung)
+modules for Ableton Move — sound generators, audio FX and MIDI FX. Each module
+builds three ways from one source: an aarch64 `.so` for the device, a host
+binary for offline WAV/trace rendering, and WASM for the browser UI.
 
-Assume the repo already contains Schwung-specific conventions and skill docs. Before implementing anything, inspect the existing module patterns, build system, naming conventions, parameter APIs, audio/MIDI callback structure, UI/control mapping, and any examples already present.
+Schwung is unofficial and device deployment is experimental. Prefer local
+render, host and WASM checks before copying anything to hardware.
 
-## Priorities
+## Layout
 
-Prioritise musical usefulness over novelty. A good module should help produce evolving grooves, tension, movement, texture, modulation, controlled chaos, or performance-friendly variation.
+```
+src/modules/<id>/       one self-contained module (see below)
+src/modules/_shared/    shared C helpers — mf_dsp.h, dsp_runtime.h, scope.h
+src/host/               local copies of the Schwung ABIs (drifted; see below)
+web/                    browser UI: React + Vite + Tailwind + shadcn
+tools/                  offline harnesses — render_wav.c, render_fx.c, trace_midi_fx.c
+tests/                  C tests: test_<id>_core.c, test_<id>_plugin.c, test_mf_dsp.c
+scripts/                build, codegen and validation (TypeScript + shell)
+templates/              scaffolds for new modules, and the codegen templates
+goldens/                blessed render metrics per module
+plans/                  working documents for in-flight work
+```
 
-Optimise for:
+A module directory, plain C on the left, Faust on the right:
 
-* stable real-time audio
-* low CPU and allocation-free processing
-* predictable gain staging
-* click-free parameter changes
-* playable parameter ranges
-* useful defaults
-* techno-oriented sound design
-* simple controls with deep sweet spots
-* compatibility with Ableton Move/Schwung constraints
+```
+module.json             SINGLE SOURCE OF TRUTH: metadata + parameter schema
+presets.json            presets, and the render-suite clips
+metadata.json           randomize ranges
+ui.js                   on-device solo screen
+ui_chain.js             GENERATED chain-mode UI
+dsp/<id>.c              Schwung wrapper (one per component_type)
+dsp/<id>_core.h         public API contract — identical shape either way
+dsp/<id>_core.c           |  dsp/<id>.dsp        Faust source (canonical)
+                          |  dsp/<id>_faust.c    GENERATED from it, checked in
+                          |  dsp/<id>_adapter.c  bridges Faust to the contract
+dsp/<id>_params.gen.h   GENERATED: param count + enum, included by _core.h
+dsp/<id>_params.gen.inc GENERATED: param id/get/set/defaults
+dsp/<id>_presets.gen.inc GENERATED from presets.json
+```
 
-Avoid over-engineered modules with too many parameters unless the repo already supports that style well.
+Build scripts detect Faust purely by the presence of `<id>.dsp`. No flag, no
+config. Faust is the default for new sound generators and audio FX; MIDI FX are
+always plain C.
 
-## Real-time audio rules
+## Rules that prevent silent breakage
 
-Do not allocate memory in the audio callback.
+1. **`module.json` is the single source of truth** for metadata and the
+   parameter schema. Params, their ranges and defaults are declared there and
+   nowhere else — the C, the on-device UI and the browser all derive from it.
+2. **Never hand-edit a generated file.** Anything named `*.gen.*`, plus
+   `ui_chain.js` and `<id>_faust.c`. Edit the source and re-run the generator;
+   `mise run validate` fails on drift.
+3. **Run tasks via `mise run ...`, not the scripts directly.** Most call bare
+   `node`, which is not on `PATH` outside mise.
+4. **`mise run check` is the gate.** It must exit 0 before anything ships.
+   Module-aware tasks run for every module unless you set `MODULE_ID=<id>`.
 
-Avoid locks, file IO, logging, exceptions, heap allocation, dynamic resizing, expensive math in hot paths, and unbounded loops inside real-time processing.
+Keep musical DSP behaviour in the shared core, not in the wrappers, the web
+code or the render tools — there are three build targets and only one of them
+is easy to listen to.
 
-Prefer precomputed coefficients, smoothing, lookup tables where appropriate, denormal protection, bounded feedback, and explicit saturation/limiting where feedback or resonance is involved.
+## Creating a module, adding a parameter
 
-Every module must handle silence, extreme parameter values, high resonance/feedback, fast automation, and unusual sample rates without exploding, NaNs, infinities, or runaway gain.
+```bash
+pnpm run new-module -- --id <id> --kind sound_generator|audio_fx|midi_fx
+```
 
-## Musical design bias
+This scaffolds from `templates/modules/`, runs every generator, and registers
+the module in `src/modules/index.json`.
 
-When designing synth engines, prefer sounds useful for techno:
+Adding a parameter touches `module.json`, the core struct or the `.dsp`, and
+then the generators. **`skills/schwung-dsp-development/SKILL.md` is the
+canonical step-by-step** for both — follow it rather than reconstructing the
+order, because the generators have to run in sequence and `validate` checks all
+four for drift.
 
-* sub-safe kicks and basses
-* FM percussion
-* metallic hats and rides
-* resonant stabs
-* dub chords
-* drones
-* noise textures
-* phasey/rubbery basslines
-* syncopated modulation
-* evolving timbres
-* controlled instability
+## Where to look next
 
-When designing FX, prefer performance-friendly movement:
+| for | read |
+|---|---|
+| module authoring, the dev loop, the Faust vs plain-C decision | `skills/schwung-dsp-development/SKILL.md` |
+| what each module is and does | `MODULES.md` |
+| how the pieces fit together, and why | `docs/architecture.md` |
+| commands, the web UI, device deploy | `README.md` |
+| what a good module *sounds* like, and real-time safety | `docs/module-design.md` |
+| in-flight work and known gaps | `plans/` |
 
-* dub delays
-* filters
-* frequency shifters
-* resonators
-* distortions
-* transient shapers
-* compressors/duckers
-* reverbs/ambiences
-* glitch, freeze, repeat, stutter, and buffer effects
-* modulation effects with tempo-aware behaviour where possible
-
-When designing MIDI FX, prefer groove generation:
-
-* probability
-* ratchets
-* Euclidean rhythms
-* note folding
-* octave displacement
-* accent generation
-* velocity shaping
-* scale constraints
-* controlled randomisation
-* evolving pattern mutation
-
-## Implementation approach
-
-Before coding, identify the closest existing Schwung module and follow its structure.
-
-For each new module, provide:
-
-1. a short musical concept
-2. intended use cases
-3. parameter list with ranges/defaults
-4. implementation notes
-5. edge cases and safety considerations
-6. tests or manual verification steps if the repo supports them
-
-Prefer small, complete modules over large incomplete systems.
-
-Use clear DSP names and comments for non-obvious algorithms. Do not add vague “magic” constants without explaining their musical or stability purpose.
-
-## Parameter design
-
-Parameters should be musically scaled, not merely linear.
-
-Use logarithmic/exponential scaling for frequency, decay, time, drive, feedback, and modulation depth where appropriate.
-
-Smooth parameters that affect gain, frequency, delay time, feedback, resonance, wavetable position, or discontinuous state.
-
-Clamp all external parameter input.
-
-Defaults should produce an immediately useful sound.
-
-## Safety and quality checks
-
-Before finalising, check:
-
-* builds cleanly
-* follows repo formatting/style
-* no allocations in audio path
-* no obvious clipping/runaway feedback
-* no NaN/inf risk
-* sensible default patch
-* parameter labels are clear
-* behaviour is useful for techno without requiring extensive setup
-
-When unsure, ask for clarification only if blocked. Otherwise make a reasonable implementation choice and document the tradeoff.
+`src/host/*.h` are local copies of the Schwung ABIs and **have drifted** from
+upstream. For any question about actual host behaviour — parameter limits, when
+`set_param` is called, how presets and chain UIs are loaded — read the upstream
+source rather than trusting the copies or the docs. It lives in a gitignored
+checkout at `upstream/schwung` (override with `$UPSTREAM_DIR`) — clone Schwung
+there yourself, then keep it current with `scripts/update-upstream-schwung.sh`,
+which only refreshes an existing checkout. The parts worth knowing are
+`src/modules/chain/dsp/` (the chain host and its `module.json` parser) and
+`src/shadow/` (the on-device UI runtime).

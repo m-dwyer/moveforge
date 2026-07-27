@@ -4,8 +4,9 @@ Status: **in progress on branch `harden-dsp-pipeline`.** This is the working
 document for that branch, not a retrospective. Check items off as they land.
 
 Every finding below was verified against the code at branch point (`fe81dc5`).
-Line references are to that commit. Upstream Schwung references are to
-`/Users/em/src/move-spike/overture/schwung` (schwung 0.11.4) and are marked `SW/`.
+Line references are to that commit. Upstream Schwung references are marked `SW/`
+and are relative to the checkout at `upstream/schwung` (schwung 0.11.4; override
+with `$UPSTREAM_DIR`, see `scripts/update-upstream-schwung.sh`).
 
 ---
 
@@ -810,13 +811,20 @@ header, and none is visible to any local check.
 
       Truncation is silent, so an over-long key becomes a key the module itself
       does not answer to.
-- [ ] **6.14 Correct `CLAUDE.md`'s chain-UI discovery description.** It states
-      the host decides from the `"ui_chain"` field and that there is no fallback
-      editor. `SW/src/shadow/shadow_ui.js:2185-2224` defaults to
-      `<moduleDir>/ui_chain.js` with no `module.json` field required and falls
-      back to `ui.js`; `:2338-2344` provides a preset-browser fallback editor.
-      Also note `SW/src/modules/chain/ui.js:172-192` searches top-level only,
-      so it never finds a module installed under `modules/<kind>/<id>/`.
+- [x] **6.14 done** — the description was wrong and has been deleted rather
+      than corrected in place. `CLAUDE.md` claimed the host decides a module has
+      a custom chain UI purely from a non-empty `"ui_chain"` field, with no
+      fallback editor. `SW/src/shadow/shadow_ui.js:2186-2200` sets
+      `uiPath = <moduleDir>/ui_chain.js` *first* and only overrides it if
+      `module.json` carries the field — so the field is an optional path
+      override, not the discovery mechanism — and `:2338-2344` falls back to a
+      preset browser when the module UI will not load. That paragraph went with
+      the rest of the repo-mechanics rewrite; the agent-facing docs no longer
+      describe host internals they cannot keep true.
+
+      Still worth knowing, and recorded here rather than in a doc that will
+      drift: `SW/src/modules/chain/ui.js:172-192` searches top-level only, so it
+      never finds a module installed under `modules/<kind>/<id>/`.
 
 - [x] **6.15 done — no wrapper elects a preset at `create_instance`.** Every
       wrapper ran `<id>_apply_preset(0)` straight after `<id>_init`, so preset
@@ -883,8 +891,9 @@ it is that every fix has to be made seven times.
       missing piece is a `MOVEFORGE_FAUST_ADAPTER(prefix, core_t, PARAM_COUNT)`
       macro plus two hooks: `MF_FAUST_EXTRA_ZONES(label)` for
       `gate`/`freq`/`gain`/`_dtime`, and `MF_FAUST_PRE_COMPUTE(s)` for
-      `compute_dtime`. This is Suggested Improvement #6 in `CLAUDE.md`, and it
-      is fully achievable today.
+      `compute_dtime`. This was Suggested Improvement #6 in `CLAUDE.md` (that list
+      now lives in `plans/ideas.md`, minus this item), and it is fully
+      achievable today.
 - [x] **7.3 done** — every Faust core and both scaffolding templates now
       declare `void *zones[<UPPER>_PARAM_COUNT];` and `TRAIL_NUM_PARAMS` is
       gone. The size is checked by a `_Static_assert` that `gen-params` emits
@@ -1007,8 +1016,11 @@ Cheap, and it stops the earlier phases from silently regressing.
       `process.exit()` from inside a library function that `new-module.ts:106`
       imports, so a Faust failure leaves the directory written but unregistered,
       and re-running hits "refusing to overwrite existing directory".
-- [ ] **8.7 Reconcile the three "add a parameter" rituals.** `CLAUDE.md:57-68`
-      (10 steps), `README.md:150-161` (12) and `SKILL.md:87-101` (11) disagree,
+- [~] **8.7 partly done — two of the three rituals are gone.** `CLAUDE.md`'s
+      10-step list was deleted when the repo-mechanics docs were rewritten, and
+      `AGENTS.md` now points at `SKILL.md` as the canonical one instead of
+      restating it. `README.md:150-161` still carries its own 12-step version,
+      which is the remaining duplicate. The original three disagreed,
       and all three are wrong in the same way: they scope the
       `float <key>;` core-struct edit to "plain C only", but
       `validate-params.ts:277-284` runs `validateCoreStruct` for **every**
@@ -1022,8 +1034,10 @@ Cheap, and it stops the earlier phases from silently regressing.
       independent copy, never compared against `module.json`
       (`validate-params.ts:96-106`). `arpy/module.json:11` declares
       `"api_version": 2` while `arpy.c:52` sets `MOVE_MIDI_FX_API_VERSION` (1);
-      nothing validates it. `lobber` is missing from the module table in
-      `CLAUDE.md:13-20` despite being the largest module in the repo.
+      nothing validates it. The `CLAUDE.md` module table that omitted `lobber`
+      has been deleted — `MODULES.md` was already the complete, correct index,
+      so the table was a stale second copy rather than something to fix. That
+      leaves `index.json` vs `module.json` as the live half of this item.
 - [ ] **8.9 Model the real chain-UI runtime in the test harness.**
       `tests/ui-chain/harness.ts:73,92-93` strips imports with a regex and runs
       the source in a Node `vm` in **sloppy script** mode; the device evaluates

@@ -232,8 +232,8 @@ docs/schwung-dsp-development.md
 ~/.codex/skills/schwung-dsp-development/SKILL.md
 ```
 
-Claude can reference the repo doc through `CLAUDE.md`; Codex can use the
-personal skill.
+Claude and Codex both read `AGENTS.md`, which points at the repo docs; the
+skill can also be installed personally.
 
 ## Recommended Next Step
 
