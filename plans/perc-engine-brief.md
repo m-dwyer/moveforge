@@ -298,7 +298,9 @@ LEVEL / PAN  `level`, equal-power pan from index × global `spread`
 
 ### Partial bank
 
-Six two-pole resonators. `f_k = f0 · ratio_k`, and per partial:
+`SWARF_PARTIALS` two-pole resonators, **sized 10 and skipped aggressively** — see
+"partial skipping" below and the note on bank size at the end of this section.
+`f_k = f0 · ratio_k`, and per partial:
 
 ```c
 r    = expf(-6.9078f / (T60_k * sr));        /* -60 dB over T60_k          */
@@ -310,8 +312,15 @@ y    = b0 * x + a1 * y1 + a2 * y2;
 ```
 
 Starting points, to be settled by measurement:
-`T60_k = decay · sqrt(f_1 / f_k)` (higher partials die faster, which is what struck
-objects do), `gain_k = 1/(k+1)` normalised so `Σ gain_k = 1`.
+`T60_k = decay · (f_1 / f_k)^tilt` with `tilt = 0.5` (higher partials die faster,
+which is what struck objects do), `gain_k = 1/(k+1)` normalised so `Σ gain_k = 1`.
+
+**`tilt` almost certainly needs to be a function of `mat` rather than a constant, and
+that is the first thing to measure.** A drum head damps strongly with frequency; a
+metal plate barely does. A fixed positive `tilt` strips the top off a long hit, which
+turns a ride into a bell ping — the thing this bank is least naturally good at. Don't
+pre-commit to an exponent here; plot the decay-time-versus-frequency profile of a
+metal-end voice and pick from the plot. See the wash gate in Part 9.
 
 Impulse-excited, a resonator *is* a decaying sinusoid. Noise-excited it is a noise
 band. Same code, same coefficients — that single fact is what collapses "sustained
@@ -321,16 +330,28 @@ oscillators in this engine.
 **`mat` — the flagship control.** A continuous morph of the ratio set through five
 anchors, linearly interpolated per partial between adjacent anchors:
 
-| `mat` | anchor | ratios | is |
-|---|---|---|---|
-| 0.00 | comb | ∞ harmonic | wood, block, pipe, plastic, plucked |
-| 0.25 | harmonic | 1, 2, 3, 4, 5, 6 | tonal perc, tuned tom |
-| 0.50 | membrane | 1, 1.593, 2.135, 2.295, 2.653, 2.918 | conga, bongo, tom, snare body |
-| 0.75 | 808 cluster | 1, 1.447, 1.617, 1.927, 2.503, 2.664 | hats, dense metallic buzz |
-| 1.00 | free bar | 1, 2.756, 5.404, 8.933, 13.34, 18.64 | rim, block, bell, ride |
+| `mat` | anchor | is |
+|---|---|---|
+| 0.00 | comb | wood, block, pipe, plastic, plucked |
+| 0.25 | harmonic | tonal perc, tuned tom |
+| 0.50 | membrane | conga, bongo, tom, snare body |
+| 0.75 | 808 cluster | hats, dense metallic buzz |
+| 1.00 | free bar | rim, block, bell, ride |
+
+```c
+/* Ratio anchors, 10 partials. A zero means the anchor has no partial there and
+ * the interpolation fades one in from the neighbouring anchor. */
+harmonic  1, 2,     3,     4,     5,      6,      7,      8,      9,      10
+membrane  1, 1.593, 2.136, 2.295, 2.653,  2.917,  3.156,  3.500,  3.598,  3.647
+cluster   1, 1.447, 1.617, 1.927, 2.503,  2.664,  0,      0,      0,      0
+free_bar  1, 2.757, 5.404, 8.933, 13.345, 18.638, 24.814, 31.872, 0,      0
+```
 
 Membrane ratios are the ideal circular membrane's `j_mn / j_01`; free-bar ratios are
-the ideal free-free bar; the cluster is the 808 hi-hat's six oscillator ratios.
+`(β_n/β_0)²` for the ideal free-free bar; the cluster is the 808 hi-hat's six
+oscillator ratios, and it has exactly six because the circuit has six oscillators —
+padding it with invented partials would make it something other than the thing it is
+named after.
 
 Every intermediate position is a plausible inharmonic percussion timbre, so the knob
 is sweepable end to end with no dead zone and no mode switch. This is the answer to
@@ -357,9 +378,19 @@ measurement here** against a bright driven hat with `tune` swept, and decide fro
 number. Do not assume either way.
 
 **Partial skipping is load-bearing, not an optimisation.** Skip any partial with
-`f_k > 0.45 · sr` or `gain_k` below −60 dB relative. A conga uses three partials, not
-six. Muting rather than folding also stops a `tune` sweep from generating aliased
-partials that move *downward* as the knob goes up.
+`f_k > 0.45 · sr` or `gain_k` below −60 dB relative. Muting rather than folding also
+stops a `tune` sweep from generating aliased partials that move *downward* as the
+knob goes up.
+
+**On bank size.** A conga needs three partials, a hat six, a ride as many as it can
+get — modal density is most of what separates a cymbal from a bell. The bank is sized
+**10** because the anchor tables above are the expensive part to get right and they
+cost nothing to write once, while extending them later means re-deriving four sets of
+ratios and re-measuring CPU. Skipping keeps the average cost near the old six-partial
+figure; the worst case is in Part 7 and it is the number to watch.
+
+`SWARF_PARTIALS` is a compile-time constant. If measurement says 10 is more than the
+budget can carry, lowering it is a one-line change and the tables stay correct.
 
 ### Excitation — `strike`
 
@@ -373,6 +404,13 @@ Let `s = (strike − 0.5) · 2`, so `s ∈ [−1, +1]`.
   density falling from continuous at `s = 0` to roughly one impulse per 500 samples at
   `s = −1`, and the excitation envelope lengthens from ~1 ms to ~120 ms. Shaker,
   cabasa, tambourine, wash.
+
+  The 120 ms is a starting point, and the other candidate is letting it reach the
+  **full amp decay** at `s = −1`. That matters beyond shakers: a resonator that is
+  driven continuously produces a noise *band* rather than a decaying sine *line*, and
+  a bank of bands is a wash where a bank of lines is a chord. It is the same axis
+  either way — "many small events spread in time", spread as far as the hit lasts —
+  so it costs nothing to try. Decide it from the wash gate in Part 9, not from here.
 - **`s = 0` — one strike.** Excitation envelope ~0.5–3 ms.
 - **`s > 0` — burst cluster.** Up to three extra bursts after the first. Fade them in
   by *level*, not by count, or the knob steps: burst `k` (k = 1..3) has level
@@ -581,9 +619,12 @@ construction.
 
 # Part 7 — CPU
 
-Estimate: six voices × six resonators ≈ 80k operations per block, roughly **50 µs on
-device** against a 150–225 µs slot budget. Comfortable, but ~15× Ballast, so it is a
-measurement and not an assumption.
+Estimate: six voices × ten resonators ≈ 120k operations per block, roughly **80 µs on
+device** against a 150–225 µs slot budget. That is the absolute worst case — all six
+voices sounding simultaneously with every partial in range, which no real kit does —
+and skipping puts the typical figure nearer 50 µs. Still ~15–25× Ballast, and
+extrapolated from a dev machine, so it is a measurement and not an assumption. If it
+does not fit, `SWARF_PARTIALS` is the dial.
 
 The lever is not voice count. It is this:
 
@@ -712,6 +753,26 @@ also discards uncommitted work.
   between consecutive hits exceeds a threshold with `human > 0`, and that renders are
   bit-identical with `human = 0`. This is the module's stated reason to exist, so it
   gets an asserted number.
+- **The wash gate.** A metal-end voice (`mat` ≥ 0.75, long `decay`) must still have
+  energy up top well into its tail: assert the 4–10 kHz band retains a stated fraction
+  of its initial level at 500 ms, and that a membrane-end voice does *not*. Plot the
+  decay-time-versus-frequency profile alongside it.
+
+  This gate exists because a thin ride is invisible to every other check — no
+  clipping, no DC, no NaN, goldens stable — so a bell-ping ride blesses cleanly and
+  ships. It is the same shape of blind spot as the drive suite passing with three of
+  five curves replaced by `return x`. Pick the threshold from the first plot of a
+  known-good reference, then mutation-test it by flattening `tilt` and confirming it
+  goes red.
+
+  The levers, in the order to try them: make `tilt` a function of `mat` (Part 4);
+  extend the excitation to the full decay at `strike = 0` (Part 4); add a small
+  per-partial frequency shimmer at the metal end — ±8 cents at 3–7 Hz, per-partial
+  phase, updated per block by the small-angle approximation
+  (`cos(w+δ) ≈ cos w − δ·sin w`) so it costs four multiplies rather than two
+  transcendentals; raise `SWARF_PARTIALS`. Measure after each, and stop when the gate
+  passes rather than applying all four.
+
 - **Per-voice early-out actually skips.** Count the voices that ran the sample loop,
   not just that the output was silent.
 - **No partial above `0.45 · sr` contributes**, at the top of the `tune` range.
@@ -819,10 +880,12 @@ Check, in this order:
 
   Until one lands, hardware gets the defaults (which is why they have to be a real
   kit) and the emulator gets the full set.
-- **Rides will lean bell-ish rather than washy.** Six partials is not a cymbal, which
-  has hundreds of modes. Per-partial detune and per-hit ratio jitter add shimmer for
-  free; a diffusion network would cost real CPU. Accepted for v1, revisit with a
-  measurement rather than an opinion.
+- **Rides are the voice most likely to disappoint**, because a cymbal has hundreds of
+  modes and this bank has ten. No longer listed as accepted: Part 9's wash gate makes
+  it a build failure rather than a thing someone notices six months later, and Part 4
+  names the levers in the order to try them. What *is* accepted is that a 10-partial
+  bank will not be a crash cymbal; the target is a usable ride and a convincing
+  metallic wash, not orchestral realism.
 - **µs-per-block is printed by the harness but not stored in the goldens**, so CPU
   regressions are invisible to CI. Part 9 closes this as part of the work.
 - **Serving `ui_hierarchy` from `get_param`** would give true on-device level
