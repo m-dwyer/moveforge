@@ -173,9 +173,106 @@ These are load-bearing — violating them causes real bugs or wastes time:
 
 5. **Render before claiming a fix.** "It compiles" doesn't tell you it sounds right. Render the suite, run stress, look at the plots, listen, then commit.
 
-6. **Stay inside the constraints.** No `malloc`/`free` in the audio loop — the core struct is calloc'd once at instance creation. The host runs the audio thread at `SCHED_FIFO 90` on a single core with ~2.9 ms per 128-frame block; per-block allocations or syscalls will glitch or crash. Schwung sets `FPCR FZ` (flush-to-zero), so denormals are silently flushed — don't add denormal guards.
+6. **Stay inside the constraints.** No `malloc`/`free` in the audio loop — the core struct is calloc'd once at instance creation; per-block allocations or syscalls will glitch or crash. The numbers below are verified against upstream Schwung `a20cacd1` / v0.11.4, and several correct what this file used to say.
+
+   | fact | source | consequence |
+   |---|---|---|
+   | The frame is 2902 µs but the SPI ioctl eats ~2000 µs of it, leaving **~900 µs for all of Schwung** — 4 chain slots, master FX, display, LEDs, MIDI | `docs/SPI_PROTOCOL.md:127-128` | budget **~150-225 µs per slot**, not 2.9 ms. Upstream's own measured max frame is ~2700 µs, so they already run near the wall |
+   | Module code runs at **SCHED_FIFO 70, unpinned**, inline on MoveOriginal's SPI thread. Schwung creates no audio thread | `src/lib/schwung_spi_lib.c:218-257` | FIFO 90 is the *kernel SPI driver*. "One core" is true only because the work is single-threaded, not because of pinning |
+   | `FPCR.FZ` is set **on device only**, once, on that thread | `src/schwung_shim.c:4230-4241` | offline renders and WASM run with denormals live, so recursive state still needs flushing. `mf_dsp.h` does this for you — use its blocks rather than hand-rolling |
+   | **Nothing clamps between FX stages.** int16 storage only | `chain_host.c:2047-2060` | an overshoot **wraps**, which tears rather than clips. Always clamp your own output |
+   | **No limiter, soft-clip or saturation anywhere in the master path.** 4 slots sum at unity into one int16 mailbox | `schwung_shim.c:2434-2443` | design every module to peak near **-12 dBFS**. This is the cross-module gain reference |
+   | `on_midi` carries no sample offset, and render is deferred one block by design | `plugin_api_v1.h:210`, `schwung_shim.c:1577-1580` | ~2.9 ms of trigger quantisation, ~5.8 ms note-on to audio. Not fixable in a module |
+   | `set_param` runs **on the audio thread**, stringly-typed, and the smoother and LFOs re-issue it every block with `"%.6f"` | `chain_host.c:1975-1986` | your setter must be RT-safe and cheap. The generated one is; don't add work to it |
+   | Schwung's idle gate needs a full second under **-78 dBFS** before it stops rendering a slot | `schwung_shim.c:611-614` | it never fires inside a running groove. An early-out for a silent voice is **your** job |
+   | Bypass still renders | `chain_host.c:2011-2022` | bypassing buys no headroom |
+   | 4 chain slots, one sound generator each, created at boot | `shadow_constants.h:74`, `chain_internal.h:233` | four synth voices total on a device. A multi-voice engine must live inside one module |
 
 7. **C is the device-facing language.** No C++ in modules. `libstdc++` is not guaranteed on Move. The reference modules (in `~/src/schwung`) confirm this.
+
+## If the module will be played from Overture
+
+Overture (`~/src/move-spike/overture`) is a groovebox that runs on Move as a Schwung
+*tool* module and drives the four chain slots as its "open engine" tracks. It reads
+moveforge modules from a pinned submodule, so **a new module is invisible there until
+that pin is bumped**. Three of its limits shape what you can author:
+
+- **`params[].options` is ignored** (`shared/sound-read-model.ts:26-31`), so an `enum`
+  with named options renders as a bare number. Use `"type": "int"` — that is what
+  every discrete selector in this repo already does.
+- **`child_prefix` / `child_count` repeated levels are unimplemented, and silently
+  wrong.** Overture would emit `synth:decay` where the DSP expects
+  `synth:voice0_decay` — correct-looking in the emulator, broken on device. It *does*
+  flatten explicitly *named* levels correctly, so a multi-voice engine should use
+  `levels: {root, hat, conga, …}` with unique prefixed keys.
+- **`presets.json` does not reach the device.** Overture never reads it or Schwung's
+  `preset`/`preset_count`/`preset_name` protocol, so factory presets are emulator-only
+  for now. Don't assume a preset browser exists on hardware.
+
+Overture persists its own flat parameter map, so the Schwung `get_param("state")`
+round-trip only matters for raw Schwung chains used outside Overture.
+
+## Traps that have already cost time
+
+Each of these shipped in a module and was caught by review or measurement, not by
+the compiler. They generalise.
+
+**An idle early-out freezes anything smoothed inside the sample loop.** If you skip
+the loop when the voice is silent, every smoother stops tracking while it is
+skipped, and the next note opens at a stale value. `ballast` muted with the
+transport stopped still fired its whole transient at -13 dBFS, on every hit,
+forever. **Snap every ramped control on note-on** (`mf_smooth_snap`). Note that a
+test which changes the control on a *sounding* voice cannot catch this — it takes
+the smoothed path.
+
+**A declick only makes continuous the node it sits on.** Capture it upstream of the
+output gain and the real output still steps by the full gain ratio — which is what
+happens between two hits at different velocities, i.e. constantly, on
+velocity-sensitive pads. Put it after the gain, and put a soft limiter after that.
+
+**A declick seeded from silence cancels a start-phase control.** It forces the first
+sample to zero whatever the phase is. Opening at the waveform peak is a transient
+worth keeping, not a discontinuity worth hiding — only declick over something
+already sounding.
+
+**Measure discontinuities at the block boundary, not inside a buffer.** MIDI is
+dispatched between `render_block` calls, so a retrigger step lands between the last
+sample of one buffer and the first of the next. A test that scans `for (i = 1; i <
+n)` inside the post-trigger buffer never looks at the one sample pair that matters,
+and will pass with the feature deleted.
+
+**Ramping a control to its target within one block is not enough.** It is click-free,
+but a full-range tilt swing still moves ~4x faster than the signal's own slew, which
+is audible as a lurch when a Route Motion lane steps in hold mode. Glide over ~15 ms.
+
+**Generated stress renders use velocity 127**, which makes any velocity-depth
+parameter a literal no-op — `Vel Depth Min` and `Vel Depth Max` came out
+byte-identical to `Default`. `render-stress.ts` now adds soft-hit cases; if you add
+a velocity-shaped parameter, check it is actually exercised.
+
+**`pnpm` is not on `PATH` outside mise.** `mise run bless-renders`, not `pnpm run
+bless-renders`. This is rule 3, and it still catches people.
+
+**`bless-renders` refuses large changes without `--force`.** That guardrail is doing
+its job — read the diff it prints before overriding it.
+
+## Testing DSP: mutation-test your assertions
+
+Several tests in this repo passed with the feature they named compiled out. Before
+trusting a DSP assertion, **break the implementation and confirm the test goes red.**
+Copy the file, revert the fix, run, restore. It takes two minutes and it is the only
+thing that distinguishes a test from a comment.
+
+Real examples: the shared drive suite passed with three of five curves replaced by
+`return x`; a `peak > 0.6` assertion caught nothing because every curve measured
+exactly 1.000; a declick test passed with the declick removed entirely.
+
+Two related habits:
+
+- **Absolute references belong in C, not in goldens.** Goldens only ever say
+  "unchanged" — a bless can walk a gain reference away without anything noticing.
+- **Save a copy before mutating.** `git checkout` restores the file to HEAD, which
+  also throws away every uncommitted fix in it.
 
 ## Reference modules — when to look at which
 

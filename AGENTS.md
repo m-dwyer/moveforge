@@ -88,12 +88,18 @@ four for drift.
 | what a good module *sounds* like, and real-time safety | `docs/module-design.md` |
 | in-flight work and known gaps | `plans/` |
 
-`src/host/*.h` are local copies of the Schwung ABIs and **have drifted** from
-upstream. For any question about actual host behaviour — parameter limits, when
-`set_param` is called, how presets and chain UIs are loaded — read the upstream
-source rather than trusting the copies or the docs. It lives in a gitignored
-checkout at `upstream/schwung` (override with `$UPSTREAM_DIR`) — clone Schwung
-there yourself, then keep it current with `scripts/update-upstream-schwung.sh`,
-which only refreshes an existing checkout. The parts worth knowing are
+`src/host/*.h` are local copies of the Schwung ABIs. Checked against upstream
+`a20cacd1` / v0.11.4 they are **not** currently drifted — `plugin_api_v1.h` is
+byte-identical, `audio_fx_api_v2.h` differs only in comments, and
+`midi_fx_api_v1.h` matches in layout while omitting `MIDI_FX_MAX_OUT_MSGS 16`.
+Re-check after any upstream bump.
+
+For any question about actual host behaviour — parameter limits, when `set_param`
+is called, how presets and chain UIs are loaded — read the upstream source rather
+than trusting the copies or the docs. It lives in a gitignored checkout at
+`upstream/schwung` (override with `$UPSTREAM_DIR`) — clone Schwung there yourself,
+then keep it current with `scripts/update-upstream-schwung.sh`, which only
+refreshes an existing checkout. There is also a checkout at
+`../overture/schwung`, pinned as a submodule of the Overture groovebox. The parts worth knowing are
 `src/modules/chain/dsp/` (the chain host and its `module.json` parser) and
 `src/shadow/` (the on-device UI runtime).

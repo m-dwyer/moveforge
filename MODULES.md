@@ -6,6 +6,7 @@ This index lists the checked-in Schwung modules by component type. Each module i
 
 | id | name | authoring | description |
 |---|---|---|---|
+| `ballast` | Ballast | plain C | Kick, tom and sub-bass from one low-end voice: sine↔triangle body under a two-stage pitch envelope, click and noise-grain layers, pre-drive tilt into five saturation curves (soft/asym/clip/fold/crush). `track` morphs fixed-pitch kick → note-tracked tom → 808 sub. One-shot; drive is envelope-normalised so saturation keeps the transient. 16 params, 16 presets. User manual: [`src/modules/ballast/MANUAL.md`](src/modules/ballast/MANUAL.md). Design notes: [`plans/ballast-kick-engine.md`](plans/ballast-kick-engine.md). |
 | `westfold` | Westfold | plain C | West Coast synth voice with dual-oscillator phase modulation, snap-assisted ratio, wavefolder, low-pass gate, tone/width controls, drive/strike/chaos macros, and techno-oriented pluck/bass/lead presets. |
 | `dustline` | Dustline | plain C | Compact subtractive voice with oscillator blend, noise, resonant filter, drive, and simple performance controls. |
 | `faust_voice` | Faust Voice | Faust | Reference Faust monophonic saw voice with ADSR-style envelope, resonant low-pass filter, and saturation. |

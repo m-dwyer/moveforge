@@ -130,6 +130,40 @@ Defaults should produce an immediately useful sound. They are also the power-on
 state: a fresh instance comes up on `module.json`'s declared defaults, and the
 host seeds its knob positions from the same numbers.
 
+## Percussion and saturation
+
+Learned building `ballast`; each of these was measured rather than reasoned.
+
+**Normalise a drive stage by the envelope it is following.** A static pre-gain means
+the source falls out of the clipper as it decays, so the stage behaves as an
+infinite-ratio limiter with a long hold. Measured on a kick, crest factor collapsed
+from 12 dB clean to under 2 dB at full hard clip with a 426 ms flat top — a square
+wave, not a drum. Distorting `x / env` and re-multiplying by `env` restored the crest
+to 9 dB *and* produced more midrange than the un-normalised version. Floor the divisor
+so a long tail falls out of the drive rather than ending as a decaying square.
+
+**Peak-normalise every saturation curve, and make each one clean at zero.** Otherwise
+the drive knob is a loudness control wearing a character control's label, and A/B-ing
+two curves compares loudness rather than curves. `mf_drive_t` does both.
+
+**Velocity has to move timbre, not just level — and the noise layers have to move
+faster than the body.** If a click or noise layer is not velocity-scaled it stays at
+full while the body is attenuated, so a soft hit comes out *relatively brighter* than
+a hard one. That is backwards from how a struck drum behaves, and it is measurable:
+the spectral centroid ran downward with rising velocity until the layers were scaled
+by velocity squared.
+
+**Peak near -12 dBFS.** Four Schwung slots sum at unity into one int16 mailbox with no
+limiter anywhere after them, so headroom is each module's own responsibility. This is
+the cross-module reference — hold it and a set of engines mixes coherently without a
+bus stage that does not exist.
+
+**Give a decaying voice an idle early-out.** Schwung's own gate needs a full second
+under -78 dBFS, so it never fires inside a running groove; between patterns is the
+only time it helps. Skipping the sample loop for a silent voice is what actually saves
+the budget — and see the SKILL's trap list, because doing so freezes anything smoothed
+inside that loop.
+
 ## Before finalising
 
 * builds cleanly, and `mise run check` exits 0
