@@ -148,13 +148,50 @@ export function sendParamUpdates(updates: HostParamUpdate[]): void {
   for (const update of updates) sendParamUpdate(update);
 }
 
-export async function reloadModuleWasm(moduleId: string | null): Promise<void> {
+const reloadInFlight = new Map<string, Promise<void>>();
+const reloadAgain = new Set<string>();
+
+export function reloadModuleWasm(moduleId: string | null): Promise<void> {
   // moduleId === null means a shared host header changed; reload every loaded slot.
   // Driven off the engine's own slot table rather than the store's tracks: slot
   // ids are identical across tracks, so iterating tracks reloaded the one engine
   // slot once per track (4 audio-thread instantiations per save on the default
-  // state) and, with two tracks on different modules, reloaded the wrong one.
-  for (const slotId of engine.loadedSlotIds(moduleId)) {
-    await engine.reloadSlot(slotId);
+  // state) and, with two tracks on different modules, reloaded the one that was
+  // loaded rather than the one that changed.
+  //
+  // One pass at a time per module, with everything arriving mid-pass folded
+  // into a single catch-up pass. The dev watcher fires per file event and is
+  // not debounced (plan 5.5), so a burst used to start a fetch and a
+  // WebAssembly.instantiate on the audio thread for every event. Dropping the
+  // extra events outright would be wrong instead: the build that triggered
+  // them may have finished after the in-flight pass fetched, which would leave
+  // the previous binary loaded.
+  const key = moduleId ?? "*";
+  const existing = reloadInFlight.get(key);
+  if (existing) {
+    reloadAgain.add(key);
+    return existing;
   }
+
+  const pass = (async () => {
+    do {
+      reloadAgain.delete(key);
+      for (const slotId of engine.loadedSlotIds(moduleId)) {
+        // One module failing to reload must not strand the others: reloadSlot
+        // throws when a .wasm is missing, and web/wasm/ is gitignored, so a
+        // fresh clone hits this readily.
+        try {
+          await engine.reloadSlot(slotId);
+        } catch (error) {
+          console.error(`[moveforge] failed to reload ${slotId}`, error);
+        }
+      }
+    } while (reloadAgain.has(key));
+  })().finally(() => {
+    reloadInFlight.delete(key);
+    reloadAgain.delete(key);
+  });
+
+  reloadInFlight.set(key, pass);
+  return pass;
 }
