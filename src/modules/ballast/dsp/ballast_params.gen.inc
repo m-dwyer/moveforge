@@ -90,7 +90,7 @@ void ballast_apply_defaults(ballast_core_t *s) {
     s->dirt = 0.0f;
     s->volume = 0.75f;
     s->track = 0.0f;
-    s->sweep = 0.45f;
+    s->sweep = 0.22f;
     s->shape = 0.35f;
     s->phase = 0.0f;
     s->curve = 0.0f;

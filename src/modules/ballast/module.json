@@ -38,7 +38,7 @@
             { "key": "dirt", "name": "Dirt", "type": "float", "min": 0, "max": 1, "default": 0, "step": 0.01 },
             { "key": "volume", "name": "Volume", "type": "float", "min": 0, "max": 1, "default": 0.75, "step": 0.01 },
             { "key": "track", "name": "Track", "type": "float", "min": 0, "max": 1, "default": 0, "step": 0.01 },
-            { "key": "sweep", "name": "Sweep", "type": "float", "min": 0, "max": 1, "default": 0.45, "step": 0.01 },
+            { "key": "sweep", "name": "Sweep", "type": "float", "min": 0, "max": 1, "default": 0.22, "step": 0.01 },
             { "key": "shape", "name": "Shape", "type": "float", "min": 0, "max": 1, "default": 0.35, "step": 0.01 },
             { "key": "phase", "name": "Phase", "type": "float", "min": 0, "max": 1, "default": 0, "step": 0.01 },
             { "key": "curve", "name": "Curve", "type": "int", "min": 0, "max": 4, "default": 0, "step": 1 },

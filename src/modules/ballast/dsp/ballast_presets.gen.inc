@@ -30,7 +30,7 @@ static const char *ballast_preset_param_keys[16] = {
     "human"
 };
 
-static const float ballast_preset_values_0[16] = { 33.0f, 0.5f, 0.45f, 0.45f, 0.3f, 0.5f, 0.0f, 0.75f, 0.0f, 0.45f, 0.35f, 0.0f, 0.0f, 0.2f, 0.6f, 0.0f };
+static const float ballast_preset_values_0[16] = { 33.0f, 0.5f, 0.45f, 0.45f, 0.3f, 0.5f, 0.0f, 0.75f, 0.0f, 0.22f, 0.35f, 0.0f, 0.0f, 0.2f, 0.6f, 0.0f };
 static const float ballast_preset_values_1[16] = { 31.0f, 0.22f, 0.5f, 0.95f, 0.22f, 0.32f, 0.0f, 0.75f, 0.0f, 0.6f, 0.2f, 0.1f, 0.0f, 0.08f, 0.55f, 0.12f };
 static const float ballast_preset_values_2[16] = { 34.0f, 0.68f, 0.4f, 0.3f, 0.42f, 0.56f, 0.08f, 0.75f, 0.0f, 0.3f, 0.5f, 0.22f, 1.0f, 0.25f, 0.6f, 0.15f };
 static const float ballast_preset_values_3[16] = { 35.0f, 0.6f, 0.35f, 0.35f, 0.62f, 0.7f, 0.15f, 0.7f, 0.0f, 0.28f, 0.55f, 0.25f, 2.0f, 0.35f, 0.5f, 0.1f };

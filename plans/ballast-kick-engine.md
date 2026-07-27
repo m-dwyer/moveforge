@@ -353,3 +353,68 @@ suite is 0.00033.
 **Stress.** 30 generated parameter-extreme renders pass the metric gates
 (clipping, DC, silence, hotness, stereo balance).
 
+
+## Second pass — what four reviews changed
+
+Reviews of the first build (correctness, sound design, tests, presets) found
+three defects and three sound problems worth acting on. Fixes are in
+`01e6732` and the commit following it; the measurements behind each are below.
+
+### Envelope-normalised drive
+
+The drive stage had a static pre-gain, so as the body decayed it fell out of
+the clipper — the stage behaved as an infinite-ratio limiter with a
+several-hundred-millisecond hold. Measured on hard clip:
+
+| drive | crest before | crest after | flat-top before | after |
+|---|---|---|---|---|
+| 0.00 | 12.1 dB | 12.1 dB | 26 ms | 26 ms |
+| 0.50 | 3.8 dB | 8.9 dB | 276 ms | 74 ms |
+| 1.00 | 1.9 dB | 8.9 dB | 426 ms | 80 ms |
+
+At full drive the old code produced a 426 ms flat top — a square wave, not a
+drum. Drive is now applied to `x / env` and the envelope reimposed after, where
+`env` is the body envelope floored at 0.12. The mid-to-low ratio *improves* at
+the same time (−5.79 → −5.23 dB at full drive), so this is not a trade: the
+transient comes back and there is more midrange than before.
+
+The floor matters. Without one, a long tail keeps getting boosted into the
+clipper and ends as a decaying square. Floored at 0.12 the last 18 dB of decay
+falls out of the drive naturally, which is also what an analogue circuit does.
+
+### Pitch envelope retuned
+
+The old ranges left the default patch 187 ms from settling within a semitone,
+against a 450 ms decay — audibly rubbery rather than solid — and locked
+`t_slow` at exactly 10× `t_fast` at every knob position, so neither a tick over
+a long dive nor a slow bloom with a tight body was reachable.
+
+Now 1.5–15 ms and 10–200 ms, which spans 31 ms to 188 ms of settling time and
+lets the ratio range about 7:1 to 13:1. The range was right after that; the
+*default* was not, so `sweep` drops from 0.45 to 0.22 — about 55 ms, the tight
+techno window.
+
+### Click level
+
+Raised from 0.5 to 0.9 after measuring the 2–6 kHz peak in the first 10 ms
+relative to the hit's overall peak: the click now contributes 8–9 dB over what
+the pitch sweep alone provides, versus about 6 dB before, putting the default
+patch near −8 dB band-relative.
+
+**Not done: splitting click level off `punch`.** The sound-design review read
+the click as effectively absent (55 dB down) and recommended a separate
+parameter. That measurement averaged band energy over a 10 ms window, which
+dilutes a ~1 ms transient by 10–20 dB; measured as a band peak the click was
+already present, so the case for spending a 17th parameter slot — the largest
+count in the repo — is weaker than it looked. Revisit if it sounds thin in
+context. The percussion engine will need a first-class noise layer regardless,
+and that is the natural point to extract one.
+
+### Not done, deliberately
+
+**Retapering `decay`.** It is linear in seconds, so the 100–400 ms window sits
+in the bottom quarter of the travel. Making it exponential would either lose
+the seconds display, which is the useful thing about the control, or make
+automation non-linear in time, which is worse for a Route Motion lane. With
+295 encoder detents over the range, 30 of them land in that window, which is
+enough. Left alone.

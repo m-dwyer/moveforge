@@ -20,13 +20,38 @@
  * and the output soft limiter only rounds the very peak rather than doing the
  * gain staging. */
 #define BALLAST_BODY_GAIN   0.8f
-#define BALLAST_CLICK_GAIN  0.5f
+/* Raised from 0.5 after measuring the attack band (2-6 kHz peak in the first
+ * 10 ms, relative to the hit's overall peak). At 0.5 the click contributed
+ * about 6 dB over what the pitch sweep alone provides; at 0.9 it contributes
+ * 8-9 dB and lands the default patch around -8 dB band-relative, which reads
+ * as a present click without becoming a click track over a kick. */
+#ifndef BALLAST_CLICK_GAIN
+#define BALLAST_CLICK_GAIN  0.9f
+#endif
 
 /* Calibrated so the Init preset at velocity 100 peaks near -12 dBFS. That is
  * the cross-engine reference: four Schwung slots sum at unity into one int16
  * mailbox with no limiter anywhere in the master path, so every engine has to
  * leave the headroom itself. */
 #define BALLAST_OUT_TRIM    0.44f
+
+/* Drive sees the signal divided by the body envelope and the envelope is
+ * reimposed after, so the amount of saturation stays constant as the hit
+ * decays instead of falling out of the clipper.
+ *
+ * With a static pre-gain the stage behaves as an infinite-ratio limiter with a
+ * several-hundred-millisecond hold: measured crest factor collapsed from 11.9
+ * dB clean to 1.9 dB at full hard clip, with a 426 ms flat top. That is a
+ * square wave, not a drum — drive was buying midrange at roughly half a dB of
+ * transient per dB of midrange, which is backwards.
+ *
+ * The floor stops the division running away once the body is inaudible, and
+ * keeps the very end of a long tail from turning into a decaying square. The
+ * output is bounded by the envelope either way, since the curves are bounded
+ * by one. */
+#ifndef BALLAST_DRIVE_ENV_FLOOR
+#define BALLAST_DRIVE_ENV_FLOOR 0.12f
+#endif
 
 #define BALLAST_DECLICK_S   0.0007f
 /* Below this the previous output is silence, and a fresh attack is wanted. */
@@ -213,8 +238,16 @@ void ballast_process_float(ballast_core_t *s,
 
     const float sr = MOVEFORGE_SAMPLE_RATE;
 
-    float t_fast = 0.002f + s->sweep * 0.038f;    /* 2..40 ms   */
-    float t_slow = 0.020f + s->sweep * 0.380f;    /* 20..400 ms */
+    /* Pitch-envelope times. The old ranges (2-40 ms and 20-400 ms) left the
+     * default patch 3 semitones sharp a third of the way into a 450 ms hit —
+     * 187 ms to settle within a semitone, which reads as rubbery rather than
+     * solid. They were also locked at exactly 10:1 at every knob position, so
+     * neither "3 ms tick over a long dive" nor "slow bloom, tight body" was
+     * reachable. Shortening the slow stage more than the fast one both fixes
+     * the settling time and lets the ratio range over roughly 7:1 to 13:1
+     * without spending a parameter slot on it. */
+    float t_fast = 0.0015f + s->sweep * 0.0135f;  /* 1.5..15 ms */
+    float t_slow = 0.010f + s->sweep * 0.190f;    /* 10..200 ms */
     float k_fast = expf(-3.0f / (t_fast * sr));
     float k_slow = expf(-3.0f / (t_slow * sr));
 
@@ -329,7 +362,10 @@ void ballast_process_float(ballast_core_t *s,
         s->tilt_low_cur += tilt_low_step;
         s->tilt_high_cur += tilt_high_step;
         float y = mf_tilt_tick(&s->tilt, mix, s->tilt_low_cur, s->tilt_high_cur);
-        y = mf_drive_tick(&s->drive_state, &drive_co, y);
+
+        float env = (amp > BALLAST_DRIVE_ENV_FLOOR) ? amp : BALLAST_DRIVE_ENV_FLOOR;
+        y = mf_drive_tick(&s->drive_state, &drive_co, y / env) * env;
+
         y = mf_dcblock_tick(&s->dc, y);
 
         /* ---- output ----

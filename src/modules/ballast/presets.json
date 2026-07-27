@@ -2,7 +2,7 @@
   "presets": [
     {
       "name": "Init",
-      "params": { "tune": 33, "punch": 0.5, "drop": 0.45, "decay": 0.45, "drive": 0.3, "tone": 0.5, "dirt": 0, "volume": 0.75, "track": 0, "sweep": 0.45, "shape": 0.35, "phase": 0, "curve": 0, "body": 0.2, "vel_depth": 0.6, "human": 0 },
+      "params": { "tune": 33, "punch": 0.5, "drop": 0.45, "decay": 0.45, "drive": 0.3, "tone": 0.5, "dirt": 0, "volume": 0.75, "track": 0, "sweep": 0.22, "shape": 0.35, "phase": 0, "curve": 0, "body": 0.2, "vel_depth": 0.6, "human": 0 },
       "render": { "file": "00-init.wav", "notes": [36, 36, 36, 36, 36, 36, 36, 36], "note_blocks": 155, "gate_blocks": 20, "seconds": 4, "velocity": 100 }
     },
     {

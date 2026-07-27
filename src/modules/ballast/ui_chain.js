@@ -53,7 +53,7 @@ const PARAMS = [
     { key: "dirt", name: "Dirt", min: 0, max: 1, step: 0.01, dec: 2, def: 0 },
     { key: "volume", name: "Volume", min: 0, max: 1, step: 0.01, dec: 2, def: 0.75 },
     { key: "track", name: "Track", min: 0, max: 1, step: 0.01, dec: 2, def: 0 },
-    { key: "sweep", name: "Sweep", min: 0, max: 1, step: 0.01, dec: 2, def: 0.45 },
+    { key: "sweep", name: "Sweep", min: 0, max: 1, step: 0.01, dec: 2, def: 0.22 },
     { key: "shape", name: "Shape", min: 0, max: 1, step: 0.01, dec: 2, def: 0.35 },
     { key: "phase", name: "Phase", min: 0, max: 1, step: 0.01, dec: 2, def: 0 },
     { key: "curve", name: "Curve", min: 0, max: 4, step: 1, dec: 0, def: 0 },
