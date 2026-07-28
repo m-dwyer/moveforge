@@ -90,6 +90,18 @@ inspect the template pack and rendered file list without writing files.
 Both paths share this loop:
 
 1. Edit `src/modules/<id>/module.json` — add/modify entries in `capabilities.ui_hierarchy.levels.root.params`. Each entry needs `key`, `name`, `type`, `min`, `max`, `default`, `step`.
+
+   `root` is not a special name — the chain host parses the `params` of **every**
+   level, in the order they appear in the file (`chain_params.c:439`), and every
+   generator here reads them through the one walk in `shared/ui-hierarchy.ts`. So a
+   module with many parameters can group them into several named levels and get a
+   legible module.json plus one encoder bank per level; a single `root` is just the
+   simplest case. Two constraints if you do: `shared_params` comes first because
+   the host parses it first, and **level keys must not be integer-like** (`"1"`,
+   `"2"`) — JavaScript enumerates those ahead of every string key, so the walk
+   would disagree with the host about parameter order. Put the number in the
+   level's `name`, which is what a bank label reads. The walk throws rather than
+   let that through.
 2. **Plain C only**: add a matching `float <key>;` field to the state struct in `<id>_core.h`. The generated `set_param`/`get_param` will write/read it directly.
 3. **Faust only**: add a matching `hslider("<key>", default, min, max, step)` declaration to `<id>.dsp`. The adapter captures it by label via `buildUserInterface`.
 4. Run `mise run gen-params`.

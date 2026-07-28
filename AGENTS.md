@@ -15,6 +15,7 @@ src/modules/<id>/       one self-contained module (see below)
 src/modules/_shared/    shared C helpers — mf_dsp.h, dsp_runtime.h, scope.h
 src/host/               local copies of the Schwung ABIs (drifted; see below)
 web/                    browser UI: React + Vite + Tailwind + shadcn
+shared/                 TypeScript the generators and the browser both need
 tools/                  offline harnesses — render_wav.c, render_fx.c, trace_midi_fx.c
 tests/                  C tests: test_<id>_core.c, test_<id>_plugin.c, test_mf_dsp.c
 scripts/                build, codegen and validation (TypeScript + shell)
@@ -50,6 +51,10 @@ always plain C.
 1. **`module.json` is the single source of truth** for metadata and the
    parameter schema. Params, their ranges and defaults are declared there and
    nowhere else — the C, the on-device UI and the browser all derive from it.
+   They derive through `shared/ui-hierarchy.ts`, which is the **only** place that
+   walks `ui_hierarchy` — parameter *order* is an ABI between the generated enum,
+   the device's knob list and the browser's parameter ids, so a second walk that
+   disagrees is a module addressing the wrong parameters with nothing failing.
 2. **Never hand-edit a generated file.** Anything named `*.gen.*`, plus
    `ui_chain.js` and `<id>_faust.c`. Edit the source and re-run the generator;
    `mise run validate` fails on drift.

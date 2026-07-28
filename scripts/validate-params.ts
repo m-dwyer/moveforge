@@ -1,4 +1,11 @@
 import { readFile, stat } from "node:fs/promises";
+import {
+  flattenKnobs,
+  flattenParams,
+  paramGroups,
+  SHARED_PARAMS_GROUP,
+  type UiHierarchy
+} from "../shared/ui-hierarchy.ts";
 import { modulePaths, selectedModuleIds } from "./lib/modules.ts";
 import { generate as genParams } from "./gen-params.ts";
 
@@ -19,21 +26,7 @@ type Capabilities = {
   component_type?: string;
   midi_in?: boolean;
   midi_out?: boolean;
-  ui_hierarchy?: {
-    levels?: {
-      [level: string]: {
-        knobs?: string[];
-        name?: string;
-        params?: Param[];
-      } | undefined;
-      root?: {
-        knobs?: string[];
-        name?: string;
-        params?: Param[];
-      };
-    };
-    shared_params?: Param[];
-  };
+  ui_hierarchy?: UiHierarchy<Param>;
 };
 
 type ModuleJson = {
@@ -194,8 +187,8 @@ async function validateModule(moduleId: string, errors: string[]): Promise<void>
     }
   }
 
-  const params = caps.ui_hierarchy?.levels?.root?.params;
-  if (params) {
+  const params = flattenParams(caps.ui_hierarchy);
+  if (params.length > 0) {
     validateParams(moduleId, params, errors);
     validateSoundGeneratorLevelParams(caps.component_type, params, errors);
     validatePresets(presetsJson, params, errors);
@@ -212,13 +205,15 @@ async function validateModule(moduleId: string, errors: string[]): Promise<void>
         errors
       );
     }
-    const knobs = caps.ui_hierarchy?.levels?.root?.knobs || [];
     const paramKeys = new Set(params.map((p) => p.key));
-    for (const key of knobs) {
+    for (const key of flattenKnobs(caps.ui_hierarchy)) {
       if (!paramKeys.has(key)) errors.push(`knob ${key} is not a declared param`);
     }
   } else if (caps.component_type === "sound_generator" || caps.component_type === "audio_fx") {
-    errors.push(`module.json is missing capabilities.ui_hierarchy.levels.root.params`);
+    errors.push(
+      `module.json declares no params in any capabilities.ui_hierarchy level ` +
+        `(a single level named "root" is the usual shape)`
+    );
   }
 }
 
@@ -262,21 +257,16 @@ function validateHostLimits(moduleJson: ModuleJson, jsonBytes: number, errors: s
     );
   }
 
-  const hierarchy = moduleJson.capabilities?.ui_hierarchy;
   const seen = new Map<string, string>();
   let total = 0;
 
-  /* shared_params lands in the same array as the levels, so it counts toward
-   * the cap and collides with level keys. Walking only `levels` left a
-   * duplicate there passing validation and rejecting the module on device. */
-  const groups: Array<[string, Param[]]> = [
-    ...Object.entries(hierarchy?.levels ?? {}).map(
-      ([name, level]) => [`levels.${name}`, level?.params ?? []] as [string, Param[]]
-    ),
-    ["shared_params", hierarchy?.shared_params ?? []]
-  ];
-
-  for (const [groupName, groupParams] of groups) {
+  /* The same walk the generators use, so the count checked here and the count
+   * emitted into the C cannot disagree. shared_params lands in the host's single
+   * param array alongside the levels, so it counts toward the cap and collides
+   * with level keys — walking only `levels` left a duplicate there passing
+   * validation and killing the module's parameters on device. */
+  for (const { group, params: groupParams } of paramGroups(moduleJson.capabilities?.ui_hierarchy)) {
+    const groupName = group === SHARED_PARAMS_GROUP ? group : `levels.${group}`;
     for (const param of groupParams) {
       total++;
       if (typeof param.key === "string") {

@@ -137,6 +137,31 @@ uses the array index as the `ParamDefinition.id` sent to the worklet, and that i
 must equal the generated `SWARF_PARAM_*` enum ordinal. Two independent walks that
 drift produce a module whose browser knobs address the wrong parameters.
 
+**Done.** `shared/ui-hierarchy.ts` — `flattenParams`, `flattenKnobs` and
+`paramGroups`, with `flattenParams` defined in terms of the groups so a caller that
+wants bank structure (P7) cannot walk the hierarchy a second, differently-ordered
+time to get it. All seven sites call it, `validateHostLimits` included, so the count
+the validator checks and the count the C is generated from cannot disagree. New
+top-level `shared/` for TypeScript both trees need; the browser reaches it fine
+(`vite build` bundles it, dev serves it at `/@fs`).
+
+Two things the upstream source settled that this section did not anticipate:
+
+- **`shared_params` flattens first**, not last — `parse_hierarchy_params` parses it
+  at `chain_params.c:447`, before it has looked at `levels` at all (`:493`).
+- **Integer-like level keys are rejected.** The host's order is the JSON *text's*;
+  JavaScript enumerates array-index keys first in numeric order, ahead of every
+  string key, so `{"hat":…,"2":…,"oh":…}` reaches the host as hat, 2, oh and
+  `Object.entries` as 2, hat, oh. **So key the eight levels `hat`, `oh`, `ride`,
+  `clap`, `conga`, `wood`, `kit`, `map`** and put "1 Hat" in each level's `name`,
+  which is what Part 5's bank row reads anyway. The walk throws rather than let a
+  numeric key through, and `gen-params` and `validate` both exit 1.
+
+Also settled: `root` is not a special name to the host, so nothing about the
+existing modules was non-conformant — the ceiling was in the generators. Splitting
+ballast's 16 params into two levels leaves all four generated files byte-identical,
+which is the property Part 5 depends on: grouping is presentation, not structure.
+
 ### P2. Sparse presets inherit defaults
 
 `scripts/gen-presets.ts:75-79` throws if any preset omits any key;

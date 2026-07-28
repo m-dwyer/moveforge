@@ -1,6 +1,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
 import { join } from "node:path";
+import { flattenParams, type UiHierarchy } from "../shared/ui-hierarchy.ts";
 import { selectedModuleTargets } from "./lib/modules.ts";
 
 type Param = {
@@ -15,13 +16,7 @@ type Param = {
 type ModuleJson = {
   capabilities?: {
     component_type?: string;
-    ui_hierarchy?: {
-      levels?: {
-        root?: {
-          params?: Param[];
-        };
-      };
-    };
+    ui_hierarchy?: UiHierarchy<Param>;
   };
 };
 
@@ -44,7 +39,7 @@ for (const target of await selectedModuleTargets()) {
   const paths = target.paths;
   const moduleJson = JSON.parse(await readFile(paths.moduleJson, "utf8")) as ModuleJson;
   const componentType = target.componentType;
-  const params = moduleJson.capabilities?.ui_hierarchy?.levels?.root?.params ?? [];
+  const params = flattenParams(moduleJson.capabilities?.ui_hierarchy);
 
   if (componentType !== "sound_generator" && componentType !== "audio_fx") {
     console.log(`[${moduleId}] skipping stress render: component_type='${componentType}'`);

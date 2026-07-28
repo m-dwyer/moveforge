@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
+import { flattenParams, type UiHierarchy } from "../shared/ui-hierarchy.ts";
 import { modulePaths, selectedModuleIds } from "./lib/modules.ts";
 import { cFloatLiteral } from "./lib/c.ts";
 import { renderTemplateString } from "./lib/templates.ts";
@@ -28,13 +29,7 @@ type ScopeConfig = {
 type ModuleJson = {
   capabilities?: {
     scope?: ScopeConfig;
-    ui_hierarchy?: {
-      levels?: {
-        root?: {
-          params?: Param[];
-        };
-      };
-    };
+    ui_hierarchy?: UiHierarchy<Param>;
   };
   id: string;
 };
@@ -63,9 +58,9 @@ export async function generate(options: GenerateOptions = {}): Promise<number> {
   for (const moduleId of moduleIds) {
     const paths = modulePaths(moduleId);
     const moduleJson = JSON.parse(await readFile(paths.moduleJson, "utf8")) as ModuleJson;
-    const params = moduleJson.capabilities?.ui_hierarchy?.levels?.root?.params;
-    if (!params) {
-      console.warn(`[${moduleId}] no capabilities.ui_hierarchy.levels.root.params — skipping`);
+    const params = flattenParams(moduleJson.capabilities?.ui_hierarchy);
+    if (params.length === 0) {
+      console.warn(`[${moduleId}] no params in any capabilities.ui_hierarchy level — skipping`);
       continue;
     }
 

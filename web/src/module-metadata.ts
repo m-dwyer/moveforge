@@ -1,3 +1,5 @@
+import { flattenParams, type UiHierarchy } from "../../shared/ui-hierarchy.ts";
+
 export type ModuleIndexItem = {
   id: string;
   kind?: string;
@@ -42,15 +44,7 @@ type RawParam = {
 export type ModuleMetadataJson = {
   capabilities?: {
     component_type?: string;
-    ui_hierarchy?: {
-      levels?: {
-        root?: {
-          knobs?: string[];
-          name?: string;
-          params?: RawParam[];
-        };
-      };
-    };
+    ui_hierarchy?: UiHierarchy<RawParam>;
   };
   id: string;
   name?: string;
@@ -142,7 +136,10 @@ function paramsFromModuleJson(
   descriptions: Record<string, string>,
   randomizeHints: Record<string, RandomizeHint>
 ): ParamDefinition[] {
-  const raw = moduleJson.capabilities?.ui_hierarchy?.levels?.root?.params ?? [];
+  /* `index` becomes the id the worklet is addressed by, so this has to be the
+   * same order the generated <MODULE>_PARAM_* enum counts in — which is why the
+   * flatten is shared with the generators rather than repeated here. */
+  const raw = flattenParams(moduleJson.capabilities?.ui_hierarchy);
   return raw.map((item, index) => ({
     default: item.default,
     id: index,
