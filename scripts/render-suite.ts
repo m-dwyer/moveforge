@@ -20,14 +20,31 @@ type CommonRender = {
   sparse?: boolean;
 };
 
+/* One step of a render pattern: the notes fired together on that step, each with
+ * its own velocity. `[]` is a rest, and a bare number means that note at the
+ * render's `velocity`.
+ *
+ *   "pattern": [[{ "note": 36, "vel": 110 }, { "note": 39, "vel": 96 }], [], [42]]
+ *
+ * A flat `notes` array is the older, monophonic spelling and still works — it
+ * expands to one note per step at the scalar `velocity`, which is byte-identical
+ * to what it always rendered. Give one or the other, never both.
+ *
+ * Polyphony is not cosmetic: with one note per step no golden can exercise voice
+ * summing, gain staging under simultaneity, choke groups, or per-voice velocity,
+ * which for a note-mapped multi-voice module is the whole behaviour under test. */
+type PatternNote = number | { note: number; vel?: number };
+type PatternStep = PatternNote[];
+
 type SoundGenRender = CommonRender & {
   file: string;
   gate_blocks: number;
   note_blocks: number;
-  notes: number[];
+  notes?: number[];
+  pattern?: PatternStep[];
   seconds: number;
   tail_seconds?: number;
-  velocity: number;
+  velocity?: number;
 };
 
 type AudioFxRender = CommonRender & {
@@ -44,6 +61,12 @@ type MidiFxRender = CommonRender & {
   notes?: number[];
   velocity?: number;
 };
+
+/* Only reached when a pattern gives every note its own velocity, so the scalar is
+ * never consulted. A note without a `vel` makes `velocity` mandatory instead —
+ * quietly hitting at some default is how a whole render measures the wrong
+ * dynamic. */
+const DEFAULT_VELOCITY = 100;
 
 type PresetSuite = {
   presets: Array<{
@@ -89,8 +112,8 @@ for (const target of await selectedModuleTargets()) {
         String(sg.seconds),
         String(sg.note_blocks),
         String(sg.gate_blocks),
-        String(sg.velocity),
-        sg.notes.join(",")
+        String(sg.velocity ?? DEFAULT_VELOCITY),
+        patternSpec(sg)
       ];
       /* Stop triggering before the end so a long decay is actually captured;
        * without it the recorded tail can never exceed one note interval. */
@@ -110,6 +133,59 @@ for (const target of await selectedModuleTargets()) {
     const result = spawnSync(renderBin, args, { stdio: "inherit" });
     if (result.status !== 0) process.exit(result.status ?? 1);
   }
+}
+
+/* Encode a render's steps for render_wav's positional pattern argument: steps
+ * separated by ",", simultaneous notes by "+", velocity after ":". See
+ * tools/render_pattern.h for the grammar. */
+function patternSpec(sg: SoundGenRender): string {
+  const where = `render "${sg.file}"`;
+  if (sg.pattern && sg.notes) {
+    throw new Error(`${where}: has both "pattern" and "notes" — give one or the other`);
+  }
+  if (!sg.pattern && !sg.notes) {
+    throw new Error(`${where}: needs either "pattern" (polyphonic) or "notes" (one per step)`);
+  }
+  if (sg.velocity !== undefined &&
+      (!Number.isInteger(sg.velocity) || sg.velocity < 1 || sg.velocity > 127)) {
+    throw new Error(`${where}: velocity ${sg.velocity} must be an integer in 1..127`);
+  }
+
+  const steps: PatternStep[] = sg.pattern ?? sg.notes!.map((note) => [note]);
+  if (steps.length === 0) throw new Error(`${where}: pattern is empty`);
+  if (steps.every((step) => step.length === 0)) {
+    throw new Error(`${where}: every step is a rest, so the render is silence`);
+  }
+
+  return steps
+    .map((step, stepIndex) => {
+      if (!Array.isArray(step)) {
+        throw new Error(`${where}: step ${stepIndex + 1} is not an array of notes`);
+      }
+      return step.map((entry) => noteSpec(entry, `${where} step ${stepIndex + 1}`, sg)).join("+");
+    })
+    .join(",");
+}
+
+function noteSpec(entry: PatternNote, where: string, sg: SoundGenRender): string {
+  const note = typeof entry === "number" ? entry : entry.note;
+  const vel = typeof entry === "number" ? undefined : entry.vel;
+
+  if (!Number.isInteger(note) || note < 0 || note > 127) {
+    throw new Error(`${where}: note ${note} must be an integer in 0..127`);
+  }
+  if (vel === undefined) {
+    if (sg.velocity === undefined) {
+      throw new Error(
+        `${where}: note ${note} has no "vel", so the render needs a "velocity" to fall back on`
+      );
+    }
+    return String(note);
+  }
+  if (!Number.isInteger(vel) || vel < 1 || vel > 127) {
+    throw new Error(`${where}: note ${note} has vel ${vel}, which must be an integer in 1..127`);
+  }
+  return `${note}:${vel}`;
 }
 
 function automationSpec(a: Automation): string {

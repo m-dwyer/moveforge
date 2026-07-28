@@ -27,6 +27,7 @@
 #include <string.h>
 
 #include "host/midi_fx_api_v1.h"
+#include "render_params.h"
 
 extern midi_fx_api_v1_t* move_midi_fx_init(const host_api_v1_t *host);
 
@@ -66,9 +67,7 @@ int main(int argc, char **argv) {
     int gate_blocks = 4;
     int note_blocks = 8;
 
-    typedef struct { const char *key; const char *value; } pair_t;
-    pair_t params[32];
-    int param_count = 0;
+    mf_param_list_t params = {0};
 
     for (int i = 2; i < argc; i++) {
         if (strcmp(argv[i], "--blocks") == 0 && i + 1 < argc) { total_blocks = atoi(argv[++i]); continue; }
@@ -76,13 +75,7 @@ int main(int argc, char **argv) {
         if (strcmp(argv[i], "--velocity") == 0 && i + 1 < argc) { velocity = atoi(argv[++i]); continue; }
         if (strcmp(argv[i], "--gate-blocks") == 0 && i + 1 < argc) { gate_blocks = atoi(argv[++i]); continue; }
         if (strcmp(argv[i], "--note-blocks") == 0 && i + 1 < argc) { note_blocks = atoi(argv[++i]); continue; }
-        char *eq = strchr(argv[i], '=');
-        if (eq && param_count < 32) {
-            *eq = '\0';
-            params[param_count].key = argv[i];
-            params[param_count].value = eq + 1;
-            param_count++;
-        }
+        if (mf_param_add(&params, argv[i]) != 0) return 2;
     }
 
     host_api_v1_t host = {0};
@@ -96,8 +89,8 @@ int main(int argc, char **argv) {
     void *inst = api->create_instance(".", NULL);
     if (!inst) { fprintf(stderr, "create_instance failed\n"); return 1; }
 
-    for (int i = 0; i < param_count; i++) {
-        api->set_param(inst, params[i].key, params[i].value);
+    for (int i = 0; i < params.count; i++) {
+        api->set_param(inst, params.items[i].key, params.items[i].value);
     }
 
     FILE *f = fopen(out_path, "w");
@@ -108,7 +101,7 @@ int main(int argc, char **argv) {
     fprintf(f, "# blocks=%d notes=", total_blocks);
     for (int i = 0; i < note_count; i++) fprintf(f, "%s%d", i > 0 ? "," : "", notes[i]);
     fprintf(f, " velocity=%d note_blocks=%d gate_blocks=%d\n", velocity, note_blocks, gate_blocks);
-    for (int i = 0; i < param_count; i++) fprintf(f, "# param %s=%s\n", params[i].key, params[i].value);
+    for (int i = 0; i < params.count; i++) fprintf(f, "# param %s=%s\n", params.items[i].key, params.items[i].value);
     fprintf(f, "# block event bytes\n");
 
     uint8_t out_msgs[MAX_OUT][3];

@@ -28,9 +28,10 @@ fi
 export ASAN_OPTIONS="${ASAN_OPTIONS:-detect_leaks=0}"
 export UBSAN_OPTIONS="${UBSAN_OPTIONS:-print_stacktrace=1,halt_on_error=1}"
 
-# Shared DSP blocks (src/modules/_shared) are module-independent, so they are
-# tested once rather than per module.
-for SHARED_TEST in tests/test_mf_dsp.c; do
+# Shared DSP blocks (src/modules/_shared) and the render harnesses' shared
+# argument handling (tools/render_*.h) are module-independent, so they are tested
+# once rather than per module.
+for SHARED_TEST in tests/test_mf_dsp.c tests/test_render_harness.c; do
   SHARED_NAME="$(basename "$SHARED_TEST" .c)"
   cc -std=c11 -O2 -g -Wall -Wextra -Werror \
     "$SHARED_TEST" \
@@ -74,7 +75,7 @@ done
 if [ -n "$SAN_FLAGS" ]; then
   echo "--- sanitizer pass (ASan + UBSan) ---"
 
-  for SHARED_TEST in tests/test_mf_dsp.c; do
+  for SHARED_TEST in tests/test_mf_dsp.c tests/test_render_harness.c; do
     SHARED_NAME="$(basename "$SHARED_TEST" .c)"
     cc -std=c11 -O1 -g -Wall -Wextra -Werror $SAN_FLAGS \
       "$SHARED_TEST" \

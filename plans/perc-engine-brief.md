@@ -42,9 +42,9 @@ product. A static extreme is the thing you would have sampled.
 
 # Part 1 — Blockers
 
-**These land first, as their own commit, before the module is scaffolded.** Every
-number measured afterwards depends on them. Both are silent-wrong-answer bugs: the
-tooling reports success while measuring the wrong thing.
+**Landed.** Both are silent-wrong-answer bugs: the tooling reported success while
+measuring the wrong thing, and every number measured afterwards depends on them.
+What shipped is recorded under each item.
 
 ### B1. The render tools silently drop parameters past the 32nd
 
@@ -60,6 +60,12 @@ correct.
 
 Raise the cap (256, matching the host) and **make overflow a hard error**, not a
 truncation.
+
+**Done.** One shared `mf_param_list_t` in `tools/render_params.h`, capped at
+`MF_RENDER_MAX_PARAMS 256` (the host's `MAX_CHAIN_PARAMS`), used by all three tools;
+overflow and an empty key both exit 2. Verified against ballast: with 35 junk
+parameters ahead of it, `volume=0.0` as the 36th argument rendered at peak 7897
+before the fix and peak 0 after. Covered by `tests/test_render_harness.c`.
 
 ### B2. The render suite is structurally monophonic
 
@@ -85,6 +91,23 @@ shape, backward-compatible with every existing `presets.json`:
 with the existing `notes` / `velocity` fields still accepted and expanded to
 one-note-per-step. Keep `note_blocks`, `gate_blocks`, `seconds`, `tail_seconds` and
 `automate` as they are.
+
+**Done**, in that shape. `[]` is a rest; a bare number in a step means that note at
+the render's `velocity`; giving both `pattern` and `notes` is an error rather than a
+precedence rule. `velocity` may be omitted only when every note carries its own
+`vel`.
+
+The harness takes the pattern in the existing positional notes slot rather than
+behind a new flag, because the old CSV is exactly the subset of the new grammar with
+one note per step: steps separated by `,`, simultaneous notes by `+`, velocity after
+`:` (`36:110+39:96,,36:64`). Grammar and rationale in `tools/render_pattern.h`;
+malformed specs exit 2 rather than rendering a shortened pattern. All 16 ballast
+renders are byte-identical across the change, and re-spelling one of them as an
+explicit `pattern` reproduces the same bytes again.
+
+Note-off behaviour generalises the monophonic version exactly: a step releases the
+previous step's notes before firing its own, step 0 still leaves the wrap-around
+predecessor held, and the `gate_blocks` release now covers every note in the step.
 
 ---
 

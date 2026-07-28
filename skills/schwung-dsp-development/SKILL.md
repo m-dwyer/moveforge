@@ -139,6 +139,26 @@ mise run dev
 
 For AI-assisted iteration: ask for small, contained changes (one filter, one envelope). **Always render and check the plots before judging the sound** — audio bugs are much easier to catch from a deterministic WAV fixture than from code review alone.
 
+**A sound-generator preset's render can be polyphonic.** `"notes": [36, 43]` fires one
+note per step at the render's scalar `velocity`; `"pattern"` fires a chord per step,
+each note with its own velocity, and `[]` is a rest:
+
+```json
+"render": {
+  "file": "00-init.wav", "seconds": 4, "note_blocks": 39, "gate_blocks": 20,
+  "velocity": 100,
+  "pattern": [[{ "note": 36, "vel": 110 }, { "note": 42, "vel": 96 }], [42], [], [42]]
+}
+```
+
+Give one or the other, never both. A bare number in a step means that note at
+`velocity`, which is only needed as a fallback — omit `velocity` entirely if every
+note carries its own `vel`. Use `pattern` for anything note-mapped: with one note per
+step, no golden can exercise voice summing, gain staging under simultaneity, choke
+groups, or per-voice velocity, so the harness reports success while measuring
+something narrower than the module. The grammar the harness actually consumes is in
+`tools/render_pattern.h`.
+
 Stress renders are generated from `module.json` and cover default, each exposed param at min/max, all-max, and hot/fast cases. Browser audition randomize is intentionally different: it uses local `metadata.json` randomize hints and a Subtle/Medium/Wild amount to explore musical ranges quickly. Stress still exercises the full legal range. They cover sound generators and audio FX; MIDI FX are skipped because they render traces, not WAVs. Stress checks are safety gates, not golden comparisons: clipped samples, excessive DC, unexpected silence, too-hot peaks, and stereo imbalance fail. Use `mise run stress-all` or `mise run plot-stress-all` when auditing the whole audio-module set; expect these commands to expose older modules that need headroom/DC fixes.
 
 ## Build, package, deploy
