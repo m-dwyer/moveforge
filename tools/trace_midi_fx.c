@@ -33,7 +33,12 @@ extern midi_fx_api_v1_t* move_midi_fx_init(const host_api_v1_t *host);
 
 #define SR 44100
 #define BLOCK 128
-#define MAX_OUT 8
+/* Whatever the device passes, so a module's output budget is the same offline as
+ * on hardware — see MOVE_MIDI_FX_MAX_OUT_MSGS in host/midi_fx_api_v1.h. This was
+ * a local 8, half the real figure, so a module emitting more than eight messages
+ * in one call had the excess dropped from the golden trace and not from the
+ * device. */
+#define MAX_OUT MOVE_MIDI_FX_MAX_OUT_MSGS
 #define MAX_NOTES 64
 
 static void write_hex(FILE *f, const uint8_t *bytes, int len) {

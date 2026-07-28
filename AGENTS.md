@@ -91,8 +91,14 @@ four for drift.
 `src/host/*.h` are local copies of the Schwung ABIs. Checked against upstream
 `a20cacd1` / v0.11.4 they are **not** currently drifted — `plugin_api_v1.h` is
 byte-identical, `audio_fx_api_v2.h` differs only in comments, and
-`midi_fx_api_v1.h` matches in layout while omitting `MIDI_FX_MAX_OUT_MSGS 16`.
-Re-check after any upstream bump.
+`midi_fx_api_v1.h` matches in layout, differing in include-guard and macro names
+(`MOVE_`-prefixed here). Re-check after any upstream bump.
+
+Upstream's `MIDI_FX_MAX_OUT_MSGS 16` used to be missing from that copy, so both
+harnesses invented their own MIDI FX output budget and neither matched the device
+— the offline trace passed 8 and the browser passed 32. It is now
+`MOVE_MIDI_FX_MAX_OUT_MSGS`, and nothing calling `process_midi` or `tick` should
+define its own.
 
 For any question about actual host behaviour — parameter limits, when `set_param`
 is called, how presets and chain UIs are loaded — read the upstream source rather
