@@ -259,12 +259,53 @@ Two new blocks in `src/modules/_shared/mf_dsp.h`, with coverage in
   ~9 ms at 8 kHz — far too short for anything metallic. The SVF is the wrong primitive
   for a partial bank and no amount of knob mapping fixes it.
 
+**Done.** The SVF figures were checked before replacing it and they are right: 273 ms
+at 200 Hz, 8.7 ms at 8 kHz, 546 ms at 100 Hz. `mf_reson_t` delivers the T60 it is
+asked for to within 1.3% for T60 >= 50 ms across 100 Hz - 8 kHz.
+
+Two of Part 4's statements need adjusting for the module:
+
+- **`b0 = sin(w)` gives unit impulse peak only asymptotically.** Measured 0.97-1.00
+  once a mode has ~10 cycles to ring, but 0.167 at 100 Hz with a 5 ms T60 — half a
+  cycle cannot reach full swing. It never *exceeds* 1, which is what matters for
+  summing ten of them, but a bank of short low partials will be quieter than the
+  arithmetic suggests.
+- **Skipping is a shared predicate now**, `mf_reson_audible(hz, gain)`. Worth using
+  rather than re-deriving: unclamped, an 80 kHz request rings at **8200 Hz** — it
+  aliases *downward*, which is exactly the `tune`-sweep failure Part 4 describes.
+
+`mf_exciter_t` landed with one deliberate omission. There is **no scalar that flattens
+level across the `strike` axis**, and the obvious one is worse than nothing: a
+per-grain gain of `sqrt(period)` (the N-overlapping-rings argument) turns a 15 dB
+spread in a resonator's ring into a 30 dB one, because `strike` moves grain density
+*and* envelope length together, so the grain count per hit peaks in the middle of the
+axis (~360 at strike 0.4, ~70 at 0.5, ~14 at 0.0) instead of falling. Excitation level
+is a per-voice calibration problem for Part 6, and the measured numbers are in the
+header. Grains are unit-amplitude so the block's output stays inside +-1 like every
+other block there (worst case 0.994 over 21 strike values x 40 seeds).
+
 ### P6. Promote the two-stage envelope to `_shared`
 
 Ballast crossfades a parallel exponential and linear envelope by `shape` (the
 `amp_exp` / `amp_lin` pair in `ballast_core.c`). It was deliberately left
 un-extracted until a second engine needed the same thing — it now does. Retaper as
 part of promoting it: `shape` puts ~70% of its effect in its first tenth.
+
+**Done, but the 70% does not reproduce.** Measured against a 0.5 s decay, the first
+tenth of the knob is worth 6.8% of the perceived-length range read at -12 dB, 18.4%
+read at -20 dB, and 19-46% of the tail level in dB depending on how deep in the tail
+you look. Front-loaded, yes; 70%, no, under any reading found.
+
+That matters because the correction the 70% implies overshoots badly — `knob^2` leaves
+1.5% of the -20 dB range in the first tenth, which is a dead zone, not a fix.
+`MF_DECAY_SHAPE_TAPER` is **1.25**, picked from a sweep: it makes the -20 dB length
+control almost exactly even (18.4% -> 9.3%) and improves every tail-level reading,
+while still moving a real 26 ms over its first tenth.
+
+One thing to carry into the voice: `mf_decay_is_idle` takes an `eps` and tests **both**
+stages. At any floor looser than -60 dB the exponential stage crosses it while the
+linear stage is still well up (exp at 0.0016 while lin is at 0.2), so a voice that
+tests only the exponential one early-outs through the last fifth of its own envelope.
 
 ### P7. Bank names in `ui_chain.js`, groups in the web UI
 

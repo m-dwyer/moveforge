@@ -606,6 +606,566 @@ static void test_drive(void) {
     require_true(repeats > 1800, "crush decimates by holding samples");
 }
 
+/* ---------------------------------------------------------------------------
+ * mf_decay_t — two-stage decay envelope
+ * ------------------------------------------------------------------------- */
+
+/* Time for the crossfaded envelope to fall `drop` below its peak of 1. */
+static float decay_length(float decay_s, float shape, float drop) {
+    mf_decay_coeffs_t c;
+    mf_decay_t e;
+    mf_decay_set(&c, decay_s, shape);
+    mf_decay_init(&e);
+    mf_decay_trigger(&e);
+    for (int i = 0; i < (int)(MOVEFORGE_SAMPLE_RATE * 10.0f); i++) {
+        if (mf_decay_tick(&e, &c) < drop) return (float)i / MOVEFORGE_SAMPLE_RATE;
+    }
+    return 10.0f;
+}
+
+static void test_decay_ends_and_stays_ended(void) {
+    mf_decay_coeffs_t c;
+    mf_decay_t e;
+    mf_decay_set(&c, 0.1f, 0.0f);
+    mf_decay_init(&e);
+
+    /* Untriggered it is silent, and idle — otherwise a voice would never
+     * early-out before its first note. */
+    require_true(mf_decay_tick(&e, &c) == 0.0f, "an untriggered decay is silent");
+    require_true(mf_decay_is_idle(&e, 1.0e-4f), "an untriggered decay is idle");
+
+    mf_decay_trigger(&e);
+    require_true(!mf_decay_is_idle(&e, 1.0e-4f), "a triggered decay is not idle");
+
+    /* The linear stage reaches exact zero rather than approaching it, so the
+     * envelope has a real end. The exponential stage does not and cannot — which
+     * is why is_idle takes an eps, and why a voice that tests only the exponential
+     * stage keeps rendering forever. */
+    for (int i = 0; i < (int)(0.3f * MOVEFORGE_SAMPLE_RATE); i++) mf_decay_tick(&e, &c);
+    require_true(mf_decay_is_idle(&e, 1.0e-4f), "a spent decay reports idle");
+    require_true(mf_decay_tick(&e, &c) < 1.0e-4f, "a spent decay stays below the idle floor");
+    require_true(e.lin_v == 0.0f, "the linear stage reaches exact zero");
+
+    mf_decay_trigger(&e);
+    mf_decay_release(&e);
+    require_true(mf_decay_tick(&e, &c) == 0.0f, "release collapses the envelope");
+
+    /* Both stages have to be tested, not just the exponential one. At any eps
+     * looser than -60 dB the exponential stage crosses it while the linear stage is
+     * still well up: below, exp is at 0.0016 and lin at 0.2, so an idle test that
+     * looked only at exp would let a voice early-out and cut a fifth of its own
+     * envelope off. Ballast uses 1e-5, which is inside the safe range, so this only
+     * shows up on a module that picks a looser floor. */
+    mf_decay_coeffs_t lin_c;
+    mf_decay_t lin_e;
+    mf_decay_set(&lin_c, 0.5f, 1.0f);
+    mf_decay_init(&lin_e);
+    mf_decay_trigger(&lin_e);
+    float level = 0.0f;
+    for (int i = 0; i < (int)(0.4f * MOVEFORGE_SAMPLE_RATE); i++) {
+        level = mf_decay_tick(&lin_e, &lin_c);
+    }
+    require_true(level > 0.15f, "a pure linear envelope is still up at 80% of its decay");
+    require_true(lin_e.exp_v < 0.01f, "while the exponential stage has already gone quiet");
+    require_true(!mf_decay_is_idle(&lin_e, 0.01f),
+                 "idle is false while the linear stage is still audible");
+}
+
+static void test_decay_shape_is_monotone_and_bounded(void) {
+    /* The control must never reverse: every step toward 1 makes the hit longer.
+     * A non-monotone taper is the thing MF_DECAY_SHAPE_TAPER could most easily
+     * break, and it would read as a broken knob rather than a wrong curve. */
+    for (float dec = 0.05f; dec <= 2.01f; dec *= 4.0f) {
+        float prev = 0.0f;
+        for (int i = 0; i <= 20; i++) {
+            float len = decay_length(dec, (float)i / 20.0f, 0.1f);
+            require_true(len >= prev - 1.0e-6f, "shape never shortens the envelope");
+            prev = len;
+        }
+    }
+
+    /* Peak is 1 at both ends and everywhere between, so `shape` cannot be a
+     * hidden gain control. */
+    for (int i = 0; i <= 10; i++) {
+        mf_decay_coeffs_t c;
+        mf_decay_t e;
+        mf_decay_set(&c, 0.2f, (float)i / 10.0f);
+        mf_decay_init(&e);
+        mf_decay_trigger(&e);
+        float peak = 0.0f;
+        for (int k = 0; k < (int)(0.3f * MOVEFORGE_SAMPLE_RATE); k++) {
+            float v = mf_decay_tick(&e, &c);
+            if (v > peak) peak = v;
+        }
+        require_true(peak > 0.99f && peak <= 1.0f, "peak is unity at every shape");
+    }
+}
+
+static void test_decay_ends_are_exact(void) {
+    /* shape 0 must be a pure exponential and shape 1 a pure linear ramp, which is
+     * the property that makes the crossfade honest rather than approximate.
+     * Checked by their -20 dB crossing times: exp reaches -20 dB a third of the
+     * way through (20/60 of the -60 dB time), linear at 90%. */
+    float exp_len = decay_length(0.6f, 0.0f, 0.1f);
+    float lin_len = decay_length(0.6f, 1.0f, 0.1f);
+    require_true(absf_local(exp_len - 0.6f / 3.0f) < 0.006f,
+                 "shape 0 is the exponential's own -20 dB time");
+    require_true(absf_local(lin_len - 0.6f * 0.9f) < 0.006f,
+                 "shape 1 is the linear ramp's own -20 dB time");
+}
+
+static void test_decay_taper_evens_out_the_control(void) {
+    /* Why MF_DECAY_SHAPE_TAPER is 1.25 and not 1. Ballast's linear crossfade put
+     * 18.4% of the perceived-length range in the knob's first tenth, where an even
+     * control would put 10%. Assert the taper actually corrects that, and that it
+     * does not overshoot into a dead zone the way a square would.
+     *
+     * Mutation-tested: setting MF_DECAY_SHAPE_TAPER to 1.0 or 2.0 fails this. */
+    const float dec = 0.5f;
+    float first = decay_length(dec, 0.1f, 0.1f) - decay_length(dec, 0.0f, 0.1f);
+    float total = decay_length(dec, 1.0f, 0.1f) - decay_length(dec, 0.0f, 0.1f);
+    float share = first / total;
+    require_true(share > 0.05f && share < 0.135f,
+                 "the knob's first tenth is worth roughly a tenth of its range");
+
+    /* And the first tenth still does something: 1.5 would move only 14 ms of the
+     * 283 ms range here, which reads as a dead spot. */
+    require_true(first > 0.018f, "the first tenth of the knob is not a dead zone");
+}
+
+/* ---------------------------------------------------------------------------
+ * mf_reson_t — two-pole resonator
+ * ------------------------------------------------------------------------- */
+
+#define RESON_N 441000   /* 10 s, long enough for the longest T60 tested */
+static float reson_buf[RESON_N];
+
+static void reson_impulse(float hz, float t60, int n) {
+    mf_reson_coeffs_t c;
+    mf_reson_t s;
+    mf_reson_set(&c, hz, t60);
+    mf_reson_init(&s);
+    for (int i = 0; i < n; i++) {
+        reson_buf[i] = mf_reson_tick(&s, &c, i == 0 ? 1.0f : 0.0f);
+    }
+}
+
+/* Time for the impulse response's envelope to fall 60 dB below its peak. Tracked
+ * as a running max over one period so a zero crossing is not read as the end. */
+static float reson_t60(int n, float hz) {
+    int period = (int)(MOVEFORGE_SAMPLE_RATE / hz) + 1;
+    float peak = 0.0f;
+    for (int i = 0; i < n; i++) if (absf_local(reson_buf[i]) > peak) peak = absf_local(reson_buf[i]);
+    if (peak <= 0.0f) return -1.0f;
+    for (int i = 0; i + period < n; i++) {
+        float local = 0.0f;
+        for (int j = i; j < i + period; j++) {
+            if (absf_local(reson_buf[j]) > local) local = absf_local(reson_buf[j]);
+        }
+        if (local < peak * 0.001f) return (float)i / MOVEFORGE_SAMPLE_RATE;
+    }
+    return -1.0f;
+}
+
+static void test_reson_delivers_the_t60_it_is_asked_for(void) {
+    /* The whole reason this primitive exists. Measured error is within 1.3% for
+     * T60 >= 50 ms; the tolerance below is 8%, which is loose enough for the
+     * envelope tracker's one-period window and tight enough that dropping the
+     * 6.9078 constant (or using the SVF instead) fails it. */
+    const float freqs[] = { 100.0f, 200.0f, 1000.0f, 4000.0f, 8000.0f };
+    const float t60s[] = { 0.05f, 0.5f, 2.0f, 4.0f };
+    for (unsigned f = 0; f < sizeof(freqs) / sizeof(freqs[0]); f++) {
+        for (unsigned t = 0; t < sizeof(t60s) / sizeof(t60s[0]); t++) {
+            int n = (int)((t60s[t] * 1.5f + 0.1f) * MOVEFORGE_SAMPLE_RATE);
+            if (n > RESON_N) n = RESON_N;
+            reson_impulse(freqs[f], t60s[t], n);
+            float got = reson_t60(n, freqs[f]);
+            if (got <= 0.0f) {
+                fprintf(stderr, "FAIL: resonator never decayed 60 dB at %.0f Hz, T60 %.3f s\n",
+                        freqs[f], t60s[t]);
+                exit(1);
+            }
+            if (absf_local(got - t60s[t]) > t60s[t] * 0.08f) {
+                fprintf(stderr, "FAIL: %.0f Hz asked T60 %.1f ms, measured %.1f ms\n",
+                        freqs[f], t60s[t] * 1000.0f, got * 1000.0f);
+                exit(1);
+            }
+        }
+    }
+}
+
+static void test_reson_beats_the_svf_at_holding_a_tail(void) {
+    /* The claim in mf_reson_t's comment block, asserted rather than described: the
+     * SVF's normalized resonance cannot hold a metallic tail at all, because
+     * MF_SVF_Q_MAX caps its decay. If someone raises MF_SVF_Q_MAX enough to make
+     * this fail, the resonator's reason for existing has changed and the comment
+     * needs rewriting. */
+    mf_svf_coeffs_t sc;
+    mf_svf_t ss;
+    mf_svf_set(&sc, 8000.0f, 1.0f);
+    mf_svf_init(&ss);
+    int n = (int)(0.5f * MOVEFORGE_SAMPLE_RATE);
+    for (int i = 0; i < n; i++) {
+        mf_svf_tick(&ss, &sc, i == 0 ? 1.0f : 0.0f);
+        reson_buf[i] = ss.bp;
+    }
+    float svf_t60 = reson_t60(n, 8000.0f);
+    require_true(svf_t60 > 0.0f && svf_t60 < 0.030f,
+                 "the SVF at full resonance decays in under 30 ms at 8 kHz");
+
+    reson_impulse(8000.0f, 1.0f, (int)(1.6f * MOVEFORGE_SAMPLE_RATE));
+    float reson_measured = reson_t60((int)(1.6f * MOVEFORGE_SAMPLE_RATE), 8000.0f);
+    require_true(reson_measured > 0.9f,
+                 "the resonator holds a 1 s tail at 8 kHz, which the SVF cannot");
+}
+
+static void test_reson_never_overshoots_unity(void) {
+    /* b0 = sin(w) is a normalization, so a unit impulse must not produce a peak
+     * above 1 anywhere in the range — that is what lets a bank of ten sum
+     * predictably. It only *reaches* 1 when the mode has room to ring, so the
+     * lower bound is asserted separately below. */
+    for (float hz = 40.0f; hz < MOVEFORGE_SAMPLE_RATE * 0.45f; hz *= 1.3f) {
+        for (float t60 = 0.005f; t60 <= 4.01f; t60 *= 3.0f) {
+            int n = (int)(fminf(t60 * 1.2f + 0.05f, 5.0f) * MOVEFORGE_SAMPLE_RATE);
+            reson_impulse(hz, t60, n);
+            float peak = 0.0f;
+            for (int i = 0; i < n; i++) {
+                if (absf_local(reson_buf[i]) > peak) peak = absf_local(reson_buf[i]);
+            }
+            if (peak > 1.0f) {
+                fprintf(stderr, "FAIL: %.0f Hz T60 %.3f s peaked at %.4f\n", hz, t60, peak);
+                exit(1);
+            }
+            if (!isfinite(peak)) {
+                fprintf(stderr, "FAIL: %.0f Hz T60 %.3f s went non-finite\n", hz, t60);
+                exit(1);
+            }
+        }
+    }
+
+    /* Given ten cycles to ring, it does reach unity. */
+    reson_impulse(1000.0f, 0.05f, (int)(0.1f * MOVEFORGE_SAMPLE_RATE));
+    float peak = 0.0f;
+    for (int i = 0; i < (int)(0.1f * MOVEFORGE_SAMPLE_RATE); i++) {
+        if (absf_local(reson_buf[i]) > peak) peak = absf_local(reson_buf[i]);
+    }
+    require_true(peak > 0.95f, "a resonator with room to ring reaches unit peak");
+}
+
+static void test_reson_rings_at_the_frequency_asked_for(void) {
+    /* Counting zero crossings of the impulse response: a mode at f crosses zero
+     * 2f times a second. Catches a factor-of-two or a missing 2*pi. */
+    const float freqs[] = { 220.0f, 1000.0f, 5000.0f };
+    for (unsigned f = 0; f < sizeof(freqs) / sizeof(freqs[0]); f++) {
+        int n = (int)(0.2f * MOVEFORGE_SAMPLE_RATE);
+        reson_impulse(freqs[f], 1.0f, n);
+        int crossings = 0;
+        for (int i = 1; i < n; i++) {
+            if ((reson_buf[i - 1] <= 0.0f) != (reson_buf[i] <= 0.0f)) crossings++;
+        }
+        float measured = (float)crossings / (2.0f * 0.2f);
+        if (absf_local(measured - freqs[f]) > freqs[f] * 0.02f) {
+            fprintf(stderr, "FAIL: asked %.0f Hz, rang at %.0f Hz\n", freqs[f], measured);
+            exit(1);
+        }
+    }
+}
+
+static void test_reson_audible_gates_what_the_bank_should_skip(void) {
+    /* Muting an out-of-range partial rather than letting mf_reson_set clamp it is
+     * what stops a rising `tune` sweep from generating partials that move
+     * downward. The predicate is the shared statement of that rule. */
+    require_true(mf_reson_audible(1000.0f, 1.0f), "an ordinary partial is audible");
+    require_true(!mf_reson_audible(MOVEFORGE_SAMPLE_RATE * 0.5f, 1.0f),
+                 "a partial at Nyquist is skipped");
+    require_true(!mf_reson_audible(30000.0f, 1.0f), "a partial above Nyquist is skipped");
+    require_true(!mf_reson_audible(1000.0f, 0.0f), "a silent partial is skipped");
+    require_true(!mf_reson_audible(1000.0f, MF_RESON_MIN_GAIN * 0.5f),
+                 "a partial below -60 dB is skipped");
+    require_true(mf_reson_audible(MOVEFORGE_SAMPLE_RATE * 0.44f, 1.0f),
+                 "a partial just inside the limit is kept");
+
+    /* mf_reson_set's own clamps, asserted for what they actually do.
+     *
+     * The frequency clamp is not about stability — this form is stable at any w.
+     * Unclamped, a request above Nyquist wraps: 80 kHz at 44.1 kHz rings at 8200 Hz,
+     * i.e. it aliases *downward*, which is precisely how a rising `tune` sweep would
+     * generate partials that move down as the knob goes up. So assert it rings at
+     * the ceiling instead. */
+    int n = (int)(0.05f * MOVEFORGE_SAMPLE_RATE);
+    reson_impulse(80000.0f, 0.5f, n);
+    int crossings = 0;
+    for (int i = 1; i < n; i++) {
+        if ((reson_buf[i - 1] <= 0.0f) != (reson_buf[i] <= 0.0f)) crossings++;
+    }
+    float rang_at = (float)crossings / (2.0f * 0.05f);
+    float ceiling = MOVEFORGE_SAMPLE_RATE * MF_RESON_MAX_HZ_FRACTION;
+    if (absf_local(rang_at - ceiling) > ceiling * 0.05f) {
+        fprintf(stderr, "FAIL: an 80 kHz request rang at %.0f Hz, not the %.0f Hz ceiling\n",
+                rang_at, ceiling);
+        exit(1);
+    }
+
+    /* The T60 clamp is about stability: expf rounds to exactly 1.0f somewhere above
+     * 1000 s, and a pole radius of 1 rings forever rather than decaying. */
+    reson_impulse(1000.0f, 1.0e6f, (int)(1.0f * MOVEFORGE_SAMPLE_RATE));
+    float early = 0.0f, late = 0.0f;
+    for (int i = 0; i < 2000; i++) {
+        if (absf_local(reson_buf[i]) > early) early = absf_local(reson_buf[i]);
+    }
+    for (int i = (int)(1.0f * MOVEFORGE_SAMPLE_RATE) - 2000;
+         i < (int)(1.0f * MOVEFORGE_SAMPLE_RATE); i++) {
+        if (absf_local(reson_buf[i]) > late) late = absf_local(reson_buf[i]);
+    }
+    require_true(late < early * 0.9f, "an absurd T60 is clamped to something that decays");
+}
+
+/* ---------------------------------------------------------------------------
+ * mf_exciter_t — noise grains, density and bursts
+ * ------------------------------------------------------------------------- */
+
+#define EXCITER_N 132300   /* 3 s */
+static float exciter_buf[EXCITER_N];
+
+static void exciter_run(float strike, uint32_t seed, int n) {
+    mf_exciter_coeffs_t c;
+    mf_exciter_t e;
+    mf_exciter_set(&c, strike);
+    mf_exciter_init(&e, seed);
+    mf_exciter_trigger(&e, &c);
+    for (int i = 0; i < n; i++) exciter_buf[i] = mf_exciter_tick(&e, &c);
+}
+
+static void test_exciter_output_stays_bounded(void) {
+    /* The contract that lets this compose with everything else here. Measured
+     * worst case is 0.994 across the axis; anything above 1 means a caller's gain
+     * staging is being decided by this block instead of by the caller. */
+    for (int i = 0; i <= 20; i++) {
+        float strike = (float)i / 20.0f;
+        for (uint32_t seed = 1; seed <= 8; seed++) {
+            exciter_run(strike, seed * 2654435761u, EXCITER_N);
+            for (int k = 0; k < EXCITER_N; k++) {
+                if (!isfinite(exciter_buf[k]) || absf_local(exciter_buf[k]) > 1.0f) {
+                    fprintf(stderr, "FAIL: strike %.2f seed %u produced %.4f\n",
+                            strike, seed, exciter_buf[k]);
+                    exit(1);
+                }
+            }
+        }
+    }
+}
+
+static void test_exciter_density_spreads_grains_in_time(void) {
+    /* strike 0.5 is continuous noise; below it the grains thin out. Asserted as a
+     * monotone fall in the fraction of nonzero samples, which is what "density"
+     * means and what the resonator bank is being fed. */
+    float prev = 2.0f;
+    for (int i = 10; i >= 0; i--) {
+        float strike = (float)i / 20.0f;
+        int n = (int)(0.02f * MOVEFORGE_SAMPLE_RATE);   /* inside every envelope */
+        exciter_run(strike, 0x5EEDu, n);
+        int nonzero = 0;
+        for (int k = 0; k < n; k++) if (exciter_buf[k] != 0.0f) nonzero++;
+        float fraction = (float)nonzero / (float)n;
+        require_true(fraction <= prev + 0.02f, "grain density falls monotonically");
+        prev = fraction;
+    }
+    require_true(prev < 0.05f, "the sparse end really is sparse");
+
+    exciter_run(0.5f, 0x5EEDu, 64);
+    int dense = 0;
+    for (int k = 0; k < 64; k++) if (exciter_buf[k] != 0.0f) dense++;
+    require_true(dense == 64, "strike 0.5 is continuous, with no gaps at all");
+}
+
+static void test_exciter_grains_are_not_periodic(void) {
+    /* A counter-based decimator would put a tone where the noise should be: at one
+     * grain per 500 samples that is an 88 Hz buzz, which is exactly not a shaker.
+     * Geometric spacing has a standard deviation about equal to its mean; a
+     * periodic one would read 0. */
+    int n = (int)(0.05f * MOVEFORGE_SAMPLE_RATE);
+    exciter_run(0.2f, 0x5EEDu, n);
+
+    int last = -1, count = 0;
+    double sum = 0.0, sumsq = 0.0;
+    for (int i = 0; i < n; i++) {
+        if (exciter_buf[i] == 0.0f) continue;
+        if (last >= 0) {
+            double gap = (double)(i - last);
+            sum += gap;
+            sumsq += gap * gap;
+            count++;
+        }
+        last = i;
+    }
+    require_true(count > 20, "enough grains to measure their spacing");
+    double mean = sum / count;
+    double sd = sqrt(sumsq / count - mean * mean);
+    require_true(sd > mean * 0.6, "grain spacing is stochastic, not a fixed period");
+}
+
+static void test_exciter_envelope_lengthens_as_grains_thin(void) {
+    /* The other half of what `strike` means: a rattle is a long sprinkle, a strike
+     * is one short broadband event. */
+    float prev = 0.0f;
+    for (int i = 10; i >= 0; i--) {
+        float strike = (float)i / 20.0f;
+        exciter_run(strike, 0x5EEDu, EXCITER_N);
+        float peak = 0.0f;
+        for (int k = 0; k < EXCITER_N; k++) {
+            if (absf_local(exciter_buf[k]) > peak) peak = absf_local(exciter_buf[k]);
+        }
+        float len = 0.0f;
+        for (int k = EXCITER_N - 1; k >= 0; k--) {
+            if (absf_local(exciter_buf[k]) > peak * 0.01f) {
+                len = (float)k / MOVEFORGE_SAMPLE_RATE;
+                break;
+            }
+        }
+        require_true(len >= prev - 0.002f, "the envelope lengthens as grains thin out");
+        prev = len;
+    }
+    require_true(prev > 0.08f, "the rattle end sustains for at least 80 ms");
+
+    exciter_run(0.5f, 0x5EEDu, EXCITER_N);
+    float peak = 0.0f;
+    for (int k = 0; k < EXCITER_N; k++) {
+        if (absf_local(exciter_buf[k]) > peak) peak = absf_local(exciter_buf[k]);
+    }
+    int last_loud = 0;
+    for (int k = EXCITER_N - 1; k >= 0; k--) {
+        if (absf_local(exciter_buf[k]) > peak * 0.01f) { last_loud = k; break; }
+    }
+    require_true((float)last_loud / MOVEFORGE_SAMPLE_RATE < 0.005f,
+                 "a centred strike is one short event, not a sprinkle");
+}
+
+static void test_exciter_bursts_are_separate_events(void) {
+    /* strike above 0.5 must produce distinct hits in time — a flam, then a
+     * ratchet. Counted as re-peaks of a smoothed envelope, which is what a
+     * listener hears as separate events. */
+    mf_exciter_coeffs_t c;
+    mf_exciter_set(&c, 1.0f);
+    require_true(c.burst_count == MF_EXCITER_MAX_BURSTS, "strike 1 fires every burst");
+
+    int n = (int)(0.1f * MOVEFORGE_SAMPLE_RATE);
+    exciter_run(1.0f, 0x5EEDu, n);
+    mf_onepole_t lp;
+    mf_onepole_init(&lp);
+    mf_onepole_set_hz(&lp, 200.0f);
+    float env[8192];
+    int env_n = n < 8192 ? n : 8192;
+    float peak = 0.0f;
+    for (int i = 0; i < env_n; i++) {
+        env[i] = mf_onepole_tick(&lp, absf_local(exciter_buf[i]));
+        if (env[i] > peak) peak = env[i];
+    }
+    int events = 0;
+    for (int i = 1; i < env_n - 1; i++) {
+        if (env[i] > peak * 0.1f && env[i] >= env[i - 1] && env[i] > env[i + 1]) {
+            events++;
+            i += (int)(0.003f * MOVEFORGE_SAMPLE_RATE);
+        }
+    }
+    require_true(events >= 4, "strike 1 produces the first hit plus three bursts");
+
+    /* Bursts fade in by level rather than appearing at full volume, or the knob
+     * steps as each one arrives. */
+    mf_exciter_coeffs_t low, high;
+    mf_exciter_set(&low, 0.55f);
+    mf_exciter_set(&high, 0.65f);
+    require_true(low.burst_count == 1 && high.burst_count == 1,
+                 "the first extra burst arrives before the second");
+    require_true(high.burst_level[0] > low.burst_level[0] * 1.5f,
+                 "a burst fades in by level as the knob rises");
+
+    /* And they tighten up, flam to ratchet. */
+    require_true(high.burst_spacing < low.burst_spacing, "burst spacing tightens");
+
+    /* Below centre there are no bursts at all: that half of the axis is grains. */
+    mf_exciter_coeffs_t centre;
+    mf_exciter_set(&centre, 0.5f);
+    require_true(centre.burst_count == 0, "the rattle half fires no bursts");
+    mf_exciter_set(&centre, 0.2f);
+    require_true(centre.burst_count == 0, "the rattle half fires no bursts");
+
+    /* A burst raises the envelope rather than replacing it. That only differs when
+     * the previous burst is still ringing when the next one lands, which needs the
+     * envelope to be longer than the burst spacing — so it cannot happen at a fixed
+     * `strike`, only when the control moves during a hit. Which it does: the whole
+     * point of this engine is automation lanes.
+     *
+     * Triggered at strike 0.9 (bursts at 0.794, 0.630, 0.200, 9.8 ms apart) and then
+     * ticked with strike 0.05's 122 ms envelope, the third burst lands at 0.200 while
+     * the envelope is still at 0.457. Assignment would drop it by more than half,
+     * mid-hit, which is a click. */
+    mf_exciter_coeffs_t fired, held;
+    mf_exciter_t moving;
+    mf_exciter_set(&fired, 0.9f);
+    mf_exciter_set(&held, 0.05f);
+    mf_exciter_init(&moving, 0x5EEDu);
+    mf_exciter_trigger(&moving, &fired);
+    /* Keep the burst schedule from `fired` but the long envelope from `held`. */
+    held.burst_count = fired.burst_count;
+    held.burst_spacing = fired.burst_spacing;
+    for (int k = 0; k < MF_EXCITER_MAX_BURSTS; k++) held.burst_level[k] = fired.burst_level[k];
+
+    float previous_env = moving.env;
+    int saw_a_burst = 0;
+    for (int i = 0; i < (int)(0.05f * MOVEFORGE_SAMPLE_RATE); i++) {
+        int before = moving.bursts_left;
+        mf_exciter_tick(&moving, &held);
+        if (moving.bursts_left != before) saw_a_burst = 1;
+        if (moving.env < previous_env * 0.99f) {
+            fprintf(stderr, "FAIL: envelope fell from %.4f to %.4f in one sample\n",
+                    previous_env, moving.env);
+            exit(1);
+        }
+        previous_env = moving.env;
+    }
+    require_true(saw_a_burst, "the moving-control case actually fired a burst");
+}
+
+static void test_exciter_is_deterministic_and_idles(void) {
+    /* Renders have to be reproducible, so the same seed must give the same hit. */
+    int n = (int)(0.05f * MOVEFORGE_SAMPLE_RATE);
+    exciter_run(0.3f, 0xA5A5u, n);
+    static float first[8192];
+    int keep = n < 8192 ? n : 8192;
+    for (int i = 0; i < keep; i++) first[i] = exciter_buf[i];
+    exciter_run(0.3f, 0xA5A5u, n);
+    for (int i = 0; i < keep; i++) {
+        require_true(exciter_buf[i] == first[i], "the same seed gives the same hit");
+    }
+
+    /* Different seeds must not: six voices sharing one seed is how six hits sum
+     * coherently and sound like one loud hit. */
+    exciter_run(0.3f, 0x1234u, n);
+    int differences = 0;
+    for (int i = 0; i < keep; i++) if (exciter_buf[i] != first[i]) differences++;
+    require_true(differences > keep / 10, "a different seed gives a different hit");
+
+    /* Idle is reported, so a voice can skip its sample loop. */
+    mf_exciter_coeffs_t c;
+    mf_exciter_t e;
+    mf_exciter_set(&c, 0.5f);
+    mf_exciter_init(&e, 1u);
+    require_true(mf_exciter_is_idle(&e, 1.0e-4f), "a fresh exciter is idle");
+    mf_exciter_trigger(&e, &c);
+    require_true(!mf_exciter_is_idle(&e, 1.0e-4f), "a triggered exciter is not idle");
+    for (int i = 0; i < (int)(0.05f * MOVEFORGE_SAMPLE_RATE); i++) mf_exciter_tick(&e, &c);
+    require_true(mf_exciter_is_idle(&e, 1.0e-4f), "a spent exciter reports idle");
+
+    /* A pending burst keeps it alive: early-outing between bursts would drop the
+     * rest of a clap. */
+    mf_exciter_set(&c, 1.0f);
+    mf_exciter_init(&e, 1u);
+    mf_exciter_trigger(&e, &c);
+    for (int i = 0; i < (int)(0.004f * MOVEFORGE_SAMPLE_RATE); i++) mf_exciter_tick(&e, &c);
+    require_true(!mf_exciter_is_idle(&e, 1.0e-4f),
+                 "an exciter with a burst still pending is not idle");
+}
+
 int main(void) {
     test_flush_denorm();
     test_sanitize();
@@ -625,6 +1185,21 @@ int main(void) {
     test_tilt();
     test_fold();
     test_drive();
+    test_decay_ends_and_stays_ended();
+    test_decay_shape_is_monotone_and_bounded();
+    test_decay_ends_are_exact();
+    test_decay_taper_evens_out_the_control();
+    test_reson_delivers_the_t60_it_is_asked_for();
+    test_reson_beats_the_svf_at_holding_a_tail();
+    test_reson_never_overshoots_unity();
+    test_reson_rings_at_the_frequency_asked_for();
+    test_reson_audible_gates_what_the_bank_should_skip();
+    test_exciter_output_stays_bounded();
+    test_exciter_density_spreads_grains_in_time();
+    test_exciter_grains_are_not_periodic();
+    test_exciter_envelope_lengthens_as_grains_thin();
+    test_exciter_bursts_are_separate_events();
+    test_exciter_is_deterministic_and_idles();
     printf("mf_dsp shared block tests passed\n");
     return 0;
 }
