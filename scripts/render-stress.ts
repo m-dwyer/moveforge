@@ -28,6 +28,21 @@ type StressCase = {
   params: Record<string, number>;
 };
 
+/* Which notes to play a sound generator.
+ *
+ * This was hardcoded to "36,43,48,55,60", which is fine for a module where every
+ * note plays the same voice and useless for one where notes *select* a voice: swarf
+ * maps six voices to root..root+5, so of those five notes only 36 landed on anything
+ * and fourteen of its stress gates failed for reasons that were all the harness's.
+ * A module that declares a `root` note-block parameter gets its whole block, read
+ * from that case's own value so the `root` min/max cases move the notes with it. */
+function stressNotes(params: Param[], values: Record<string, number>): string {
+  const root = params.find((param) => param.key === "root");
+  if (!root) return "36,43,48,55,60";
+  const base = Math.round(values.root ?? root.default);
+  return Array.from({ length: 6 }, (_, i) => Math.min(127, base + i)).join(",");
+}
+
 type StressManifest = {
   module_id: string;
   component_type: string;
@@ -58,7 +73,7 @@ for (const target of await selectedModuleTargets()) {
     const args = componentType === "audio_fx"
       ? [outPath, "--signal", stressCase.file.includes("impulse") ? "impulse" : "sweep", "--seconds", "4"]
       : ["--render", outPath, "5", "36", "18", String(stressCase.velocity ?? 127),
-         "36,43,48,55,60"];
+         stressNotes(params, stressCase.params)];
 
     for (const [key, value] of Object.entries(stressCase.params)) {
       args.push(`${key}=${value}`);
@@ -108,10 +123,14 @@ function buildCases(params: Param[], defaults: Record<string, number>, kind: str
 
   const hot = { ...defaults };
   for (const param of params) {
-    if (/(volume|level|mix|drive|fold|fm|cutoff|resonance|reso|feedback|chaos|strike)/i.test(param.key)) {
+    /* Anchored. Unanchored, this matched every per-voice `hat_level` and
+     * `conga_strike` as well as the master `volume`, so "Hot Fast" on a six-voice
+     * module was All Max with a different name — and it is checked by gates that
+     * fail on any clipped sample. */
+    if (/^(volume|level|mix|drive|fold|fm|cutoff|resonance|reso|feedback|chaos|strike)$/i.test(param.key)) {
       hot[param.key] = param.max;
     }
-    if (/(attack|decay|release|time)/i.test(param.key)) {
+    if (/^(attack|decay|release|time)$/i.test(param.key)) {
       hot[param.key] = param.min;
     }
   }

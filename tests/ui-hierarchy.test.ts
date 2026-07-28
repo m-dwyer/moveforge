@@ -14,9 +14,8 @@ import {
  * ordering has no local symptom: the generated C enum, the on-device knob list
  * and the browser's parameter ids are all positional, so a walk that disagrees
  * with the chain host produces a module that builds, validates, renders and
- * addresses the wrong parameters. Nothing in the repo exercises more than one
- * level yet, so these cases are the only coverage the multi-level path has until
- * a module ships with banks.
+ * addresses the wrong parameters. Swarf is the multi-level module these cases were
+ * written ahead of; everything else in the repo is still a single `root`.
  */
 
 type P = { key: string };
@@ -30,7 +29,7 @@ describe("flattenParams", () => {
     expect(flattenParams<P>({ levels: {} })).toEqual([]);
   });
 
-  it("reads a single root level, the shape every module ships today", () => {
+  it("reads a single root level, the shape most modules ship", () => {
     const params = [p("tune"), p("decay"), p("volume")];
     expect(flattenParams({ levels: { root: { params } } })).toEqual(params);
   });
@@ -151,28 +150,37 @@ describe("flattenKnobs", () => {
   });
 });
 
-/* Every module today declares exactly one level called `root`, which is what
- * makes the generated output a free regression test for this change. If that stops
- * being true, the byte-identical-output argument stops holding and this test says
- * so rather than leaving it assumed. */
+/* When P1 landed, every module declared exactly one level called `root`, which is
+ * what made the generated output a free regression test for the change. Swarf broke
+ * that on purpose — it is eight levels, one per encoder bank — so the guard that used
+ * to assert "single root" has served its purpose and is replaced by the invariants
+ * that still have to hold now that multi-level modules exist. */
 describe("the modules in the repo", () => {
-  it("all declare a single root level and no shared_params", () => {
-    const dir = "src/modules";
-    const shapes = readdirSync(dir, { withFileTypes: true })
-      .filter((entry) => entry.isDirectory() && !entry.name.startsWith("_"))
-      .map((entry) => {
-        const json = JSON.parse(readFileSync(`${dir}/${entry.name}/module.json`, "utf8"));
-        const hierarchy = json.capabilities?.ui_hierarchy;
-        return {
-          id: entry.name,
-          levels: Object.keys(hierarchy?.levels ?? {}),
-          shared: (hierarchy?.shared_params ?? []).length
-        };
-      });
+  const shapes = readdirSync("src/modules", { withFileTypes: true })
+    .filter((entry) => entry.isDirectory() && !entry.name.startsWith("_"))
+    .map((entry) => {
+      const json = JSON.parse(readFileSync(`src/modules/${entry.name}/module.json`, "utf8"));
+      return { id: entry.name, hierarchy: json.capabilities?.ui_hierarchy };
+    });
+
+  it("all flatten without throwing, so none of them has an integer-like level key", () => {
     expect(shapes.length).toBeGreaterThan(0);
     for (const shape of shapes) {
-      expect(shape.levels, shape.id).toEqual(["root"]);
-      expect(shape.shared, shape.id).toBe(0);
+      expect(() => flattenParams(shape.hierarchy), shape.id).not.toThrow();
+      expect(flattenParams(shape.hierarchy).length, shape.id).toBeGreaterThan(0);
     }
+  });
+
+  it("agree between the flat walk and the grouped one", () => {
+    for (const shape of shapes) {
+      const grouped = paramGroups(shape.hierarchy).flatMap((g) => g.params);
+      expect(grouped, shape.id).toEqual(flattenParams(shape.hierarchy));
+    }
+  });
+
+  it("has at least one module of each shape, so both paths stay exercised", () => {
+    const levelCounts = shapes.map((shape) => Object.keys(shape.hierarchy?.levels ?? {}).length);
+    expect(levelCounts.some((n) => n === 1), "a single-level module").toBe(true);
+    expect(levelCounts.some((n) => n > 1), "a multi-level module").toBe(true);
   });
 });

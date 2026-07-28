@@ -5,6 +5,7 @@ import {
   keysDroppedFromPreviousPreset,
   presetValue
 } from "../shared/presets.ts";
+import { flattenParams } from "../shared/ui-hierarchy.ts";
 
 /**
  * Preset resolution (shared/presets.ts).
@@ -172,9 +173,9 @@ describe("keysDroppedFromPreviousPreset", () => {
   });
 });
 
-/* The modules in the repo are all still dense, which is what makes the generated
- * output a regression test for this change. Presets are free to go sparse later —
- * this asserts the reasoning, so it stops holding loudly rather than quietly. */
+/* Sparse and dense spellings must stay interchangeable for every module in the repo,
+ * whichever way its presets happen to be written — swarf's kits are sparse by
+ * construction, the rest are dense. */
 describe("the presets in the repo", () => {
   it("resolve identically whether their default-valued keys are written or omitted", () => {
     const dir = "src/modules";
@@ -185,7 +186,9 @@ describe("the presets in the repo", () => {
 
     for (const id of ids) {
       const moduleJson = JSON.parse(readFileSync(`${dir}/${id}/module.json`, "utf8"));
-      const params: Param[] = moduleJson.capabilities?.ui_hierarchy?.levels?.root?.params ?? [];
+      /* Through the shared walk, not `levels.root`: swarf declares eight levels and
+       * reading only the first would silently test 8 of its 62 params. */
+      const params: Param[] = flattenParams(moduleJson.capabilities?.ui_hierarchy);
       const presets = JSON.parse(readFileSync(`${dir}/${id}/presets.json`, "utf8")).presets ?? [];
       expect(params.length, id).toBeGreaterThan(0);
 
