@@ -256,9 +256,9 @@ The ones that bite hardest:
   with zero parameter metadata** — 64 dead knobs — rather than failing to appear.
   Prefix every voice parameter.
 
-  Note: `scripts/validate-params.ts:242-243` currently claims the module is rejected
-  and does not appear. That is wrong and should be corrected in the same commit, or
-  the next person debugging this looks in entirely the wrong place.
+  `scripts/validate-params.ts` used to claim the module is rejected and does not
+  appear; its comment block now records the real behaviour and the fall-through that
+  produces it. Trust the comment, not any older note.
 
 ---
 
@@ -818,11 +818,11 @@ so state it precisely:
 So `presets.json` remains the source of truth for the render suite and the browser,
 and the kits ship to hardware by one of the two routes in **Known gaps**.
 
-`SKILL.md:208-210` and `plans/ballast-kick-engine.md:229-233` both reach the right
-conclusion by the wrong mechanism — they say Overture never reads `presets.json`,
-when Overture reads `factoryPresets` fine and it is Schwung that never supplies them.
-Correct both in the same commit; the distinction is the difference between "Overture
-needs a feature" and "one host call needs four more lines".
+`SKILL.md` and `plans/ballast-kick-engine.md` used to reach the right conclusion by
+the wrong mechanism — they said Overture never reads `presets.json`, when Overture
+reads `factoryPresets` fine and it is Schwung that never supplies them. Both are
+corrected. The distinction is worth preserving: it is the difference between
+"Overture needs a feature" and "one host call needs four more lines".
 
 **Mirror Ballast's preset families.** Ballast ships `Init`, `Deep` ×3, `Dub` ×2,
 `Drive` ×2, `Tool` ×2, `Grit` ×2, `Tom` ×2, `Sub` ×2 — family-first names, the only

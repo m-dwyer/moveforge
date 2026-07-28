@@ -205,9 +205,17 @@ that pin is bumped**. Three of its limits shape what you can author:
   `synth:voice0_decay` — correct-looking in the emulator, broken on device. It *does*
   flatten explicitly *named* levels correctly, so a multi-voice engine should use
   `levels: {root, hat, conga, …}` with unique prefixed keys.
-- **`presets.json` does not reach the device.** Overture never reads it or Schwung's
-  `preset`/`preset_count`/`preset_name` protocol, so factory presets are emulator-only
-  for now. Don't assume a preset browser exists on hardware.
+- **`presets.json` has no path to the device** — but not because Overture lacks one.
+  Overture sources factory presets from `raw.factoryPresets` on the response to
+  `host_get_module_metadata` (`overture-next/src/host/schwung-chain-reader.ts:40-49`,
+  and that is the only source in the codebase). Schwung's implementation of that call
+  opens `<base>/<id>/module.json` and nothing else (`shadow_ui.c:2118-2130`), so the
+  field is never populated on hardware. Overture's emulator synthesises it from the
+  module's `presets.json` and says so in a comment
+  (`overture/web/src/schwung/browser-chain.ts:157-178`), which is why factory presets
+  appear there and not on a Move. Don't assume a preset browser exists on device.
+  Overture's *user* presets are a separate path and do work — `FileSoundPresetRepository`
+  persists them under `<OVERTURE_HOME>/sound_presets`.
 
 Overture persists its own flat parameter map, so the Schwung `get_param("state")`
 round-trip only matters for raw Schwung chains used outside Overture.

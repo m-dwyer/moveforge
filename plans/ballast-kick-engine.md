@@ -225,12 +225,20 @@ same-named preset across engines gives a coherent kit.
 | 808 Sub | track = 1, long decay, clean |
 | Rubber Sub | track = 1, fold curve, driven |
 
-Presets currently reach the browser emulator only. On device, Overture does not
-read `presets.json` and never calls Schwung's `preset` / `preset_count` /
-`preset_name` protocol, so `factoryPresets` is empty on hardware
-(`web/src/schwung/browser-chain.ts:163-164`). Accepted for now; browser-only is
-where the work is happening. Closing it later means either teaching Overture to
-read `presets.json` or shipping these as Overture Sound Presets under
+Presets currently reach the browser emulator only — though not because Overture
+lacks a preset system. It has both factory and user origins, and user presets
+persist to `<OVERTURE_HOME>/sound_presets`. Overture sources factory presets from
+`raw.factoryPresets` on the `host_get_module_metadata` response
+(`overture-next/src/host/schwung-chain-reader.ts:40-49`); Schwung's implementation
+of that call opens `<base>/<id>/module.json` and nothing else
+(`shadow_ui.c:2118-2130`), so the field is never populated on hardware. Overture's
+emulator fills it in from `presets.json`, with a comment saying exactly that
+(`overture/web/src/schwung/browser-chain.ts:157-178`).
+
+Accepted for now; browser-only is where the work is happening. Closing it means
+either merging `presets.json` into `host_get_module_metadata` upstream — a few
+lines, and every module gains factory presets at once with no Overture change —
+or shipping these as Overture user presets under
 `/data/UserData/overture/sound_presets`.
 
 ## Shared code this adds

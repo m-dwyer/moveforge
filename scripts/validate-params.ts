@@ -223,8 +223,14 @@ async function validateModule(moduleId: string, errors: string[]): Promise<void>
 }
 
 /* Hard limits enforced by the Schwung chain host when it parses module.json.
- * Every one of these fails at *load* time on the device with no local symptom:
- * the module installs, verifies clean, and then simply does not appear.
+ * Every one of these fails at *load* time on the device with no local symptom —
+ * the module installs and verifies clean — but in two different ways, and the
+ * difference is most of the debugging:
+ *
+ *   an oversized or unreadable module.json aborts the load, and the module
+ *   simply does not appear;
+ *   a duplicate key lets the module load normally with no parameters at all,
+ *   so it appears and every knob is dead.
  *
  * Verified against schwung 0.11.4, src/modules/chain/dsp/:
  *   chain_internal.h:101  MAX_CHAIN_PARAMS 256
@@ -240,7 +246,12 @@ async function validateModule(moduleId: string, errors: string[]): Promise<void>
  *   chain_params.c:446-491  shared_params objects are parsed into the SAME
  *     array as the levels, sharing the duplicate check and the 256 cap
  *   chain_params.c:531-541  a duplicate key across ANY two levels makes
- *     parse_chain_params return -1, which rejects the whole module
+ *     parse_hierarchy_params return -1. That does NOT reject the module:
+ *     parse_chain_params passes the -1 out at :578, the `*count > 0` guard at
+ *     :587 fails, it falls through to the legacy path, sets *count = 0 and
+ *     returns success at :603 — and chain_host.c:490 only fails on < 0. So the
+ *     module loads with zero parameter metadata and every knob is dead. The
+ *     only trace is a chain_log line at :536-537.
  * Truncation is silent, so an over-long key becomes a key the module itself
  * does not answer to — a dead knob rather than an error. */
 function validateHostLimits(moduleJson: ModuleJson, jsonBytes: number, errors: string[]): void {
