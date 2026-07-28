@@ -2413,7 +2413,7 @@
       }
     },
     {
-      "name": "Sub 808",
+      "name": "Wash Long",
       "params": {
         "volume": 0.688,
         "drive": 0.24,
@@ -2443,7 +2443,7 @@
         "wood_grit": 0.2
       },
       "render": {
-        "file": "14-sub-808.wav",
+        "file": "14-wash-long.wav",
         "pattern": [
           [
             {
@@ -2548,7 +2548,7 @@
       }
     },
     {
-      "name": "Sub Rubber",
+      "name": "Wash Bloom",
       "params": {
         "volume": 0.741,
         "drive": 0.2,
@@ -2578,7 +2578,7 @@
         "wood_grit": 0.2
       },
       "render": {
-        "file": "15-sub-rubber.wav",
+        "file": "15-wash-bloom.wav",
         "pattern": [
           [
             {

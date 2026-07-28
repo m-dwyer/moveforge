@@ -346,17 +346,15 @@
     },
     "root": {
       "mode": "around_default",
-      "amount": 0.02
+      "amount": 0.004
     },
     "chrom": {
-      "mode": "bounded",
-      "min": 0,
-      "max": 6
+      "mode": "around_default",
+      "amount": 0.02
     },
     "choke": {
-      "mode": "bounded",
-      "min": 0,
-      "max": 2
+      "mode": "around_default",
+      "amount": 0.02
     },
     "kit_decay": {
       "mode": "around_default",

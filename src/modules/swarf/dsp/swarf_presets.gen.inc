@@ -108,8 +108,8 @@ static const swarf_preset_t swarf_presets[16] = {
     { "Grit Crush", swarf_preset_values_11 },
     { "Tom Low", swarf_preset_values_12 },
     { "Tom High", swarf_preset_values_13 },
-    { "Sub 808", swarf_preset_values_14 },
-    { "Sub Rubber", swarf_preset_values_15 }
+    { "Wash Long", swarf_preset_values_14 },
+    { "Wash Bloom", swarf_preset_values_15 }
 };
 
 static int swarf_preset_count(void) {

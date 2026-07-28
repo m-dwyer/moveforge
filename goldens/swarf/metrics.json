@@ -573,7 +573,7 @@
       -18.32
     ]
   },
-  "14-sub-808.wav": {
+  "14-wash-long.wav": {
     "sample_rate": 44100,
     "channels": 2,
     "frames": 308700,
@@ -614,7 +614,7 @@
       -17.12
     ]
   },
-  "15-sub-rubber.wav": {
+  "15-wash-bloom.wav": {
     "sample_rate": 44100,
     "channels": 2,
     "frames": 308700,
