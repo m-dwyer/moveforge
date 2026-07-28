@@ -1,4 +1,5 @@
 import { readFile, stat } from "node:fs/promises";
+import { keysDroppedFromPreviousPreset, presetValue } from "../shared/presets.ts";
 import {
   flattenKnobs,
   flattenParams,
@@ -42,7 +43,7 @@ type ModuleJson = {
 type PresetsJson = {
   presets?: Array<{
     name: string;
-    params?: Record<string, number>;
+    params?: Record<string, unknown>;
   }>;
 };
 
@@ -191,7 +192,7 @@ async function validateModule(moduleId: string, errors: string[]): Promise<void>
   if (params.length > 0) {
     validateParams(moduleId, params, errors);
     validateSoundGeneratorLevelParams(caps.component_type, params, errors);
-    validatePresets(presetsJson, params, errors);
+    validatePresets(moduleId, presetsJson, params, errors);
     await validatePresetsAreExposed(moduleId, presetsJson, errors);
     validateMetadata(moduleId, metadataJson, params, errors);
     const coreHeader = await readFile(paths.coreHeader, "utf8");
@@ -410,26 +411,44 @@ function validateParams(moduleId: string, params: Param[], errors: string[]): vo
   }
 }
 
-function validatePresets(presetsJson: PresetsJson, params: Param[], errors: string[]): void {
+/* A preset names only what it changes; anything it omits inherits the parameter's
+ * declared default (shared/presets.ts). So a missing key is not an error here — but
+ * a key that is *present* and not a number still is, and so is one that names no
+ * parameter at all. */
+function validatePresets(
+  moduleId: string,
+  presetsJson: PresetsJson,
+  params: Param[],
+  errors: string[]
+): void {
   const paramKeys = new Set(params.map((p) => p.key));
-  const paramByKey = new Map(params.map((p) => [p.key, p]));
   for (const preset of presetsJson.presets || []) {
-    const presetKeys = Object.keys(preset.params || {});
-    for (const key of presetKeys) {
+    for (const key of Object.keys(preset.params || {})) {
       if (!paramKeys.has(key)) errors.push(`preset ${preset.name} uses unknown param ${key}`);
     }
     for (const param of params) {
-      if (!(param.key in (preset.params || {}))) {
-        errors.push(`preset ${preset.name} is missing param ${param.key}`);
+      if (!(param.key in (preset.params || {}))) continue;
+      let value: number;
+      try {
+        value = presetValue(param, preset.params, `preset ${preset.name}`);
+      } catch (err) {
+        errors.push((err as Error).message);
+        continue;
       }
-      const value = preset.params?.[param.key];
-      if (typeof value === "number") {
-        const p = paramByKey.get(param.key)!;
-        if (value < p.min || value > p.max) {
-          errors.push(`preset ${preset.name} param ${param.key}=${value} outside [${p.min}, ${p.max}]`);
-        }
+      if (value < param.min || value > param.max) {
+        errors.push(`preset ${preset.name} param ${param.key}=${value} outside [${param.min}, ${param.max}]`);
       }
     }
+  }
+
+  /* Not an error: sitting at the defaults is a legitimate thing for a preset to
+   * want. But dropping a key its predecessor set is what a forgotten voice looks
+   * like, and sparse presets are exactly what makes that invisible otherwise. */
+  for (const dropped of keysDroppedFromPreviousPreset(presetsJson.presets || [], params)) {
+    console.warn(
+      `[${moduleId}] preset ${dropped.name} omits ${dropped.keys.length} param(s) the ` +
+        `previous preset set, so they inherit their defaults: ${dropped.keys.join(", ")}`
+    );
   }
 }
 

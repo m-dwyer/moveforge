@@ -160,7 +160,7 @@ Omitting `MODULE_ID` builds every module. Set `MODULE_ID=<id>` to build one modu
 3. Run `mise run gen-params` (regenerates `<id>_params.gen.h` and `<id>_params.gen.inc`).
 4. Faust: also run `mise run gen-faust` (regenerates `<id>_faust.c`).
 5. Use the new param in the DSP (the `.c` for plain C, the `.dsp` body for Faust).
-6. Add the key to every preset in `<id>/presets.json`.
+6. Set the key in `<id>/presets.json` for the presets that want a value other than the default — a preset omits what it does not change, and inherits the declared default for it.
 7. Run `mise run gen-presets` so Move-facing preset helpers stay in sync.
 8. Update `capabilities.ui_hierarchy.levels.root.knobs` if the param should be on the Move encoders. Entries are grouped into banks of 8 in the generated chain UI; the first 8 are the parent Schwung screen's main encoder mapping.
 9. Run `mise run gen-ui-chain` if the chain-mode parameter surface changed.

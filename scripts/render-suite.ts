@@ -1,5 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
+import { densePresetValues, type PresetParam } from "../shared/presets.ts";
+import { flattenParams, type UiHierarchy } from "../shared/ui-hierarchy.ts";
 import { selectedModuleTargets } from "./lib/modules.ts";
 
 /* Optional block-rate parameter automation. Ramps catch zipper noise and
@@ -70,9 +72,16 @@ const DEFAULT_VELOCITY = 100;
 
 type PresetSuite = {
   presets: Array<{
-    params: Record<string, number>;
+    name?: string;
+    params?: Record<string, unknown>;
     render?: SoundGenRender | AudioFxRender | MidiFxRender;
   }>;
+};
+
+type ModuleJson = {
+  capabilities?: {
+    ui_hierarchy?: UiHierarchy<PresetParam>;
+  };
 };
 
 for (const target of await selectedModuleTargets()) {
@@ -85,6 +94,13 @@ for (const target of await selectedModuleTargets()) {
     target.renderKind ?? "sound_generator";
   const renderBin = process.env.RENDER_BIN || target.renderBin;
   const data = JSON.parse(await readFile(paths.presets, "utf8")) as PresetSuite;
+  /* Read from module.json rather than only from the preset, so a preset that omits
+   * a key still has it passed explicitly at its default. Two reasons: the render
+   * then exercises the whole parameter surface the golden claims to cover, and it
+   * does not quietly depend on the module's apply_defaults agreeing with
+   * module.json — which validate enforces, but a render should not need to assume. */
+  const moduleJson = JSON.parse(await readFile(paths.moduleJson, "utf8")) as ModuleJson;
+  const declaredParams = flattenParams(moduleJson.capabilities?.ui_hierarchy);
 
   for (const preset of data.presets) {
     const render = preset.render;
@@ -122,8 +138,9 @@ for (const target of await selectedModuleTargets()) {
       }
     }
 
-    for (const [key, value] of Object.entries(preset.params)) {
-      args.push(`${key}=${value}`);
+    const label = `[${moduleId}] preset ${preset.name ?? render.file}`;
+    for (const resolved of densePresetValues(declaredParams, preset.params, label)) {
+      args.push(`${resolved.key}=${resolved.value}`);
     }
 
     for (const a of (render as CommonRender).automate ?? []) {

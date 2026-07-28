@@ -183,6 +183,37 @@ runtime or ABI change. Roughly four lines:
 Add alongside it: warn when a preset omits a key that the *previous* preset set.
 Sparse presets make "I forgot voice 5" invisible otherwise.
 
+**Done**, and it was six sites rather than four, because "inherit the default" is a
+rule with three consumers that have to agree — the same shape as P1. It lives in
+`shared/presets.ts` (`presetValue`, `densePresetValues`,
+`keysDroppedFromPreviousPreset`), called by `gen-presets`, `render-suite` and the
+browser store.
+
+The two the bullets above did not name:
+
+- **`web/src/store.ts` `applyPreset` / `applySlotPreset` wrote only the keys a preset
+  names.** The `?? p.default` sites the brief cites are *reads* of a param's current
+  value; these are the writes. On device `<id>_apply_preset` writes the whole dense
+  table, so switching to a sparse preset would have left the previous preset's values
+  behind in the browser and nowhere else. Both now apply the dense set. Two tests in
+  `web/tests/store.spec.ts`, both red against the old behaviour.
+- **`render-suite.ts` passed only the preset's own keys**, so a sparse preset would
+  have leaned on `apply_defaults` rather than passing the value. Same number either
+  way (validate enforces that), but it costs six lines to keep "every render passes
+  every parameter" true, which is the premise that makes the 256-param cap the thing
+  under test. Checked: a 15-key ballast preset now sends 16 `key=value` args, the
+  omitted `curve` at its declared 0.
+
+A present-but-non-numeric value is an error naming the preset, the key and the
+default it could have inherited; an out-of-range value is passed through, because the
+validator reports it and the generated `set_param` clamps it.
+
+Verified by stripping every default-valued key out of ballast's presets.json — 45 of
+256 across 16 presets — and confirming `ballast_presets.gen.inc` and all 16 suite
+renders come back **byte-identical**, with the dropped-key warning firing on exactly
+the 4 presets that stop setting a key their predecessor set. 18 unit tests in
+`tests/presets.test.ts`; every mutation tried goes red.
+
 ### P3. Stress-harness fixes
 
 All in `scripts/render-stress.ts` unless noted. Every one of these currently produces

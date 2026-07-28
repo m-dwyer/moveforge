@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
+import { densePresetValues } from "../shared/presets.ts";
 import { flattenParams, type UiHierarchy } from "../shared/ui-hierarchy.ts";
 import { modulePaths, selectedModuleIds } from "./lib/modules.ts";
 import { cFloatLiteral, escapeCString } from "./lib/c.ts";
@@ -9,7 +10,7 @@ import { renderTemplateString } from "./lib/templates.ts";
 
 const TEMPLATE_PATH = "templates/generated/presets.gen.inc.tmpl";
 
-type Param = { key: string };
+type Param = { default: number; key: string };
 type ModuleJson = {
   capabilities?: {
     ui_hierarchy?: UiHierarchy<Param>;
@@ -18,7 +19,7 @@ type ModuleJson = {
 };
 type Preset = {
   name: string;
-  params?: Record<string, number>;
+  params?: Record<string, unknown>;
 };
 type PresetsJson = {
   presets?: Preset[];
@@ -67,13 +68,11 @@ function renderInc(moduleId: string, params: Param[], presets: Preset[]): string
   const paramKeys = params.map((p) => `    "${escapeCString(p.key)}"`).join(",\n");
   const presetValues = presets
     .map((preset, index) => {
-      const values = params.map((p) => {
-        const value = preset.params?.[p.key];
-        if (typeof value !== "number") {
-          throw new Error(`[${moduleId}] preset ${preset.name} missing numeric param ${p.key}`);
-        }
-        return cf(value, "preset value");
-      });
+      /* A key the preset omits takes its declared default, which is the same
+       * number an explicit copy would have put here — this table is applied
+       * wholesale, so sparse and dense spellings generate identical C. */
+      const values = densePresetValues(params, preset.params, `[${moduleId}] preset ${preset.name}`)
+        .map((resolved) => cf(resolved.value, "preset value"));
       return `static const float ${moduleId}_preset_values_${index}[${params.length}] = { ${values.join(", ")} };`;
     })
     .join("\n");

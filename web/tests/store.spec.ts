@@ -1,6 +1,6 @@
 import { afterEach, test, expect, vi } from "vitest";
 import { STORE_PERSIST_KEY, trackSlotKey } from "@/store";
-import { audioCalls, useStore } from "./fixtures";
+import { audioCalls, findSlot, useStore } from "./fixtures";
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -286,6 +286,61 @@ test("captures and recalls selected audio fx param snapshots", async () => {
   expect(slot.params.mix).toBe(0.33);
   expect(audioCalls()).toContainEqual({ kind: "sendParamToSlot", slotId: "audio-fx-1", key: "feedback", id: 2, value: 0.12 });
   expect(audioCalls()).toContainEqual({ kind: "sendParamToSlot", slotId: "audio-fx-1", key: "mix", id: 8, value: 0.33 });
+});
+
+/* On device, <id>_apply_preset writes the whole dense float table, so a preset that
+ * omits a key puts that key back to its declared default. Applying only the keys a
+ * preset names would leave the previous preset's value in place — the browser and
+ * the hardware would then disagree about what a preset sounds like, which is the one
+ * thing the browser exists to predict. */
+test("applying a preset sets every param, not just the ones it names", () => {
+  useStore.setState({
+    topLevelParams: [
+      { key: "fold", label: "Fold", id: 0, value: 0.35, min: 0, max: 1, step: 0.01, default: 0.35, type: "float" },
+      { key: "lpg", label: "LPG", id: 1, value: 0.5, min: 0, max: 1, step: 0.01, default: 0.5, type: "float" }
+    ],
+    presets: [
+      { name: "Loud", params: { fold: 0.9, lpg: 0.9 } },
+      { name: "Sparse", params: { fold: 0.1 } }
+    ]
+  });
+
+  useStore.getState().applyPreset("Loud");
+  expect(useStore.getState().topLevelParams.map((p) => p.value)).toEqual([0.9, 0.9]);
+
+  useStore.getState().applyPreset("Sparse");
+  expect(useStore.getState().topLevelParams.find((p) => p.key === "fold")?.value).toBe(0.1);
+  /* Not 0.9: "Sparse" is silent about lpg, which means its default. */
+  expect(useStore.getState().topLevelParams.find((p) => p.key === "lpg")?.value).toBe(0.5);
+  expect(audioCalls()).toContainEqual({ kind: "sendParamToSlot", slotId: "sound", key: "lpg", id: 1, value: 0.5 });
+});
+
+test("applying a chain-slot preset also sets every param", async () => {
+  await useStore.getState().setSlotModule(0, 2, "trail");
+  const slot = findSlot("audio_fx");
+  const key = trackSlotKey(0, slot.id);
+  const meta = useStore.getState().slotMeta[key];
+  useStore.setState({
+    slotMeta: {
+      ...useStore.getState().slotMeta,
+      [key]: {
+        ...meta,
+        presets: [
+          { name: "Loud", params: { feedback: 0.8, mix: 0.9 } },
+          { name: "Sparse", params: { feedback: 0.3 } }
+        ]
+      }
+    }
+  });
+
+  useStore.getState().applySlotPreset(0, 2, "Loud");
+  useStore.getState().applySlotPreset(0, 2, "Sparse");
+
+  const after = useStore.getState().tracks[0].chain[2];
+  if (after.kind !== "audio_fx") throw new Error("Expected audio FX slot");
+  expect(after.params.feedback).toBe(0.3);
+  /* trail's declared default for mix, not the 0.9 "Loud" left behind. */
+  expect(after.params.mix).toBe(0.18);
 });
 
 function audioFxModuleId(trackIndex: number, slotIndex: number): string | null {

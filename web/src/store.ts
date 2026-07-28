@@ -15,6 +15,7 @@ import {
   type ScaleName,
   type TrackState
 } from "./chain-state";
+import { densePresetValues } from "../../shared/presets.ts";
 import type { Preset } from "./module-metadata";
 import { sendParamUpdate, sendParamUpdates, type HostParamUpdate } from "@/audio";
 import type { ParamDefinition } from "./module-metadata";
@@ -357,16 +358,18 @@ export const useStore = create<Store>()(
 
     applyPreset: (name) => {
       const preset = get().presets.find((p) => p.name === name);
-      if (!preset || !preset.params) return;
+      if (!preset) return;
+      // Every declared param, not just the ones the preset names: a preset may omit
+      // a key to mean "leave it at its default", and on device <id>_apply_preset
+      // writes the whole dense table. Applying only the named keys would leave the
+      // previous preset's values behind and make the browser disagree with hardware.
+      const values = resolvedPresetValues(get().topLevelParams, preset, name);
       set((draft) => {
         draft.selectedPreset = name;
-        for (const [key, value] of Object.entries(preset.params!)) {
-          const param = draft.topLevelParams.find((p) => p.key === key);
-          if (param) param.value = value;
-        }
+        for (const param of draft.topLevelParams) param.value = values[param.key];
       });
       // Push the new values to the audio engine.
-      sendParamUpdates(paramUpdatesForEntries("sound", get().topLevelParams, preset.params));
+      sendParamUpdates(paramUpdatesForEntries("sound", get().topLevelParams, values));
     },
 
     applySlotPreset: (trackIndex, slotIndex, name) => {
@@ -374,18 +377,20 @@ export const useStore = create<Store>()(
       if (!slot) return;
       const meta = get().slotMeta[trackSlotKey(trackIndex, slot.id)];
       const preset = meta?.presets.find((p) => p.name === name);
-      if (!preset || !preset.params) return;
+      if (!meta || !preset) return;
+      // Dense, for the reason given in applyPreset.
+      const values = resolvedPresetValues(meta.params, preset, name);
       set((draft) => {
         draft.slotPreset[trackSlotKey(trackIndex, slot.id)] = name;
         const target = draft.tracks[trackIndex].chain[slotIndex];
         if (target.kind === "sound_generator" || target.kind === "settings") return;
         const params = target.params as Record<string, number>;
-        for (const [key, value] of Object.entries(preset.params!)) {
+        for (const [key, value] of Object.entries(values)) {
           params[key] = value;
         }
       });
       // Push the new values to the audio engine for this slot.
-      sendParamUpdates(paramUpdatesForEntries(slot.id, meta.params, preset.params));
+      sendParamUpdates(paramUpdatesForEntries(slot.id, meta.params, values));
     },
 
     randomizeSelectedSlotParams: () => {
@@ -709,6 +714,17 @@ function syncTrackSequencerToGlobal(state: StoreState): void {
 function soundSlotForTrack(state: Pick<StoreState, "tracks">, trackIndex: number) {
   const slot = state.tracks[trackIndex]?.chain.find((s) => s.kind === "sound_generator");
   return slot?.kind === "sound_generator" ? slot : null;
+}
+
+/* A preset's values for every declared param, with omitted keys at their defaults —
+ * the same resolution the generated C table and the render harness use. */
+function resolvedPresetValues(
+  params: ParamDefinition[],
+  preset: Preset,
+  name: string
+): Record<string, number> {
+  const resolved = densePresetValues(params, preset.params, `preset ${name}`);
+  return Object.fromEntries(resolved.map((entry) => [entry.key, entry.value]));
 }
 
 function paramUpdatesForEntries(

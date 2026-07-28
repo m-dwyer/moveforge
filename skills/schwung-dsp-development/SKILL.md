@@ -105,7 +105,7 @@ Both paths share this loop:
 2. **Plain C only**: add a matching `float <key>;` field to the state struct in `<id>_core.h`. The generated `set_param`/`get_param` will write/read it directly.
 3. **Faust only**: add a matching `hslider("<key>", default, min, max, step)` declaration to `<id>.dsp`. The adapter captures it by label via `buildUserInterface`.
 4. Run `mise run gen-params`.
-5. Add the key to every preset in `<id>/presets.json` with a value inside `[min, max]`, then run `mise run gen-presets`.
+5. Set the key in `<id>/presets.json`, with a value inside `[min, max]`, for the presets that want something other than the default — then run `mise run gen-presets`. A preset names only what it changes and inherits the declared default for everything else, so adding a parameter does not mean editing every preset. `validate` warns when a preset drops a key the previous one set, which is what a forgotten block looks like.
 6. **Faust only**: run `mise run gen-faust`.
 7. Use the new param in the DSP.
 8. If the parameter surface changed, run `mise run gen-ui-chain`. Generated chain UIs expose a preset browser first, then a scrollable param editor where the jog wheel selects/edits the focused parameter and Move encoders 1-8 control the page containing that selected param.
