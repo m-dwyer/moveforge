@@ -319,6 +319,115 @@ static void test_consecutive_hits_differ(void) {
 }
 
 /* --------------------------------------------------------------------------
+ * `decay` means what it says
+ * ----------------------------------------------------------------------- */
+
+/* -60 dB time of the module output, in 5 ms windows against the loudest window of
+ * the attack. Not usable below ~60 ms: mf_dcblock_t's 2.8 Hz pole leaves a sub-audio
+ * settling tail that long on the output of every module that uses it, which floors
+ * any broadband envelope measurement taken here. Both figures asserted below are far
+ * above that floor; a test of the short end of the range has to measure the voice
+ * rather than the module. */
+static float measured_t60(void) {
+    const int w = (int)(0.005f * MOVEFORGE_SAMPLE_RATE);
+    float e0 = 0.0f;
+    for (int b = 0; b < 3; b++) {
+        float e = rms_of(out_l, b * w, w);
+        if (e > e0) e0 = e;
+    }
+    if (e0 <= 0.0f) return -1.0f;
+    for (int b = 3; (b + 1) * w < N; b++) {
+        if (rms_of(out_l, b * w, w) < e0 * 0.001f) return (float)b * 0.005f;
+    }
+    return -1.0f;
+}
+
+static void test_decay_delivers_the_time_it_declares(void) {
+    /* The resonant path used to be multiplied by an amp envelope of the same length
+     * as its own T60, and a resonator's T60 *is* its decay. Two exponentials at
+     * T60 = D multiply to T60 = D/2, so `decay` was short by an octave everywhere it
+     * mattered:
+     *
+     *     knob      0.450   0.631   0.800   0.950
+     *     asked     101ms   339ms  1051ms  2864ms
+     *     got        90ms   170ms   515ms  1365ms
+     *     ratio      0.89    0.50    0.49    0.48
+     *
+     * A 2 s ride could only be reached by asking for 4 s, and no other check here
+     * could see it — the goldens were stable, nothing clipped, and the shape was
+     * still a decay. Mutation-tested by restoring the single `* env`.
+     *
+     * +-25% rather than tight: the bank's partials are tilted, so the sum runs a
+     * little shorter than its longest mode, and the window is 5 ms. Half is nowhere
+     * near inside it. */
+    const float knobs[] = { 0.631f, 0.800f };
+    for (int i = 0; i < 2; i++) {
+        swarf_core_t s;
+        init_default(&s);
+        s.conga_body = 1.0f;   /* the resonant path is the one that double-counted */
+        s.conga_grit = 0.0f;
+        s.conga_level = 0.6f;
+        s.conga_decay = knobs[i];
+        s.shape = 0.0f;        /* gate open, so only the partials set the length */
+        hit(&s, 36 + V_CONGA, 1.0f, N);
+
+        float want = swarf_decay_seconds(knobs[i]);
+        float got = measured_t60();
+        if (got < want * 0.75f || got > want * 1.25f) {
+            fprintf(stderr, "FAIL: decay %.3f asks for %.0f ms and the voice delivered "
+                            "%.0f ms (%.2fx)\n",
+                    knobs[i], want * 1000.0f, got * 1000.0f, got / want);
+            exit(1);
+        }
+    }
+}
+
+static void test_strike_does_not_outrank_decay(void) {
+    /* The excitation is what drives the partials, so an excitation that outlasts the
+     * voice's own decay keeps re-exciting them after `decay` says the hit is over.
+     * Asking this voice for 10-101 ms across the strike axis produced these floors
+     * instead:
+     *
+     *     strike        0.00   0.25   0.44   0.50   0.52   0.70   0.86
+     *     floor (ms)    >6000    100     40     50     55     55     70
+     *
+     * — the entire hat, click and rim range, and at strike 0 the voice never reached
+     * -60 dB at any decay setting at all. mf_exciter_set now takes the voice's decay
+     * as a bound. Mutation-tested by passing MF_EXCITER_UNBOUNDED instead.
+     *
+     * Read from 80 ms, past the ~60 ms sub-audio floor mf_dcblock_t leaves on every
+     * module output, and early enough that an unbounded excitation is still 20 dB
+     * clear of the threshold: at strike 0 its envelope is only 17 dB down by then,
+     * against the 40 dB this asks for. */
+    const float strikes[] = { 0.0f, 0.25f, 0.5f, 0.75f, 1.0f };
+    const int late = (int)(0.080f * MOVEFORGE_SAMPLE_RATE);
+    for (int i = 0; i < 5; i++) {
+        swarf_core_t s;
+        init_default(&s);
+        s.conga_decay = 0.20f;   /* ~19 ms */
+        s.conga_body = 1.0f;
+        s.conga_level = 0.8f;
+        s.conga_strike = strikes[i];
+        hit(&s, 36 + V_CONGA, 1.0f, N);
+
+        /* Referenced to the loudest sample anywhere in the render rather than to an
+         * early window: at strike 0 the grains are geometrically spaced ~11 ms apart,
+         * so any narrow attack window can legitimately catch none of them and the
+         * reference would be noise. What is under test is the tail, not when the
+         * first grain lands. */
+        float loudest = peak_of(out_l, 0, N);
+        float tail = peak_of(out_l, late, (int)(0.12f * MOVEFORGE_SAMPLE_RATE));
+        require_true(loudest > 0.0f, "the conga sounded at all");
+        if (tail > loudest * 0.01f) {
+            fprintf(stderr, "FAIL: at strike %.2f a 19 ms hit is still within %.0f dB of "
+                            "its peak 80 ms later — `strike` is overriding `decay`\n",
+                    strikes[i], -20.0f * log10f(tail / loudest));
+            exit(1);
+        }
+    }
+}
+
+/* --------------------------------------------------------------------------
  * The wash gate
  * ----------------------------------------------------------------------- */
 
@@ -674,6 +783,8 @@ int main(void) {
     test_velocity_brightens_every_voice();
     test_velocity_moves_level_too();
     test_consecutive_hits_differ();
+    test_decay_delivers_the_time_it_declares();
+    test_strike_does_not_outrank_decay();
     test_metal_voices_keep_their_top_end();
     test_no_partial_survives_above_nyquist();
     test_idle_voices_are_actually_skipped();

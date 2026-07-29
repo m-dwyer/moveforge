@@ -18,9 +18,12 @@
  *              mat >= 0.25: 10 x mf_reson_t at f0 * ratio_k(mat), T60_k, gain_k
  *              crossfaded across 0.20-0.30
  *      |  (body)                        v
+ *      |                             AMP ENV  mf_decay_t at `decay`, exp/linear
+ *      |                                      crossfaded by the kit's `shape`
+ *      |  decays in its own T60         |
+ *      |  GATE, the linear stage only   |
  *      +---------------- mix -----------+
  *      v
- *   AMP ENV    mf_decay_t, exp/linear crossfade by the kit's `shape`
  *   FILTER     one SVF, `tone` as a monotone brightness sweep
  *   DRIVE      `grit` into the kit's `curve`, normalised by this voice's envelope
  *   LEVEL/PAN  equal-power pan from voice index x `spread`
@@ -104,6 +107,13 @@ typedef struct {
     float exc_gain;        /* (1 - body), with velocity applied */
     float bank_gain;       /* body */
     float out_gain;
+
+    /* The resonant path carries its decay in its own coefficients, so the amp
+     * envelope does not bound it and `mf_decay_is_idle` cannot end the voice. These
+     * count the samples of ring still owed: `ring_samples` is the length one hit is
+     * worth at the current decay, `ring_left` what remains of it. */
+    int ring_samples;
+    int ring_left;
 
     /* Choke is an ~8 ms release ramp, not a cut: continuous by construction, so it
      * needs no declick of its own. */

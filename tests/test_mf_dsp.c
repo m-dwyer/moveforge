@@ -930,10 +930,112 @@ static float exciter_buf[EXCITER_N];
 static void exciter_run(float strike, uint32_t seed, int n) {
     mf_exciter_coeffs_t c;
     mf_exciter_t e;
-    mf_exciter_set(&c, strike);
+    mf_exciter_set(&c, strike, MF_EXCITER_UNBOUNDED);
     mf_exciter_init(&e, seed);
     mf_exciter_trigger(&e, &c);
     for (int i = 0; i < n; i++) exciter_buf[i] = mf_exciter_tick(&e, &c);
+}
+
+/* How long one excitation lasts: to the last sample above -60 dB of its own peak. */
+static float exciter_span(float strike, float max_s) {
+    mf_exciter_coeffs_t c;
+    mf_exciter_t e;
+    mf_exciter_set(&c, strike, max_s);
+    mf_exciter_init(&e, 0xABCDu);
+    mf_exciter_trigger(&e, &c);
+    float peak = 0.0f;
+    int n = EXCITER_N;
+    for (int i = 0; i < n; i++) {
+        exciter_buf[i] = mf_exciter_tick(&e, &c);
+        float a = exciter_buf[i] < 0.0f ? -exciter_buf[i] : exciter_buf[i];
+        if (a > peak) peak = a;
+    }
+    if (peak <= 0.0f) return 0.0f;
+    int last = 0;
+    for (int i = 0; i < n; i++) {
+        float a = exciter_buf[i] < 0.0f ? -exciter_buf[i] : exciter_buf[i];
+        if (a > peak * 0.001f) last = i;
+    }
+    return (float)(last + 1) / MOVEFORGE_SAMPLE_RATE;
+}
+
+static void test_exciter_fits_inside_the_bound_it_is_given(void) {
+    /* `max_s` is what stops an excitation outlasting the event it excites. Without
+     * it, a caller's decay control is silently outranked by `strike`: swarf's conga,
+     * asked for 10-101 ms across the strike axis, delivered these floors instead —
+     *
+     *     strike        0.00   0.25   0.44   0.50   0.52   0.70   0.86
+     *     floor (ms)    >6000    100     40     50     55     55     70
+     *
+     * — and at strike 0 never reached -60 dB at any decay setting at all.
+     *
+     * Two properties, and the second matters as much as the first: a generous bound
+     * must be *inert*, or every long shaker and rattle on the axis gets quietly
+     * shortened to pay for the fix. Mutation-tested by removing either cap. */
+    const float caps[] = { 0.010f, 0.037f, 0.101f };
+    for (int i = 0; i <= 20; i++) {
+        float strike = (float)i / 20.0f;
+
+        for (int k = 0; k < 3; k++) {
+            float span = exciter_span(strike, caps[k]);
+            /* 1.25x: the envelope figure is a time to -40 dB and the bursts land on
+             * top of its tail, so the two shares of the budget do not sum exactly.
+             * The floors above are 3-10x, so nothing near a real regression fits
+             * inside this. */
+            if (span > caps[k] * 1.25f) {
+                fprintf(stderr, "FAIL: strike %.2f bounded to %.0f ms still excites for "
+                                "%.1f ms\n", strike, caps[k] * 1000.0f, span * 1000.0f);
+                exit(1);
+            }
+        }
+
+        /* Inert where there is room: 4 s is longer than the 216 ms worst case. */
+        float loose = exciter_span(strike, 4.0f);
+        float none = exciter_span(strike, MF_EXCITER_UNBOUNDED);
+        if (loose != none) {
+            fprintf(stderr, "FAIL: strike %.2f bounded to 4 s spans %.1f ms but is "
+                            "%.1f ms unbounded — the cap is not inert\n",
+                    strike, loose * 1000.0f, none * 1000.0f);
+            exit(1);
+        }
+    }
+}
+
+static void test_a_bounded_exciter_still_makes_grains(void) {
+    /* Shortening the window without tightening the grain spacing does not compress a
+     * rattle, it empties one. At strike 0 the grains are 500 samples apart, so a
+     * voice bounded to a 19 ms decay gets a 6.6 ms window that more often than not
+     * contains no grain at all — a hit that is not quieter but *silent*, which is a
+     * worse failure than the floor the bound exists to remove. Found by swarf's own
+     * conga going silent under exactly that setting.
+     *
+     * Every seed, not an average: this fails intermittently or not at all, so an
+     * averaged assertion would pass a build that is silent one hit in four.
+     * Mutation-tested by dropping the `period *= squeeze`. */
+    const float caps[] = { 0.010f, 0.019f, 0.037f };
+    for (int i = 0; i <= 20; i++) {
+        float strike = (float)i / 20.0f;
+        for (int k = 0; k < 3; k++) {
+            for (uint32_t seed = 1; seed <= 16; seed++) {
+                mf_exciter_coeffs_t c;
+                mf_exciter_t e;
+                mf_exciter_set(&c, strike, caps[k]);
+                mf_exciter_init(&e, seed);
+                mf_exciter_trigger(&e, &c);
+                int grains = 0;
+                int n = (int)(caps[k] * MOVEFORGE_SAMPLE_RATE);
+                for (int j = 0; j < n; j++) {
+                    if (mf_exciter_tick(&e, &c) != 0.0f) grains++;
+                }
+                if (grains == 0) {
+                    fprintf(stderr, "FAIL: strike %.2f bounded to %.0f ms produced no "
+                                    "grains at all on seed %u — the hit is silent\n",
+                            strike, caps[k] * 1000.0f, seed);
+                    exit(1);
+                }
+            }
+        }
+    }
 }
 
 static void test_exciter_output_stays_bounded(void) {
@@ -1045,7 +1147,7 @@ static void test_exciter_bursts_are_separate_events(void) {
      * ratchet. Counted as re-peaks of a smoothed envelope, which is what a
      * listener hears as separate events. */
     mf_exciter_coeffs_t c;
-    mf_exciter_set(&c, 1.0f);
+    mf_exciter_set(&c, 1.0f, MF_EXCITER_UNBOUNDED);
     require_true(c.burst_count == MF_EXCITER_MAX_BURSTS, "strike 1 fires every burst");
 
     int n = (int)(0.1f * MOVEFORGE_SAMPLE_RATE);
@@ -1072,8 +1174,8 @@ static void test_exciter_bursts_are_separate_events(void) {
     /* Bursts fade in by level rather than appearing at full volume, or the knob
      * steps as each one arrives. */
     mf_exciter_coeffs_t low, high;
-    mf_exciter_set(&low, 0.55f);
-    mf_exciter_set(&high, 0.65f);
+    mf_exciter_set(&low, 0.55f, MF_EXCITER_UNBOUNDED);
+    mf_exciter_set(&high, 0.65f, MF_EXCITER_UNBOUNDED);
     require_true(low.burst_count == 1 && high.burst_count == 1,
                  "the first extra burst arrives before the second");
     require_true(high.burst_level[0] > low.burst_level[0] * 1.5f,
@@ -1084,9 +1186,9 @@ static void test_exciter_bursts_are_separate_events(void) {
 
     /* Below centre there are no bursts at all: that half of the axis is grains. */
     mf_exciter_coeffs_t centre;
-    mf_exciter_set(&centre, 0.5f);
+    mf_exciter_set(&centre, 0.5f, MF_EXCITER_UNBOUNDED);
     require_true(centre.burst_count == 0, "the rattle half fires no bursts");
-    mf_exciter_set(&centre, 0.2f);
+    mf_exciter_set(&centre, 0.2f, MF_EXCITER_UNBOUNDED);
     require_true(centre.burst_count == 0, "the rattle half fires no bursts");
 
     /* A burst raises the envelope rather than replacing it. That only differs when
@@ -1101,8 +1203,8 @@ static void test_exciter_bursts_are_separate_events(void) {
      * mid-hit, which is a click. */
     mf_exciter_coeffs_t fired, held;
     mf_exciter_t moving;
-    mf_exciter_set(&fired, 0.9f);
-    mf_exciter_set(&held, 0.05f);
+    mf_exciter_set(&fired, 0.9f, MF_EXCITER_UNBOUNDED);
+    mf_exciter_set(&held, 0.05f, MF_EXCITER_UNBOUNDED);
     mf_exciter_init(&moving, 0x5EEDu);
     mf_exciter_trigger(&moving, &fired);
     /* Keep the burst schedule from `fired` but the long envelope from `held`. */
@@ -1148,7 +1250,7 @@ static void test_exciter_is_deterministic_and_idles(void) {
     /* Idle is reported, so a voice can skip its sample loop. */
     mf_exciter_coeffs_t c;
     mf_exciter_t e;
-    mf_exciter_set(&c, 0.5f);
+    mf_exciter_set(&c, 0.5f, MF_EXCITER_UNBOUNDED);
     mf_exciter_init(&e, 1u);
     require_true(mf_exciter_is_idle(&e, 1.0e-4f), "a fresh exciter is idle");
     mf_exciter_trigger(&e, &c);
@@ -1158,7 +1260,7 @@ static void test_exciter_is_deterministic_and_idles(void) {
 
     /* A pending burst keeps it alive: early-outing between bursts would drop the
      * rest of a clap. */
-    mf_exciter_set(&c, 1.0f);
+    mf_exciter_set(&c, 1.0f, MF_EXCITER_UNBOUNDED);
     mf_exciter_init(&e, 1u);
     mf_exciter_trigger(&e, &c);
     for (int i = 0; i < (int)(0.004f * MOVEFORGE_SAMPLE_RATE); i++) mf_exciter_tick(&e, &c);
@@ -1195,6 +1297,8 @@ int main(void) {
     test_reson_rings_at_the_frequency_asked_for();
     test_reson_audible_gates_what_the_bank_should_skip();
     test_exciter_output_stays_bounded();
+    test_exciter_fits_inside_the_bound_it_is_given();
+    test_a_bounded_exciter_still_makes_grains();
     test_exciter_density_spreads_grains_in_time();
     test_exciter_grains_are_not_periodic();
     test_exciter_envelope_lengthens_as_grains_thin();

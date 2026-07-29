@@ -20,6 +20,10 @@
  * Both stages of the amp envelope are tested — see mf_decay_is_idle. */
 #define SWARF_IDLE_EPS 1.0e-5f
 
+/* Carries a T60 out to SWARF_IDLE_EPS. T60 is the -60 dB time and the eps above is
+ * -100 dB, so a partial needs 100/60 of its T60 to get there. */
+#define SWARF_RING_TO_EPS 1.667f
+
 #define SWARF_DECLICK_S 0.004f
 #define SWARF_CHOKE_S 0.008f
 #define SWARF_DRIVE_ENV_FLOOR 0.12f
@@ -236,6 +240,25 @@ static void swarf_voice_init(swarf_voice_t *v, int index)
     v->dirty = 1;
 }
 
+/* Clear the resonant state as well as the envelopes.
+ *
+ * Needed only since the partials stopped being gated by the amp envelope: a choked
+ * or stopped voice holds its ring in swarf_voice_t's filter state, muted by
+ * choke_gain rather than gone. Retriggering snaps choke_gain back to 1, so without
+ * this the *previous* hit's tail reappears underneath the new one. The comb memset
+ * is the expensive part and it happens on all-notes-off and choke completion only,
+ * never per block. */
+static void swarf_voice_silence(swarf_voice_t *v)
+{
+    mf_decay_release(&v->amp);
+    mf_exciter_release(&v->exciter);
+    for (int k = 0; k < SWARF_PARTIALS; k++) mf_reson_init(&v->partial[k]);
+    memset(v->comb, 0, sizeof(v->comb));
+    v->comb_ap = 0.0f;
+    v->comb_damp = 0.0f;
+    v->ring_left = 0;
+}
+
 void swarf_init(swarf_core_t *s)
 {
     if (!s) return;
@@ -310,7 +333,11 @@ static void swarf_choke_others(swarf_core_t *s, int voice)
     for (int v = 0; v < members; v++) {
         if (v == voice) continue;
         swarf_voice_t *o = &s->voice[v];
-        if (mf_decay_is_idle(&o->amp, SWARF_IDLE_EPS)) continue;
+        /* The whole voice, not just its amp envelope: since the partials stopped
+         * being gated by that envelope, a voice can be ringing loudly with both of
+         * its stages long spent, and testing the envelope alone would leave exactly
+         * the sounds a choke group exists for — a long open hat — unchokeable. */
+        if (swarf_voice_is_idle(s, v)) continue;
         /* A ramp, not a cut: an instant mute clicks. Not the declick's job either —
          * that one exists for retrigger steps, and this ramp is continuous by
          * construction. */
@@ -371,8 +398,7 @@ void swarf_all_notes_off(swarf_core_t *s)
 {
     if (!s) return;
     for (int i = 0; i < SWARF_VOICES; i++) {
-        mf_decay_release(&s->voice[i].amp);
-        mf_exciter_release(&s->voice[i].exciter);
+        swarf_voice_silence(&s->voice[i]);
         s->voice[i].pending = 0;
         s->voice[i].choke_gain = 1.0f;
         s->voice[i].choke_step = 0.0f;
@@ -391,6 +417,7 @@ int swarf_voice_is_idle(const swarf_core_t *s, int voice)
     if (!s || voice < 0 || voice >= SWARF_VOICES) return 1;
     const swarf_voice_t *v = &s->voice[voice];
     return !v->pending
+        && v->ring_left <= 0
         && mf_decay_is_idle(&v->amp, SWARF_IDLE_EPS)
         && mf_exciter_is_idle(&v->exciter, SWARF_IDLE_EPS);
 }
@@ -437,7 +464,20 @@ static void swarf_voice_prepare(swarf_core_t *s, int idx)
     swarf_build_bank(v, f0, decay_s, mat, vel_bright);
     swarf_build_comb(v, f0, decay_s, mat, vel_bright);
     mf_decay_set(&v->amp_co, decay_s, moveforge_clampf(s->shape, 0.0f, 1.0f));
-    mf_exciter_set(&v->exciter_co, moveforge_clampf(*p[SWARF_VP_STRIKE], 0.0f, 1.0f));
+
+    /* How long one hit rings, now that the amp envelope no longer ends it. Every
+     * partial's T60 is decay_s * (f0/f_k)^tilt with every anchor ratio >= 1 and every
+     * tilt >= 0, so no partial outlasts decay_s, and swarf_build_comb sets the comb's
+     * feedback to the same figure. Extended rather than reset when a parameter moves
+     * mid-ring, or a Route Motion lane on `decay` would keep restarting the count and
+     * the voice would never reach the early-out. */
+    v->ring_samples = (int)(decay_s * SWARF_RING_TO_EPS * MOVEFORGE_SAMPLE_RATE) + 1;
+    if (v->ring_samples > v->ring_left) v->ring_left = v->ring_samples;
+    /* Bounded by this voice's own decay: excitation that outlasts the resonance it
+     * excites makes `strike` a decay control that outranks `decay`. See
+     * mf_exciter_set for the floors this removes. */
+    mf_exciter_set(&v->exciter_co, moveforge_clampf(*p[SWARF_VP_STRIKE], 0.0f, 1.0f),
+                   decay_s);
 
     /* One SVF as a monotone brightness sweep, so the knob never reverses: a 20 kHz
      * lowpass and a 20 Hz highpass are both transparent, so the halves meet
@@ -493,7 +533,10 @@ static void swarf_render_voice(swarf_core_t *s, int idx, float *out_l, float *ou
             swarf_voice_prepare(s, idx);
             mf_decay_trigger(&v->amp);
             mf_exciter_trigger(&v->exciter, &v->exciter_co);
+            v->ring_left = v->ring_samples;
         }
+
+        if (v->ring_left > 0) v->ring_left--;
 
         float env = mf_decay_tick(&v->amp, &v->amp_co);
         float exc = mf_exciter_tick(&v->exciter, &v->exciter_co);
@@ -531,7 +574,33 @@ static void swarf_render_voice(swarf_core_t *s, int idx, float *out_l, float *ou
         }
         float resonant = comb * (v->comb_mix * SWARF_COMB_GAIN) + bank * (1.0f - v->comb_mix);
 
-        float mix = (exc * v->exc_gain + resonant * v->bank_gain) * env;
+        /* The two paths are enveloped differently because only one of them needs an
+         * envelope. A resonator's T60 *is* its decay, and the comb's feedback is set
+         * from the same figure, so multiplying either by an amp envelope of the same
+         * length applies the decay twice: two exponentials at T60 = D multiply to
+         * T60 = D/2. Measured on the conga before this split, at shape 0 —
+         *
+         *     knob      0.450   0.631   0.800   0.950
+         *     asked     101ms   339ms  1051ms  2864ms
+         *     got        90ms   170ms   515ms  1365ms
+         *     ratio      0.89    0.50    0.49    0.48
+         *
+         * — so `decay` was a knob that lied by an octave everywhere it mattered, and
+         * a ride could not reach 2 s because reaching it meant asking for 4.
+         *
+         * The excitation path is a different case: it is a noise burst, not a
+         * resonance, and its only length is whatever envelope it is given. It keeps
+         * the full amp envelope, which is what leaves `decay` meaningful at body 0.
+         *
+         * `shape` survives on the resonant path as the linear stage alone. That is
+         * the half of it that is not double-counting: an exponential amp stage over
+         * an exponentially decaying partial is the bug above, but a linear ramp to
+         * zero over one is a *gate*, which is exactly the abrupt electronic ending
+         * the control exists to reach. At shape 0 the gate is open and the partials
+         * ring for their own T60. */
+        float gate = 1.0f - v->amp_co.shape_w * (1.0f - v->amp.lin_v);
+
+        float mix = exc * v->exc_gain * env + resonant * v->bank_gain * gate;
 
         /* --- filter --- */
         mf_svf_tick(&v->tone_filt, &v->tone_co, mix);
@@ -552,8 +621,7 @@ static void swarf_render_voice(swarf_core_t *s, int idx, float *out_l, float *ou
             if (v->choke_gain <= 0.0f) {
                 v->choke_gain = 0.0f;
                 v->choke_step = 0.0f;
-                mf_decay_release(&v->amp);
-                mf_exciter_release(&v->exciter);
+                swarf_voice_silence(v);
             }
         }
 

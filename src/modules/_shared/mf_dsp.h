@@ -941,34 +941,94 @@ static inline void mf_exciter_init(mf_exciter_t *e, uint32_t seed)
  * The measured gap standard deviation tracks its mean to within 5% (e.g. 42.7 and
  * 42.6 at strike 0.2), which is the signature of geometric spacing — a periodic
  * decimator would read 0. */
-static inline void mf_exciter_set(mf_exciter_coeffs_t *c, float strike)
+/* Pass as `max_s` to leave the excitation unbounded by the caller's event. */
+#define MF_EXCITER_UNBOUNDED 1.0e9f
+
+/* How `max_s` is divided between the two things that can outlast it. The envelope
+ * figure is a time to -40 dB, so its -60 dB tail runs about 1.7x longer, and the
+ * bursts land on top of that rather than instead of it — capping each at `max_s`
+ * separately therefore overshoots by 2-3x. These two split the budget so the sum
+ * lands near it. Their values are measured rather than derived: see the tables in
+ * mf_exciter_set. */
+#define MF_EXCITER_ENV_FRACTION 0.35f
+#define MF_EXCITER_BURST_FRACTION 0.40f
+
+/* `max_s` is the longest the excitation may last — the caller's own event length,
+ * normally the voice's T60.
+ *
+ * Without it, `strike` is a second decay control that silently outranks the first.
+ * Measured on swarf's conga at `mat` 0.5, asking for decay times from 10 ms to
+ * 101 ms and reading what came out:
+ *
+ *     strike        0.00   0.25   0.44   0.50   0.52   0.70   0.86
+ *     floor (ms)    >6000    100     40     50     55     55     70
+ *
+ * — every request shorter than the floor produced the floor instead, which is the
+ * whole hat, click and rim range, and at strike 0 the voice never reached -60 dB at
+ * any decay setting at all. Two separate mechanisms, one on each half of the axis:
+ * below 0.5 the grain envelope stretches to 122 ms, above it the burst scheduler
+ * spreads hits out to 75 ms. Both now compress to fit inside `max_s`.
+ *
+ * The cap does nothing wherever there is a tail to rattle into — above ~100 ms of
+ * decay the measured ratios were already 0.98-1.04 and are untouched — so a long
+ * shaker or a maraca still lasts as long as `strike` asks. It only stops a 10 ms
+ * hit from carrying a 122 ms excitation. */
+static inline void mf_exciter_set(mf_exciter_coeffs_t *c, float strike, float max_s)
 {
     if (!c) return;
     float s = (moveforge_clampf(strike, 0.0f, 1.0f) - 0.5f) * 2.0f;
-
-    /* Density: geometric in s so the control is even, rather than spending its
-     * whole audible range in the last tenth. */
-    float period = (s < 0.0f) ? powf(MF_EXCITER_MAX_PERIOD, -s) : 1.0f;
-    c->grain_threshold = (period <= 1.0f)
-        ? 0xFFFFFFFFu
-        : (uint32_t)(4294967295.0f / period);
+    float cap = (max_s > 0.0f) ? max_s : MF_EXCITER_UNBOUNDED;
 
     /* Envelope lengthens as the grains spread out: a rattle is a long sprinkle of
      * small events, a strike is one short broadband one. */
     float env_s = (s < 0.0f) ? 0.0015f - s * 0.1185f : 0.0015f;
+    float env_cap = cap * MF_EXCITER_ENV_FRACTION;
+    float squeeze = 1.0f;
+    if (env_s > env_cap) {
+        squeeze = env_cap / env_s;
+        env_s = env_cap;
+    }
+    if (env_s < 0.0002f) env_s = 0.0002f;
     c->env_coeff = expf(-4.0f / (env_s * MOVEFORGE_SAMPLE_RATE));
+
+    /* Density: geometric in s so the control is even, rather than spending its
+     * whole audible range in the last tenth.
+     *
+     * Squeezed by however much the envelope was, because shortening the window
+     * without tightening the spacing does not compress a rattle, it *empties* one.
+     * At strike 0 the grains are 500 samples apart (88 Hz) — bounding that voice to
+     * a 19 ms decay leaves a 6.6 ms window, which more often than not contains no
+     * grain at all and the hit is silent. Scaling both together keeps a rattle a
+     * rattle and only makes it faster. */
+    float period = (s < 0.0f) ? powf(MF_EXCITER_MAX_PERIOD, -s) : 1.0f;
+    period *= squeeze;
+    c->grain_threshold = (period <= 1.0f)
+        ? 0xFFFFFFFFu
+        : (uint32_t)(4294967295.0f / period);
 
     /* Bursts fade in by *level*, not by count, or the knob steps audibly as each
      * one appears. Spacing tightens from a flam to a ratchet. */
     c->burst_count = 0;
-    c->burst_spacing = (int)((0.025f - 0.019f * ((s > 0.0f) ? s : 0.0f))
-                             * MOVEFORGE_SAMPLE_RATE);
     for (int k = 0; k < MF_EXCITER_MAX_BURSTS; k++) {
         float fade = moveforge_clampf(s * 3.0f - (float)k, 0.0f, 1.0f);
         /* Each burst ~2 dB below the one before it. */
         c->burst_level[k] = fade * powf(0.794f, (float)(k + 1));
         if (c->burst_level[k] > 0.0f) c->burst_count = k + 1;
     }
+
+    /* Spacing after the count, because what has to fit inside `max_s` is the span
+     * the last burst lands at, not one gap. Scaled rather than truncated so a
+     * bounded ratchet stays an evenly spaced ratchet. */
+    float spacing_s = 0.025f - 0.019f * ((s > 0.0f) ? s : 0.0f);
+    if (c->burst_count > 0) {
+        float span = spacing_s * (float)c->burst_count;
+        float span_cap = cap * MF_EXCITER_BURST_FRACTION;
+        if (span > span_cap) spacing_s *= span_cap / span;
+    }
+    c->burst_spacing = (int)(spacing_s * MOVEFORGE_SAMPLE_RATE);
+    /* Zero would fire every burst on consecutive samples via the `--countdown <= 0`
+     * test, collapsing a ratchet into one hit. */
+    if (c->burst_spacing < 1) c->burst_spacing = 1;
 }
 
 /* Start a hit. Snap, not ramp: this is called on note-on. */
