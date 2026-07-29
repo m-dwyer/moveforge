@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { useStore } from "@/store";
+import { moduleNoteRoot, useStore } from "@/store";
 import { noteOff, noteOn } from "@/audio";
 import { noteForPad } from "@/lib/pads";
 
@@ -35,7 +35,8 @@ export function useKeyboardPlay(): void {
         padLayout: s.padLayout,
         root: s.root,
         scale: s.scale,
-        octave: s.octave
+        octave: s.octave,
+        moduleRoot: moduleNoteRoot(s)
       });
       held.set(e.code, { note, padIndex });
       useStore.getState().setPadActive(padIndex, true);

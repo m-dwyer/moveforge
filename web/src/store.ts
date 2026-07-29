@@ -678,6 +678,8 @@ export function selectSelectedSlot(state: StoreState): ChainSlot {
 }
 
 export type SlotParamRow = {
+  group?: string;
+  groupLabel?: string;
   key: string;
   label: string;
   min: number;
@@ -709,6 +711,14 @@ function syncTrackSequencerToGlobal(state: StoreState): void {
   state.steps = repairSteps(track.steps, state.steps);
   state.playStep = -1;
   state.playing = false;
+}
+
+/* The sound module's own note-block root, if it declares a `root` parameter. Used by
+ * the Kit pad layout so the grid lines up with a note-mapped module without the
+ * player having to match Root and Octave to it by hand. */
+export function moduleNoteRoot(state: Pick<StoreState, "topLevelParams">): number | undefined {
+  const root = state.topLevelParams.find((param) => param.key === "root");
+  return root ? Math.round(root.value) : undefined;
 }
 
 function soundSlotForTrack(state: Pick<StoreState, "tracks">, trackIndex: number) {

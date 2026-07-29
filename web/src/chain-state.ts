@@ -127,7 +127,7 @@ export type AppState = {
   masterVolume: number;
   mode: "browser" | "chain" | "device" | "seq";
   octave: number;
-  padLayout: "chromatic" | "in-key-fourths" | "in-key-octaves";
+  padLayout: "chromatic" | "in-key-fourths" | "in-key-octaves" | "kit";
   playStep: number;
   playing: boolean;
   root: number;

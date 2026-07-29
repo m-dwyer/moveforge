@@ -1,4 +1,4 @@
-import { flattenParams, type UiHierarchy } from "../../shared/ui-hierarchy.ts";
+import { flattenParams, paramGroups, type UiHierarchy } from "../../shared/ui-hierarchy.ts";
 
 export type ModuleIndexItem = {
   id: string;
@@ -12,6 +12,10 @@ export type ModuleIndex = {
 
 export type ParamDefinition = {
   default: number;
+  /* The `ui_hierarchy` level that declared this parameter, and that level's
+   * display name. Presentation only — `id` and `key` are the ABI. */
+  group?: string;
+  groupLabel?: string;
   id: number;
   key: string;
   label: string;
@@ -138,10 +142,29 @@ function paramsFromModuleJson(
 ): ParamDefinition[] {
   /* `index` becomes the id the worklet is addressed by, so this has to be the
    * same order the generated <MODULE>_PARAM_* enum counts in — which is why the
-   * flatten is shared with the generators rather than repeated here. */
-  const raw = flattenParams(moduleJson.capabilities?.ui_hierarchy);
+   * flatten is shared with the generators rather than repeated here.
+   *
+   * Walking the groups instead of the flat list is safe *because* flattenParams is
+   * itself defined as paramGroups().flatMap: the running index below counts in
+   * exactly the order flattenParams would produce. Recovering the grouping by any
+   * other route — re-reading `levels`, matching on key prefixes — would be a second
+   * walk that can disagree, which is the failure shared/ui-hierarchy.ts exists to
+   * prevent. */
+  const raw: Array<RawParam & { group: string; groupLabel?: string }> = [];
+  for (const g of paramGroups<RawParam>(moduleJson.capabilities?.ui_hierarchy)) {
+    for (const item of g.params) raw.push({ ...item, group: g.group, groupLabel: g.label });
+  }
+  /* Cheap, and it is the one thing that must not drift: `id` is the index the
+   * worklet addresses, so a group walk that disagreed with the flat walk would
+   * silently point every knob at the wrong parameter. */
+  const flat = flattenParams<RawParam>(moduleJson.capabilities?.ui_hierarchy);
+  if (flat.length !== raw.length || flat.some((item, i) => item.key !== raw[i].key)) {
+    throw new Error(`${moduleJson.id}: grouped parameter order disagrees with flattenParams`);
+  }
   return raw.map((item, index) => ({
     default: item.default,
+    group: item.group,
+    groupLabel: item.groupLabel,
     id: index,
     key: item.key,
     label: item.name ?? item.key,

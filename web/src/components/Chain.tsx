@@ -6,7 +6,7 @@ export function Chain() {
   const chain = useStore((s) => selectCurrentTrack(s).chain);
 
   return (
-    <div className="overflow-hidden rounded-md border border-line bg-panel-2">
+    <div className="shrink-0 overflow-hidden rounded-md border border-line bg-panel-2">
       {chain.map((slot, i) => (
         <ChainSlot key={slot.id} slot={slot} trackIndex={trackIndex} slotIndex={i} />
       ))}

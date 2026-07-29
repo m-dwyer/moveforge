@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { useStore } from "@/store";
+import { moduleNoteRoot, useStore } from "@/store";
 import { isInScale, isRoot, noteForPad, noteLabel, noteShortLabel } from "@/lib/pads";
 import { noteOff, noteOn } from "@/audio";
 import { cn } from "@/lib/utils";
@@ -11,11 +11,13 @@ export function PadGrid({ rows = 4 }: { rows?: 1 | 4 }) {
   const root = useStore((s) => s.root);
   const scale = useStore((s) => s.scale);
   const octave = useStore((s) => s.octave);
+  const moduleRoot = useStore(moduleNoteRoot);
   const count = rows * 8;
 
   const notes = useMemo(
-    () => Array.from({ length: count }, (_, i) => noteForPad(i, { padLayout, root, scale, octave })),
-    [padLayout, root, scale, octave, count]
+    () => Array.from({ length: count },
+                     (_, i) => noteForPad(i, { padLayout, root, scale, octave, moduleRoot })),
+    [padLayout, root, scale, octave, moduleRoot, count]
   );
 
   return (

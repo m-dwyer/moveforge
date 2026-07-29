@@ -1,14 +1,26 @@
 import { scales, type ScaleName } from "@/chain-state";
 
 type Config = {
-  padLayout: "chromatic" | "in-key-octaves" | "in-key-fourths";
+  padLayout: "chromatic" | "in-key-octaves" | "in-key-fourths" | "kit";
   root: number;
   scale: ScaleName;
   octave: number;
+  /* The sound module's own note-block root, when it declares one. A note-mapped
+   * drum module puts its voices on consecutive notes from there, and expecting the
+   * player to line the grid up with it by hand is how you end up with 26 silent
+   * pads and no way to tell which six are not. */
+  moduleRoot?: number;
 };
 
 export function noteForPad(index: number, cfg: Config): number {
   const rootMidi = 12 * (cfg.octave + 1) + cfg.root;
+  /* Kit: every row is the same eight notes from the module's root, so the voices sit
+   * in the same column on every row and there is nothing to align. The melodic
+   * layouts stagger rows by fourths or octaves, which for a six-voice drum module
+   * means most of the grid lands past the last voice and is silent. */
+  if (cfg.padLayout === "kit") {
+    return (cfg.moduleRoot ?? rootMidi) + (index % 8);
+  }
   if (cfg.padLayout === "chromatic") {
     const row = Math.floor(index / 8);
     const col = index % 8;

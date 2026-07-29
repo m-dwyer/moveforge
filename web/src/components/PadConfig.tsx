@@ -3,10 +3,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { NOTE_NAMES } from "@/lib/pads";
 import type { ScaleName } from "@/chain-state";
 
-const LAYOUTS: Array<{ value: "in-key-octaves" | "in-key-fourths" | "chromatic"; label: string }> = [
+const LAYOUTS: Array<{
+  value: "in-key-octaves" | "in-key-fourths" | "chromatic" | "kit";
+  label: string;
+}> = [
   { value: "in-key-octaves", label: "In-Key Octaves" },
   { value: "in-key-fourths", label: "In-Key 4ths" },
-  { value: "chromatic", label: "Chromatic" }
+  { value: "chromatic", label: "Chromatic" },
+  { value: "kit", label: "Kit (module root)" }
 ];
 
 export const SCALE_OPTIONS: Array<{ value: ScaleName; label: string }> = [
