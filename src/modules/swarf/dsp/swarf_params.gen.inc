@@ -226,7 +226,7 @@ void swarf_apply_defaults(swarf_core_t *s) {
     s->hat_tone = 0.55f;
     s->hat_strike = 0.5f;
     s->hat_grit = 0.3f;
-    s->hat_level = 0.534f;
+    s->hat_level = 0.73f;
     s->oh_tune = 88.0f;
     s->oh_decay = 0.663f;
     s->oh_mat = 1.0f;
@@ -234,7 +234,7 @@ void swarf_apply_defaults(swarf_core_t *s) {
     s->oh_tone = 0.55f;
     s->oh_strike = 0.44f;
     s->oh_grit = 0.26f;
-    s->oh_level = 0.492f;
+    s->oh_level = 0.5f;
     s->ride_tune = 74.0f;
     s->ride_decay = 0.924f;
     s->ride_mat = 0.95f;
@@ -242,7 +242,7 @@ void swarf_apply_defaults(swarf_core_t *s) {
     s->ride_tone = 0.52f;
     s->ride_strike = 0.4f;
     s->ride_grit = 0.18f;
-    s->ride_level = 0.522f;
+    s->ride_level = 0.34f;
     s->clap_tune = 68.0f;
     s->clap_decay = 0.566f;
     s->clap_mat = 0.92f;
@@ -250,7 +250,7 @@ void swarf_apply_defaults(swarf_core_t *s) {
     s->clap_tone = 0.5f;
     s->clap_strike = 0.86f;
     s->clap_grit = 0.34f;
-    s->clap_level = 0.575f;
+    s->clap_level = 0.48f;
     s->conga_tune = 58.0f;
     s->conga_decay = 0.631f;
     s->conga_mat = 0.5f;
@@ -258,7 +258,7 @@ void swarf_apply_defaults(swarf_core_t *s) {
     s->conga_tone = 0.42f;
     s->conga_strike = 0.52f;
     s->conga_grit = 0.22f;
-    s->conga_level = 0.666f;
+    s->conga_level = 0.62f;
     s->wood_tune = 71.0f;
     s->wood_decay = 0.448f;
     s->wood_mat = 0.04f;
@@ -266,7 +266,7 @@ void swarf_apply_defaults(swarf_core_t *s) {
     s->wood_tone = 0.48f;
     s->wood_strike = 0.54f;
     s->wood_grit = 0.2f;
-    s->wood_level = 0.484f;
+    s->wood_level = 0.35f;
     s->volume = 0.75f;
     s->drive = 0.18f;
     s->curve = 0.0f;

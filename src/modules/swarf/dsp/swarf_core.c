@@ -73,10 +73,29 @@
  * about a third of it and the rest is left to each voice's `level`. */
 #define SWARF_COMB_GAIN 1.6f
 
-/* Level of the noise wash relative to the mode bank at mat = 1. Measured against the
- * ride's own settings: below ~0.15 the tail is still audibly a set of partials, above
- * ~0.5 the modes stop reading as metal and it becomes filtered noise with a ping. */
-#define SWARF_WASH_GAIN 0.30f
+/* Level of the sustaining noise at mat = 1, as excitation into the bank.
+ *
+ * Mixed in *parallel* with the bank first, and that was wrong: a band of noise
+ * beside a set of partials reads as hiss over a ping, not as a wash — which is what
+ * it sounded like. Fed into the resonators instead it re-excites all sixty-four
+ * modes continuously, so the sustain is the *modes* ringing rather than noise being
+ * heard next to them. That is also what physically sustains a cymbal: energy keeps
+ * moving back into the plate's modes rather than a separate hiss existing alongside
+ * them. Much smaller number than the parallel version needed, because the bank has
+ * gain of its own. */
+/* Higher than the parallel version used, and quieter to the ear anyway: through the
+ * bank the noise arrives as sixty-four modes ringing, so it reads as shimmer rather
+ * than as hiss sitting on top. Measured across the axis, gain against the hat's
+ * centroid and the ride's 2-14 kHz flatness:
+ *
+ *     wash        0.03    0.06    0.12    0.25    0.50
+ *     hat cen     2260    3466    5526    7231    7881  Hz
+ *     ride flat  0.121   0.152   0.200   0.273   0.406
+ *
+ * Below ~0.12 the top of the axis goes dull — the modes alone do not reach where a
+ * hat lives. This is the one number in the engine picked by ear rather than by
+ * measurement, so it is deliberately a single named constant. */
+#define SWARF_WASH_GAIN 0.25f
 
 #define SWARF_DECAY_MIN 0.005f
 #define SWARF_DECAY_SPAN 800.0f   /* 0.005 * 800 = 4 s */
@@ -590,12 +609,22 @@ static void swarf_render_voice(swarf_core_t *s, int idx, float *out_l, float *ou
         float env = mf_decay_tick(&v->amp, &v->amp_co);
         float exc = mf_exciter_tick(&v->exciter, &v->exciter_co);
 
+        /* Sustaining excitation for the metal end, band-limited and enveloped by
+         * `decay`. It drives the bank rather than sitting beside it — see
+         * SWARF_WASH_GAIN. The comb is deliberately left out: it is the wood end of
+         * the axis and wash_gain is zero there anyway. */
+        float bank_in = exc;
+        if (v->wash_gain > 0.0f) {
+            mf_svf_tick(&v->wash_filt, &v->wash_co, mf_rng_bipolar(&v->rng));
+            bank_in += v->wash_filt.bp * v->wash_gain * env;
+        }
+
         /* --- partials --- */
         float bank = 0.0f;
         if (v->comb_mix < 1.0f) {
             for (int n = 0; n < v->live_count; n++) {
                 int k = v->live[n];
-                bank += mf_reson_tick(&v->partial[k], &v->partial_co[k], exc) * v->partial_gain[k];
+                bank += mf_reson_tick(&v->partial[k], &v->partial_co[k], bank_in) * v->partial_gain[k];
             }
         }
         float comb = 0.0f;
@@ -621,17 +650,8 @@ static void swarf_render_voice(swarf_core_t *s, int idx, float *out_l, float *ou
             v->comb[v->comb_write] = mf_flush_denorm(exc + v->comb_damp * v->comb_fb);
             v->comb_write = (v->comb_write + 1) & (SWARF_COMB_LEN - 1);
         }
-        float wash = 0.0f;
-        if (v->wash_gain > 0.0f) {
-            mf_svf_tick(&v->wash_filt, &v->wash_co, mf_rng_bipolar(&v->rng));
-            /* Enveloped, not resonant: the modes carry their own T60, this is a
-             * noise band that has to be told when to stop, and `decay` is what says
-             * so. That is the same reason the excitation path keeps the amp
-             * envelope while the bank does not. */
-            wash = v->wash_filt.bp * v->wash_gain * env;
-        }
         float resonant = comb * (v->comb_mix * SWARF_COMB_GAIN)
-                       + bank * (1.0f - v->comb_mix) + wash;
+                       + bank * (1.0f - v->comb_mix);
 
         /* The two paths are enveloped differently because only one of them needs an
          * envelope. A resonator's T60 *is* its decay, and the comb's feedback is set
