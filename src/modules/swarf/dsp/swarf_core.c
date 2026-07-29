@@ -220,7 +220,28 @@ static void swarf_build_comb(swarf_voice_t *v, float f0, float decay_s, float ma
  *
  * Sixteen multiplies would be the naive matrix; the sum-and-subtract form is four
  * adds and four subtracts and is the same transform. */
-static const int SWARF_FDN_PRIME[SWARF_FDN_LINES] = { 271, 331, 431, 487 };
+/* One set per voice, not one set shared.
+ *
+ * With a single set every voice on the metal path is the *same object* at a
+ * different pitch and length, and three of the six defaults sit there. Measured as
+ * pairwise correlation of 1/3-octave timbre shape, hat/openhat/ride ran 0.61-0.78
+ * against each other, which is most of what "randomize and they all sound alike" is.
+ * Distinct sets take that to 0.57-0.71 — a real improvement and, on its own, not
+ * nearly enough: the rest of the similarity is the shared spectral *envelope*, and
+ * that is a design question rather than a table.
+ *
+ * Totals are deliberately close (~1480-1530 samples), because the total is what sets
+ * mode density and every voice wants that high; it is the individual lengths that
+ * have to differ. Mutually prime within each row, and no value repeated between
+ * rows. */
+static const int SWARF_FDN_PRIME[SWARF_VOICES][SWARF_FDN_LINES] = {
+    { 241, 337, 421, 503 },   /* 1 Hat     */
+    { 269, 353, 439, 521 },   /* 2 OpenHat */
+    { 283, 367, 457, 541 },   /* 3 Ride    */
+    { 293, 379, 463, 557 },   /* 4 Clap    */
+    { 307, 389, 479, 563 },   /* 5 Conga   */
+    { 313, 397, 487, 569 }    /* 6 Wood    */
+};
 
 /* Metal and body have to arrive at similar level or `mat` becomes a volume knob, the
  * same problem SWARF_COMB_GAIN exists for. Measured across the 0.55-0.70 crossfade
@@ -233,9 +254,10 @@ static const int SWARF_FDN_PRIME[SWARF_FDN_LINES] = { 271, 331, 431, 487 };
 #define SWARF_METAL_LO 0.55f
 #define SWARF_METAL_HI 0.70f
 
-static void swarf_build_fdn(swarf_voice_t *v, float f0, float decay_s, float mat,
-                            float vel_bright)
+static void swarf_build_fdn(swarf_voice_t *v, int idx, float f0, float decay_s,
+                            float mat, float vel_bright)
 {
+    const int *prime = SWARF_FDN_PRIME[idx];
     /* Scaled by pitch, but gently and with a floor: the density that makes this read
      * as metal rather than as a chord is a property of the *total* delay, so letting
      * `tune` shorten the lines freely would trade the whole point of the topology for
@@ -243,7 +265,7 @@ static void swarf_build_fdn(swarf_voice_t *v, float f0, float decay_s, float mat
      * inside SWARF_FDN_LEN at every tune in range. */
     float size = moveforge_clampf(1200.0f / (f0 > 1.0f ? f0 : 1.0f), 0.5f, 2.0f);
     for (int k = 0; k < SWARF_FDN_LINES; k++) {
-        int len = (int)((float)SWARF_FDN_PRIME[k] * size);
+        int len = (int)((float)prime[k] * size);
         if (len < 8) len = 8;
         if (len > SWARF_FDN_LEN - 1) len = SWARF_FDN_LEN - 1;
         v->fdn_len[k] = len;
@@ -542,7 +564,7 @@ static void swarf_voice_prepare(swarf_core_t *s, int idx)
 
     float f0 = swarf_note_hz(*p[SWARF_VP_TUNE], s->pitch_bend) * v->hit_tune * vel_pitch;
 
-    swarf_build_fdn(v, f0, decay_s, mat, vel_bright);
+    swarf_build_fdn(v, idx, f0, decay_s, mat, vel_bright);
     /* Both cost ten transcendentals and neither is audible once the crossfade has
      * finished, so the top third of the axis skips them entirely. */
     if (v->metal_mix < 1.0f) {
