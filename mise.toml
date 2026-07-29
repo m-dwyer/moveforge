@@ -45,6 +45,10 @@ run = "make render"
 description = "Render all preset-suite WAVs"
 run = "make suite"
 
+[tasks.palette]
+description = "Audition a module: per-voice, per-knob and per-preset sonic report (HTML + Markdown)"
+run = "node scripts/palette.ts"
+
 [tasks.plot]
 description = "Render the suite and generate waveform/spectrum PNGs"
 run = "make plot"

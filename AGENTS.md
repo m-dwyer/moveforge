@@ -87,6 +87,7 @@ four for drift.
 | for | read |
 |---|---|
 | module authoring, the dev loop, the Faust vs plain-C decision | `skills/schwung-dsp-development/SKILL.md` |
+| what a module actually *sounds* like, and whether its knobs do anything | `mise run palette` |
 | what each module is and does | `MODULES.md` |
 | how the pieces fit together, and why | `docs/architecture.md` |
 | commands, the web UI, device deploy | `README.md` |
