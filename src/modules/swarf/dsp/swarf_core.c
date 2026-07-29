@@ -210,6 +210,83 @@ static void swarf_build_comb(swarf_voice_t *v, float f0, float decay_s, float ma
     v->comb_mix = 1.0f - moveforge_clampf((mat - 0.20f) * 10.0f, 0.0f, 1.0f);
 }
 
+/* --- the metal end of `mat` ---
+ *
+ * Where the body path is a handful of tuned modes, this is a few hundred untuned
+ * ones. Line lengths are mutually prime so their mode sets do not coincide, and the
+ * feedback matrix is Householder — y_i = s - x_i with s = half the sum — which is
+ * unitary, so the loop neither grows nor loses energy on its own and every dB of
+ * decay comes from the per-line gain that was asked for.
+ *
+ * Sixteen multiplies would be the naive matrix; the sum-and-subtract form is four
+ * adds and four subtracts and is the same transform. */
+static const int SWARF_FDN_PRIME[SWARF_FDN_LINES] = { 271, 331, 431, 487 };
+
+/* Metal and body have to arrive at similar level or `mat` becomes a volume knob, the
+ * same problem SWARF_COMB_GAIN exists for. Measured across the 0.55-0.70 crossfade
+ * at the ride's settings — see the calibration note in swarf_build_fdn. */
+#define SWARF_METAL_GAIN 8.0f
+
+/* `mat` positions along the whole axis. Body owns everything below the crossfade so
+ * the conga (0.5) and clap (0.46) defaults stay pure body — they measure correct
+ * today and this must not disturb them. */
+#define SWARF_METAL_LO 0.55f
+#define SWARF_METAL_HI 0.70f
+
+static void swarf_build_fdn(swarf_voice_t *v, float f0, float decay_s, float mat,
+                            float vel_bright)
+{
+    /* Scaled by pitch, but gently and with a floor: the density that makes this read
+     * as metal rather than as a chord is a property of the *total* delay, so letting
+     * `tune` shorten the lines freely would trade the whole point of the topology for
+     * a pitch that a cymbal does not have anyway. 0.5-2.0x keeps the longest line
+     * inside SWARF_FDN_LEN at every tune in range. */
+    float size = moveforge_clampf(1200.0f / (f0 > 1.0f ? f0 : 1.0f), 0.5f, 2.0f);
+    for (int k = 0; k < SWARF_FDN_LINES; k++) {
+        int len = (int)((float)SWARF_FDN_PRIME[k] * size);
+        if (len < 8) len = 8;
+        if (len > SWARF_FDN_LEN - 1) len = SWARF_FDN_LEN - 1;
+        v->fdn_len[k] = len;
+        /* -60 dB in decay_s: a line loses g every len samples, so g^(decay_s*sr/len)
+         * has to be 1e-3. Same figure the bank and the comb are given, so `mat` moves
+         * topology without moving length. */
+        float trips = decay_s * MOVEFORGE_SAMPLE_RATE / (float)len;
+        if (trips < 0.5f) trips = 0.5f;
+        v->fdn_g[k] = moveforge_clampf(powf(10.0f, -3.0f / trips), 0.0f, 0.999f);
+    }
+
+    /* Energy normalisation, from line 0 — the four gains differ only by length ratio
+     * and it is the average behaviour that sets the level. Floored so the shortest
+     * decays do not get an unbounded input boost. */
+    float g0 = v->fdn_g[0];
+    v->fdn_in = sqrtf(moveforge_clampf(1.0f - g0 * g0, 0.02f, 1.0f));
+
+    /* Damping is what separates a hat from a gong, and it is the only thing `mat`
+     * still does once the topology has switched: each round trip loses more top than
+     * bottom, so a low setting decays to a dark hum and a high one stays bright to
+     * the end. Velocity moves it for the same reason it moves the comb's — a softer
+     * strike puts less energy into the modes that survive the fewest trips. */
+    float pos = moveforge_clampf((mat - SWARF_METAL_LO) / (1.0f - SWARF_METAL_LO),
+                                 0.0f, 1.0f);
+    float damp_hz = (1200.0f + 11000.0f * pos) * (0.4f + 0.6f * moveforge_clampf(vel_bright, 0.0f, 1.0f));
+    v->fdn_damp_a = moveforge_clampf(MOVEFORGE_TWO_PI * damp_hz / MOVEFORGE_SAMPLE_RATE,
+                                     0.02f, 0.95f);
+
+    /* The band. An FDN excited by noise is broadband by construction, so without this
+     * every setting sounds like the same wash; with it, `tune` reads as "where the
+     * cymbal sits" — which is the only pitch a cymbal has. Q is deliberately low: a
+     * narrow bandpass over dense noise is a *tone*, which is the failure this whole
+     * path exists to escape. */
+    mf_svf_set(&v->metal_co, moveforge_clampf(f0 * 4.0f, 1500.0f, 13000.0f), 0.30f);
+
+    /* Full metal at SWARF_METAL_HI. A crossfade rather than a morph, because the two
+     * paths have nothing structural in common — but both are driven by the same
+     * excitation and set to the same T60, so the seam is a change of texture at
+     * constant length, which is the least audible kind. */
+    v->metal_mix = moveforge_clampf((mat - SWARF_METAL_LO)
+                                    / (SWARF_METAL_HI - SWARF_METAL_LO), 0.0f, 1.0f);
+}
+
 static float swarf_note_hz(float semitones, float bend)
 {
     float n = moveforge_clampf(semitones + bend * 2.0f, 0.0f, 127.0f);
@@ -227,6 +304,7 @@ static void swarf_voice_init(swarf_voice_t *v, int index)
     mf_exciter_init(&v->exciter, 0x5EED0000u + (uint32_t)index * 0x85EBCA6Bu);
     mf_decay_init(&v->amp);
     mf_svf_init(&v->tone_filt);
+    mf_svf_init(&v->metal_filt);
     mf_drive_init(&v->drive);
     for (int k = 0; k < SWARF_PARTIALS; k++) mf_reson_init(&v->partial[k]);
     v->choke_gain = 1.0f;
@@ -256,6 +334,9 @@ static void swarf_voice_silence(swarf_voice_t *v)
     memset(v->comb, 0, sizeof(v->comb));
     v->comb_ap = 0.0f;
     v->comb_damp = 0.0f;
+    memset(v->fdn, 0, sizeof(v->fdn));
+    for (int k = 0; k < SWARF_FDN_LINES; k++) v->fdn_lp[k] = 0.0f;
+    mf_svf_init(&v->metal_filt);
     v->ring_left = 0;
 }
 
@@ -461,8 +542,13 @@ static void swarf_voice_prepare(swarf_core_t *s, int idx)
 
     float f0 = swarf_note_hz(*p[SWARF_VP_TUNE], s->pitch_bend) * v->hit_tune * vel_pitch;
 
-    swarf_build_bank(v, f0, decay_s, mat, vel_bright);
-    swarf_build_comb(v, f0, decay_s, mat, vel_bright);
+    swarf_build_fdn(v, f0, decay_s, mat, vel_bright);
+    /* Both cost ten transcendentals and neither is audible once the crossfade has
+     * finished, so the top third of the axis skips them entirely. */
+    if (v->metal_mix < 1.0f) {
+        swarf_build_bank(v, f0, decay_s, mat, vel_bright);
+        swarf_build_comb(v, f0, decay_s, mat, vel_bright);
+    }
     mf_decay_set(&v->amp_co, decay_s, moveforge_clampf(s->shape, 0.0f, 1.0f));
 
     /* How long one hit rings, now that the amp envelope no longer ends it. Every
@@ -541,16 +627,16 @@ static void swarf_render_voice(swarf_core_t *s, int idx, float *out_l, float *ou
         float env = mf_decay_tick(&v->amp, &v->amp_co);
         float exc = mf_exciter_tick(&v->exciter, &v->exciter_co);
 
-        /* --- partials --- */
+        /* --- partials, body end --- */
         float bank = 0.0f;
-        if (v->comb_mix < 1.0f) {
+        if (v->metal_mix < 1.0f && v->comb_mix < 1.0f) {
             for (int n = 0; n < v->live_count; n++) {
                 int k = v->live[n];
                 bank += mf_reson_tick(&v->partial[k], &v->partial_co[k], exc) * v->partial_gain[k];
             }
         }
         float comb = 0.0f;
-        if (v->comb_mix > 0.0f) {
+        if (v->metal_mix < 1.0f && v->comb_mix > 0.0f) {
             /* Allpass fractional delay, not linear interpolation. A linear
              * interpolator's *magnitude* depends on the fractional part — unity at
              * frac 0, a null at Nyquist at frac 0.5 — so the comb's brightness swings
@@ -572,7 +658,46 @@ static void swarf_render_voice(swarf_core_t *s, int idx, float *out_l, float *ou
             v->comb[v->comb_write] = mf_flush_denorm(exc + v->comb_damp * v->comb_fb);
             v->comb_write = (v->comb_write + 1) & (SWARF_COMB_LEN - 1);
         }
-        float resonant = comb * (v->comb_mix * SWARF_COMB_GAIN) + bank * (1.0f - v->comb_mix);
+        float body_out = comb * (v->comb_mix * SWARF_COMB_GAIN)
+                       + bank * (1.0f - v->comb_mix);
+
+        /* --- partials, metal end ---
+         * Householder mixing in the sum-and-subtract form: y_i = s - x_i with s half
+         * the sum is the same unitary transform as the 4x4 matrix, for eight adds
+         * instead of sixteen multiplies. Excitation goes into every line, which is
+         * what fills the mode set on the first sample rather than over several
+         * round trips. */
+        float metal = 0.0f;
+        if (v->metal_mix > 0.0f) {
+            float x[SWARF_FDN_LINES];
+            float tap = 0.0f;
+            for (int k = 0; k < SWARF_FDN_LINES; k++) {
+                int idx0 = (v->fdn_write - v->fdn_len[k]) & (SWARF_FDN_LEN - 1);
+                x[k] = v->fdn[k][idx0];
+                tap += x[k];
+            }
+            /* The tap is the plain sum, and the excitation goes into every line.
+             * A sign-mixed tap looks more decorrelated and is a trap here: with one
+             * excitation feeding all four lines the common mode carries nearly all
+             * the energy, so x0+x1-x2-x3 cancels it and leaves a residue — measured,
+             * 30 dB below the body path in RMS with a 28 dB crest factor, a click
+             * rather than a wash. Different line lengths are what decorrelate the
+             * modes; the tap does not have to. */
+            float sum = tap * 0.5f;
+            float in = exc * v->fdn_in;
+            for (int k = 0; k < SWARF_FDN_LINES; k++) {
+                float y = sum - x[k];
+                v->fdn_lp[k] += v->fdn_damp_a * (y - v->fdn_lp[k]);
+                v->fdn_lp[k] = mf_flush_denorm(v->fdn_lp[k]);
+                v->fdn[k][v->fdn_write] = mf_flush_denorm(in + v->fdn_lp[k] * v->fdn_g[k]);
+            }
+            v->fdn_write = (v->fdn_write + 1) & (SWARF_FDN_LEN - 1);
+            mf_svf_tick(&v->metal_filt, &v->metal_co, tap);
+            metal = v->metal_filt.bp;
+        }
+
+        float resonant = body_out * (1.0f - v->metal_mix)
+                       + metal * (v->metal_mix * SWARF_METAL_GAIN);
 
         /* The two paths are enveloped differently because only one of them needs an
          * envelope. A resonator's T60 *is* its decay, and the comb's feedback is set

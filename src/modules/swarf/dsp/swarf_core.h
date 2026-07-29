@@ -14,9 +14,10 @@
  *   EXCITATION   mf_exciter_t: grains, density and burst structure on one axis
  *      |--------------------------------+  (1 - body)
  *      v                                |
- *   PARTIALS   mat < 0.25: tuned comb    |
- *              mat >= 0.25: 10 x mf_reson_t at f0 * ratio_k(mat), T60_k, gain_k
- *              crossfaded across 0.20-0.30
+ *   PARTIALS   two topologies, crossfaded across mat 0.55-0.70:
+ *              BODY   mat < 0.25: tuned comb; >= 0.25: 10 x mf_reson_t at
+ *                     f0 * ratio_k(mat), T60_k, gain_k, comb crossfaded 0.20-0.30
+ *              METAL  4-line FDN into a resonant bandpass — density, not ratios
  *      |  (body)                        v
  *      |                             AMP ENV  mf_decay_t at `decay`, exp/linear
  *      |                                      crossfaded by the kit's `shape`
@@ -64,6 +65,27 @@ extern "C" {
  * bottom of the `tune` range asks for. */
 #define SWARF_COMB_LEN 2048
 
+/* --- the metal end of `mat`: a feedback delay network ---
+ *
+ * A cymbal's signature is spectral *density*, not modal ratio: hundreds of packed
+ * inharmonic modes, no audible fundamental, energy up top. Ten resonators cannot
+ * produce that and no ratio table fixes it — measured, the ride at mat 1.0 was six
+ * discrete sine tones at 765/2110/4134/6835/10210/14260 Hz with a spectral flatness
+ * of 0.045, which is a gamelan bell.
+ *
+ * An FDN's mode spacing is sr / sum(line lengths), so four lines totalling ~1500
+ * samples give ~29 Hz spacing — about 310 modes across a 3-12 kHz band against the
+ * bank's six. That single ratio is the whole reason this exists.
+ *
+ * Four lines, not more: the Householder mixing below is unitary at any size, but
+ * four already puts the modes closer together than the ear resolves, and each line
+ * costs a full delay buffer.
+ */
+#define SWARF_FDN_LINES 4
+/* Per line, and a power of two so the read index is a mask. 23 ms at 44.1 kHz,
+ * which is longer than the longest line any `tune` in range asks for. */
+#define SWARF_FDN_LEN 1024
+
 typedef struct {
     /* --- excitation and envelope --- */
     mf_exciter_t exciter;
@@ -88,6 +110,24 @@ typedef struct {
     float comb_ap_c;
     float comb_damp_a;
     float comb_mix;        /* 1 = all comb, 0 = all bank */
+
+    /* --- feedback delay network, used at the top of the `mat` axis --- */
+    float fdn[SWARF_FDN_LINES][SWARF_FDN_LEN];
+    int fdn_write;                     /* one shared write index, per-line read offsets */
+    int fdn_len[SWARF_FDN_LINES];
+    float fdn_g[SWARF_FDN_LINES];      /* per-line feedback for the requested T60 */
+    float fdn_lp[SWARF_FDN_LINES];     /* one-pole damping inside each loop */
+    float fdn_damp_a;
+    /* Input scaling. A feedback loop's steady state goes as 1/sqrt(1-g^2), and g
+     * comes from `decay`, so without this a long ride is ~20 dB louder than a short
+     * hat for the same strike and `decay` is the metal path's volume control. */
+    float fdn_in;
+    /* Density is the FDN's job; *where the energy sits* is this filter's. A cymbal
+     * has no audible fundamental, so `tune` reads as the centre of its band rather
+     * than as a pitch, and that is what this is tuned from. */
+    mf_svf_t metal_filt;
+    mf_svf_coeffs_t metal_co;
+    float metal_mix;                   /* 0 = all body, 1 = all FDN */
 
     /* --- per-voice stages --- */
     mf_svf_t tone_filt;

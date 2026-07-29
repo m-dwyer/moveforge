@@ -97,6 +97,30 @@ static float band_energy(const float *buf, int start, float lo_hz, float hi_hz) 
     return (float)total;
 }
 
+/* Spectral flatness over a band: geometric mean of the magnitudes over their
+ * arithmetic mean. 1.0 is white, and a handful of discrete tones is near zero.
+ *
+ * This is the measure a partial bank and an FDN differ on and a decay-ratio test
+ * cannot see — six sine tones can hold their top end perfectly. */
+static float spectral_flatness(const float *buf, int start, float lo_hz, float hi_hz) {
+    int lo_bin = (int)(lo_hz * DFT_N / MOVEFORGE_SAMPLE_RATE);
+    int hi_bin = (int)(hi_hz * DFT_N / MOVEFORGE_SAMPLE_RATE);
+    if (lo_bin < 1) lo_bin = 1;
+    if (hi_bin > DFT_N / 2) hi_bin = DFT_N / 2;
+    double log_sum = 0.0, sum = 0.0;
+    int n = 0;
+    for (int k = lo_bin; k <= hi_bin; k++) {
+        double re, im;
+        dft_bin(buf, start, k, &re, &im);
+        double mag = sqrt(re * re + im * im) + 1.0e-12;
+        log_sum += log(mag);
+        sum += mag;
+        n++;
+    }
+    if (n == 0 || sum <= 0.0) return 0.0f;
+    return (float)(exp(log_sum / n) / (sum / n));
+}
+
 /* Amplitude-weighted mean frequency of a window. */
 static float centroid(const float *buf, int start) {
     double num = 0.0, den = 0.0;
@@ -486,6 +510,32 @@ static void test_metal_voices_keep_their_top_end(void) {
         fprintf(stderr, "FAIL: metal end holds %.5f of its top and the membrane end holds "
                         "%.5f — `mat` is not changing the damping profile\n",
                 metal_ratio, skin_ratio);
+        exit(1);
+    }
+
+    /* Density, which the two ratios above cannot see and which is the actual
+     * difference between a ride and a bell. Six sine tones hold their top end
+     * perfectly, so the version of this gate that stopped at the ratios passed the
+     * engine it was written to catch: the ride at mat 1.0 measured six discrete
+     * partials at 765/2110/4134/6835/10210/14260 Hz and shipped green.
+     *
+     * Flatness of the 2-12 kHz band in the tail, measured across `mat`:
+     *
+     *     mat        0.30    0.50    0.72    0.85    1.00
+     *     late      0.013   0.005   0.022   0.424   0.424
+     *
+     * — the body end is two orders below the metal end, so 0.15 is clear of both by
+     * a wide margin. Mutation-tested by forcing metal_mix to 0. */
+    init_default(&s);
+    s.ride_mat = 1.0f;
+    s.ride_decay = 0.95f;
+    s.ride_body = 0.85f;
+    s.ride_level = 1.0f;
+    hit(&s, 36 + V_RIDE, 1.0f, N);
+    float wash = spectral_flatness(out_l, late, 2000.0f, 12000.0f);
+    if (wash < 0.15f) {
+        fprintf(stderr, "FAIL: the metal end's tail has a spectral flatness of %.3f over "
+                        "2-12 kHz — that is a handful of tones, not a wash\n", wash);
         exit(1);
     }
 }

@@ -245,7 +245,7 @@ void swarf_apply_defaults(swarf_core_t *s) {
     s->ride_level = 0.522f;
     s->clap_tune = 64.0f;
     s->clap_decay = 0.566f;
-    s->clap_mat = 0.46f;
+    s->clap_mat = 0.72f;
     s->clap_body = 0.35f;
     s->clap_tone = 0.55f;
     s->clap_strike = 0.86f;

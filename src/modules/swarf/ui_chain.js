@@ -70,7 +70,7 @@ const PARAMS = [
     { key: "ride_level", name: "Ride Level", min: 0, max: 1, step: 0.01, dec: 2, def: 0.522 },
     { key: "clap_tune", name: "Clap Tune", min: 24, max: 108, step: 0.84, dec: 1, def: 64 },
     { key: "clap_decay", name: "Clap Decay", min: 0, max: 1, step: 0.01, dec: 2, def: 0.566 },
-    { key: "clap_mat", name: "Clap Mat", min: 0, max: 1, step: 0.01, dec: 2, def: 0.46 },
+    { key: "clap_mat", name: "Clap Mat", min: 0, max: 1, step: 0.01, dec: 2, def: 0.72 },
     { key: "clap_body", name: "Clap Body", min: 0, max: 1, step: 0.01, dec: 2, def: 0.35 },
     { key: "clap_tone", name: "Clap Tone", min: 0, max: 1, step: 0.01, dec: 2, def: 0.55 },
     { key: "clap_strike", name: "Clap Strike", min: 0, max: 1, step: 0.01, dec: 2, def: 0.86 },
