@@ -721,6 +721,35 @@ export function moduleNoteRoot(state: Pick<StoreState, "topLevelParams">): numbe
   return root ? Math.round(root.value) : undefined;
 }
 
+/* The module's voice names, in note order from `moduleNoteRoot`.
+ *
+ * A `ui_hierarchy` level is a voice when every parameter it declares is prefixed
+ * with the level's own key — swarf's `hat` level owns hat_tune, hat_decay and so
+ * on. Its `kit` level owns volume, drive and curve, and its `map` level owns
+ * root, chrom and choke, so neither is a voice and neither gets a pad. There is
+ * nothing in module.json that says "this level is a voice" and inventing a field
+ * for it would be a schema change for a label, so this reads the naming that is
+ * already there. A module where that does not hold gets note names, which is the
+ * old behaviour and correct for a melodic one.
+ *
+ * The group order comes from the params themselves, which came from
+ * paramGroups — so this cannot disagree with the order the pads are mapped in. */
+export function moduleVoiceLabels(state: Pick<StoreState, "topLevelParams">): string[] {
+  const byGroup = new Map<string, { label: string; keys: string[] }>();
+  for (const p of state.topLevelParams) {
+    if (!p.group) continue;
+    const entry = byGroup.get(p.group) ?? { label: p.groupLabel ?? p.group, keys: [] };
+    entry.keys.push(p.key);
+    byGroup.set(p.group, entry);
+  }
+  const labels: string[] = [];
+  for (const [group, entry] of byGroup) {
+    if (!entry.keys.every((k) => k.startsWith(`${group}_`))) break;
+    labels.push(entry.label);
+  }
+  return labels;
+}
+
 function soundSlotForTrack(state: Pick<StoreState, "tracks">, trackIndex: number) {
   const slot = state.tracks[trackIndex]?.chain.find((s) => s.kind === "sound_generator");
   return slot?.kind === "sound_generator" ? slot : null;
