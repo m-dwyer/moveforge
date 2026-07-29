@@ -111,6 +111,17 @@ typedef struct {
     mf_svf_t wash_filt;
     mf_svf_coeffs_t wash_co;
     float wash_gain;
+    /* Spectral bloom. A struck cymbal is a geometrically nonlinear plate: energy
+     * migrates *upward* through its modes after the strike, so its centroid
+     * rises for the first few hundred milliseconds before it falls. Every linear
+     * model gets that backwards and starts at its brightest. Sweeping the wash's
+     * band upward is a cheap standin — the exciter and the modes still give the
+     * transient its brightness, and this makes the sustain arrive rather than
+     * merely decay. */
+    float wash_hz;          /* where the band ends up */
+    float wash_bloom;       /* 0 at the strike, 1 when the rise is over */
+    float wash_bloom_step;
+    float wash_bloom_oct;   /* how far below wash_hz it starts */
 
     /* --- per-voice stages --- */
     mf_svf_t tone_filt;

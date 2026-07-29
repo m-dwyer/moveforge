@@ -109,6 +109,18 @@
  * bottom feeds it unevenly for a hundred milliseconds. */
 #define SWARF_WASH_STRUCK 0.55f
 
+/* How far the wash's band climbs after the strike, in octaves, and over how much
+ * of the voice's decay. Tied to `decay` rather than fixed so a 45 ms hat blooms
+ * inside its own length while a 2.4 s ride takes its time — a fixed rise would be
+ * either inaudible on one or still climbing after the other had stopped.
+ * Scaled by velocity because the nonlinearity it stands in for is amplitude
+ * dependent: a soft hit barely blooms at all, which is exactly how a real cymbal
+ * behaves and is another thing velocity should be doing besides level. */
+#define SWARF_BLOOM_OCT 1.20f
+#define SWARF_BLOOM_FRACTION 0.35f
+#define SWARF_BLOOM_MIN_S 0.02f
+#define SWARF_BLOOM_MAX_S 0.60f
+
 #define SWARF_DECAY_MIN 0.005f
 #define SWARF_DECAY_SPAN 800.0f   /* 0.005 * 800 = 4 s */
 
@@ -549,7 +561,18 @@ static void swarf_voice_prepare(swarf_core_t *s, int idx)
     float strike = moveforge_clampf(*p[SWARF_VP_STRIKE], 0.0f, 1.0f);
     v->wash_gain = metalness * metalness * SWARF_WASH_GAIN * vel_bright
                  * (1.35f - 0.70f * strike);
-    mf_svf_set(&v->wash_co, moveforge_clampf(f0 * 9.0f, 2500.0f, 12000.0f), 0.35f);
+    /* The bloom's destination, derived rather than fitted: 70% of the way to the
+     * bank's top mode. At f0 * 9 the wash landed *below* where the voice already
+     * was — the ride's centroid starts near 5.7 kHz and its target was 5.3 — so
+     * the bloom had nowhere to climb and the centroid fell throughout, which is
+     * the linear behaviour this exists to break. Clamped at 13 kHz, which the two
+     * hats reach, and that is the right answer for them: hat shimmer lives there. */
+    float top_mode = f0 * (1.0f + (float)(SWARF_PARTIALS - 1) * SWARF_CYMBAL_SPACING);
+    v->wash_hz = moveforge_clampf(top_mode * 0.70f, 2500.0f, 13000.0f);
+    v->wash_bloom_oct = SWARF_BLOOM_OCT * moveforge_clampf(vel_bright, 0.0f, 1.0f);
+    float bloom_s = moveforge_clampf(decay_s * SWARF_BLOOM_FRACTION,
+                                     SWARF_BLOOM_MIN_S, SWARF_BLOOM_MAX_S);
+    v->wash_bloom_step = 1.0f / (bloom_s * MOVEFORGE_SAMPLE_RATE);
 
     /* How long one hit rings, now that the amp envelope no longer ends it. Every
      * partial's T60 is decay_s * (f0/f_k)^tilt with every anchor ratio >= 1 and every
@@ -604,6 +627,16 @@ static void swarf_render_voice(swarf_core_t *s, int idx, float *out_l, float *ou
 {
     swarf_voice_t *v = &s->voice[idx];
 
+    /* The bloom's filter is recomputed once per block, not per sample: a rise
+     * measured in hundreds of milliseconds has nothing to say inside 64 samples,
+     * and mf_svf_set costs a tanf. */
+    if (v->wash_gain > 0.0f) {
+        float below = v->wash_bloom_oct * (1.0f - v->wash_bloom);
+        mf_svf_set(&v->wash_co,
+                   moveforge_clampf(v->wash_hz * powf(0.5f, below), 200.0f, 16000.0f),
+                   0.35f);
+    }
+
     for (int i = 0; i < frames; i++) {
         if (v->pending) {
             if (v->pending_delay > 0) { v->pending_delay--; continue; }
@@ -619,9 +652,14 @@ static void swarf_render_voice(swarf_core_t *s, int idx, float *out_l, float *ou
             mf_decay_trigger(&v->amp);
             mf_exciter_trigger(&v->exciter, &v->exciter_co);
             v->ring_left = v->ring_samples;
+            v->wash_bloom = 0.0f;
         }
 
         if (v->ring_left > 0) v->ring_left--;
+        if (v->wash_bloom < 1.0f) {
+            v->wash_bloom += v->wash_bloom_step;
+            if (v->wash_bloom > 1.0f) v->wash_bloom = 1.0f;
+        }
 
         float env = mf_decay_tick(&v->amp, &v->amp_co);
         float exc = mf_exciter_tick(&v->exciter, &v->exciter_co);
