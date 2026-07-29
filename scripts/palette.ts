@@ -202,31 +202,40 @@ async function paletteFor(moduleId: string, renderBin: string): Promise<void> {
     sweeps.push({ param: p, rows });
   }
 
-  /* ---- 3. presets ---- */
-  const presetRows: Row[] = [];
+  /* ---- 3. presets ----
+   * Every preset on every sounding voice, not on the root note alone. A preset
+   * here sets the whole module, so auditioning it on one voice says nothing
+   * about whether two presets differ — swarf's sixteen all read "bright noisy
+   * tight" within 1.2 kHz of each other when judged on the hat, and the useful
+   * question was which of them differ *anywhere*. */
+  const presetKits: Array<{ name: string; rows: Row[] }> = [];
   for (const [i, preset] of (presetsJson.presets ?? []).entries()) {
     const dense = Object.fromEntries(
       densePresetValues(params as unknown as PresetParam[], preset.params ?? {}, preset.name)
         .map((r) => [r.key, r.value])
     );
-    const file = `preset-${String(i).padStart(2, "0")}.wav`;
-    /* Presets are whole-kit settings, so they are auditioned on the first voice
-     * — the sweep section is where per-voice detail lives. */
-    render(file, rootNote, dense, AUDITION_SECONDS);
-    presetRows.push({
-      id: `preset-${i}`, label: preset.name, group: "presets",
-      note: rootNote, file, d: await analyse(file)
-    });
+    const rows: Row[] = [];
+    for (const [v, note] of sounding.entries()) {
+      const file = `preset-${String(i).padStart(2, "0")}-v${v}.wav`;
+      render(file, note, dense, AUDITION_SECONDS);
+      rows.push({
+        id: `preset-${i}-${v}`, label: `${preset.name} · note ${note}`,
+        group: preset.name, note, file, d: await analyse(file)
+      });
+    }
+    presetKits.push({ name: preset.name, rows });
   }
+  const presetRows = presetKits.map((k) => k.rows[0]);
 
-  const md = renderMarkdown(moduleId, moduleJson, notes, sweeps, presetRows, rootParam != null);
+  const md = renderMarkdown(moduleId, moduleJson, notes, sweeps, presetKits, rootParam != null);
   await writeFile(`${dir}/palette.md`, md);
-  const html = await renderHtml(moduleId, moduleJson, dir, notes, sweeps, presetRows);
+  const html = await renderHtml(moduleId, moduleJson, dir, notes, sweeps, presetKits);
   await writeFile(`${dir}/palette.html`, html);
 
   const dead = sweeps.filter((s) => isDead(s)).length;
   console.log(`[${moduleId}] palette: ${notes.length} notes, ${sweeps.length} sweeps ` +
-              `(${dead} with no audible travel), ${presetRows.length} presets`);
+              `(${dead} with no audible travel), ${presetKits.length} presets ` +
+              `x ${sounding.length} voice(s)`);
   console.log(`[${moduleId}] ${dir}/palette.html  ${dir}/palette.md`);
 }
 
@@ -281,7 +290,7 @@ function renderMarkdown(
   moduleJson: ModuleJson,
   notes: Row[],
   sweeps: Array<{ param: ParamDef & { group: string }; rows: Row[] }>,
-  presets: Row[],
+  presetKits: Array<{ name: string; rows: Row[] }>,
   noteMapped: boolean
 ): string {
   const out: string[] = [];
@@ -326,14 +335,64 @@ function renderMarkdown(
   out.push("```");
   out.push("");
 
-  if (presets.length > 0) {
+  if (presetKits.length > 0) {
+    const voices = presetKits[0].rows.length;
     out.push("## Presets");
+    out.push("");
+    out.push("Spectral centroid per voice, one column per note. Two presets whose");
+    out.push("rows read the same are the same kit under two names.");
+    out.push("");
+    out.push("```");
+    out.push(pad("", 22) + presetKits[0].rows.map((r) => padL(`n${r.note}`, 7)).join("") +
+      "   spread");
+    for (const kit of presetKits) {
+      const cens = kit.rows.map((r) => r.d.centroidHz);
+      out.push(pad(kit.name, 22) + kit.rows.map((r) => padL(fmtHz(r.d.centroidHz), 7)).join("") +
+        padL(spreadOf(cens, "ratio").toFixed(2) + " oct", 10));
+    }
+    out.push("```");
+    out.push("");
+
+    /* Two kits are near-duplicates when no voice differs in any of the ways a
+     * listener would name. Centroid alone is not enough and saying so cost a
+     * round here: three kits that differ only in decay, level and stereo width
+     * — which is a perfectly good way for kits to differ — were reported
+     * identical because their spectra happened to land in the same place. Same
+     * lesson as the dead-knob test: one descriptor cannot carry the verdict. */
+    const sameVoice = (a: Descriptors, b: Descriptors): boolean => {
+      if (a.silent !== b.silent) return false;
+      if (a.silent) return true;
+      const octaves = a.centroidHz > 0 && b.centroidHz > 0
+        ? Math.abs(Math.log2(a.centroidHz / b.centroidHz)) : 9;
+      const lenRatio = Math.abs(Math.log2((a.t60Ms ?? 8000) / (b.t60Ms ?? 8000)));
+      return octaves < 0.33
+        && lenRatio < 0.5
+        && Math.abs(a.peakDb - b.peakDb) < 3
+        && Math.abs(a.flatness - b.flatness) < 0.12
+        && Math.abs(a.width - b.width) < 0.15;
+    };
+    const dupes: string[] = [];
+    for (let a = 0; a < presetKits.length; a++) {
+      for (let b = a + 1; b < presetKits.length; b++) {
+        const same = presetKits[a].rows.every((r, i) =>
+          sameVoice(r.d, presetKits[b].rows[i].d));
+        if (same) dupes.push(`${presetKits[a].name} = ${presetKits[b].name}`);
+      }
+    }
+    if (dupes.length > 0) {
+      out.push(`**${dupes.length} preset pair(s) are the same kit under two names:** ` +
+        dupes.join(", "));
+      out.push("");
+    }
+
+    out.push("Per voice, first kit shown in full:");
     out.push("");
     out.push("```");
     out.push(HEADER);
-    for (const r of presets) out.push(rowLine(r.label, r.d));
+    for (const r of presetKits[0].rows) out.push(rowLine(r.label, r.d));
     out.push("```");
     out.push("");
+    void voices;
   }
   return out.join("\n");
 }
@@ -393,7 +452,7 @@ async function renderHtml(
   dir: string,
   notes: Row[],
   sweeps: Array<{ param: ParamDef & { group: string }; rows: Row[] }>,
-  presets: Row[]
+  presetKits: Array<{ name: string; rows: Row[] }>
 ): Promise<string> {
   const rowHtml = async (r: Row): Promise<string> => {
     const bands = await bandsFor(dir, r.file);
@@ -433,7 +492,16 @@ async function renderHtml(
       (isDead(s) ? " · <b>DEAD</b>" : "") + `</span></summary>${await table(s.rows)}</details>`);
   }
 
-  if (presets.length > 0) parts.push(`<h2>Presets</h2>`, await table(presets));
+  if (presetKits.length > 0) {
+    parts.push(`<h2>Presets</h2>`);
+    for (const kit of presetKits) {
+      const cens = kit.rows.map((r) => r.d.centroidHz);
+      parts.push(`<details><summary><b>${escapeHtml(kit.name)}</b> <span class="k">` +
+        `${kit.rows.map((r) => fmtHz(r.d.centroidHz)).join(" · ")} · ` +
+        `spread ${spreadOf(cens, "ratio").toFixed(2)} oct</span></summary>` +
+        `${await table(kit.rows)}</details>`);
+    }
+  }
 
   return `<!doctype html><meta charset="utf-8"><title>${escapeHtml(moduleId)} palette</title><style>
 :root{color-scheme:dark light}
