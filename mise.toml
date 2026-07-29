@@ -46,7 +46,12 @@ description = "Render all preset-suite WAVs"
 run = "make suite"
 
 [tasks.palette]
+# Depends on `render` for the same reason `dev` depends on `wasm`: without it the
+# report is generated from whatever binary happened to be lying in build/, so a
+# DSP change reads as "did nothing" rather than as a stale build. That is exactly
+# the failure this tool exists to catch, and it caught it on itself first.
 description = "Audition a module: per-voice, per-knob and per-preset sonic report (HTML + Markdown)"
+depends = ["render"]
 run = "node scripts/palette.ts"
 
 [tasks.plot]

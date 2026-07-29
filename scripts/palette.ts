@@ -255,7 +255,8 @@ function travel(rows: Row[]) {
     length: spreadOf(rows.map((r) => (r.d.t60Ms ?? 8000)), "ratio"),
     flatness: spreadOf(rows.map((r) => r.d.flatness), "linear"),
     level: spreadOf(rows.map((r) => r.d.peakDb), "linear"),
-    width: spreadOf(rows.map((r) => r.d.width), "linear")
+    width: spreadOf(rows.map((r) => r.d.width), "linear"),
+    bright: spreadOf(rows.map((r) => r.d.bright), "linear")
   };
 }
 
@@ -263,7 +264,7 @@ function isDead(s: { param: { key: string }; rows: Row[] }): boolean {
   if (NEEDS_A_PATTERN.has(s.param.key)) return false;
   const t = travel(s.rows);
   return t.centroid < 0.33 && t.length < 0.5 && t.flatness < 0.08
-    && t.level < 1.5 && t.width < 0.05;
+    && t.level < 1.5 && t.width < 0.05 && t.bright < 0.10;
 }
 
 function rowLine(label: string, d: Descriptors): string {
@@ -310,7 +311,7 @@ function renderMarkdown(
     out.push("");
   }
   out.push("```");
-  out.push(`${pad("", 22)} ${padL("centroid", 9)} ${padL("length", 8)} ${padL("flat", 7)} ${padL("level", 7)} ${padL("width", 7)}`);
+  out.push(`${pad("", 22)} ${padL("centroid", 9)} ${padL("length", 8)} ${padL("flat", 7)} ${padL("level", 7)} ${padL("width", 7)} ${padL("bright", 7)}`);
   let lastGroup = "";
   for (const s of sweeps) {
     if (s.param.group !== lastGroup) { out.push(`-- ${s.param.group}`); lastGroup = s.param.group; }
@@ -319,7 +320,8 @@ function renderMarkdown(
       : NEEDS_A_PATTERN.has(s.param.key) ? "  (needs a pattern)" : "";
     out.push(`${pad(s.param.key, 22)} ${padL(t.centroid.toFixed(2) + " oct", 9)} ` +
       `${padL(t.length.toFixed(2) + "x", 8)} ${padL(t.flatness.toFixed(2), 7)} ` +
-      `${padL(t.level.toFixed(1) + " dB", 7)} ${padL(t.width.toFixed(2), 7)}${flag}`);
+      `${padL(t.level.toFixed(1) + " dB", 7)} ${padL(t.width.toFixed(2), 7)} ` +
+      `${padL(t.bright.toFixed(2), 7)}${flag}`);
   }
   out.push("```");
   out.push("");
@@ -427,7 +429,7 @@ async function renderHtml(
     parts.push(`<details${isDead(s) ? ' class="dead"' : ""}><summary><b>${escapeHtml(s.param.key)}</b> ` +
       `<span class="k">${escapeHtml(s.param.group)} · centroid ${t.centroid.toFixed(2)} oct · ` +
       `length ${t.length.toFixed(2)}× · flat ${t.flatness.toFixed(2)} · level ${t.level.toFixed(1)} dB · ` +
-      `width ${t.width.toFixed(2)}` +
+      `width ${t.width.toFixed(2)} · bright ${t.bright.toFixed(2)}` +
       (isDead(s) ? " · <b>DEAD</b>" : "") + `</span></summary>${await table(s.rows)}</details>`);
   }
 

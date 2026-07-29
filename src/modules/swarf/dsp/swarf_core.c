@@ -97,6 +97,18 @@
  * measurement, so it is deliberately a single named constant. */
 #define SWARF_WASH_GAIN 0.25f
 
+/* How much of the wash is a fixed sustain and how much is shaped by the strike.
+ *
+ * At 1.0 the wash is a flat noise bed that runs for the whole decay regardless
+ * of how the voice was hit, and that is what made `strike` a dead control on
+ * every metal voice: the exciter still varied from 2 ms to 216 ms across the
+ * axis, but it was a burst of tens of milliseconds under a bed that ran for
+ * seconds, so nothing measurable moved. Below 1.0 the strike's own envelope —
+ * its grain density, its length, its burst structure — modulates the wash, so a
+ * ratchet at the top of the axis pulses the wash three times and a rattle at the
+ * bottom feeds it unevenly for a hundred milliseconds. */
+#define SWARF_WASH_STRUCK 0.55f
+
 #define SWARF_DECAY_MIN 0.005f
 #define SWARF_DECAY_SPAN 800.0f   /* 0.005 * 800 = 4 s */
 
@@ -530,7 +542,13 @@ static void swarf_voice_prepare(swarf_core_t *s, int idx)
      * pitch, which is what this exists to avoid. Centred well above the modes — they
      * cover the strike, this covers the shimmer above it. */
     float metalness = moveforge_clampf((mat - 0.5f) * 2.0f, 0.0f, 1.0f);
-    v->wash_gain = metalness * metalness * SWARF_WASH_GAIN * vel_bright;
+    /* A rattle puts its energy into sustain, a sharp hit into the transient, so
+     * `strike` moves the balance as well as the shape. Without this the control
+     * only reaches the wash through its envelope, which is not enough on a voice
+     * whose decay is measured in seconds. */
+    float strike = moveforge_clampf(*p[SWARF_VP_STRIKE], 0.0f, 1.0f);
+    v->wash_gain = metalness * metalness * SWARF_WASH_GAIN * vel_bright
+                 * (1.35f - 0.70f * strike);
     mf_svf_set(&v->wash_co, moveforge_clampf(f0 * 9.0f, 2500.0f, 12000.0f), 0.35f);
 
     /* How long one hit rings, now that the amp envelope no longer ends it. Every
@@ -544,8 +562,7 @@ static void swarf_voice_prepare(swarf_core_t *s, int idx)
     /* Bounded by this voice's own decay: excitation that outlasts the resonance it
      * excites makes `strike` a decay control that outranks `decay`. See
      * mf_exciter_set for the floors this removes. */
-    mf_exciter_set(&v->exciter_co, moveforge_clampf(*p[SWARF_VP_STRIKE], 0.0f, 1.0f),
-                   decay_s);
+    mf_exciter_set(&v->exciter_co, strike, decay_s);
 
     /* One SVF as a monotone brightness sweep, so the knob never reverses: a 20 kHz
      * lowpass and a 20 Hz highpass are both transparent, so the halves meet
@@ -616,7 +633,12 @@ static void swarf_render_voice(swarf_core_t *s, int idx, float *out_l, float *ou
         float bank_in = exc;
         if (v->wash_gain > 0.0f) {
             mf_svf_tick(&v->wash_filt, &v->wash_co, mf_rng_bipolar(&v->rng));
-            bank_in += v->wash_filt.bp * v->wash_gain * env;
+            /* Struck, not merely gated — see SWARF_WASH_STRUCK. The exciter's
+             * envelope is read rather than its output: the output is noise and
+             * would multiply one noise by another, which is just quieter noise. */
+            float wash_env = env * (SWARF_WASH_STRUCK
+                                    + (1.0f - SWARF_WASH_STRUCK) * v->exciter.env);
+            bank_in += v->wash_filt.bp * v->wash_gain * wash_env;
         }
 
         /* --- partials --- */
