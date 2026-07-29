@@ -108,7 +108,13 @@ depends = ["wasm"]
 run = "pnpm run serve"
 
 [tasks.dev]
-description = "Build browser TypeScript and WASM, serve the browser UI, and rebuild when source files change"
+# Vite watches the TypeScript tree and nothing else, so a DSP change reaches the
+# browser only through `wasm`. Without the dependency this task served a stale
+# .wasm indefinitely while claiming in its own description to have rebuilt it —
+# which reads as "the DSP change did nothing" rather than as a build problem.
+# Editing C during a session still needs `mise run wasm` and a page reload.
+description = "Build WASM, then serve the browser UI with TypeScript rebuilt on change"
+depends = ["wasm"]
 run = "pnpm run dev"
 
 [tasks.deploy]
