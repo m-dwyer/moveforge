@@ -14,15 +14,13 @@
  * GENERATED FILE — do not hand-edit <module>/ui_chain.js; edit module.json and
  * re-run `mise run gen-ui-chain`.
  */
-import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { type ModuleJson, type ModuleParam } from "../shared/module-schema.ts";
 import { flattenKnobs, flattenParams } from "../shared/ui-hierarchy.ts";
-import { renderTemplateString } from "./lib/templates.ts";
 import { modulePaths, readModuleJson, selectedModuleIds } from "./lib/modules.ts";
+import { renderGenerated } from "./lib/eta.ts";
 import { type GenerateOptions, writeGeneratedFile } from "./lib/generated-files.ts";
 
-const TEMPLATE_PATH = "templates/generated/ui_chain.js.tmpl";
 
 const EDITABLE_TYPES = new Set(["sound_generator", "audio_fx", "midi_fx"]);
 const ENCODER_COUNT = 8; // Move parameter encoders, CC 71-78
@@ -56,33 +54,28 @@ function renderUiChain(id: string, json: ModuleJson, params: ModuleParam[]): str
   const knobIndexes = (requestedKnobs.length > 0 ? requestedKnobs : params.map((p) => p.key))
     .map((key) => paramIndexByKey.get(key))
     .filter((index): index is number => index !== undefined);
-  const rows = params
-    .map((p) => {
-      const step = editStep(p);
-      const dec = decimalsFor(step);
-      const label = p.name ?? p.key;
-      return `    { key: ${JSON.stringify(p.key)}, name: ${JSON.stringify(label)}, ` +
-        `min: ${p.min}, max: ${p.max}, step: ${round(step)}, dec: ${dec}, def: ${p.default} }`;
-    })
-    .join(",\n");
-  const knobRows = knobIndexes.map((index) => `    ${index}`).join(",\n");
-
-  return renderTemplateString(readUiChainTemplate(), {
+  /* editStep/decimalsFor are knob feel, not layout: how far one detent moves a
+   * control and how many decimals that warrants. They stay here and the template
+   * lays the rows out. */
+  return renderGenerated("ui_chain.js", {
     encoderCount: ENCODER_COUNT,
-    knobIndexRows: knobRows,
+    json: (value: string) => JSON.stringify(value),
+    knobIndexes,
     moduleName: name,
     moduleNameJson: JSON.stringify(name),
-    paramsRows: rows
+    params: params.map((p) => {
+      const step = editStep(p);
+      return {
+        def: p.default,
+        dec: decimalsFor(step),
+        key: p.key,
+        label: p.name ?? p.key,
+        max: p.max,
+        min: p.min,
+        step: round(step)
+      };
+    })
   });
-}
-
-let uiChainTemplate: string | undefined;
-
-function readUiChainTemplate(): string {
-  if (uiChainTemplate === undefined) {
-    uiChainTemplate = readFileSync(TEMPLATE_PATH, "utf8");
-  }
-  return uiChainTemplate;
 }
 
 function round(n: number): number {

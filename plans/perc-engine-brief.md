@@ -309,7 +309,7 @@ tests only the exponential one early-outs through the last fifth of its own enve
 
 ### P7. Bank names in `ui_chain.js`, groups in the web UI
 
-`templates/generated/ui_chain.js.tmpl:85-135` already implements encoder banks of
+`templates/generated/ui_chain.js.eta:85-135` already implements encoder banks of
 eight, and shows a bank-select row plus the current bank's eight parameters when
 `pageCount() > 1`. It labels the row "Encoder Bank". Emit a `BANK_NAMES` array from
 the level names so it reads "2 OpenHat".

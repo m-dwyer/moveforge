@@ -1,14 +1,11 @@
-import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { densePresetValues } from "../shared/presets.ts";
 import { type ModuleParam, type Preset } from "../shared/module-schema.ts";
 import { flattenParams } from "../shared/ui-hierarchy.ts";
 import { modulePaths, readModuleJson, readPresetsJson, selectedModuleIds } from "./lib/modules.ts";
 import { cFloatLiteral, escapeCString } from "./lib/c.ts";
+import { renderGenerated } from "./lib/eta.ts";
 import { type GenerateOptions, writeGeneratedFile } from "./lib/generated-files.ts";
-import { renderTemplateString } from "./lib/templates.ts";
-
-const TEMPLATE_PATH = "templates/generated/presets.gen.inc.tmpl";
 
 /**
  * Generate (or check) each module's <module>_presets.gen.inc from presets.json.
@@ -43,48 +40,29 @@ export async function generate(options: GenerateOptions = {}): Promise<number> {
   return drift;
 }
 
+/**
+ * Resolving a preset stays here rather than in the template: a key the preset
+ * omits takes its declared default (shared/presets.ts), which is the same number
+ * an explicit copy would have put here — the table is applied wholesale, so
+ * sparse and dense spellings must generate identical C. cFloatLiteral then has
+ * to emit a literal C reads back as the same float. Both are contracts; the
+ * template only lays the results out.
+ */
 function renderInc(moduleId: string, params: ModuleParam[], presets: Preset[]): string {
   const upper = moduleId.toUpperCase();
-  const guard = `${upper}_PRESETS_GEN_INC`;
-  const coreT = `${moduleId}_core_t`;
-  const paramKeys = params.map((p) => `    "${escapeCString(p.key)}"`).join(",\n");
-  const presetValues = presets
-    .map((preset, index) => {
-      /* A key the preset omits takes its declared default, which is the same
-       * number an explicit copy would have put here — this table is applied
-       * wholesale, so sparse and dense spellings generate identical C. */
-      const values = densePresetValues(params, preset.params, `[${moduleId}] preset ${preset.name}`)
-        .map((resolved) => cf(resolved.value, "preset value"));
-      return `static const float ${moduleId}_preset_values_${index}[${params.length}] = { ${values.join(", ")} };`;
-    })
-    .join("\n");
-  const presetTable = presets
-    .map((preset, index) => `    { "${escapeCString(preset.name)}", ${moduleId}_preset_values_${index} }`)
-    .join(",\n");
-
-  return renderTemplateString(readTemplate(), {
-    coreType: coreT,
-    guard,
+  return renderGenerated("presets.gen.inc", {
+    coreType: `${moduleId}_core_t`,
+    guard: `${upper}_PRESETS_GEN_INC`,
     moduleId,
     paramCount: params.length,
-    paramKeys,
-    presetCount: presets.length,
-    presetTable: presetTable || "    { \"\", 0 }",
-    presetTableSize: Math.max(presets.length, 1),
-    presetValues,
+    paramKeys: params.map((p) => escapeCString(p.key)),
+    presets: presets.map((preset) => ({
+      name: escapeCString(preset.name),
+      values: densePresetValues(params, preset.params, `[${moduleId}] preset ${preset.name}`)
+        .map((resolved) => cFloatLiteral(resolved.value, "preset value"))
+    })),
     upper
   });
-}
-
-let template: string | undefined;
-
-function readTemplate(): string {
-  if (template === undefined) template = readFileSync(TEMPLATE_PATH, "utf8");
-  return template;
-}
-
-function cf(value: number, label: string): string {
-  return cFloatLiteral(value, label);
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

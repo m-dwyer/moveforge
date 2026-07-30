@@ -937,12 +937,12 @@ it is that every fix has to be made seven times.
       goes through it (`SW/src/shared/knob_engine.mjs`, enforced by
       `SW/tests/shadow/test_shadow_uses_knob_engine.sh`); the generated
       `ui_chain.js` uses raw `decodeDelta` + a fixed step
-      (`templates/generated/ui_chain.js.tmpl:191-194,407-451`), so encoder feel
+      (`templates/generated/ui_chain.js.eta:191-194,407-451`), so encoder feel
       diverges from every stock module — no acceleration, no self-reset, no
       enum divisor.
 - [ ] **7.6 Batch `fetchParams()`.** `host_module_get_param` is a synchronous
       SHM round-trip serviced once per SPI frame (~2.9 ms,
-      `SW/src/shadow/shadow_ui.c:810-830`). `ui_chain.js.tmpl:157-161` does one
+      `SW/src/shadow/shadow_ui.c:810-830`). `ui_chain.js.eta:157-161` does one
       call **per param**, and `changePreset()` calls it on every jog detent
       (`:229`) — ~18 × 2.9 ms ≈ 50 ms of lag per detent for westfold.
 - [ ] **7.7 Deduplicate the small stuff.** `<id>_params_clampf_` is a 7× copy of
