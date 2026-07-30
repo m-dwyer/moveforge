@@ -233,8 +233,12 @@ function bandEnergy(mono: Float64Array, sampleRate: number): number[] {
   return asRelativeDb(bands);
 }
 
-/* Iterative radix-2 Cooley-Tukey. Length must be a power of two. */
-function fftInPlace(re: Float64Array, im: Float64Array): void {
+/* Iterative radix-2 Cooley-Tukey. Length must be a power of two.
+ *
+ * Exported so the palette tool shares this one implementation: a second FFT in
+ * the tree would drift from this one in windowing or scaling and quietly make
+ * two reports of the same render disagree. */
+export function fftInPlace(re: Float64Array, im: Float64Array): void {
   const n = re.length;
   for (let i = 1, j = 0; i < n; i++) {
     let bit = n >> 1;

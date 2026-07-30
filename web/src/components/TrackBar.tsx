@@ -6,7 +6,7 @@ export function TrackBar() {
   const selectTrack = useStore((s) => s.selectTrack);
 
   return (
-    <div className="grid grid-cols-4 gap-1.5">
+    <div className="shrink-0 grid grid-cols-4 gap-1.5">
       {[0, 1, 2, 3].map((i) => (
         <button
           key={i}

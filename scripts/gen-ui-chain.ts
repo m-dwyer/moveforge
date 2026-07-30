@@ -8,8 +8,8 @@
  *
  * This emits a scrollable parameter editor with optional 8-encoder banks:
  * the jog wheel scrolls/selects/edits one focused row, and Knob 1..8 adjust
- * the active bank declared by module.json's root.knobs order. Param metadata
- * is taken from module.json so it never drifts.
+ * the active bank declared by the `knobs` order of module.json's ui_hierarchy
+ * levels. Param metadata is taken from module.json so it never drifts.
  *
  * GENERATED FILE — do not hand-edit <module>/ui_chain.js; edit module.json and
  * re-run `mise run gen-ui-chain`.
@@ -17,6 +17,7 @@
 import { readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
+import { flattenKnobs, flattenParams, type UiHierarchy } from "../shared/ui-hierarchy.ts";
 import { renderTemplateString } from "./lib/templates.ts";
 import { modulePaths, selectedModuleIds } from "./lib/modules.ts";
 import { type GenerateOptions, writeGeneratedFile } from "./lib/generated-files.ts";
@@ -37,7 +38,7 @@ type ModuleJson = {
   ui_chain?: string;
   capabilities?: {
     component_type?: string;
-    ui_hierarchy?: { levels?: { root?: { params?: Param[]; knobs?: string[] } } };
+    ui_hierarchy?: UiHierarchy<Param>;
   };
 };
 
@@ -68,7 +69,7 @@ function decimalsFor(step: number): number {
 
 function renderUiChain(id: string, json: ModuleJson, params: Param[]): string {
   const name = json.name ?? id;
-  const requestedKnobs = json.capabilities?.ui_hierarchy?.levels?.root?.knobs ?? [];
+  const requestedKnobs = flattenKnobs(json.capabilities?.ui_hierarchy);
   const paramIndexByKey = new Map(params.map((p, i) => [p.key, i]));
   const knobIndexes = (requestedKnobs.length > 0 ? requestedKnobs : params.map((p) => p.key))
     .map((key) => paramIndexByKey.get(key))
@@ -120,7 +121,7 @@ export async function generate(options: GenerateOptions = {}): Promise<number> {
     const paths = modulePaths(id);
     const json: ModuleJson = JSON.parse(await readFile(paths.moduleJson, "utf8"));
     const ct = json.capabilities?.component_type;
-    const params = json.capabilities?.ui_hierarchy?.levels?.root?.params ?? [];
+    const params = flattenParams(json.capabilities?.ui_hierarchy);
 
     const outPath = `${paths.moduleDir}/ui_chain.js`;
 

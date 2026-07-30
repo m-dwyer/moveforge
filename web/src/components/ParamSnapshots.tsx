@@ -47,7 +47,7 @@ export function ParamSnapshots() {
   };
 
   return (
-    <div data-testid="param-snapshots" className="flex flex-wrap items-center gap-1.5 rounded-md border border-line bg-panel-2 p-2">
+    <div data-testid="param-snapshots" className="shrink-0 flex flex-wrap items-center gap-1.5 rounded-md border border-line bg-panel-2 p-2">
       <span className="mr-1 text-xs font-medium text-muted">Snapshots</span>
       {PARAM_SNAPSHOT_LABELS.map((label) => {
         const snapshot = bank[label];

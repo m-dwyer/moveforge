@@ -21,10 +21,13 @@
  *   mf_tilt_t            complementary tilt EQ, exactly transparent at 0 dB
  *   mf_smooth_t          one-pole parameter smoother
  *   mf_ar_t              attack/release envelope
+ *   mf_decay_t           two-stage exp/linear decay, crossfaded by one control
  *   mf_tanh_approx       rational tanh, ~7 ops instead of a libm call
  *   mf_fold              triangle wavefolder
  *   mf_drive_t           five saturation curves behind one interface
+ *   mf_reson_t           two-pole resonator taking a T60 directly
  *   mf_rng_t             integer LCG noise source
+ *   mf_exciter_t         noise grains, density and burst structure on one axis
  *   mf_beats_to_samples  tempo-relative lengths
  *
  * Sample rate is MOVEFORGE_SAMPLE_RATE throughout; nothing here reads the host
@@ -400,6 +403,210 @@ static inline float mf_ar_tick(mf_ar_t *e, int gate_open, float sustain)
 }
 
 /* ---------------------------------------------------------------------------
+ * Two-stage decay envelope
+ *
+ * An exponential and a linear decay of the same length, run in parallel and
+ * crossfaded by `shape`. Two adds and a multiply per sample against a powf, and
+ * exact at both ends: 0 is a pure exponential, 1 a pure linear ramp. Percussion
+ * wants both — an exponential fades, a linear one holds and then stops, and the
+ * difference is most of what separates a tom from a clap.
+ *
+ * Lifted from ballast, which had it inline as an `amp_exp`/`amp_lin` pair. It was
+ * left un-extracted until a second engine needed the same thing.
+ *
+ * ### The taper, and a claim that did not survive measurement
+ *
+ * plans/perc-engine-brief.md says to retaper this because "`shape` puts ~70% of
+ * its effect in its first tenth". Measured against a 0.5 s decay, it does not:
+ *
+ *   metric                                      first tenth of the knob
+ *   time to fall 12 dB  (perceived length)                        6.8%
+ *   time to fall 20 dB  (perceived length)                       18.4%
+ *   level at a fixed time, in dB, at 0.25 decay                  19.4%
+ *   level at a fixed time, in dB, at 0.875 decay                 45.9%
+ *
+ * An even control would be 10%. So the effect is front-loaded, and increasingly so
+ * the deeper into the tail you look — but the worst honest reading is 46%, not 70%,
+ * and no reading reproduces 70%. That matters because the strong correction the
+ * brief's number implies (a square or a cube) overshoots badly: knob^2 leaves only
+ * 1.5% of the 20 dB length range in the first tenth and 0.6% of the 12 dB range,
+ * which is a dead zone rather than a fix.
+ *
+ * MF_DECAY_SHAPE_TAPER is 1.25, picked from the sweep as the exponent that makes
+ * the 20 dB length control almost exactly even (18.4% -> 9.3%, and its
+ * largest-step-to-smallest-step ratio 12.6 -> 8.8) and improves every tail-level
+ * reading, while still moving the control a real 26 ms over its first tenth. 1.5
+ * was the best on the 20 dB metric alone (6.8) but over-corrects to 4.9% and only
+ * moves 14 ms, and it makes the 12 dB metric worse than doing nothing.
+ *
+ * Set to 1.0 for ballast's original linear crossfade.
+ * ------------------------------------------------------------------------- */
+
+#define MF_DECAY_SHAPE_TAPER 1.25f
+
+typedef struct {
+    float exp_coeff; /* per-sample multiplier for the exponential stage */
+    float lin_step;  /* per-sample decrement for the linear stage       */
+    float shape_w;   /* tapered crossfade weight, 0 = exp, 1 = linear   */
+} mf_decay_coeffs_t;
+
+typedef struct {
+    float exp_v;
+    float lin_v;
+} mf_decay_t;
+
+static inline void mf_decay_init(mf_decay_t *e)
+{
+    if (!e) return;
+    e->exp_v = 0.0f;
+    e->lin_v = 0.0f;
+}
+
+/* Both stages to full. Call on note-on. */
+static inline void mf_decay_trigger(mf_decay_t *e)
+{
+    if (!e) return;
+    e->exp_v = 1.0f;
+    e->lin_v = 1.0f;
+}
+
+/* Collapse to zero. Deliberately not a fade: the caller's declick ramp carries the
+ * output down, which is what ballast does on note-off. */
+static inline void mf_decay_release(mf_decay_t *e)
+{
+    if (!e) return;
+    e->exp_v = 0.0f;
+    e->lin_v = 0.0f;
+}
+
+/* `decay_s` is the -60 dB time of the exponential stage and the zero-crossing time
+ * of the linear one, so the two are the same length at every shape. */
+static inline void mf_decay_set(mf_decay_coeffs_t *c, float decay_s, float shape)
+{
+    if (!c) return;
+    float d = (decay_s < 0.0005f) ? 0.0005f : decay_s;
+    c->exp_coeff = expf(-6.9078f / (d * MOVEFORGE_SAMPLE_RATE));
+    c->lin_step = 1.0f / (d * MOVEFORGE_SAMPLE_RATE);
+    c->shape_w = powf(moveforge_clampf(shape, 0.0f, 1.0f), MF_DECAY_SHAPE_TAPER);
+}
+
+static inline float mf_decay_tick(mf_decay_t *e, const mf_decay_coeffs_t *c)
+{
+    e->exp_v = mf_flush_denorm(e->exp_v * c->exp_coeff);
+    e->lin_v -= c->lin_step;
+    if (e->lin_v < 0.0f) e->lin_v = 0.0f;
+    return e->exp_v + (e->lin_v - e->exp_v) * c->shape_w;
+}
+
+/* True once both stages are spent. The linear stage reaches exact zero, so this is
+ * a real end rather than an asymptote — include it in a voice's idle test or the
+ * exponential stage alone will keep the voice alive forever. */
+static inline int mf_decay_is_idle(const mf_decay_t *e, float eps)
+{
+    return e->exp_v < eps && e->lin_v <= 0.0f;
+}
+
+/* ---------------------------------------------------------------------------
+ * Two-pole resonator, parameterised by T60
+ *
+ * A single mode of a struck object: one complex pole pair, hit with an impulse or
+ * fed noise. Impulse-excited it is a decaying sinusoid; noise-excited it is a noise
+ * band. Same coefficients either way — which is what collapses "struck modal body"
+ * and "sustained metallic cluster" into one primitive, and why a percussion engine
+ * built on these needs no oscillators.
+ *
+ * ### Why not the SVF
+ *
+ * mf_svf_t is bandpass-capable and unconditionally stable, so it looks like the
+ * obvious partial. It cannot do this job, because its resonance is normalised and
+ * capped at MF_SVF_Q_MAX. Measured T60 of its bandpass output at resonance = 1:
+ *
+ *     100 Hz   546 ms      1 kHz    55 ms      8 kHz   8.7 ms
+ *     200 Hz   273 ms      4 kHz    15 ms
+ *
+ * A ride cymbal needs seconds at 8 kHz. No knob mapping fixes a 8.7 ms ceiling, so
+ * the partial bank needs a primitive that takes the decay time it is asked for.
+ *
+ * ### Accuracy
+ *
+ * `r = exp(-6.9078 / (T60 * sr))` puts the pole radius exactly where a 60 dB decay
+ * over T60 requires. Measured error across 100 Hz - 8 kHz and 5 ms - 4 s: within
+ * 1.3% for T60 >= 50 ms, and within 4.4% at 5 ms, where the measurement window is
+ * itself longer than the decay.
+ *
+ * `b0 = sin(w)` normalises the impulse response to unit peak — asymptotically.
+ * Measured peak is 0.97-1.00 once the resonator has ten cycles or so to ring in
+ * (500 ms at 100 Hz, 50 ms at 1 kHz) and falls short below that: 0.167 for 5 ms at
+ * 100 Hz, which is half a cycle and physically cannot reach full swing. It never
+ * exceeds 1, which is the property gain staging needs.
+ *
+ * ### Skipping is the caller's job
+ *
+ * mf_reson_set clamps its frequency below Nyquist as a backstop, but a partial bank
+ * must *skip* out-of-range partials rather than let them be clamped: a clamped
+ * partial still sounds, at the wrong pitch, and folds a rising `tune` sweep into
+ * partials that move downward. Use mf_reson_audible as the gate.
+ * ------------------------------------------------------------------------- */
+
+#define MF_RESON_T60_MIN 0.001f
+#define MF_RESON_T60_MAX 20.0f
+/* Above this fraction of the sample rate a partial is not worth rendering. */
+#define MF_RESON_MAX_HZ_FRACTION 0.45f
+/* Below this, relative to the loudest partial in the bank, it is inaudible. */
+#define MF_RESON_MIN_GAIN 0.001f   /* -60 dB */
+
+typedef struct {
+    float a1; /*  2 r cos(w) */
+    float a2; /* -r^2        */
+    float b0; /*  sin(w)     */
+} mf_reson_coeffs_t;
+
+typedef struct {
+    float y1;
+    float y2;
+} mf_reson_t;
+
+static inline void mf_reson_init(mf_reson_t *s)
+{
+    if (!s) return;
+    s->y1 = 0.0f;
+    s->y2 = 0.0f;
+}
+
+/* Whether a partial at `hz` with relative `gain` is worth running at all. Muting
+ * rather than folding is what keeps a `tune` sweep from generating partials that
+ * move down as the knob goes up. */
+static inline int mf_reson_audible(float hz, float gain)
+{
+    return hz > 1.0f
+        && hz < MOVEFORGE_SAMPLE_RATE * MF_RESON_MAX_HZ_FRACTION
+        && gain > MF_RESON_MIN_GAIN;
+}
+
+static inline void mf_reson_set(mf_reson_coeffs_t *c, float hz, float t60_s)
+{
+    if (!c) return;
+    float f = moveforge_clampf(hz, 1.0f, MOVEFORGE_SAMPLE_RATE * MF_RESON_MAX_HZ_FRACTION);
+    float t60 = moveforge_clampf(t60_s, MF_RESON_T60_MIN, MF_RESON_T60_MAX);
+    float r = expf(-6.9078f / (t60 * MOVEFORGE_SAMPLE_RATE));
+    /* r < 1 strictly: at T60 = 20 s the float nearest exp(-7.8e-6) rounds to
+     * 0.99999219, but a longer T60 would round to 1.0 and the mode would ring
+     * forever rather than decay. The clamp above is what prevents that. */
+    float w = MOVEFORGE_TWO_PI * f / MOVEFORGE_SAMPLE_RATE;
+    c->a1 = 2.0f * r * cosf(w);
+    c->a2 = -r * r;
+    c->b0 = sinf(w);
+}
+
+static inline float mf_reson_tick(mf_reson_t *s, const mf_reson_coeffs_t *c, float x)
+{
+    float y = c->b0 * x + c->a1 * s->y1 + c->a2 * s->y2;
+    s->y2 = s->y1;
+    s->y1 = mf_flush_denorm(y);
+    return y;
+}
+
+/* ---------------------------------------------------------------------------
  * Soft clip
  *
  * Rational approximation of tanh: ~6 multiplies, 5 adds and a divide against a
@@ -636,6 +843,242 @@ static inline float mf_rng_bipolar(mf_rng_t *r)
 {
     int32_t hi = (int32_t)mf_rng_next_u32(r) >> 8;   /* -8388608 .. 8388607 */
     return (float)hi * (1.0f / 8388608.0f);
+}
+
+/* ---------------------------------------------------------------------------
+ * Excitation
+ *
+ * What hits the resonator. Ballast folds its click into `punch` and hard-codes a
+ * 1500 Hz highpass on it, which is right for a kick, where the click is a detail on
+ * top of an oscillator. An engine that is *entirely* excitation needs the noise's
+ * time structure to be first-class instead, because that is where the difference
+ * between a hat, a shaker and a clap lives — not in the resonator, which is the
+ * same in all three.
+ *
+ * One control, `strike`, bipolar around 0.5. The axis is **how the hit's energy is
+ * distributed in time**: many small stochastic events on the left, one clean event
+ * at the centre, few large deliberate ones on the right. With s = (strike - 0.5)*2:
+ *
+ *   s = -1   one impulse per ~500 samples, 120 ms envelope   shaker, cabasa, wash
+ *   s =  0   continuous noise, 1.5 ms envelope               one strike
+ *   s = +1   four bursts 6 ms apart                          clap, ratchet
+ *
+ * ### Grains are stochastic, not periodic
+ *
+ * "Decimate to one impulse per N samples" invites a counter. A periodic impulse
+ * train is a tone — at N = 500 that is a buzz at 88 Hz, which is precisely not a
+ * shaker. Each sample instead draws against a threshold, so spacing is geometric
+ * and the result has no pitch of its own.
+ *
+ * ### Output is bounded; level across the axis is not flat, and is not fixed here
+ *
+ * Grains are unit-amplitude, so the output stays inside +-1 like every other block
+ * here (measured worst case 0.994 over 21 strike values x 40 seeds). That is the
+ * invariant that lets blocks compose without each one publishing a private gain
+ * contract.
+ *
+ * What is *not* offered is a scalar that flattens level across the axis, because
+ * there isn't one. The obvious candidate — a per-grain gain of sqrt(period), on the
+ * reasoning that N overlapping rings sum to sqrt(N) — was implemented and measured,
+ * and it is wrong twice over. It makes the exciter's own peak climb 17 dB (0.94 to
+ * 6.7), and it does not flatten what it is meant to: peak ring of a 2 kHz / 400 ms
+ * resonator fed by this exciter, across strike 0.5 down to 0.0,
+ *
+ *     raw               0.96  4.71  1.94  2.78  2.32  0.87
+ *     x sqrt(period)    0.96  8.77  6.74 17.94 27.84 19.49
+ *
+ * so the "compensation" turns a 15 dB spread into a 30 dB one. The reason is that
+ * `strike` moves two things at once: grains get sparser *and* the envelope gets
+ * longer, so the number of grains in one hit peaks in the middle of the axis (~360
+ * at strike 0.4, ~70 at 0.5, ~14 at 0.0) rather than falling monotonically.
+ *
+ * Excitation level is therefore a per-voice calibration problem for the module, not
+ * a property of this block. The numbers above are the starting point for it.
+ * ------------------------------------------------------------------------- */
+
+#define MF_EXCITER_MAX_BURSTS 3
+/* Sparsest grain spacing, in samples, at strike = 0. */
+#define MF_EXCITER_MAX_PERIOD 500.0f
+
+typedef struct {
+    float env_coeff;                          /* per-sample envelope decay      */
+    uint32_t grain_threshold;                 /* rng draw below this -> a grain  */
+    int burst_count;                          /* extra bursts after the first   */
+    int burst_spacing;                        /* samples between bursts         */
+    float burst_level[MF_EXCITER_MAX_BURSTS];
+} mf_exciter_coeffs_t;
+
+typedef struct {
+    mf_rng_t rng;
+    float env;
+    int bursts_left;     /* extra bursts still to fire */
+    int burst_countdown; /* samples until the next one */
+} mf_exciter_t;
+
+static inline void mf_exciter_init(mf_exciter_t *e, uint32_t seed)
+{
+    if (!e) return;
+    mf_rng_init(&e->rng, seed);
+    e->env = 0.0f;
+    e->bursts_left = 0;
+    e->burst_countdown = 0;
+}
+
+/* `strike` is 0..1, bipolar around 0.5. Across the axis:
+ *
+ *     strike       0.50   0.40   0.30   0.20   0.10   0.00
+ *     grain gap     1.0    3.5   12.0   41.4  143.0  500.0  samples, by design
+ *     envelope      1.6   27.7   56.7   77.4  106.9  122.0  ms to -40 dB, measured
+ *     bursts          0      0      0      0      0      0
+ *
+ * and on the other half, where density and envelope stay put and the structure
+ * comes from the burst scheduler instead:
+ *
+ *     strike       0.50   0.60   0.70   0.80   0.90   1.00
+ *     bursts          0      1      2      2      3      3  extra hits
+ *     spacing      25.0   21.2   17.4   13.6    9.8    6.0  ms apart
+ *
+ * The measured gap standard deviation tracks its mean to within 5% (e.g. 42.7 and
+ * 42.6 at strike 0.2), which is the signature of geometric spacing — a periodic
+ * decimator would read 0. */
+/* Pass as `max_s` to leave the excitation unbounded by the caller's event. */
+#define MF_EXCITER_UNBOUNDED 1.0e9f
+
+/* How `max_s` is divided between the two things that can outlast it. The envelope
+ * figure is a time to -40 dB, so its -60 dB tail runs about 1.7x longer, and the
+ * bursts land on top of that rather than instead of it — capping each at `max_s`
+ * separately therefore overshoots by 2-3x. These two split the budget so the sum
+ * lands near it. Their values are measured rather than derived: see the tables in
+ * mf_exciter_set. */
+#define MF_EXCITER_ENV_FRACTION 0.35f
+#define MF_EXCITER_BURST_FRACTION 0.40f
+
+/* `max_s` is the longest the excitation may last — the caller's own event length,
+ * normally the voice's T60.
+ *
+ * Without it, `strike` is a second decay control that silently outranks the first.
+ * Measured on swarf's conga at `mat` 0.5, asking for decay times from 10 ms to
+ * 101 ms and reading what came out:
+ *
+ *     strike        0.00   0.25   0.44   0.50   0.52   0.70   0.86
+ *     floor (ms)    >6000    100     40     50     55     55     70
+ *
+ * — every request shorter than the floor produced the floor instead, which is the
+ * whole hat, click and rim range, and at strike 0 the voice never reached -60 dB at
+ * any decay setting at all. Two separate mechanisms, one on each half of the axis:
+ * below 0.5 the grain envelope stretches to 122 ms, above it the burst scheduler
+ * spreads hits out to 75 ms. Both now compress to fit inside `max_s`.
+ *
+ * The cap does nothing wherever there is a tail to rattle into — above ~100 ms of
+ * decay the measured ratios were already 0.98-1.04 and are untouched — so a long
+ * shaker or a maraca still lasts as long as `strike` asks. It only stops a 10 ms
+ * hit from carrying a 122 ms excitation. */
+static inline void mf_exciter_set(mf_exciter_coeffs_t *c, float strike, float max_s)
+{
+    if (!c) return;
+    float s = (moveforge_clampf(strike, 0.0f, 1.0f) - 0.5f) * 2.0f;
+    float cap = (max_s > 0.0f) ? max_s : MF_EXCITER_UNBOUNDED;
+
+    /* Envelope lengthens as the grains spread out: a rattle is a long sprinkle of
+     * small events, a strike is one short broadband one. */
+    float env_s = (s < 0.0f) ? 0.0015f - s * 0.1185f : 0.0015f;
+    float env_cap = cap * MF_EXCITER_ENV_FRACTION;
+    float squeeze = 1.0f;
+    if (env_s > env_cap) {
+        squeeze = env_cap / env_s;
+        env_s = env_cap;
+    }
+    if (env_s < 0.0002f) env_s = 0.0002f;
+    c->env_coeff = expf(-4.0f / (env_s * MOVEFORGE_SAMPLE_RATE));
+
+    /* Density: geometric in s so the control is even, rather than spending its
+     * whole audible range in the last tenth.
+     *
+     * Squeezed by however much the envelope was, because shortening the window
+     * without tightening the spacing does not compress a rattle, it *empties* one.
+     * At strike 0 the grains are 500 samples apart (88 Hz) — bounding that voice to
+     * a 19 ms decay leaves a 6.6 ms window, which more often than not contains no
+     * grain at all and the hit is silent. Scaling both together keeps a rattle a
+     * rattle and only makes it faster. */
+    float period = (s < 0.0f) ? powf(MF_EXCITER_MAX_PERIOD, -s) : 1.0f;
+    period *= squeeze;
+    c->grain_threshold = (period <= 1.0f)
+        ? 0xFFFFFFFFu
+        : (uint32_t)(4294967295.0f / period);
+
+    /* Bursts fade in by *level*, not by count, or the knob steps audibly as each
+     * one appears. Spacing tightens from a flam to a ratchet. */
+    c->burst_count = 0;
+    for (int k = 0; k < MF_EXCITER_MAX_BURSTS; k++) {
+        float fade = moveforge_clampf(s * 3.0f - (float)k, 0.0f, 1.0f);
+        /* Each burst ~2 dB below the one before it. */
+        c->burst_level[k] = fade * powf(0.794f, (float)(k + 1));
+        if (c->burst_level[k] > 0.0f) c->burst_count = k + 1;
+    }
+
+    /* Spacing after the count, because what has to fit inside `max_s` is the span
+     * the last burst lands at, not one gap. Scaled rather than truncated so a
+     * bounded ratchet stays an evenly spaced ratchet. */
+    float spacing_s = 0.025f - 0.019f * ((s > 0.0f) ? s : 0.0f);
+    if (c->burst_count > 0) {
+        float span = spacing_s * (float)c->burst_count;
+        float span_cap = cap * MF_EXCITER_BURST_FRACTION;
+        if (span > span_cap) spacing_s *= span_cap / span;
+    }
+    c->burst_spacing = (int)(spacing_s * MOVEFORGE_SAMPLE_RATE);
+    /* Zero would fire every burst on consecutive samples via the `--countdown <= 0`
+     * test, collapsing a ratchet into one hit. */
+    if (c->burst_spacing < 1) c->burst_spacing = 1;
+}
+
+/* Start a hit. Snap, not ramp: this is called on note-on. */
+static inline void mf_exciter_trigger(mf_exciter_t *e, const mf_exciter_coeffs_t *c)
+{
+    if (!e || !c) return;
+    e->env = 1.0f;
+    e->bursts_left = c->burst_count;
+    e->burst_countdown = c->burst_spacing;
+}
+
+static inline void mf_exciter_release(mf_exciter_t *e)
+{
+    if (!e) return;
+    e->env = 0.0f;
+    e->bursts_left = 0;
+}
+
+static inline float mf_exciter_tick(mf_exciter_t *e, const mf_exciter_coeffs_t *c)
+{
+    if (e->bursts_left > 0 && --e->burst_countdown <= 0) {
+        /* Clamped because `strike` can move mid-hit and shrink burst_count below
+         * the number still pending, which would index behind the array. */
+        int idx = c->burst_count - e->bursts_left;
+        if (idx < 0) idx = 0;
+        if (idx >= MF_EXCITER_MAX_BURSTS) idx = MF_EXCITER_MAX_BURSTS - 1;
+        /* Raise the envelope to the new burst's level rather than replacing it:
+         * assignment would cut the previous burst's tail short whenever the new
+         * one is quieter, which is every burst after the first. */
+        float level = c->burst_level[idx];
+        if (level > e->env) e->env = level;
+        e->bursts_left--;
+        e->burst_countdown = c->burst_spacing;
+    }
+
+    float grain = 0.0f;
+    if (mf_rng_next_u32(&e->rng) <= c->grain_threshold) {
+        grain = mf_rng_bipolar(&e->rng);
+    }
+
+    float out = grain * e->env;
+    e->env = mf_flush_denorm(e->env * c->env_coeff);
+    return out;
+}
+
+/* A pending burst counts as active: early-outing between the hits of a clap would
+ * drop the rest of it. */
+static inline int mf_exciter_is_idle(const mf_exciter_t *e, float eps)
+{
+    return e->env < eps && e->bursts_left <= 0;
 }
 
 /* ---------------------------------------------------------------------------

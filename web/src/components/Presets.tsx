@@ -28,7 +28,7 @@ export function Presets() {
   if (presets.length === 0 && slot.kind === "settings") return null;
 
   return (
-    <div className="flex flex-wrap gap-1.5">
+    <div className="shrink-0 flex flex-wrap gap-1.5">
       <button
         type="button"
         onClick={() => randomizeSelectedSlotParams()}

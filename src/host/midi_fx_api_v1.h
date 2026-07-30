@@ -18,6 +18,18 @@
 
 #define MOVE_MIDI_FX_API_VERSION 1
 
+/* The out_msgs capacity the chain host actually passes as `max_out`, for both
+ * process_midi and tick (schwung 0.11.4, src/modules/chain/dsp/chain_midi.c:318-322,
+ * :358-361). Upstream spells it MIDI_FX_MAX_OUT_MSGS; this copy prefixes it like
+ * the version macro above.
+ *
+ * It lives here because leaving it out meant each harness picked its own number
+ * and neither matched the device: the offline trace gave modules 8 and the browser
+ * gave them 32, so a module emitting 9-16 messages was under-reported in goldens
+ * and one emitting 17-32 worked in the browser and was truncated on hardware.
+ * Anything calling process_midi or tick uses this, not a local constant. */
+#define MOVE_MIDI_FX_MAX_OUT_MSGS 16
+
 typedef struct midi_fx_api_v1 {
     uint32_t api_version;  /* must be MOVE_MIDI_FX_API_VERSION */
 

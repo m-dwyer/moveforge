@@ -1,0 +1,2524 @@
+{
+  "presets": [
+    {
+      "name": "Init",
+      "params": {},
+      "render": {
+        "file": "00-init.wav",
+        "pattern": [
+          [
+            {
+              "note": 36,
+              "vel": 112
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 58
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 70
+            },
+            {
+              "note": 37,
+              "vel": 96
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 62
+            },
+            {
+              "note": 40,
+              "vel": 88
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 102
+            },
+            {
+              "note": 39,
+              "vel": 120
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 56
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 72
+            },
+            {
+              "note": 37,
+              "vel": 90
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 60
+            },
+            {
+              "note": 40,
+              "vel": 74
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 108
+            },
+            {
+              "note": 38,
+              "vel": 72
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 58
+            },
+            {
+              "note": 41,
+              "vel": 86
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 70
+            },
+            {
+              "note": 37,
+              "vel": 96
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 62
+            },
+            {
+              "note": 40,
+              "vel": 88
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 102
+            },
+            {
+              "note": 39,
+              "vel": 120
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 56
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 74
+            },
+            {
+              "note": 37,
+              "vel": 92
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 64
+            },
+            {
+              "note": 40,
+              "vel": 70
+            }
+          ]
+        ],
+        "note_blocks": 40,
+        "gate_blocks": 20,
+        "seconds": 4,
+        "tail_seconds": 1,
+        "velocity": 100
+      }
+    },
+    {
+      "name": "Dry Tick",
+      "params": {
+        "hat_decay": 0.22,
+        "oh_decay": 0.42,
+        "ride_decay": 0.62,
+        "clap_decay": 0.36,
+        "conga_decay": 0.44,
+        "wood_decay": 0.3,
+        "hat_grit": 0.12,
+        "oh_grit": 0.1,
+        "ride_grit": 0.08,
+        "clap_grit": 0.14,
+        "drive": 0.06,
+        "kit_decay": 0.34,
+        "tone": 0.46,
+        "shape": 0.62,
+        "spread": 0.18
+      },
+      "render": {
+        "file": "01-dry-tick.wav",
+        "pattern": [
+          [
+            {
+              "note": 36,
+              "vel": 112
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 58
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 70
+            },
+            {
+              "note": 37,
+              "vel": 96
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 62
+            },
+            {
+              "note": 40,
+              "vel": 88
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 102
+            },
+            {
+              "note": 39,
+              "vel": 120
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 56
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 72
+            },
+            {
+              "note": 37,
+              "vel": 90
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 60
+            },
+            {
+              "note": 40,
+              "vel": 74
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 108
+            },
+            {
+              "note": 38,
+              "vel": 72
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 58
+            },
+            {
+              "note": 41,
+              "vel": 86
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 70
+            },
+            {
+              "note": 37,
+              "vel": 96
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 62
+            },
+            {
+              "note": 40,
+              "vel": 88
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 102
+            },
+            {
+              "note": 39,
+              "vel": 120
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 56
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 74
+            },
+            {
+              "note": 37,
+              "vel": 92
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 64
+            },
+            {
+              "note": 40,
+              "vel": 70
+            }
+          ]
+        ],
+        "note_blocks": 40,
+        "gate_blocks": 20,
+        "seconds": 4,
+        "tail_seconds": 1,
+        "velocity": 100
+      }
+    },
+    {
+      "name": "Steel Mill",
+      "params": {
+        "hat_tune": 90,
+        "hat_mat": 1,
+        "hat_grit": 0.55,
+        "oh_tune": 92,
+        "oh_decay": 0.74,
+        "oh_mat": 1,
+        "oh_grit": 0.48,
+        "ride_tune": 80,
+        "ride_decay": 0.96,
+        "ride_mat": 1,
+        "ride_grit": 0.42,
+        "clap_mat": 0.96,
+        "clap_grit": 0.5,
+        "drive": 0.46,
+        "curve": 2,
+        "tone": 0.62,
+        "bright": 0.66,
+        "kit_decay": 0.62
+      },
+      "render": {
+        "file": "02-steel-mill.wav",
+        "pattern": [
+          [
+            {
+              "note": 36,
+              "vel": 110
+            },
+            {
+              "note": 38,
+              "vel": 88
+            }
+          ],
+          [],
+          [
+            {
+              "note": 36,
+              "vel": 64
+            }
+          ],
+          [
+            {
+              "note": 37,
+              "vel": 96
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 100
+            },
+            {
+              "note": 39,
+              "vel": 118
+            }
+          ],
+          [],
+          [
+            {
+              "note": 36,
+              "vel": 68
+            },
+            {
+              "note": 40,
+              "vel": 84
+            }
+          ],
+          [],
+          [
+            {
+              "note": 36,
+              "vel": 106
+            },
+            {
+              "note": 38,
+              "vel": 76
+            }
+          ],
+          [],
+          [
+            {
+              "note": 36,
+              "vel": 64
+            },
+            {
+              "note": 41,
+              "vel": 88
+            }
+          ],
+          [
+            {
+              "note": 37,
+              "vel": 92
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 100
+            },
+            {
+              "note": 39,
+              "vel": 118
+            }
+          ],
+          [],
+          [
+            {
+              "note": 36,
+              "vel": 70
+            },
+            {
+              "note": 40,
+              "vel": 80
+            }
+          ],
+          []
+        ],
+        "note_blocks": 40,
+        "gate_blocks": 20,
+        "seconds": 5,
+        "tail_seconds": 2,
+        "velocity": 100
+      }
+    },
+    {
+      "name": "Glass",
+      "params": {
+        "hat_mat": 1,
+        "hat_grit": 0,
+        "hat_tone": 0.62,
+        "oh_mat": 1,
+        "oh_decay": 0.78,
+        "oh_grit": 0,
+        "ride_mat": 1,
+        "ride_decay": 0.97,
+        "ride_grit": 0,
+        "clap_mat": 1,
+        "clap_grit": 0.04,
+        "conga_mat": 0.72,
+        "wood_mat": 0.3,
+        "drive": 0,
+        "tone": 0.64,
+        "bright": 0.72,
+        "kit_decay": 0.68,
+        "spread": 0.6
+      },
+      "render": {
+        "file": "03-glass.wav",
+        "pattern": [
+          [
+            {
+              "note": 36,
+              "vel": 112
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 58
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 70
+            },
+            {
+              "note": 37,
+              "vel": 96
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 62
+            },
+            {
+              "note": 40,
+              "vel": 88
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 102
+            },
+            {
+              "note": 39,
+              "vel": 120
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 56
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 72
+            },
+            {
+              "note": 37,
+              "vel": 90
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 60
+            },
+            {
+              "note": 40,
+              "vel": 74
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 108
+            },
+            {
+              "note": 38,
+              "vel": 72
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 58
+            },
+            {
+              "note": 41,
+              "vel": 86
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 70
+            },
+            {
+              "note": 37,
+              "vel": 96
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 62
+            },
+            {
+              "note": 40,
+              "vel": 88
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 102
+            },
+            {
+              "note": 39,
+              "vel": 120
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 56
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 74
+            },
+            {
+              "note": 37,
+              "vel": 92
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 64
+            },
+            {
+              "note": 40,
+              "vel": 70
+            }
+          ]
+        ],
+        "note_blocks": 40,
+        "gate_blocks": 20,
+        "seconds": 5,
+        "tail_seconds": 2,
+        "velocity": 100
+      }
+    },
+    {
+      "name": "Deep Cellar",
+      "params": {
+        "hat_tune": 76,
+        "hat_tone": 0.34,
+        "oh_tune": 78,
+        "oh_tone": 0.34,
+        "ride_tune": 66,
+        "ride_tone": 0.32,
+        "clap_tune": 60,
+        "conga_tune": 50,
+        "wood_tune": 62,
+        "tone": 0.3,
+        "bright": 0.24,
+        "kit_decay": 0.66,
+        "warp": 0.4,
+        "spread": 0.55,
+        "shape": 0.18
+      },
+      "render": {
+        "file": "04-deep-cellar.wav",
+        "pattern": [
+          [
+            {
+              "note": 36,
+              "vel": 110
+            },
+            {
+              "note": 38,
+              "vel": 88
+            }
+          ],
+          [],
+          [
+            {
+              "note": 36,
+              "vel": 64
+            }
+          ],
+          [
+            {
+              "note": 37,
+              "vel": 96
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 100
+            },
+            {
+              "note": 39,
+              "vel": 118
+            }
+          ],
+          [],
+          [
+            {
+              "note": 36,
+              "vel": 68
+            },
+            {
+              "note": 40,
+              "vel": 84
+            }
+          ],
+          [],
+          [
+            {
+              "note": 36,
+              "vel": 106
+            },
+            {
+              "note": 38,
+              "vel": 76
+            }
+          ],
+          [],
+          [
+            {
+              "note": 36,
+              "vel": 64
+            },
+            {
+              "note": 41,
+              "vel": 88
+            }
+          ],
+          [
+            {
+              "note": 37,
+              "vel": 92
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 100
+            },
+            {
+              "note": 39,
+              "vel": 118
+            }
+          ],
+          [],
+          [
+            {
+              "note": 36,
+              "vel": 70
+            },
+            {
+              "note": 40,
+              "vel": 80
+            }
+          ],
+          []
+        ],
+        "note_blocks": 60,
+        "gate_blocks": 20,
+        "seconds": 6,
+        "tail_seconds": 2,
+        "velocity": 100
+      }
+    },
+    {
+      "name": "Rubber",
+      "params": {
+        "hat_mat": 0.62,
+        "hat_decay": 0.26,
+        "oh_mat": 0.6,
+        "oh_decay": 0.44,
+        "ride_mat": 0.58,
+        "ride_decay": 0.6,
+        "clap_mat": 0.4,
+        "conga_mat": 0.3,
+        "wood_mat": 0,
+        "wood_decay": 0.34,
+        "warp": 0.34,
+        "tone": 0.42,
+        "drive": 0.1,
+        "kit_decay": 0.4
+      },
+      "render": {
+        "file": "05-rubber.wav",
+        "pattern": [
+          [
+            {
+              "note": 36,
+              "vel": 110
+            },
+            {
+              "note": 38,
+              "vel": 88
+            }
+          ],
+          [],
+          [
+            {
+              "note": 36,
+              "vel": 64
+            }
+          ],
+          [
+            {
+              "note": 37,
+              "vel": 96
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 100
+            },
+            {
+              "note": 39,
+              "vel": 118
+            }
+          ],
+          [],
+          [
+            {
+              "note": 36,
+              "vel": 68
+            },
+            {
+              "note": 40,
+              "vel": 84
+            }
+          ],
+          [],
+          [
+            {
+              "note": 36,
+              "vel": 106
+            },
+            {
+              "note": 38,
+              "vel": 76
+            }
+          ],
+          [],
+          [
+            {
+              "note": 36,
+              "vel": 64
+            },
+            {
+              "note": 41,
+              "vel": 88
+            }
+          ],
+          [
+            {
+              "note": 37,
+              "vel": 92
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 100
+            },
+            {
+              "note": 39,
+              "vel": 118
+            }
+          ],
+          [],
+          [
+            {
+              "note": 36,
+              "vel": 70
+            },
+            {
+              "note": 40,
+              "vel": 80
+            }
+          ],
+          []
+        ],
+        "note_blocks": 60,
+        "gate_blocks": 20,
+        "seconds": 6,
+        "tail_seconds": 2,
+        "velocity": 100
+      }
+    },
+    {
+      "name": "Bone",
+      "params": {
+        "hat_mat": 0.7,
+        "hat_decay": 0.2,
+        "oh_mat": 0.68,
+        "oh_decay": 0.36,
+        "ride_mat": 0.72,
+        "ride_decay": 0.54,
+        "clap_mat": 0.34,
+        "clap_decay": 0.4,
+        "conga_mat": 0.36,
+        "conga_decay": 0.5,
+        "conga_level": 0.7,
+        "wood_mat": 0,
+        "wood_decay": 0.28,
+        "wood_level": 0.55,
+        "warp": 0.3,
+        "shape": 0.55,
+        "kit_decay": 0.36,
+        "drive": 0.14
+      },
+      "render": {
+        "file": "06-bone.wav",
+        "pattern": [
+          [
+            {
+              "note": 36,
+              "vel": 112
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 58
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 70
+            },
+            {
+              "note": 37,
+              "vel": 96
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 62
+            },
+            {
+              "note": 40,
+              "vel": 88
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 102
+            },
+            {
+              "note": 39,
+              "vel": 120
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 56
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 72
+            },
+            {
+              "note": 37,
+              "vel": 90
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 60
+            },
+            {
+              "note": 40,
+              "vel": 74
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 108
+            },
+            {
+              "note": 38,
+              "vel": 72
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 58
+            },
+            {
+              "note": 41,
+              "vel": 86
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 70
+            },
+            {
+              "note": 37,
+              "vel": 96
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 62
+            },
+            {
+              "note": 40,
+              "vel": 88
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 102
+            },
+            {
+              "note": 39,
+              "vel": 120
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 56
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 74
+            },
+            {
+              "note": 37,
+              "vel": 92
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 64
+            },
+            {
+              "note": 40,
+              "vel": 70
+            }
+          ]
+        ],
+        "note_blocks": 40,
+        "gate_blocks": 20,
+        "seconds": 4,
+        "tail_seconds": 1,
+        "velocity": 100
+      }
+    },
+    {
+      "name": "Sizzle",
+      "params": {
+        "hat_decay": 0.4,
+        "hat_strike": 0.18,
+        "hat_level": 0.8,
+        "oh_decay": 0.82,
+        "oh_strike": 0.12,
+        "oh_level": 0.62,
+        "ride_decay": 0.98,
+        "ride_strike": 0.14,
+        "ride_level": 0.46,
+        "clap_strike": 0.7,
+        "kit_decay": 0.66,
+        "bright": 0.62,
+        "choke": 0,
+        "spread": 0.5
+      },
+      "render": {
+        "file": "07-sizzle.wav",
+        "pattern": [
+          [
+            {
+              "note": 36,
+              "vel": 112
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 58
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 70
+            },
+            {
+              "note": 37,
+              "vel": 96
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 62
+            },
+            {
+              "note": 40,
+              "vel": 88
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 102
+            },
+            {
+              "note": 39,
+              "vel": 120
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 56
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 72
+            },
+            {
+              "note": 37,
+              "vel": 90
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 60
+            },
+            {
+              "note": 40,
+              "vel": 74
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 108
+            },
+            {
+              "note": 38,
+              "vel": 72
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 58
+            },
+            {
+              "note": 41,
+              "vel": 86
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 70
+            },
+            {
+              "note": 37,
+              "vel": 96
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 62
+            },
+            {
+              "note": 40,
+              "vel": 88
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 102
+            },
+            {
+              "note": 39,
+              "vel": 120
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 56
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 74
+            },
+            {
+              "note": 37,
+              "vel": 92
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 64
+            },
+            {
+              "note": 40,
+              "vel": 70
+            }
+          ]
+        ],
+        "note_blocks": 40,
+        "gate_blocks": 20,
+        "seconds": 4,
+        "tail_seconds": 1,
+        "velocity": 100
+      }
+    },
+    {
+      "name": "Hypnotic",
+      "params": {
+        "hat_decay": 0.3,
+        "oh_decay": 0.6,
+        "ride_decay": 0.88,
+        "conga_decay": 0.6,
+        "wood_decay": 0.42,
+        "hat_grit": 0.2,
+        "drive": 0.14,
+        "tone": 0.5,
+        "shape": 0.24,
+        "human": 0.45,
+        "vel_depth": 0.75,
+        "spread": 0.72,
+        "kit_decay": 0.5
+      },
+      "render": {
+        "file": "08-hypnotic.wav",
+        "pattern": [
+          [
+            {
+              "note": 36,
+              "vel": 112
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 58
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 70
+            },
+            {
+              "note": 37,
+              "vel": 96
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 62
+            },
+            {
+              "note": 40,
+              "vel": 88
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 102
+            },
+            {
+              "note": 39,
+              "vel": 120
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 56
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 72
+            },
+            {
+              "note": 37,
+              "vel": 90
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 60
+            },
+            {
+              "note": 40,
+              "vel": 74
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 108
+            },
+            {
+              "note": 38,
+              "vel": 72
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 58
+            },
+            {
+              "note": 41,
+              "vel": 86
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 70
+            },
+            {
+              "note": 37,
+              "vel": 96
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 62
+            },
+            {
+              "note": 40,
+              "vel": 88
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 102
+            },
+            {
+              "note": 39,
+              "vel": 120
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 56
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 74
+            },
+            {
+              "note": 37,
+              "vel": 92
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 64
+            },
+            {
+              "note": 40,
+              "vel": 70
+            }
+          ]
+        ],
+        "note_blocks": 40,
+        "gate_blocks": 20,
+        "seconds": 6,
+        "tail_seconds": 1,
+        "velocity": 100,
+        "automate": [
+          {
+            "key": "warp",
+            "from": 0.22,
+            "to": 0.8
+          }
+        ]
+      }
+    },
+    {
+      "name": "Foundry",
+      "params": {
+        "hat_grit": 0.7,
+        "oh_grit": 0.55,
+        "ride_grit": 0.3,
+        "clap_grit": 0.8,
+        "conga_grit": 0.45,
+        "wood_grit": 0.65,
+        "hat_tune": 92,
+        "hat_mat": 1,
+        "oh_mat": 1,
+        "ride_tune": 68,
+        "ride_mat": 0.86,
+        "conga_tune": 52,
+        "wood_mat": 0,
+        "drive": 0.42,
+        "curve": 2,
+        "tone": 0.58,
+        "warp": 0.6,
+        "kit_decay": 0.46
+      },
+      "render": {
+        "file": "09-foundry.wav",
+        "pattern": [
+          [
+            {
+              "note": 36,
+              "vel": 112
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 58
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 70
+            },
+            {
+              "note": 37,
+              "vel": 96
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 62
+            },
+            {
+              "note": 40,
+              "vel": 88
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 102
+            },
+            {
+              "note": 39,
+              "vel": 120
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 56
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 72
+            },
+            {
+              "note": 37,
+              "vel": 90
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 60
+            },
+            {
+              "note": 40,
+              "vel": 74
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 108
+            },
+            {
+              "note": 38,
+              "vel": 72
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 58
+            },
+            {
+              "note": 41,
+              "vel": 86
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 70
+            },
+            {
+              "note": 37,
+              "vel": 96
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 62
+            },
+            {
+              "note": 40,
+              "vel": 88
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 102
+            },
+            {
+              "note": 39,
+              "vel": 120
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 56
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 74
+            },
+            {
+              "note": 37,
+              "vel": 92
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 64
+            },
+            {
+              "note": 40,
+              "vel": 70
+            }
+          ]
+        ],
+        "note_blocks": 40,
+        "gate_blocks": 20,
+        "seconds": 6,
+        "tail_seconds": 1,
+        "velocity": 100,
+        "automate": [
+          {
+            "key": "kit_decay",
+            "from": 0.28,
+            "to": 0.72,
+            "cycles": 3
+          }
+        ]
+      }
+    },
+    {
+      "name": "Dub Chamber",
+      "params": {
+        "hat_decay": 0.42,
+        "oh_decay": 0.8,
+        "ride_decay": 0.97,
+        "clap_decay": 0.7,
+        "conga_decay": 0.76,
+        "wood_decay": 0.58,
+        "tone": 0.36,
+        "bright": 0.34,
+        "kit_decay": 0.78,
+        "spread": 0.85,
+        "shape": 0.12,
+        "drive": 0.12
+      },
+      "render": {
+        "file": "10-dub-chamber.wav",
+        "pattern": [
+          [
+            {
+              "note": 36,
+              "vel": 112
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 58
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 70
+            },
+            {
+              "note": 37,
+              "vel": 96
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 62
+            },
+            {
+              "note": 40,
+              "vel": 88
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 102
+            },
+            {
+              "note": 39,
+              "vel": 120
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 56
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 72
+            },
+            {
+              "note": 37,
+              "vel": 90
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 60
+            },
+            {
+              "note": 40,
+              "vel": 74
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 108
+            },
+            {
+              "note": 38,
+              "vel": 72
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 58
+            },
+            {
+              "note": 41,
+              "vel": 86
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 70
+            },
+            {
+              "note": 37,
+              "vel": 96
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 62
+            },
+            {
+              "note": 40,
+              "vel": 88
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 102
+            },
+            {
+              "note": 39,
+              "vel": 120
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 56
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 74
+            },
+            {
+              "note": 37,
+              "vel": 92
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 64
+            },
+            {
+              "note": 40,
+              "vel": 70
+            }
+          ]
+        ],
+        "note_blocks": 40,
+        "gate_blocks": 20,
+        "seconds": 4,
+        "tail_seconds": 1,
+        "velocity": 100
+      }
+    },
+    {
+      "name": "Tight Room",
+      "params": {
+        "hat_decay": 0.16,
+        "oh_decay": 0.3,
+        "ride_decay": 0.46,
+        "clap_decay": 0.3,
+        "conga_decay": 0.4,
+        "wood_decay": 0.22,
+        "kit_decay": 0.22,
+        "spread": 0,
+        "shape": 0.7,
+        "drive": 0.2,
+        "vel_depth": 0.4
+      },
+      "render": {
+        "file": "11-tight-room.wav",
+        "pattern": [
+          [
+            {
+              "note": 36,
+              "vel": 112
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 58
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 70
+            },
+            {
+              "note": 37,
+              "vel": 96
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 62
+            },
+            {
+              "note": 40,
+              "vel": 88
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 102
+            },
+            {
+              "note": 39,
+              "vel": 120
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 56
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 72
+            },
+            {
+              "note": 37,
+              "vel": 90
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 60
+            },
+            {
+              "note": 40,
+              "vel": 74
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 108
+            },
+            {
+              "note": 38,
+              "vel": 72
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 58
+            },
+            {
+              "note": 41,
+              "vel": 86
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 70
+            },
+            {
+              "note": 37,
+              "vel": 96
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 62
+            },
+            {
+              "note": 40,
+              "vel": 88
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 102
+            },
+            {
+              "note": 39,
+              "vel": 120
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 56
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 74
+            },
+            {
+              "note": 37,
+              "vel": 92
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 64
+            },
+            {
+              "note": 40,
+              "vel": 70
+            }
+          ]
+        ],
+        "note_blocks": 40,
+        "gate_blocks": 20,
+        "seconds": 4,
+        "tail_seconds": 1,
+        "velocity": 100
+      }
+    },
+    {
+      "name": "Bloom",
+      "params": {
+        "hat_decay": 0.46,
+        "hat_mat": 1,
+        "oh_decay": 0.86,
+        "oh_mat": 1,
+        "ride_decay": 1,
+        "ride_mat": 1,
+        "clap_decay": 0.74,
+        "clap_mat": 1,
+        "conga_decay": 0.72,
+        "conga_mat": 0.66,
+        "kit_decay": 0.8,
+        "bright": 0.6,
+        "warp": 0.62,
+        "spread": 0.66,
+        "shape": 0.1
+      },
+      "render": {
+        "file": "12-bloom.wav",
+        "pattern": [
+          [
+            {
+              "note": 36,
+              "vel": 104
+            },
+            {
+              "note": 48,
+              "vel": 108
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 58
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 68
+            },
+            {
+              "note": 51,
+              "vel": 96
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 60
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 100
+            },
+            {
+              "note": 39,
+              "vel": 118
+            },
+            {
+              "note": 55,
+              "vel": 104
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 56
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 70
+            },
+            {
+              "note": 53,
+              "vel": 92
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 60
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 104
+            },
+            {
+              "note": 48,
+              "vel": 106
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 58
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 68
+            },
+            {
+              "note": 58,
+              "vel": 98
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 62
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 100
+            },
+            {
+              "note": 39,
+              "vel": 118
+            },
+            {
+              "note": 55,
+              "vel": 100
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 56
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 70
+            },
+            {
+              "note": 60,
+              "vel": 94
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 62
+            }
+          ]
+        ],
+        "note_blocks": 40,
+        "gate_blocks": 20,
+        "seconds": 5,
+        "tail_seconds": 2,
+        "velocity": 100
+      }
+    },
+    {
+      "name": "Wood Shop",
+      "params": {
+        "hat_mat": 0.66,
+        "hat_tune": 78,
+        "oh_mat": 0.64,
+        "oh_tune": 80,
+        "ride_mat": 0.7,
+        "ride_tune": 70,
+        "conga_level": 0.78,
+        "conga_decay": 0.66,
+        "conga_mat": 0.44,
+        "wood_level": 0.6,
+        "wood_decay": 0.5,
+        "wood_mat": 0,
+        "wood_tune": 74,
+        "warp": 0.32,
+        "tone": 0.44,
+        "kit_decay": 0.46
+      },
+      "render": {
+        "file": "13-wood-shop.wav",
+        "pattern": [
+          [
+            {
+              "note": 36,
+              "vel": 104
+            },
+            {
+              "note": 48,
+              "vel": 108
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 58
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 68
+            },
+            {
+              "note": 51,
+              "vel": 96
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 60
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 100
+            },
+            {
+              "note": 39,
+              "vel": 118
+            },
+            {
+              "note": 55,
+              "vel": 104
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 56
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 70
+            },
+            {
+              "note": 53,
+              "vel": 92
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 60
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 104
+            },
+            {
+              "note": 48,
+              "vel": 106
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 58
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 68
+            },
+            {
+              "note": 58,
+              "vel": 98
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 62
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 100
+            },
+            {
+              "note": 39,
+              "vel": 118
+            },
+            {
+              "note": 55,
+              "vel": 100
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 56
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 70
+            },
+            {
+              "note": 60,
+              "vel": 94
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 62
+            }
+          ]
+        ],
+        "note_blocks": 40,
+        "gate_blocks": 20,
+        "seconds": 5,
+        "tail_seconds": 2,
+        "velocity": 100
+      }
+    },
+    {
+      "name": "Ghost",
+      "params": {
+        "hat_level": 0.5,
+        "oh_level": 0.34,
+        "ride_level": 0.22,
+        "clap_level": 0.32,
+        "conga_level": 0.42,
+        "wood_level": 0.24,
+        "volume": 0.6,
+        "vel_depth": 0.92,
+        "human": 0.5,
+        "drive": 0.06,
+        "tone": 0.44,
+        "kit_decay": 0.44,
+        "spread": 0.62
+      },
+      "render": {
+        "file": "14-ghost.wav",
+        "pattern": [
+          [
+            {
+              "note": 36,
+              "vel": 110
+            },
+            {
+              "note": 38,
+              "vel": 88
+            }
+          ],
+          [],
+          [
+            {
+              "note": 36,
+              "vel": 64
+            }
+          ],
+          [
+            {
+              "note": 37,
+              "vel": 96
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 100
+            },
+            {
+              "note": 39,
+              "vel": 118
+            }
+          ],
+          [],
+          [
+            {
+              "note": 36,
+              "vel": 68
+            },
+            {
+              "note": 40,
+              "vel": 84
+            }
+          ],
+          [],
+          [
+            {
+              "note": 36,
+              "vel": 106
+            },
+            {
+              "note": 38,
+              "vel": 76
+            }
+          ],
+          [],
+          [
+            {
+              "note": 36,
+              "vel": 64
+            },
+            {
+              "note": 41,
+              "vel": 88
+            }
+          ],
+          [
+            {
+              "note": 37,
+              "vel": 92
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 100
+            },
+            {
+              "note": 39,
+              "vel": 118
+            }
+          ],
+          [],
+          [
+            {
+              "note": 36,
+              "vel": 70
+            },
+            {
+              "note": 40,
+              "vel": 80
+            }
+          ],
+          []
+        ],
+        "note_blocks": 60,
+        "gate_blocks": 20,
+        "seconds": 7,
+        "tail_seconds": 3,
+        "velocity": 100
+      }
+    },
+    {
+      "name": "Ice Pick",
+      "params": {
+        "hat_tune": 96,
+        "hat_decay": 0.2,
+        "hat_mat": 1,
+        "hat_tone": 0.7,
+        "oh_tune": 98,
+        "oh_decay": 0.46,
+        "oh_mat": 1,
+        "oh_tone": 0.68,
+        "ride_tune": 90,
+        "ride_decay": 0.72,
+        "ride_mat": 1,
+        "clap_tune": 80,
+        "wood_tune": 84,
+        "tone": 0.72,
+        "bright": 0.8,
+        "kit_decay": 0.3,
+        "drive": 0.24,
+        "curve": 3
+      },
+      "render": {
+        "file": "15-ice-pick.wav",
+        "pattern": [
+          [
+            {
+              "note": 36,
+              "vel": 110
+            },
+            {
+              "note": 38,
+              "vel": 88
+            }
+          ],
+          [],
+          [
+            {
+              "note": 36,
+              "vel": 64
+            }
+          ],
+          [
+            {
+              "note": 37,
+              "vel": 96
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 100
+            },
+            {
+              "note": 39,
+              "vel": 118
+            }
+          ],
+          [],
+          [
+            {
+              "note": 36,
+              "vel": 68
+            },
+            {
+              "note": 40,
+              "vel": 84
+            }
+          ],
+          [],
+          [
+            {
+              "note": 36,
+              "vel": 106
+            },
+            {
+              "note": 38,
+              "vel": 76
+            }
+          ],
+          [],
+          [
+            {
+              "note": 36,
+              "vel": 64
+            },
+            {
+              "note": 41,
+              "vel": 88
+            }
+          ],
+          [
+            {
+              "note": 37,
+              "vel": 92
+            }
+          ],
+          [
+            {
+              "note": 36,
+              "vel": 100
+            },
+            {
+              "note": 39,
+              "vel": 118
+            }
+          ],
+          [],
+          [
+            {
+              "note": 36,
+              "vel": 70
+            },
+            {
+              "note": 40,
+              "vel": 80
+            }
+          ],
+          []
+        ],
+        "note_blocks": 60,
+        "gate_blocks": 20,
+        "seconds": 7,
+        "tail_seconds": 3,
+        "velocity": 100
+      }
+    }
+  ]
+}

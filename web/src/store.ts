@@ -15,6 +15,7 @@ import {
   type ScaleName,
   type TrackState
 } from "./chain-state";
+import { densePresetValues } from "../../shared/presets.ts";
 import type { Preset } from "./module-metadata";
 import { sendParamUpdate, sendParamUpdates, type HostParamUpdate } from "@/audio";
 import type { ParamDefinition } from "./module-metadata";
@@ -357,16 +358,18 @@ export const useStore = create<Store>()(
 
     applyPreset: (name) => {
       const preset = get().presets.find((p) => p.name === name);
-      if (!preset || !preset.params) return;
+      if (!preset) return;
+      // Every declared param, not just the ones the preset names: a preset may omit
+      // a key to mean "leave it at its default", and on device <id>_apply_preset
+      // writes the whole dense table. Applying only the named keys would leave the
+      // previous preset's values behind and make the browser disagree with hardware.
+      const values = resolvedPresetValues(get().topLevelParams, preset, name);
       set((draft) => {
         draft.selectedPreset = name;
-        for (const [key, value] of Object.entries(preset.params!)) {
-          const param = draft.topLevelParams.find((p) => p.key === key);
-          if (param) param.value = value;
-        }
+        for (const param of draft.topLevelParams) param.value = values[param.key];
       });
       // Push the new values to the audio engine.
-      sendParamUpdates(paramUpdatesForEntries("sound", get().topLevelParams, preset.params));
+      sendParamUpdates(paramUpdatesForEntries("sound", get().topLevelParams, values));
     },
 
     applySlotPreset: (trackIndex, slotIndex, name) => {
@@ -374,18 +377,20 @@ export const useStore = create<Store>()(
       if (!slot) return;
       const meta = get().slotMeta[trackSlotKey(trackIndex, slot.id)];
       const preset = meta?.presets.find((p) => p.name === name);
-      if (!preset || !preset.params) return;
+      if (!meta || !preset) return;
+      // Dense, for the reason given in applyPreset.
+      const values = resolvedPresetValues(meta.params, preset, name);
       set((draft) => {
         draft.slotPreset[trackSlotKey(trackIndex, slot.id)] = name;
         const target = draft.tracks[trackIndex].chain[slotIndex];
         if (target.kind === "sound_generator" || target.kind === "settings") return;
         const params = target.params as Record<string, number>;
-        for (const [key, value] of Object.entries(preset.params!)) {
+        for (const [key, value] of Object.entries(values)) {
           params[key] = value;
         }
       });
       // Push the new values to the audio engine for this slot.
-      sendParamUpdates(paramUpdatesForEntries(slot.id, meta.params, preset.params));
+      sendParamUpdates(paramUpdatesForEntries(slot.id, meta.params, values));
     },
 
     randomizeSelectedSlotParams: () => {
@@ -673,6 +678,8 @@ export function selectSelectedSlot(state: StoreState): ChainSlot {
 }
 
 export type SlotParamRow = {
+  group?: string;
+  groupLabel?: string;
   key: string;
   label: string;
   min: number;
@@ -706,9 +713,57 @@ function syncTrackSequencerToGlobal(state: StoreState): void {
   state.playing = false;
 }
 
+/* The sound module's own note-block root, if it declares a `root` parameter. Used by
+ * the Kit pad layout so the grid lines up with a note-mapped module without the
+ * player having to match Root and Octave to it by hand. */
+export function moduleNoteRoot(state: Pick<StoreState, "topLevelParams">): number | undefined {
+  const root = state.topLevelParams.find((param) => param.key === "root");
+  return root ? Math.round(root.value) : undefined;
+}
+
+/* The module's voice names, in note order from `moduleNoteRoot`.
+ *
+ * A `ui_hierarchy` level is a voice when every parameter it declares is prefixed
+ * with the level's own key — swarf's `hat` level owns hat_tune, hat_decay and so
+ * on. Its `kit` level owns volume, drive and curve, and its `map` level owns
+ * root, chrom and choke, so neither is a voice and neither gets a pad. There is
+ * nothing in module.json that says "this level is a voice" and inventing a field
+ * for it would be a schema change for a label, so this reads the naming that is
+ * already there. A module where that does not hold gets note names, which is the
+ * old behaviour and correct for a melodic one.
+ *
+ * The group order comes from the params themselves, which came from
+ * paramGroups — so this cannot disagree with the order the pads are mapped in. */
+export function moduleVoiceLabels(state: Pick<StoreState, "topLevelParams">): string[] {
+  const byGroup = new Map<string, { label: string; keys: string[] }>();
+  for (const p of state.topLevelParams) {
+    if (!p.group) continue;
+    const entry = byGroup.get(p.group) ?? { label: p.groupLabel ?? p.group, keys: [] };
+    entry.keys.push(p.key);
+    byGroup.set(p.group, entry);
+  }
+  const labels: string[] = [];
+  for (const [group, entry] of byGroup) {
+    if (!entry.keys.every((k) => k.startsWith(`${group}_`))) break;
+    labels.push(entry.label);
+  }
+  return labels;
+}
+
 function soundSlotForTrack(state: Pick<StoreState, "tracks">, trackIndex: number) {
   const slot = state.tracks[trackIndex]?.chain.find((s) => s.kind === "sound_generator");
   return slot?.kind === "sound_generator" ? slot : null;
+}
+
+/* A preset's values for every declared param, with omitted keys at their defaults —
+ * the same resolution the generated C table and the render harness use. */
+function resolvedPresetValues(
+  params: ParamDefinition[],
+  preset: Preset,
+  name: string
+): Record<string, number> {
+  const resolved = densePresetValues(params, preset.params, `preset ${name}`);
+  return Object.fromEntries(resolved.map((entry) => [entry.key, entry.value]));
 }
 
 function paramUpdatesForEntries(

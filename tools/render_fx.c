@@ -21,6 +21,7 @@
 
 #include "host/audio_fx_api_v2.h"
 #include "render_automation.h"
+#include "render_params.h"
 #include "render_timing.h"
 
 extern audio_fx_api_v2_t* move_audio_fx_init_v2(const host_api_v1_t *host);
@@ -153,9 +154,7 @@ int main(int argc, char **argv) {
     const char *signal_kind = "sweep";
     int seconds = 4;
 
-    typedef struct { const char *key; const char *value; } pair_t;
-    pair_t params[32];
-    int param_count = 0;
+    mf_param_list_t params = {0};
     mf_automate_set_t automation = {0};
 
     for (int i = 2; i < argc; i++) {
@@ -167,13 +166,7 @@ int main(int argc, char **argv) {
             if (mf_automate_add(&automation, argv[++i]) != 0) return 2;
             continue;
         }
-        char *eq = strchr(argv[i], '=');
-        if (eq && param_count < 32) {
-            *eq = '\0';
-            params[param_count].key = argv[i];
-            params[param_count].value = eq + 1;
-            param_count++;
-        }
+        if (mf_param_add(&params, argv[i]) != 0) return 2;
     }
 
     int16_t *input = NULL;
@@ -199,8 +192,8 @@ int main(int argc, char **argv) {
     void *inst = api->create_instance(".", NULL);
     if (!inst) { fprintf(stderr, "create_instance failed\n"); free(input); return 1; }
 
-    for (int i = 0; i < param_count; i++) {
-        api->set_param(inst, params[i].key, params[i].value);
+    for (int i = 0; i < params.count; i++) {
+        api->set_param(inst, params.items[i].key, params.items[i].value);
     }
 
     FILE *f = fopen(out_path, "wb");

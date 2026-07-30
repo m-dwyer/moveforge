@@ -4,7 +4,12 @@
 #include "host/midi_fx_api_v1.h"
 
 #define BLOCK_FRAMES 128
-#define MAX_OUT_MSGS 32
+/* The device's figure, not a generous local one. At 32 the browser was more
+ * permissive than the hardware it stands in for, so a module emitting 17-32
+ * messages in one call would audition correctly and be silently truncated on a
+ * Move. The worklet reads mf_out_buf_size() rather than assuming a length, so
+ * this is the only place the number appears. */
+#define MAX_OUT_MSGS MOVE_MIDI_FX_MAX_OUT_MSGS
 
 extern midi_fx_api_v1_t* move_midi_fx_init(const host_api_v1_t *host);
 

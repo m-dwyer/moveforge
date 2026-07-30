@@ -45,6 +45,15 @@ run = "make render"
 description = "Render all preset-suite WAVs"
 run = "make suite"
 
+[tasks.palette]
+# Depends on `render` for the same reason `dev` depends on `wasm`: without it the
+# report is generated from whatever binary happened to be lying in build/, so a
+# DSP change reads as "did nothing" rather than as a stale build. That is exactly
+# the failure this tool exists to catch, and it caught it on itself first.
+description = "Audition a module: per-voice, per-knob and per-preset sonic report (HTML + Markdown)"
+depends = ["render"]
+run = "node scripts/palette.ts"
+
 [tasks.plot]
 description = "Render the suite and generate waveform/spectrum PNGs"
 run = "make plot"
@@ -108,7 +117,13 @@ depends = ["wasm"]
 run = "pnpm run serve"
 
 [tasks.dev]
-description = "Build browser TypeScript and WASM, serve the browser UI, and rebuild when source files change"
+# Vite watches the TypeScript tree and nothing else, so a DSP change reaches the
+# browser only through `wasm`. Without the dependency this task served a stale
+# .wasm indefinitely while claiming in its own description to have rebuilt it —
+# which reads as "the DSP change did nothing" rather than as a build problem.
+# Editing C during a session still needs `mise run wasm` and a page reload.
+description = "Build WASM, then serve the browser UI with TypeScript rebuilt on change"
+depends = ["wasm"]
 run = "pnpm run dev"
 
 [tasks.deploy]
@@ -138,6 +153,12 @@ run = "make move-screen"
 [tasks.check]
 description = "Run the main non-device checks"
 run = "make check"
+
+[tasks.check-gcc]
+# Apple clang does not implement -Wformat-truncation, so a whole class of -Werror
+# failure is invisible locally: `check` passes and CI fails on the same source.
+description = "Compile every C test with a real GCC (Docker), under both flag sets CI uses"
+run = "./scripts/check-gcc.sh"
 
 [tasks.check-all]
 description = "Run non-device checks for all included modules"

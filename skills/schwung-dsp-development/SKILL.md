@@ -90,10 +90,22 @@ inspect the template pack and rendered file list without writing files.
 Both paths share this loop:
 
 1. Edit `src/modules/<id>/module.json` — add/modify entries in `capabilities.ui_hierarchy.levels.root.params`. Each entry needs `key`, `name`, `type`, `min`, `max`, `default`, `step`.
+
+   `root` is not a special name — the chain host parses the `params` of **every**
+   level, in the order they appear in the file (`chain_params.c:439`), and every
+   generator here reads them through the one walk in `shared/ui-hierarchy.ts`. So a
+   module with many parameters can group them into several named levels and get a
+   legible module.json plus one encoder bank per level; a single `root` is just the
+   simplest case. Two constraints if you do: `shared_params` comes first because
+   the host parses it first, and **level keys must not be integer-like** (`"1"`,
+   `"2"`) — JavaScript enumerates those ahead of every string key, so the walk
+   would disagree with the host about parameter order. Put the number in the
+   level's `name`, which is what a bank label reads. The walk throws rather than
+   let that through.
 2. **Plain C only**: add a matching `float <key>;` field to the state struct in `<id>_core.h`. The generated `set_param`/`get_param` will write/read it directly.
 3. **Faust only**: add a matching `hslider("<key>", default, min, max, step)` declaration to `<id>.dsp`. The adapter captures it by label via `buildUserInterface`.
 4. Run `mise run gen-params`.
-5. Add the key to every preset in `<id>/presets.json` with a value inside `[min, max]`, then run `mise run gen-presets`.
+5. Set the key in `<id>/presets.json`, with a value inside `[min, max]`, for the presets that want something other than the default — then run `mise run gen-presets`. A preset names only what it changes and inherits the declared default for everything else, so adding a parameter does not mean editing every preset. `validate` warns when a preset drops a key the previous one set, which is what a forgotten block looks like.
 6. **Faust only**: run `mise run gen-faust`.
 7. Use the new param in the DSP.
 8. If the parameter surface changed, run `mise run gen-ui-chain`. Generated chain UIs expose a preset browser first, then a scrollable param editor where the jog wheel selects/edits the focused parameter and Move encoders 1-8 control the page containing that selected param.
@@ -138,6 +150,26 @@ mise run dev
 ```
 
 For AI-assisted iteration: ask for small, contained changes (one filter, one envelope). **Always render and check the plots before judging the sound** — audio bugs are much easier to catch from a deterministic WAV fixture than from code review alone.
+
+**A sound-generator preset's render can be polyphonic.** `"notes": [36, 43]` fires one
+note per step at the render's scalar `velocity`; `"pattern"` fires a chord per step,
+each note with its own velocity, and `[]` is a rest:
+
+```json
+"render": {
+  "file": "00-init.wav", "seconds": 4, "note_blocks": 39, "gate_blocks": 20,
+  "velocity": 100,
+  "pattern": [[{ "note": 36, "vel": 110 }, { "note": 42, "vel": 96 }], [42], [], [42]]
+}
+```
+
+Give one or the other, never both. A bare number in a step means that note at
+`velocity`, which is only needed as a fallback — omit `velocity` entirely if every
+note carries its own `vel`. Use `pattern` for anything note-mapped: with one note per
+step, no golden can exercise voice summing, gain staging under simultaneity, choke
+groups, or per-voice velocity, so the harness reports success while measuring
+something narrower than the module. The grammar the harness actually consumes is in
+`tools/render_pattern.h`.
 
 Stress renders are generated from `module.json` and cover default, each exposed param at min/max, all-max, and hot/fast cases. Browser audition randomize is intentionally different: it uses local `metadata.json` randomize hints and a Subtle/Medium/Wild amount to explore musical ranges quickly. Stress still exercises the full legal range. They cover sound generators and audio FX; MIDI FX are skipped because they render traces, not WAVs. Stress checks are safety gates, not golden comparisons: clipped samples, excessive DC, unexpected silence, too-hot peaks, and stereo imbalance fail. Use `mise run stress-all` or `mise run plot-stress-all` when auditing the whole audio-module set; expect these commands to expose older modules that need headroom/DC fixes.
 
@@ -205,9 +237,17 @@ that pin is bumped**. Three of its limits shape what you can author:
   `synth:voice0_decay` — correct-looking in the emulator, broken on device. It *does*
   flatten explicitly *named* levels correctly, so a multi-voice engine should use
   `levels: {root, hat, conga, …}` with unique prefixed keys.
-- **`presets.json` does not reach the device.** Overture never reads it or Schwung's
-  `preset`/`preset_count`/`preset_name` protocol, so factory presets are emulator-only
-  for now. Don't assume a preset browser exists on hardware.
+- **`presets.json` has no path to the device** — but not because Overture lacks one.
+  Overture sources factory presets from `raw.factoryPresets` on the response to
+  `host_get_module_metadata` (`overture-next/src/host/schwung-chain-reader.ts:40-49`,
+  and that is the only source in the codebase). Schwung's implementation of that call
+  opens `<base>/<id>/module.json` and nothing else (`shadow_ui.c:2118-2130`), so the
+  field is never populated on hardware. Overture's emulator synthesises it from the
+  module's `presets.json` and says so in a comment
+  (`overture/web/src/schwung/browser-chain.ts:157-178`), which is why factory presets
+  appear there and not on a Move. Don't assume a preset browser exists on device.
+  Overture's *user* presets are a separate path and do work — `FileSoundPresetRepository`
+  persists them under `<OVERTURE_HOME>/sound_presets`.
 
 Overture persists its own flat parameter map, so the Schwung `get_param("state")`
 round-trip only matters for raw Schwung chains used outside Overture.

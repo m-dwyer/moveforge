@@ -1,4 +1,12 @@
 import { readFile, stat } from "node:fs/promises";
+import { keysDroppedFromPreviousPreset, presetValue } from "../shared/presets.ts";
+import {
+  flattenKnobs,
+  flattenParams,
+  paramGroups,
+  SHARED_PARAMS_GROUP,
+  type UiHierarchy
+} from "../shared/ui-hierarchy.ts";
 import { modulePaths, selectedModuleIds } from "./lib/modules.ts";
 import { generate as genParams } from "./gen-params.ts";
 
@@ -19,21 +27,7 @@ type Capabilities = {
   component_type?: string;
   midi_in?: boolean;
   midi_out?: boolean;
-  ui_hierarchy?: {
-    levels?: {
-      [level: string]: {
-        knobs?: string[];
-        name?: string;
-        params?: Param[];
-      } | undefined;
-      root?: {
-        knobs?: string[];
-        name?: string;
-        params?: Param[];
-      };
-    };
-    shared_params?: Param[];
-  };
+  ui_hierarchy?: UiHierarchy<Param>;
 };
 
 type ModuleJson = {
@@ -49,7 +43,7 @@ type ModuleJson = {
 type PresetsJson = {
   presets?: Array<{
     name: string;
-    params?: Record<string, number>;
+    params?: Record<string, unknown>;
   }>;
 };
 
@@ -194,11 +188,11 @@ async function validateModule(moduleId: string, errors: string[]): Promise<void>
     }
   }
 
-  const params = caps.ui_hierarchy?.levels?.root?.params;
-  if (params) {
+  const params = flattenParams(caps.ui_hierarchy);
+  if (params.length > 0) {
     validateParams(moduleId, params, errors);
     validateSoundGeneratorLevelParams(caps.component_type, params, errors);
-    validatePresets(presetsJson, params, errors);
+    validatePresets(moduleId, presetsJson, params, errors);
     await validatePresetsAreExposed(moduleId, presetsJson, errors);
     validateMetadata(moduleId, metadataJson, params, errors);
     const coreHeader = await readFile(paths.coreHeader, "utf8");
@@ -212,19 +206,27 @@ async function validateModule(moduleId: string, errors: string[]): Promise<void>
         errors
       );
     }
-    const knobs = caps.ui_hierarchy?.levels?.root?.knobs || [];
     const paramKeys = new Set(params.map((p) => p.key));
-    for (const key of knobs) {
+    for (const key of flattenKnobs(caps.ui_hierarchy)) {
       if (!paramKeys.has(key)) errors.push(`knob ${key} is not a declared param`);
     }
   } else if (caps.component_type === "sound_generator" || caps.component_type === "audio_fx") {
-    errors.push(`module.json is missing capabilities.ui_hierarchy.levels.root.params`);
+    errors.push(
+      `module.json declares no params in any capabilities.ui_hierarchy level ` +
+        `(a single level named "root" is the usual shape)`
+    );
   }
 }
 
 /* Hard limits enforced by the Schwung chain host when it parses module.json.
- * Every one of these fails at *load* time on the device with no local symptom:
- * the module installs, verifies clean, and then simply does not appear.
+ * Every one of these fails at *load* time on the device with no local symptom —
+ * the module installs and verifies clean — but in two different ways, and the
+ * difference is most of the debugging:
+ *
+ *   an oversized or unreadable module.json aborts the load, and the module
+ *   simply does not appear;
+ *   a duplicate key lets the module load normally with no parameters at all,
+ *   so it appears and every knob is dead.
  *
  * Verified against schwung 0.11.4, src/modules/chain/dsp/:
  *   chain_internal.h:101  MAX_CHAIN_PARAMS 256
@@ -240,7 +242,12 @@ async function validateModule(moduleId: string, errors: string[]): Promise<void>
  *   chain_params.c:446-491  shared_params objects are parsed into the SAME
  *     array as the levels, sharing the duplicate check and the 256 cap
  *   chain_params.c:531-541  a duplicate key across ANY two levels makes
- *     parse_chain_params return -1, which rejects the whole module
+ *     parse_hierarchy_params return -1. That does NOT reject the module:
+ *     parse_chain_params passes the -1 out at :578, the `*count > 0` guard at
+ *     :587 fails, it falls through to the legacy path, sets *count = 0 and
+ *     returns success at :603 — and chain_host.c:490 only fails on < 0. So the
+ *     module loads with zero parameter metadata and every knob is dead. The
+ *     only trace is a chain_log line at :536-537.
  * Truncation is silent, so an over-long key becomes a key the module itself
  * does not answer to — a dead knob rather than an error. */
 function validateHostLimits(moduleJson: ModuleJson, jsonBytes: number, errors: string[]): void {
@@ -251,21 +258,16 @@ function validateHostLimits(moduleJson: ModuleJson, jsonBytes: number, errors: s
     );
   }
 
-  const hierarchy = moduleJson.capabilities?.ui_hierarchy;
   const seen = new Map<string, string>();
   let total = 0;
 
-  /* shared_params lands in the same array as the levels, so it counts toward
-   * the cap and collides with level keys. Walking only `levels` left a
-   * duplicate there passing validation and rejecting the module on device. */
-  const groups: Array<[string, Param[]]> = [
-    ...Object.entries(hierarchy?.levels ?? {}).map(
-      ([name, level]) => [`levels.${name}`, level?.params ?? []] as [string, Param[]]
-    ),
-    ["shared_params", hierarchy?.shared_params ?? []]
-  ];
-
-  for (const [groupName, groupParams] of groups) {
+  /* The same walk the generators use, so the count checked here and the count
+   * emitted into the C cannot disagree. shared_params lands in the host's single
+   * param array alongside the levels, so it counts toward the cap and collides
+   * with level keys — walking only `levels` left a duplicate there passing
+   * validation and killing the module's parameters on device. */
+  for (const { group, params: groupParams } of paramGroups(moduleJson.capabilities?.ui_hierarchy)) {
+    const groupName = group === SHARED_PARAMS_GROUP ? group : `levels.${group}`;
     for (const param of groupParams) {
       total++;
       if (typeof param.key === "string") {
@@ -409,26 +411,44 @@ function validateParams(moduleId: string, params: Param[], errors: string[]): vo
   }
 }
 
-function validatePresets(presetsJson: PresetsJson, params: Param[], errors: string[]): void {
+/* A preset names only what it changes; anything it omits inherits the parameter's
+ * declared default (shared/presets.ts). So a missing key is not an error here — but
+ * a key that is *present* and not a number still is, and so is one that names no
+ * parameter at all. */
+function validatePresets(
+  moduleId: string,
+  presetsJson: PresetsJson,
+  params: Param[],
+  errors: string[]
+): void {
   const paramKeys = new Set(params.map((p) => p.key));
-  const paramByKey = new Map(params.map((p) => [p.key, p]));
   for (const preset of presetsJson.presets || []) {
-    const presetKeys = Object.keys(preset.params || {});
-    for (const key of presetKeys) {
+    for (const key of Object.keys(preset.params || {})) {
       if (!paramKeys.has(key)) errors.push(`preset ${preset.name} uses unknown param ${key}`);
     }
     for (const param of params) {
-      if (!(param.key in (preset.params || {}))) {
-        errors.push(`preset ${preset.name} is missing param ${param.key}`);
+      if (!(param.key in (preset.params || {}))) continue;
+      let value: number;
+      try {
+        value = presetValue(param, preset.params, `preset ${preset.name}`);
+      } catch (err) {
+        errors.push((err as Error).message);
+        continue;
       }
-      const value = preset.params?.[param.key];
-      if (typeof value === "number") {
-        const p = paramByKey.get(param.key)!;
-        if (value < p.min || value > p.max) {
-          errors.push(`preset ${preset.name} param ${param.key}=${value} outside [${p.min}, ${p.max}]`);
-        }
+      if (value < param.min || value > param.max) {
+        errors.push(`preset ${preset.name} param ${param.key}=${value} outside [${param.min}, ${param.max}]`);
       }
     }
+  }
+
+  /* Not an error: sitting at the defaults is a legitimate thing for a preset to
+   * want. But dropping a key its predecessor set is what a forgotten voice looks
+   * like, and sparse presets are exactly what makes that invisible otherwise. */
+  for (const dropped of keysDroppedFromPreviousPreset(presetsJson.presets || [], params)) {
+    console.warn(
+      `[${moduleId}] preset ${dropped.name} omits ${dropped.keys.length} param(s) the ` +
+        `previous preset set, so they inherit their defaults: ${dropped.keys.join(", ")}`
+    );
   }
 }
 

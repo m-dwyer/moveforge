@@ -15,6 +15,7 @@ src/modules/<id>/       one self-contained module (see below)
 src/modules/_shared/    shared C helpers — mf_dsp.h, dsp_runtime.h, scope.h
 src/host/               local copies of the Schwung ABIs (drifted; see below)
 web/                    browser UI: React + Vite + Tailwind + shadcn
+shared/                 TypeScript the generators and the browser both need
 tools/                  offline harnesses — render_wav.c, render_fx.c, trace_midi_fx.c
 tests/                  C tests: test_<id>_core.c, test_<id>_plugin.c, test_mf_dsp.c
 scripts/                build, codegen and validation (TypeScript + shell)
@@ -50,6 +51,10 @@ always plain C.
 1. **`module.json` is the single source of truth** for metadata and the
    parameter schema. Params, their ranges and defaults are declared there and
    nowhere else — the C, the on-device UI and the browser all derive from it.
+   They derive through `shared/ui-hierarchy.ts`, which is the **only** place that
+   walks `ui_hierarchy` — parameter *order* is an ABI between the generated enum,
+   the device's knob list and the browser's parameter ids, so a second walk that
+   disagrees is a module addressing the wrong parameters with nothing failing.
 2. **Never hand-edit a generated file.** Anything named `*.gen.*`, plus
    `ui_chain.js` and `<id>_faust.c`. Edit the source and re-run the generator;
    `mise run validate` fails on drift.
@@ -82,6 +87,7 @@ four for drift.
 | for | read |
 |---|---|
 | module authoring, the dev loop, the Faust vs plain-C decision | `skills/schwung-dsp-development/SKILL.md` |
+| what a module actually *sounds* like, and whether its knobs do anything | `mise run palette` |
 | what each module is and does | `MODULES.md` |
 | how the pieces fit together, and why | `docs/architecture.md` |
 | commands, the web UI, device deploy | `README.md` |
@@ -91,8 +97,14 @@ four for drift.
 `src/host/*.h` are local copies of the Schwung ABIs. Checked against upstream
 `a20cacd1` / v0.11.4 they are **not** currently drifted — `plugin_api_v1.h` is
 byte-identical, `audio_fx_api_v2.h` differs only in comments, and
-`midi_fx_api_v1.h` matches in layout while omitting `MIDI_FX_MAX_OUT_MSGS 16`.
-Re-check after any upstream bump.
+`midi_fx_api_v1.h` matches in layout, differing in include-guard and macro names
+(`MOVE_`-prefixed here). Re-check after any upstream bump.
+
+Upstream's `MIDI_FX_MAX_OUT_MSGS 16` used to be missing from that copy, so both
+harnesses invented their own MIDI FX output budget and neither matched the device
+— the offline trace passed 8 and the browser passed 32. It is now
+`MOVE_MIDI_FX_MAX_OUT_MSGS`, and nothing calling `process_midi` or `tick` should
+define its own.
 
 For any question about actual host behaviour — parameter limits, when `set_param`
 is called, how presets and chain UIs are loaded — read the upstream source rather

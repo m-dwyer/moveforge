@@ -5,6 +5,8 @@
 
 #include "host/plugin_api_v1.h"
 #include "render_automation.h"
+#include "render_params.h"
+#include "render_pattern.h"
 #include "render_timing.h"
 
 extern plugin_api_v2_t* move_plugin_init_v2(const host_api_v1_t *host);
@@ -17,21 +19,14 @@ unsigned long moveforge_nonfinite_count = 0;
 #endif
 
 typedef struct {
-    const char *key;
-    const char *value;
-} param_t;
-
-typedef struct {
     const char *name;
-    const param_t *params;
+    const mf_param_t *params;
     int param_count;
-    const int *notes;
-    int note_count;
+    const mf_pattern_t *pattern;
     int note_blocks;
     int gate_blocks;
     int seconds;
     int tail_seconds;
-    int velocity;
     const mf_automate_set_t *automation;
 } render_case_t;
 
@@ -70,17 +65,6 @@ static void log_msg(const char *msg) {
 static void send_midi(plugin_api_v2_t *api, void *inst, uint8_t st, uint8_t d1, uint8_t d2) {
     uint8_t msg[3] = { st, d1, d2 };
     api->on_midi(inst, msg, 3, MOVE_MIDI_SOURCE_HOST);
-}
-
-static int parse_notes(const char *csv, int *notes, int max_notes) {
-    int count = 0;
-    const char *p = csv;
-    while (p && *p && count < max_notes) {
-        notes[count++] = atoi(p);
-        p = strchr(p, ',');
-        if (p) p++;
-    }
-    return count;
 }
 
 static plugin_api_v2_t *create_api(host_api_v1_t *host) {
@@ -123,17 +107,36 @@ static int render_case(plugin_api_v2_t *api, const render_case_t *rc, const char
     uint32_t last_trigger_block = (tail_blocks < total_blocks)
                                 ? total_blocks - tail_blocks : total_blocks;
 
+    const mf_pattern_t *pattern = rc->pattern;
+
     for (uint32_t frame = 0; frame < total_frames; frame += 128) {
         uint32_t block_index = frame / 128;
         if (block_index < last_trigger_block
             && block_index % (uint32_t)rc->note_blocks == 0) {
-            int step = (block_index / (uint32_t)rc->note_blocks) % rc->note_count;
-            if (step > 0) send_midi(api, inst, 0x80, (uint8_t)rc->notes[step - 1], 0);
-            send_midi(api, inst, 0x90, (uint8_t)rc->notes[step], (uint8_t)rc->velocity);
+            int step = (int)((block_index / (uint32_t)rc->note_blocks)
+                             % (uint32_t)pattern->count);
+            /* Release the previous step before firing this one — and, as the
+             * monophonic version did, leave step 0's wrap-around predecessor
+             * held so it decays into the loop point rather than being cut. */
+            if (step > 0) {
+                const mf_pattern_step_t *prev = &pattern->steps[step - 1];
+                for (int n = 0; n < prev->count; n++) {
+                    send_midi(api, inst, 0x80, (uint8_t)prev->notes[n].note, 0);
+                }
+            }
+            const mf_pattern_step_t *cur = &pattern->steps[step];
+            for (int n = 0; n < cur->count; n++) {
+                send_midi(api, inst, 0x90, (uint8_t)cur->notes[n].note,
+                          (uint8_t)cur->notes[n].velocity);
+            }
         }
         if (block_index % (uint32_t)rc->note_blocks == (uint32_t)rc->gate_blocks) {
-            int step = (block_index / (uint32_t)rc->note_blocks) % rc->note_count;
-            send_midi(api, inst, 0x80, (uint8_t)rc->notes[step], 0);
+            int step = (int)((block_index / (uint32_t)rc->note_blocks)
+                             % (uint32_t)pattern->count);
+            const mf_pattern_step_t *cur = &pattern->steps[step];
+            for (int n = 0; n < cur->count; n++) {
+                send_midi(api, inst, 0x80, (uint8_t)cur->notes[n].note, 0);
+            }
         }
         /* Block-rate automation, matching how the host delivers parameters. */
         if (rc->automation && rc->automation->count > 0) {
@@ -167,8 +170,8 @@ static int render_case(plugin_api_v2_t *api, const render_case_t *rc, const char
     return 0;
 }
 
-static const int seq_demo[] = { 48, 55, 60, 62, 67, 72, 67, 62 };
-static const param_t p_demo[] = {
+static const char seq_demo[] = "48,55,60,62,67,72,67,62";
+static const mf_param_t p_demo[] = {
     {"volume", "0.82"}, {"ratio", "1.997"}, {"fm", "0.23"}, {"fold", "0.52"},
     {"lpg", "0.68"}, {"decay", "0.38"}, {"release", "1.2"}
 };
@@ -179,14 +182,31 @@ int main(int argc, char **argv) {
     host_api_v1_t host;
     plugin_api_v2_t *api = create_api(&host);
 
-    if (argc > 8 && strcmp(argv[1], "--render") == 0) {
-        int notes[64];
-        param_t params[32];
-        int param_count = 0;
+    /* --render <out.wav> <seconds> <note_blocks> <gate_blocks> <velocity> <pattern>
+     *          [key=value ...] [--automate <spec>] [--tail-seconds N]
+     *
+     * <velocity> is the default for pattern notes that do not carry their own;
+     * see render_pattern.h for the pattern grammar. Guarded at `argc > 7`, not
+     * `> 8`: requiring a trailing token meant a paramless --render fell through
+     * to the demo path and wrote a file called "--render". */
+    if (argc > 7 && strcmp(argv[1], "--render") == 0) {
+        mf_pattern_t pattern;
+        mf_param_list_t params = {0};
         mf_automate_set_t automation = {0};
         int tail_seconds = 0;
-        int note_count = parse_notes(argv[7], notes, 64);
-        for (int i = 8; i < argc && param_count < 32; i++) {
+        int seconds = atoi(argv[3]);
+        int note_blocks = atoi(argv[4]);
+
+        if (mf_pattern_parse(&pattern, argv[7], atoi(argv[6])) != 0) return 2;
+        /* note_blocks is a modulus in the render loop, so zero is a crash rather
+         * than a degenerate render. */
+        if (seconds < 1 || note_blocks < 1) {
+            fprintf(stderr, "render: seconds (%d) and note_blocks (%d) must both be >= 1\n",
+                    seconds, note_blocks);
+            return 2;
+        }
+
+        for (int i = 8; i < argc; i++) {
             if (strcmp(argv[i], "--automate") == 0 && i + 1 < argc) {
                 if (mf_automate_add(&automation, argv[++i]) != 0) return 2;
                 continue;
@@ -195,32 +215,43 @@ int main(int argc, char **argv) {
                 tail_seconds = atoi(argv[++i]);
                 continue;
             }
-            char *eq = strchr(argv[i], '=');
-            if (!eq) continue;
-            *eq = '\0';
-            params[param_count].key = argv[i];
-            params[param_count].value = eq + 1;
-            param_count++;
+            if (mf_param_add(&params, argv[i]) != 0) return 2;
         }
+
         const render_case_t rc = {
-            "custom",
-            params,
-            param_count,
-            notes,
-            note_count,
-            atoi(argv[4]),
-            atoi(argv[5]),
-            atoi(argv[3]),
-            tail_seconds,
-            atoi(argv[6]),
-            &automation
+            .name = "custom",
+            .params = params.items,
+            .param_count = params.count,
+            .pattern = &pattern,
+            .note_blocks = note_blocks,
+            .gate_blocks = atoi(argv[5]),
+            .seconds = seconds,
+            .tail_seconds = tail_seconds,
+            .automation = &automation
         };
         return render_case(api, &rc, argv[2]);
     }
 
+    if (argc > 1 && strcmp(argv[1], "--render") == 0) {
+        fprintf(stderr, "usage: %s --render <out.wav> <seconds> <note_blocks> <gate_blocks> "
+                        "<velocity> <pattern> [key=value ...] [--automate <spec>] "
+                        "[--tail-seconds N]\n", argv[0]);
+        return 2;
+    }
+
     const char *out_path = argc > 1 ? argv[1] : "westfold-demo.wav";
+    mf_pattern_t demo_pattern;
+    if (mf_pattern_parse(&demo_pattern, seq_demo, 102) != 0) return 2;
     const render_case_t demo = {
-        "demo", p_demo, ARRAY_LEN(p_demo), seq_demo, ARRAY_LEN(seq_demo), 86, 64, 8, 0, 102, NULL
+        .name = "demo",
+        .params = p_demo,
+        .param_count = ARRAY_LEN(p_demo),
+        .pattern = &demo_pattern,
+        .note_blocks = 86,
+        .gate_blocks = 64,
+        .seconds = 8,
+        .tail_seconds = 0,
+        .automation = NULL
     };
     return render_case(api, &demo, out_path);
 }
