@@ -124,9 +124,10 @@ Both paths share this loop:
 MODULE_ID=<id> mise run gen-faust
 
 # 3. Smoke test
-mise run test                           # all modules
+mise run test-c                         # all modules
 # or:
-MODULE_ID=<id> ./scripts/test.sh        # just this one
+MODULE_ID=<id> mise run test-c          # just this one
+# mise run test-c-san re-runs the same tests under ASan + UBSan
 
 # 4. Render the preset suite
 MODULE_ID=<id> mise run suite
@@ -177,19 +178,23 @@ Stress renders are generated from `module.json` and cover default, each exposed 
 
 ```bash
 # Browser WASM (Emscripten via Docker — automatic)
-MODULE_ID=<id> mise run wasm
+MODULE_ID=<id> mise run wasm-build
 
 # aarch64 Move package (Docker cross-compile)
-MODULE_ID=<id> mise run move
+MODULE_ID=<id> mise run move-build
 # → dist/<id>/ and dist/<id>-module.tar.gz
 # The tarball includes module.json, ui.js, ui_chain.js, presets.json, dsp.so
 
 # Deploy to a real device (only when the user has hardware and asks)
-MODULE_ID=<id> mise run install
+MODULE_ID=<id> mise run move-install     # builds, then copies — no test gate
+MODULE_ID=<id> mise run move-deploy      # the full `check` gate first, then build + copy
 # COMPONENT_TYPE is inferred from module.json. Override with COMPONENT_TYPE=...
+# install-to-move.sh itself never builds; it fails if dist/<id>/dsp.so is absent.
 ```
 
-Run `mise run check` (or `mise run check-all` for every module) before suggesting a commit. It's the canonical gate: typecheck + validate + test + suite + check-renders + plot + host build. Also run `MODULE_ID=<id> mise run stress` for changed audio modules; run `mise run stress-all` before promoting stress checks into a broad cleanup because it intentionally fails on existing unsafe extremes.
+Each build task regenerates `build/{host,move,wasm}.ninja` from the module graph first, so a new module or parameter never needs a separate `mise run gen-ninja`.
+
+Run `mise run check` (or `mise run check-all` for every module) before suggesting a commit. It's the canonical gate: typecheck + validate + test-ui-chain + test-c + test-c-san + suite + check-renders + stress + plot + host-build. It leaves out `test-web` (Playwright browsers, not gated in CI) — `mise run test` is the umbrella that adds it. While iterating on one module, `MODULE_ID=<id> mise run stress` is the fast subset of the gate's stress step; run it unscoped before promoting stress checks into a broad cleanup, because it intentionally fails on existing unsafe extremes.
 
 ## Rules
 
@@ -290,8 +295,9 @@ parameter a literal no-op — `Vel Depth Min` and `Vel Depth Max` came out
 byte-identical to `Default`. `render-stress.ts` now adds soft-hit cases; if you add
 a velocity-shaped parameter, check it is actually exercised.
 
-**`pnpm` is not on `PATH` outside mise.** `mise run bless-renders`, not `pnpm run
-bless-renders`. This is rule 3, and it still catches people.
+**`pnpm` and `ninja` are not on `PATH` outside mise.** `mise run bless-renders`, not
+`pnpm run bless-renders`; `mise run test-c`, not a bare `ninja -f build/host.ninja`.
+This is rule 3, and it still catches people.
 
 **`bless-renders` refuses large changes without `--force`.** That guardrail is doing
 its job — read the diff it prints before overriding it.
@@ -337,7 +343,7 @@ When you need a concrete pattern to copy:
 When a module misbehaves:
 
 1. **`mise run validate` fails?** Run the named gen script. Usually `gen-params`/`gen-ui-chain` (after editing `module.json`), `gen-presets` (after editing `presets.json`), or `gen-faust` (after editing `.dsp`).
-2. **`mise run test` fails?** The core smoke test exercises init, param clamping, processing finite/bounded output. Read the assertion that failed first, not the whole test.
+2. **`mise run test-c` fails?** The core smoke test exercises init, param clamping, processing finite/bounded output. Read the assertion that failed first, not the whole test. If `test-c` passes but `test-c-san` fails, it is a memory or UB bug — read the sanitizer's first report, not the last.
 3. **Renders sound wrong?** `mise run plot` → look at `renders/plots/<id>/`. Spectrum tells you cutoff frequency, harmonic content, and noise floor at a glance. Waveform tells you envelope shape, clipping, and DC offset.
 4. **A parameter extreme misbehaves?** `MODULE_ID=<id> mise run plot-stress` → inspect `renders/plots/<id>-stress/`. The generated stress cases come from `module.json`, so if a new param has unsafe min/max behavior this is where it should show up.
 5. **WASM builds but no sound in browser?** Check that the module is registered in `src/modules/index.json` and the WASM file exists at `web/wasm/<id>.wasm`.

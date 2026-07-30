@@ -35,7 +35,8 @@ metadata.
 ## Debug Loop
 
 1. Run the module locally in the browser emulator.
-2. Deploy with `mise run deploy`.
+2. Deploy with `mise run move-deploy` (or `mise run move-install` to skip the
+   check gate while iterating).
 3. Enable and tail logs with `./scripts/tail-move-log.sh --enable`.
 4. Capture the device screen with `mise run move-screen`.
 5. If UI state looks stale, run `./scripts/clear-move-cache.sh --apply` and `mise run move-restart`.

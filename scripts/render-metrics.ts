@@ -10,7 +10,7 @@ for (const target of await selectedModuleTargets()) {
   const entries = await readdir(suiteDir, { withFileTypes: true }).catch(() => []);
   const wavs = entries.filter((entry) => entry.isFile() && entry.name.endsWith(".wav")).map((entry) => entry.name);
   if (wavs.length === 0) {
-    console.error(`[${moduleId}] no WAV files in ${suiteDir} — run scripts/render-demo.sh --suite first`);
+    console.error(`[${moduleId}] no WAV files in ${suiteDir} — run 'mise run suite' first`);
     process.exit(1);
   }
 

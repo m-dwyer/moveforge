@@ -72,17 +72,17 @@ same wrapper pipeline already used by C modules.
 A Faust-backed module must support:
 
 ```bash
-pnpm run validate
-./scripts/test.sh
-MODULE_ID=<id> ./scripts/render-demo.sh --suite
-MODULE_ID=<id> ./scripts/build-wasm.sh
-MODULE_ID=<id> ./scripts/build.sh
+mise run validate
+mise run test-c
+MODULE_ID=<id> mise run suite
+MODULE_ID=<id> mise run wasm-build
+MODULE_ID=<id> mise run move-build
 ```
 
 And eventually:
 
 ```bash
-MODULE_ID=<id> mise run install
+MODULE_ID=<id> mise run move-install
 ```
 
 ## Scaffolding
@@ -129,7 +129,7 @@ Before or alongside Faust support:
      - `midi_fx -> midi_fx`
 
 2. Fix package completeness.
-   - `scripts/build.sh` should include:
+   - The `move-build` package should include:
      - `module.json`
      - `ui.js`
      - `ui_chain.js`
@@ -157,7 +157,7 @@ Suggested behavior:
 5. Keep Move deploy explicit.
 
 ```bash
-mise run deploy
+mise run move-deploy
 ```
 
 ## Bake-Off

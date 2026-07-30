@@ -29,4 +29,4 @@ This index lists the checked-in Schwung modules by component type. Each module i
 
 - Sound generators and audio FX support offline WAV rendering, preset plots, and metadata-generated stress tests.
 - MIDI FX modules render deterministic trace files rather than WAV audio, so audio stress plots do not apply to them yet.
-- `mise run stress-all` currently exercises every sound generator and audio FX listed in `src/modules/index.json`.
+- `mise run stress` currently exercises every sound generator and audio FX listed in `src/modules/index.json` (`mise run stress-all` is an alias for it, kept for habit).

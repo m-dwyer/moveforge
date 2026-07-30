@@ -3,8 +3,9 @@ import type { Plugin, ViteDevServer } from "vite";
 import react from "@vitejs/plugin-react";
 import { playwright } from "@vitest/browser-playwright";
 import { join, resolve, sep } from "node:path";
-import { spawn } from "node:child_process";
 import { copyFile, mkdir, readdir, readFile } from "node:fs/promises";
+
+import { buildWasm } from "./scripts/build-wasm.ts";
 
 const REPO_ROOT = import.meta.dirname;
 
@@ -116,7 +117,7 @@ function copyStaticAssets(): Plugin {
       // AudioWorklet processor (loaded via audioWorklet.addModule).
       await copyFile(resolve(REPO_ROOT, "web/module-worklet.js"), join(outDir, "module-worklet.js"));
 
-      // Compiled WASM modules. Built by scripts/build-wasm.sh before `vite build`.
+      // Compiled WASM modules. Built by `mise run wasm-build` before `vite build`.
       const wasmSrc = resolve(REPO_ROOT, "web/wasm");
       const wasmOut = join(outDir, "wasm");
       await mkdir(wasmOut, { recursive: true });
@@ -128,7 +129,7 @@ function copyStaticAssets(): Plugin {
           wasmCount += 1;
         }
       } catch (err) {
-        this.warn(`no WASM found under web/wasm (${(err as Error).message}); run build-wasm.sh first`);
+        this.warn(`no WASM found under web/wasm (${(err as Error).message}); run `mise run wasm-build` first`);
       }
       if (wasmCount === 0) this.warn("copied 0 .wasm files — the deployed app will show no modules");
 
@@ -211,13 +212,13 @@ function wasmRebuilder(): Plugin {
   async function rebuild(moduleId: string | null): Promise<void> {
     const label = moduleId ?? "all modules";
     server.config.logger.info(`[wasm] rebuilding ${label}...`);
-    const env = { ...process.env, ...(moduleId ? { MODULE_ID: moduleId } : {}) };
     try {
-      await new Promise<void>((res, rej) => {
-        const child = spawn("./scripts/build-wasm.sh", [], { env, stdio: "inherit", cwd: REPO_ROOT });
-        child.on("exit", (code) => (code === 0 ? res() : rej(new Error(`exit ${code}`))));
-        child.on("error", rej);
-      });
+      // Called in-process: this is already a Node/TypeScript context, so
+      // spawning a second Node to run a TypeScript file bought nothing but
+      // startup latency and an exit code in place of a stack trace. Passing the
+      // module as an argument also retires the MODULE_ID environment channel,
+      // which only existed because a subprocess was the only way to talk to it.
+      await buildWasm({ moduleId });
       server.config.logger.info(`[wasm] ${label} rebuilt`);
       server.ws.send({ type: "custom", event: "moveforge:wasm-rebuilt", data: { moduleId } });
     } catch (err) {

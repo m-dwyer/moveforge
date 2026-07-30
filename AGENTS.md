@@ -18,7 +18,8 @@ web/                    browser UI: React + Vite + Tailwind + shadcn
 shared/                 TypeScript the generators and the browser both need
 tools/                  offline harnesses — render_wav.c, render_fx.c, trace_midi_fx.c
 tests/                  C tests: test_<id>_core.c, test_<id>_plugin.c, test_mf_dsp.c
-scripts/                build, codegen and validation (TypeScript + shell)
+scripts/                build, codegen and validation (TypeScript; shell for SSH/device)
+build/                  GENERATED {host,move,wasm}.ninja + objects — not checked in
 templates/              scaffolds for new modules, and the codegen templates
 goldens/                blessed render metrics per module
 plans/                  working documents for in-flight work
@@ -42,9 +43,13 @@ dsp/<id>_params.gen.inc GENERATED: param id/get/set/defaults
 dsp/<id>_presets.gen.inc GENERATED from presets.json
 ```
 
-Build scripts detect Faust purely by the presence of `<id>.dsp`. No flag, no
-config. Faust is the default for new sound generators and audio FX; MIDI FX are
-always plain C.
+The C build is generated, not hand-maintained: `scripts/gen-ninja.ts` walks the
+module graph and emits `build/{host,move,wasm}.ninja`, which **ninja** then runs.
+Every build and test task regenerates the ninja files first, so adding a module
+or a parameter never needs a separate `mise run gen-ninja`. Faust is detected
+purely by the presence of `<id>.dsp` — no flag, no config — and that one check
+decides the sources for all three targets at once. Faust is the default for new
+sound generators and audio FX; MIDI FX are always plain C.
 
 ## Rules that prevent silent breakage
 
@@ -59,9 +64,15 @@ always plain C.
    `ui_chain.js` and `<id>_faust.c`. Edit the source and re-run the generator;
    `mise run validate` fails on drift.
 3. **Run tasks via `mise run ...`, not the scripts directly.** Most call bare
-   `node`, which is not on `PATH` outside mise.
+   `node` or `ninja`, neither of which is on `PATH` outside mise. Task names
+   follow a shape: `<thing>-build` produces an artifact (`host-build`,
+   `move-build`, `wasm-build`), `test-<thing>` runs a suite (`test-c`,
+   `test-c-san`, `test-web`, `test-ui-chain`), `move-<verb>` acts on the device
+   (`move-install`, `move-deploy`, `move-health`).
 4. **`mise run check` is the gate.** It must exit 0 before anything ships.
    Module-aware tasks run for every module unless you set `MODULE_ID=<id>`.
+   `check` covers everything except `test-web`, which needs Playwright browsers
+   and is not gated in CI; `mise run test` is the umbrella that includes it.
 
 Keep musical DSP behaviour in the shared core, not in the wrappers, the web
 code or the render tools — there are three build targets and only one of them

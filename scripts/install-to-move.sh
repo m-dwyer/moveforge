@@ -12,21 +12,21 @@ module_target() {
 MODULE_IDS="$(module_target ids)"
 MOVE_HOST="${MOVE_HOST:-ableton@move.local}"
 FORCE=0
-SKIP_BUILD=0
 
 for arg in "$@"; do
   case "$arg" in
     --force) FORCE=1 ;;
-    --skip-build) SKIP_BUILD=1 ;;
     -h|--help)
       cat <<EOF
-Usage: $(basename "$0") [--force] [--skip-build]
+Usage: $(basename "$0") [--force]
 
-Build (unless --skip-build) and install module(s) to \$MOVE_HOST.
+Install already-built module(s) from dist/ to \$MOVE_HOST. This does not build:
+run 'mise run move-install' (build + install) or 'mise run move-deploy'
+(check + build + install) rather than calling this directly.
 Without MODULE_ID, installs every module. Set MODULE_ID=<id> to target one.
 
 Pre-flight checks (any failure aborts unless --force):
-  * dist/<id>/dsp.so must be aarch64
+  * dist/<id>/dsp.so must exist and be aarch64
   * \$MOVE_HOST must be reachable over SSH
   * remote module partition must have at least 10 MiB free
 
@@ -155,13 +155,14 @@ for MODULE_ID in $MODULE_IDS; do
   move_guard_validate_component_type "$COMPONENT_DIR"
   REMOTE_DIR="/data/UserData/schwung/modules/$COMPONENT_DIR"
 
-  if [ "$SKIP_BUILD" = "1" ]; then
-    if [ ! -f "dist/$MODULE_ID/dsp.so" ]; then
-      echo "install-to-move: --skip-build set but dist/$MODULE_ID/dsp.so is missing" >&2
-      exit 1
-    fi
-  else
-    MODULE_ID="$MODULE_ID" ./scripts/build.sh
+  # Installing never builds. `mise run move-install` and `mise run move-deploy`
+  # both depend on move-build, so the artifact is already current by the time we
+  # get here — and when this script built for itself, it re-entered the
+  # cross-compile container once per module, and `move-deploy` built everything
+  # twice (once inside the check gate, once here).
+  if [ ! -f "dist/$MODULE_ID/dsp.so" ]; then
+    echo "install-to-move: dist/$MODULE_ID/dsp.so is missing — run 'mise run move-build' first" >&2
+    exit 1
   fi
 
   LOCAL_SO="dist/$MODULE_ID/dsp.so"

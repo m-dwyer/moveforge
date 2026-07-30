@@ -44,21 +44,23 @@ Use this loop for quick sound-design changes before building a Move package.
 ## Checked Device Loop
 
 ```bash
-mise run deploy
+mise run move-deploy
 ```
 
-This runs the core DSP tests, renders the preset suite, builds the host library, then builds and installs the Move package.
+This runs the full `check` gate — typecheck, param/codegen validation, chain-UI tests, the core DSP tests with and without sanitizers, the preset suite compared against goldens, the stress safety checks, plots and the host build — then builds and installs the Move package.
+
+While iterating on hardware, `mise run move-install` does the same build and copy without the gate.
 
 Set the target with:
 
 ```bash
-MOVE_HOST=ableton@move.local mise run deploy
+MOVE_HOST=ableton@move.local mise run move-deploy
 ```
 
 or:
 
 ```bash
-MOVE_HOST=ableton@192.168.1.42 mise run deploy
+MOVE_HOST=ableton@192.168.1.42 mise run move-deploy
 ```
 
 For device-side debugging after deploy:

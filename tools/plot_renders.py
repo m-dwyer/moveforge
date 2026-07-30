@@ -13,7 +13,7 @@ try:
     from PIL import Image, ImageDraw, ImageFont
 except ModuleNotFoundError as exc:
     raise SystemExit(
-        "Missing plotting dependency. Run: make dev-deps"
+        "Missing plotting dependency. Run: mise run setup"
     ) from exc
 
 

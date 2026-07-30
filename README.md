@@ -73,7 +73,7 @@ src/modules/<id>/
     <id>.c                 ← Schwung wrapper (same shape as plain C)
 ```
 
-A module is Faust-backed if and only if `<id>.dsp` exists. The build scripts (`build.sh`, `build-wasm.sh`, `test.sh`, `render-demo.sh`) detect the `.dsp` and compile `<id>_adapter.c` instead of `<id>_core.c`. No flag, no config — the file layout is the signal.
+A module is Faust-backed if and only if `<id>.dsp` exists. `scripts/gen-ninja.ts` — which emits the `build/{host,move,wasm}.ninja` files every build and test task runs — detects the `.dsp` and compiles `<id>_adapter.c` instead of `<id>_core.c`, for every target at once. No flag, no config — the file layout is the signal.
 
 Best for: audio FX and sound generators by default. Faust source is typically much shorter than the equivalent hand-written C and eliminates whole classes of memory/state bugs. Plain-C audio DSP should be treated as an explicit exception, not the default.
 
@@ -92,7 +92,7 @@ brew install faust
 Render a local audio demo:
 
 ```bash
-./scripts/render-demo.sh
+mise run render
 ```
 
 Writes:
@@ -104,7 +104,7 @@ renders/<module-id>-demo.wav
 Render the preset comparison suite:
 
 ```bash
-./scripts/render-demo.sh --suite
+mise run suite
 ```
 
 Writes labeled clips under `renders/<module-id>-suite/`.
@@ -121,7 +121,7 @@ Stress renders go under `renders/<module-id>-stress/`; plots go under `renders/p
 Build the browser WASM for one module:
 
 ```bash
-MODULE_ID=faust_voice ./scripts/build-wasm.sh
+MODULE_ID=faust_voice mise run wasm-build
 ```
 
 Omitting `MODULE_ID` builds every module.
@@ -139,7 +139,7 @@ Play the pads or use the computer keyboard row `a w s d r f t g h u j i k o l`; 
 Build the module folder and release tarball:
 
 ```bash
-./scripts/build.sh
+mise run move-build
 ```
 
 Outputs:
@@ -149,7 +149,7 @@ dist/<id>/                 (module.json, ui.js, ui_chain.js, presets.json, dsp.s
 dist/<id>-module.tar.gz
 ```
 
-Omitting `MODULE_ID` builds every module. Set `MODULE_ID=<id>` to build one module. `scripts/build.sh` cross-compiles for Move's aarch64 Linux target and uses Docker automatically when no local cross compiler is present.
+Omitting `MODULE_ID` builds every module. Set `MODULE_ID=<id>` to build one module. `move-build` cross-compiles for Move's aarch64 Linux target and uses Docker automatically when no local cross compiler is present.
 
 ## Module Authoring Loop
 
@@ -172,7 +172,7 @@ Omitting `MODULE_ID` builds every module. Set `MODULE_ID=<id>` to build one modu
 
 1. Edit DSP source (`<id>_core.c` or `<id>.dsp`).
 2. Faust only: `mise run gen-faust` (or rely on `mise run dev` to rebuild on save).
-3. `mise run test` — core smoke tests.
+3. `mise run test-c` — core smoke tests.
 4. `mise run suite` — renders preset WAVs.
 5. `mise run plot` — waveform + log-frequency spectrum PNGs at `renders/plots/<id>/`.
 6. `mise run stress` — renders metadata-generated min/max parameter cases and checks safety metrics.
@@ -215,18 +215,18 @@ where `<kind>` is `sound_generators`, `audio_fx`, or `midi_fx` matching the modu
 Once you have a Move with Schwung installed:
 
 ```bash
-mise run install
+mise run move-install
 ```
 
-The script builds first, then copies `dist/<id>/` to `ableton@move.local`.
+This builds first (`move-build`), then copies `dist/<id>/` to `ableton@move.local`. There is no test gate — it is the fast hardware-iteration loop. `scripts/install-to-move.sh` itself never builds; it fails if `dist/<id>/dsp.so` is missing.
 
 For a checked deploy path:
 
 ```bash
-mise run deploy
+mise run move-deploy
 ```
 
-This runs DSP tests, renders the preset suite, builds the host library, then builds and installs the Move package. Set `MOVE_HOST=ableton@192.168.1.42` if mDNS is not resolving `move.local`.
+This runs the full `check` gate first — typecheck, param/codegen validation, chain-UI tests, the C tests with and without sanitizers, the preset suite compared against goldens, the stress safety checks, plots and the host build — and only then builds the aarch64 package and installs it. Set `MOVE_HOST=ableton@192.168.1.42` if mDNS is not resolving `move.local`.
 
 Useful hardware-debug helpers:
 
@@ -245,15 +245,17 @@ See `docs/schwung-device-workflow.md` for the device log, cache, restart, and up
 Install local Python plotting dependencies:
 
 ```bash
-mise run setup     # or: make dev-deps
+mise run setup
 ```
 
 Run everything CI would run:
 
 ```bash
-mise run check     # typecheck, validate (params + faust + presets drift), test, suite, check-renders, plot, host
-mise run check-all # same, across every module
+mise run check     # typecheck, validate (params + faust + presets drift), test-c, test-c-san, test-ui-chain, suite, check-renders, stress, plot, host-build
+mise run check-all # alias for check, which already covers every module
 ```
+
+`check` deliberately leaves out `test-web`: the browser suite needs Playwright browsers installed and is not gated in CI. `mise run test` is the umbrella that runs everything test-shaped, including that suite.
 
 Individual gates:
 
@@ -262,8 +264,16 @@ Individual gates:
 | `mise run gen-params` | Regenerate `<id>_params.gen.{h,inc}` from `module.json` |
 | `mise run gen-faust` | Regenerate `<id>_faust.c` from `<id>.dsp` (Faust modules only) |
 | `mise run gen-presets` | Regenerate `<id>_presets.gen.inc` from `presets.json` |
+| `mise run gen-ninja` | Regenerate `build/{host,move,wasm}.ninja` from the module graph (every build task does this first) |
+| `mise run typecheck` | Typecheck the TypeScript in `scripts/`, `shared/` and `web/` |
 | `mise run validate` | Param metadata + gen-params/gen-faust/gen-presets/gen-ui-chain drift + presets in range |
-| `mise run test` | Core DSP smoke tests in `tests/test_<id>_core.c` |
+| `mise run test-c` | Core DSP smoke tests in `tests/test_<id>_core.c` |
+| `mise run test-c-san` | The same C tests under AddressSanitizer + UndefinedBehaviorSanitizer |
+| `mise run test-ui-chain` | Chain-UI behaviour tests against the generated `ui_chain.js` |
+| `mise run test-web` | Vitest browser-mode component tests for the React UI |
+| `mise run test` | All four of the above |
+| `mise run render` | Render the default demo WAV for each module |
+| `mise run render-build` | Build only the offline render/trace harness binaries |
 | `mise run suite` | Render all preset WAVs |
 | `mise run plot` | Generate waveform + spectrum PNGs |
 | `mise run check-renders` | Compare current suite metrics against `goldens/<id>/metrics.json` |
@@ -272,10 +282,11 @@ Individual gates:
 | `mise run plot-stress` | Generate waveform + spectrum PNGs for stress renders |
 | `mise run stress-all` | Run stress renders/checks across all sound generators and audio FX |
 | `mise run plot-stress-all` | Generate stress plots across all sound generators and audio FX |
-| `mise run host` | Build host-only `.so` for local compile sanity |
-| `mise run move` | Cross-compile aarch64 `.so` + dist tarball for all modules, or one module with `MODULE_ID=<id>` |
-| `mise run install` | Build and install module package(s) to Ableton Move |
-| `mise run wasm` | Emscripten-compile browser `.wasm` |
+| `mise run host-build` | Build host-only `.so` for local compile sanity |
+| `mise run move-build` | Cross-compile aarch64 `.so` + dist tarball for all modules, or one module with `MODULE_ID=<id>` |
+| `mise run move-install` | Build and install module package(s) to Ableton Move, without the check gate |
+| `mise run move-deploy` | Run `check`, then build and install to Ableton Move |
+| `mise run wasm-build` | Emscripten-compile browser `.wasm` |
 | `mise run web` / `mise run dev` | WASM + Vite browser UI at `http://localhost:8765/` |
 | `mise run clean` | Remove build outputs, rendered plots, and browser WASM artifacts |
 

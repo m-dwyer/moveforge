@@ -53,6 +53,19 @@ export async function selectedModuleTargets(): Promise<ModuleBuildTarget[]> {
   return Promise.all((await selectedModuleIds()).map((moduleId) => readModuleTarget(moduleId)));
 }
 
+/**
+ * Every module, ignoring MODULE_ID.
+ *
+ * The generated ninja files use this rather than the selection: a build file
+ * describes the whole graph, and MODULE_ID picks which of its targets to build.
+ * Generating a partial build file instead would mean `MODULE_ID=x mise run
+ * wasm-build` left behind a build/wasm.ninja that knows about one module, so a
+ * later bare `ninja -f build/wasm.ninja` would silently build only that one.
+ */
+export async function allModuleTargets(): Promise<ModuleBuildTarget[]> {
+  return Promise.all((await listModuleIds()).map((moduleId) => readModuleTarget(moduleId)));
+}
+
 export async function listModuleIds(): Promise<string[]> {
   return (await readdir("src/modules", { withFileTypes: true }))
     .filter((entry) => entry.isDirectory() && !entry.name.startsWith("_"))
@@ -88,7 +101,7 @@ export async function readModuleTarget(moduleId: string): Promise<ModuleBuildTar
   const paths = modulePaths(moduleId);
   const moduleJson = JSON.parse(await readFile(paths.moduleJson, "utf8")) as ModuleJson;
   const componentType = moduleJson.capabilities?.component_type ?? "";
-  const dspAuthoring: DspAuthoring = await exists(paths.faustDsp) ? "faust" : "c";
+  const dspAuthoring: DspAuthoring = await fileExists(paths.faustDsp) ? "faust" : "c";
   const coreImpl = dspAuthoring === "faust" ? paths.adapterC : paths.coreC;
   const renderKind = renderKindFor(componentType);
 
@@ -138,7 +151,7 @@ function deviceComponentDirFor(componentType: string): string | null {
   return null;
 }
 
-async function exists(path: string): Promise<boolean> {
+export async function fileExists(path: string): Promise<boolean> {
   try {
     await stat(path);
     return true;

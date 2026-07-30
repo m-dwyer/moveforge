@@ -2,15 +2,16 @@
 /*
  * Emit compile_commands.json for clangd / any libclang tooling.
  *
- * Every include path in this project lives inside bash string interpolation in
- * scripts/*.sh (`-Isrc -I"$MODULE_DIR/dsp"`), so without this file an editor
+ * Every include path in this project is computed by the build generator
+ * (`-Isrc -I<moduleDir>/dsp`, from scripts/gen-ninja.ts) and never written down
+ * anywhere an editor can see, so without this file an editor
  * cannot resolve `#include "host/plugin_api_v1.h"` or
  * `#include "modules/_shared/mf_dsp.h"` in any module source — you get a wall of
  * false "file not found" and "undeclared identifier" diagnostics on code that
  * compiles cleanly. That hurts humans and coding agents equally, and this repo
  * is explicitly meant to be worked on by both.
  *
- * The flags mirror scripts/test.sh (the strictest build), so diagnostics in an
+ * The flags mirror the `test` variant in scripts/lib/toolchains.ts (the strictest build), so diagnostics in an
  * editor match what the gate will actually reject.
  *
  * Regenerate after adding a module: mise run gen-compile-commands

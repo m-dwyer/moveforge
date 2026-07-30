@@ -7,7 +7,7 @@
 # and the second failure was in the *sanitizer* pass only — GCC's range analysis
 # at -O1 differs from -O2, so even a plain GCC build would not have caught it.
 #
-# This compiles only. Running the binaries is `scripts/test.sh`'s job; the point
+# This compiles only. Running the binaries is `mise run test-c`'s job; the point
 # here is the diagnostics, and on an arm64 Mac an x86 container would emulate
 # every instruction to tell us nothing new.
 #

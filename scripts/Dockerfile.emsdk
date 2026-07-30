@@ -1,0 +1,11 @@
+# Emscripten, plus ninja to execute the generated build/wasm.ninja in-container.
+#
+# The upstream emsdk image was previously used directly, with build-wasm.sh
+# joining every emcc command into one `sh -c` string. Running ninja here instead
+# means emcc's own -MMD depfiles are written and read on the same side of the
+# mount, which is what makes header-accurate incremental wasm builds possible.
+FROM emscripten/emsdk:3.1.74
+
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends ninja-build \
+  && rm -rf /var/lib/apt/lists/*

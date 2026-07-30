@@ -78,7 +78,7 @@ a param, the dev loop); this doc is the conceptual map.
   appropriate glue in `src/host/schwung_wasm_glue_{sg,fx}.c` or
   `src/host/midi_fx_wasm_glue.c`.
 - **Device:** `dist/<id>/` + `dist/<id>-module.tar.gz`, an aarch64 build for
-  Move via `make move` (uses the same C, different target).
+  Move via `mise run move-build` (uses the same C, different target).
 - Same `.c` files feed both targets; only the linked glue + target arch differ.
 
 ### Schwung wrapper — `src/modules/<id>/dsp/<id>.c`
@@ -138,12 +138,14 @@ fixtures + browser preset row + on-device preset list all read it.
    `module-worklet.js`, which loads `web/wasm/<id>.wasm` and exposes a port
    for `noteOn`/`noteOff`/`param`/`midiIn` messages.
 4. Edits to `src/modules/<id>/dsp/*.c` trigger the Vite WASM plugin →
-   `./scripts/build-wasm.sh` → `engine.reloadSlot(slotId)`. No page reload.
+   `scripts/build-wasm.ts` → `engine.reloadSlot(slotId)`. No page reload.
 
 ### Move device deploy
 
-1. `mise run move` builds the aarch64 module (`dist/<id>/`).
-2. `mise run install` copies to `ableton@move.local:/data/UserData/schwung/modules/...`
+1. `mise run move-build` builds the aarch64 module (`dist/<id>/`).
+2. `mise run move-install` builds, then copies to
+   `ableton@move.local:/data/UserData/schwung/modules/...`. `mise run move-deploy`
+   is the same copy behind the full `check` gate.
 3. Move's Schwung runtime loads the same wrapper + core via the
    `plugin_api_v2_t` / `audio_fx_api_v2_t` / `midi_fx_api_v1_t` ABI.
 4. UI on the OLED comes from `src/modules/<id>/ui.js` (solo mode) and
