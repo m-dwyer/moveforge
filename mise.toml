@@ -154,6 +154,12 @@ run = "make move-screen"
 description = "Run the main non-device checks"
 run = "make check"
 
+[tasks.check-gcc]
+# Apple clang does not implement -Wformat-truncation, so a whole class of -Werror
+# failure is invisible locally: `check` passes and CI fails on the same source.
+description = "Compile every C test with a real GCC (Docker), under both flag sets CI uses"
+run = "./scripts/check-gcc.sh"
+
 [tasks.check-all]
 description = "Run non-device checks for all included modules"
 run = "make check-all"

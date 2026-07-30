@@ -172,7 +172,13 @@ static void test_param_add_ignores_non_parameters(void) {
  * past the cap has to fail the render, because leaving it at its default and
  * exiting 0 is a golden that measures the wrong module. */
 static void test_param_add_fails_rather_than_truncating(void) {
-    static char args[MF_RENDER_MAX_PARAMS + 1][16];
+    /* 32, not 16, for the same reason the swarf plugin test needs 12: the two
+     * `%d`s below are ints as far as -Wformat-truncation is concerned, so it sizes
+     * for INT_MIN twice over — 25 bytes — regardless of this loop's bound. Under
+     * -Werror that is a build failure, and only on GCC: Apple clang does not emit
+     * the warning, and GCC only emits it here in the sanitizer pass, where -O1
+     * gives it a wider range for `i` than -O2 does. */
+    static char args[MF_RENDER_MAX_PARAMS + 1][32];
     mf_param_list_t list = {0};
 
     for (int i = 0; i < MF_RENDER_MAX_PARAMS; i++) {
