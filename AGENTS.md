@@ -60,9 +60,26 @@ sound generators and audio FX; MIDI FX are always plain C.
    walks `ui_hierarchy` — parameter *order* is an ABI between the generated enum,
    the device's knob list and the browser's parameter ids, so a second walk that
    disagrees is a module addressing the wrong parameters with nothing failing.
+   Its other half is `shared/module-schema.ts`, the **only** place that describes
+   what those files *contain*: ui-hierarchy says what order parameters come in,
+   module-schema says what a parameter is. Read them through
+   `readModuleJson` / `readPresetsJson` / `readMetadataJson` in
+   `scripts/lib/modules.ts` rather than `JSON.parse(...) as T` — eight files
+   used to declare their own `ModuleJson`, each a different subset, so a field
+   one generator relied on was checked by none of the others.
+   The schema owns what is intrinsic to one object (field types, ranges, enums);
+   anything relational — duplicate keys, host byte limits, preset values against
+   their param's range, and every check that reads the C or the `.dsp` — stays in
+   `scripts/validate-params.ts`, which carries the upstream citations for it.
 2. **Never hand-edit a generated file.** Anything named `*.gen.*`, plus
    `ui_chain.js` and `<id>_faust.c`. Edit the source and re-run the generator;
-   `mise run validate` fails on drift.
+   `mise run validate` fails on drift. There are two template systems, split
+   along a real seam: `templates/generated/*.eta` emit repetitive C from data
+   (loops and conditionals, rendered via `scripts/lib/eta.ts`), while
+   `templates/modules/` is the scaffold tree, where `scripts/lib/templates.ts`
+   does dumb `{{token}}` substitution over file *contents and filenames* and
+   throws on an unknown key. Both reject a typo'd key rather than writing
+   `undefined` into a generated file.
 3. **Run tasks via `mise run ...`, not the scripts directly.** Most call bare
    `node` or `ninja`, neither of which is on `PATH` outside mise. Task names
    follow a shape: `<thing>-build` produces an artifact (`host-build`,

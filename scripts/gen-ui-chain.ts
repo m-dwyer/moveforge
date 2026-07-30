@@ -15,39 +15,21 @@
  * re-run `mise run gen-ui-chain`.
  */
 import { readFileSync } from "node:fs";
-import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
-import { flattenKnobs, flattenParams, type UiHierarchy } from "../shared/ui-hierarchy.ts";
+import { type ModuleJson, type ModuleParam } from "../shared/module-schema.ts";
+import { flattenKnobs, flattenParams } from "../shared/ui-hierarchy.ts";
 import { renderTemplateString } from "./lib/templates.ts";
-import { modulePaths, selectedModuleIds } from "./lib/modules.ts";
+import { modulePaths, readModuleJson, selectedModuleIds } from "./lib/modules.ts";
 import { type GenerateOptions, writeGeneratedFile } from "./lib/generated-files.ts";
 
 const TEMPLATE_PATH = "templates/generated/ui_chain.js.tmpl";
-
-type Param = {
-  key: string;
-  name?: string;
-  type?: string;
-  min: number;
-  max: number;
-  default: number;
-  step?: number;
-};
-type ModuleJson = {
-  name?: string;
-  ui_chain?: string;
-  capabilities?: {
-    component_type?: string;
-    ui_hierarchy?: UiHierarchy<Param>;
-  };
-};
 
 const EDITABLE_TYPES = new Set(["sound_generator", "audio_fx", "midi_fx"]);
 const ENCODER_COUNT = 8; // Move parameter encoders, CC 71-78
 
 /* Knob detents across a param's range. Continuous controls use normalized
  * full-range travel; discrete selectors keep their declared step. */
-function editStep(p: Param): number {
+function editStep(p: ModuleParam): number {
   const range = p.max - p.min;
   if (range <= 0) return 0.01;
   const declared = p.step ?? 0;
@@ -55,7 +37,7 @@ function editStep(p: Param): number {
   return range / 100;
 }
 
-function isDiscreteParam(p: Param): boolean {
+function isDiscreteParam(p: ModuleParam): boolean {
   const type = (p.type ?? "").toLowerCase();
   if (type === "int" || type === "enum" || type === "bool") return true;
   return (p.step ?? 0) >= 1;
@@ -67,7 +49,7 @@ function decimalsFor(step: number): number {
   return 2;
 }
 
-function renderUiChain(id: string, json: ModuleJson, params: Param[]): string {
+function renderUiChain(id: string, json: ModuleJson, params: ModuleParam[]): string {
   const name = json.name ?? id;
   const requestedKnobs = flattenKnobs(json.capabilities?.ui_hierarchy);
   const paramIndexByKey = new Map(params.map((p, i) => [p.key, i]));
@@ -119,13 +101,13 @@ export async function generate(options: GenerateOptions = {}): Promise<number> {
   let drift = 0;
   for (const id of moduleIds) {
     const paths = modulePaths(id);
-    const json: ModuleJson = JSON.parse(await readFile(paths.moduleJson, "utf8"));
-    const ct = json.capabilities?.component_type;
-    const params = flattenParams(json.capabilities?.ui_hierarchy);
+    const json = await readModuleJson(id);
+    const ct = json.capabilities.component_type;
+    const params = flattenParams<ModuleParam>(json.capabilities.ui_hierarchy);
 
     const outPath = `${paths.moduleDir}/ui_chain.js`;
 
-    if (!ct || !EDITABLE_TYPES.has(ct) || params.length === 0) {
+    if (!EDITABLE_TYPES.has(ct) || params.length === 0) {
       continue; // nothing to render (e.g. settings/tool modules)
     }
 

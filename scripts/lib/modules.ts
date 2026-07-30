@@ -1,5 +1,14 @@
 import { readFile, readdir, stat } from "node:fs/promises";
 
+import {
+  type MetadataJson,
+  type ModuleJson,
+  parseMetadataJson,
+  parseModuleJson,
+  parsePresetsJson,
+  type PresetsJson
+} from "../../shared/module-schema.ts";
+
 export type ComponentType = "sound_generator" | "audio_fx" | "midi_fx";
 export type DspAuthoring = "c" | "faust";
 export type RenderKind = ComponentType;
@@ -39,11 +48,31 @@ export type ModuleBuildTarget = {
   wasmGlue: string | null;
 };
 
-type ModuleJson = {
-  capabilities?: {
-    component_type?: string;
-  };
-};
+/**
+ * Read and validate a module's JSON. These are the only places the tooling
+ * turns those files into values, so a malformed one fails here with a path and
+ * a message rather than as a TypeError inside whichever generator reached the
+ * missing field first.
+ *
+ * presets.json and metadata.json are optional — a module with neither is valid,
+ * and every caller already treated a missing file as empty.
+ */
+export async function readModuleJson(moduleId: string): Promise<ModuleJson> {
+  const path = modulePaths(moduleId).moduleJson;
+  return parseModuleJson(JSON.parse(await readFile(path, "utf8")), path);
+}
+
+export async function readPresetsJson(moduleId: string): Promise<PresetsJson> {
+  const path = modulePaths(moduleId).presets;
+  const raw = await readFile(path, "utf8").catch(() => '{"presets":[]}');
+  return parsePresetsJson(JSON.parse(raw), path);
+}
+
+export async function readMetadataJson(moduleId: string): Promise<MetadataJson> {
+  const path = `${modulePaths(moduleId).moduleDir}/metadata.json`;
+  const raw = await readFile(path, "utf8").catch(() => "{}");
+  return parseMetadataJson(JSON.parse(raw), path);
+}
 
 export async function selectedModuleIds(): Promise<string[]> {
   return process.env.MODULE_ID ? [process.env.MODULE_ID] : listModuleIds();
@@ -99,8 +128,8 @@ export function modulePaths(moduleId: string): ModulePaths {
 
 export async function readModuleTarget(moduleId: string): Promise<ModuleBuildTarget> {
   const paths = modulePaths(moduleId);
-  const moduleJson = JSON.parse(await readFile(paths.moduleJson, "utf8")) as ModuleJson;
-  const componentType = moduleJson.capabilities?.component_type ?? "";
+  const moduleJson = await readModuleJson(moduleId);
+  const componentType = moduleJson.capabilities.component_type;
   const dspAuthoring: DspAuthoring = await fileExists(paths.faustDsp) ? "faust" : "c";
   const coreImpl = dspAuthoring === "faust" ? paths.adapterC : paths.coreC;
   const renderKind = renderKindFor(componentType);

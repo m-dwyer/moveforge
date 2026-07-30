@@ -1,29 +1,14 @@
 import { readFileSync } from "node:fs";
-import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { densePresetValues } from "../shared/presets.ts";
-import { flattenParams, type UiHierarchy } from "../shared/ui-hierarchy.ts";
-import { modulePaths, selectedModuleIds } from "./lib/modules.ts";
+import { type ModuleParam, type Preset } from "../shared/module-schema.ts";
+import { flattenParams } from "../shared/ui-hierarchy.ts";
+import { modulePaths, readModuleJson, readPresetsJson, selectedModuleIds } from "./lib/modules.ts";
 import { cFloatLiteral, escapeCString } from "./lib/c.ts";
 import { type GenerateOptions, writeGeneratedFile } from "./lib/generated-files.ts";
 import { renderTemplateString } from "./lib/templates.ts";
 
 const TEMPLATE_PATH = "templates/generated/presets.gen.inc.tmpl";
-
-type Param = { default: number; key: string };
-type ModuleJson = {
-  capabilities?: {
-    ui_hierarchy?: UiHierarchy<Param>;
-  };
-  id: string;
-};
-type Preset = {
-  name: string;
-  params?: Record<string, unknown>;
-};
-type PresetsJson = {
-  presets?: Preset[];
-};
 
 /**
  * Generate (or check) each module's <module>_presets.gen.inc from presets.json.
@@ -36,17 +21,14 @@ export async function generate(options: GenerateOptions = {}): Promise<number> {
   let drift = 0;
   for (const moduleId of moduleIds) {
     const paths = modulePaths(moduleId);
-    const moduleJson = JSON.parse(await readFile(paths.moduleJson, "utf8")) as ModuleJson;
-    const params = flattenParams(moduleJson.capabilities?.ui_hierarchy);
+    const moduleJson = await readModuleJson(moduleId);
+    const params = flattenParams<ModuleParam>(moduleJson.capabilities.ui_hierarchy);
     if (params.length === 0) {
       console.warn(`[${moduleId}] no params in any capabilities.ui_hierarchy level — skipping`);
       continue;
     }
 
-    const presetsJson = JSON.parse(
-      await readFile(paths.presets, "utf8").catch(() => '{"presets":[]}')
-    ) as PresetsJson;
-    const presets = presetsJson.presets ?? [];
+    const presets = (await readPresetsJson(moduleId)).presets ?? [];
     const generated = renderInc(moduleId, params, presets);
     drift += await writeGeneratedFile({
       generated,
@@ -61,7 +43,7 @@ export async function generate(options: GenerateOptions = {}): Promise<number> {
   return drift;
 }
 
-function renderInc(moduleId: string, params: Param[], presets: Preset[]): string {
+function renderInc(moduleId: string, params: ModuleParam[], presets: Preset[]): string {
   const upper = moduleId.toUpperCase();
   const guard = `${upper}_PRESETS_GEN_INC`;
   const coreT = `${moduleId}_core_t`;

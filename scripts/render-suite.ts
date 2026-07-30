@@ -1,8 +1,9 @@
 import { readFile } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
 import { densePresetValues, type PresetParam } from "../shared/presets.ts";
-import { flattenParams, type UiHierarchy } from "../shared/ui-hierarchy.ts";
-import { selectedModuleTargets } from "./lib/modules.ts";
+import { type ModuleParam } from "../shared/module-schema.ts";
+import { flattenParams } from "../shared/ui-hierarchy.ts";
+import { readModuleJson, selectedModuleTargets } from "./lib/modules.ts";
 
 /* Optional block-rate parameter automation. Ramps catch zipper noise and
  * unsmoothed gains; step lists catch discontinuities (a delay time jumping the
@@ -78,12 +79,6 @@ type PresetSuite = {
   }>;
 };
 
-type ModuleJson = {
-  capabilities?: {
-    ui_hierarchy?: UiHierarchy<PresetParam>;
-  };
-};
-
 for (const target of await selectedModuleTargets()) {
   const moduleId = target.id;
   const paths = target.paths;
@@ -99,8 +94,8 @@ for (const target of await selectedModuleTargets()) {
    * then exercises the whole parameter surface the golden claims to cover, and it
    * does not quietly depend on the module's apply_defaults agreeing with
    * module.json — which validate enforces, but a render should not need to assume. */
-  const moduleJson = JSON.parse(await readFile(paths.moduleJson, "utf8")) as ModuleJson;
-  const declaredParams = flattenParams(moduleJson.capabilities?.ui_hierarchy);
+  const moduleJson = await readModuleJson(moduleId);
+  const declaredParams = flattenParams<ModuleParam>(moduleJson.capabilities.ui_hierarchy);
 
   for (const preset of data.presets) {
     const render = preset.render;

@@ -7,71 +7,28 @@ import {
   SHARED_PARAMS_GROUP,
   type UiHierarchy
 } from "../shared/ui-hierarchy.ts";
-import { modulePaths, selectedModuleIds } from "./lib/modules.ts";
+import {
+  ModuleSchemaError,
+  type MetadataJson,
+  type ModuleJson,
+  type ModuleParam,
+  parseModuleIndex,
+  type PresetsJson
+} from "../shared/module-schema.ts";
+import {
+  modulePaths,
+  readMetadataJson,
+  readModuleJson,
+  readPresetsJson,
+  selectedModuleIds
+} from "./lib/modules.ts";
 import { generate as genParams } from "./gen-params.ts";
-
-type Param = {
-  default: number;
-  key: string;
-  max: number;
-  min: number;
-  name?: string;
-  step?: number;
-  type: string;
-};
-
-type Capabilities = {
-  audio_in?: boolean;
-  audio_out?: boolean;
-  chainable?: boolean;
-  component_type?: string;
-  midi_in?: boolean;
-  midi_out?: boolean;
-  ui_hierarchy?: UiHierarchy<Param>;
-};
-
-type ModuleJson = {
-  abbrev?: string;
-  api_version?: number;
-  capabilities?: Capabilities;
-  id: string;
-  name?: string;
-  ui?: string;
-  ui_chain?: string;
-};
-
-type PresetsJson = {
-  presets?: Array<{
-    name: string;
-    params?: Record<string, unknown>;
-  }>;
-};
-
-type MetadataJson = {
-  params?: Record<string, string>;
-  randomize?: Record<string, {
-    amount?: number;
-    max?: number;
-    min?: number;
-    mode?: string;
-  }>;
-};
 
 type ValidationGroup = {
   errors: string[];
   moduleId: string;
 };
 
-const HOST_PARAM_TYPES = ["float", "int", "enum"];
-const VALID_COMPONENT_TYPES = new Set([
-  "sound_generator",
-  "audio_fx",
-  "midi_fx",
-  "utility",
-  "tool",
-  "overtake"
-]);
-const VALID_RANDOMIZE_MODES = new Set(["around_default", "bounded", "full"]);
 /* One buildUserInterface registration in the *generated* Faust C:
  *   ui_interface->addHorizontalSlider(ui_interface->uiInterface, "drive",
  *       &dsp->fHslider6, (FAUSTFLOAT)0.15f, (FAUSTFLOAT)0.0f, …);
@@ -122,7 +79,10 @@ console.log(`Validated ${moduleIds.length} module(s): ${moduleIds.join(", ")}`);
 
 async function validateIndex(moduleIds: string[]): Promise<void> {
   if (process.env.MODULE_ID) return;
-  const index = await readJson<{ modules?: Array<{ id: string }> }>("src/modules/index.json");
+  const index = parseModuleIndex(
+    JSON.parse(await readFile("src/modules/index.json", "utf8")),
+    "src/modules/index.json"
+  );
   const indexed = (index.modules || []).map((item) => item.id).sort();
   const missing = moduleIds.filter((id) => !indexed.includes(id));
   const stale = indexed.filter((id) => !moduleIds.includes(id));
@@ -134,33 +94,35 @@ async function validateIndex(moduleIds: string[]): Promise<void> {
 
 async function validateModule(moduleId: string, errors: string[]): Promise<void> {
   const paths = modulePaths(moduleId);
-  const moduleJson = await readJson<ModuleJson>(paths.moduleJson);
-  const metadataJson = await readJson<MetadataJson>(`${paths.moduleDir}/metadata.json`).catch(() => ({}));
-  const presetsJson = await readJson<PresetsJson>(paths.presets).catch(() => ({ presets: [] }) as PresetsJson);
+
+  /* Everything intrinsic to one object — field types, ranges, enums, the key
+   * regex — is the schema's answer now (shared/module-schema.ts). What is left
+   * in this file is what a schema structurally cannot see: relationships
+   * between parameters, between files, and between module.json and the C.
+   *
+   * A structural failure stops the module here rather than reporting it and
+   * carrying on, because every check below reads fields the parse just proved
+   * absent or malformed. */
+  let moduleJson: ModuleJson;
+  let metadataJson: MetadataJson;
+  let presetsJson: PresetsJson;
+  try {
+    moduleJson = await readModuleJson(moduleId);
+    metadataJson = await readMetadataJson(moduleId);
+    presetsJson = await readPresetsJson(moduleId);
+  } catch (err) {
+    if (!(err instanceof ModuleSchemaError)) throw err;
+    for (const issue of err.issues) {
+      errors.push(`${issue.path || "<root>"}: ${issue.message}`);
+    }
+    return;
+  }
 
   if (moduleJson.id !== moduleId) {
     errors.push(`module.json id ${moduleJson.id} does not match directory ${moduleId}`);
   }
 
-  if (typeof moduleJson.abbrev !== "string") {
-    errors.push(`module.json abbrev is missing`);
-  } else if (moduleJson.abbrev.length < 3 || moduleJson.abbrev.length > 6) {
-    errors.push(`module.json abbrev "${moduleJson.abbrev}" must be 3-6 characters`);
-  }
-
   const caps = moduleJson.capabilities;
-  if (!caps) {
-    errors.push(`module.json is missing capabilities block`);
-    return;
-  }
-  if (!caps.component_type) {
-    errors.push(`module.json capabilities.component_type is missing`);
-  } else if (!VALID_COMPONENT_TYPES.has(caps.component_type)) {
-    errors.push(`unknown component_type "${caps.component_type}"`);
-  }
-  if (caps.chainable === undefined) {
-    errors.push(`module.json capabilities.chainable is not set (skill recommends explicit true/false)`);
-  }
 
   validateHostLimits(moduleJson, (await stat(paths.moduleJson)).size, errors);
 
@@ -188,9 +150,8 @@ async function validateModule(moduleId: string, errors: string[]): Promise<void>
     }
   }
 
-  const params = flattenParams(caps.ui_hierarchy);
+  const params = flattenParams<ModuleParam>(caps.ui_hierarchy);
   if (params.length > 0) {
-    validateParams(moduleId, params, errors);
     validateSoundGeneratorLevelParams(caps.component_type, params, errors);
     validatePresets(moduleId, presetsJson, params, errors);
     await validatePresetsAreExposed(moduleId, presetsJson, errors);
@@ -266,7 +227,7 @@ function validateHostLimits(moduleJson: ModuleJson, jsonBytes: number, errors: s
    * param array alongside the levels, so it counts toward the cap and collides
    * with level keys — walking only `levels` left a duplicate there passing
    * validation and killing the module's parameters on device. */
-  for (const { group, params: groupParams } of paramGroups(moduleJson.capabilities?.ui_hierarchy)) {
+  for (const { group, params: groupParams } of paramGroups(moduleJson.capabilities.ui_hierarchy)) {
     const groupName = group === SHARED_PARAMS_GROUP ? group : `levels.${group}`;
     for (const param of groupParams) {
       total++;
@@ -311,7 +272,7 @@ function validateHostLimits(moduleJson: ModuleJson, jsonBytes: number, errors: s
   }
 }
 
-function validateSoundGeneratorLevelParams(componentType: string | undefined, params: Param[], errors: string[]): void {
+function validateSoundGeneratorLevelParams(componentType: string | undefined, params: ModuleParam[], errors: string[]): void {
   if (componentType !== "sound_generator") return;
   for (const param of params) {
     if (!/^(volume|level)$/i.test(param.key)) continue;
@@ -321,7 +282,7 @@ function validateSoundGeneratorLevelParams(componentType: string | undefined, pa
   }
 }
 
-function validateMetadata(moduleId: string, metadataJson: MetadataJson, params: Param[], errors: string[]): void {
+function validateMetadata(moduleId: string, metadataJson: MetadataJson, params: ModuleParam[], errors: string[]): void {
   const paramKeys = new Set(params.map((p) => p.key));
   const paramByKey = new Map(params.map((p) => [p.key, p]));
   for (const key of Object.keys(metadataJson.params || {})) {
@@ -340,13 +301,8 @@ function validateMetadata(moduleId: string, metadataJson: MetadataJson, params: 
       errors.push(`metadata.json randomize.${key} is not a declared param`);
       continue;
     }
-    if (hint.mode !== undefined && !VALID_RANDOMIZE_MODES.has(hint.mode)) {
-      errors.push(`metadata.json randomize.${key}.mode must be around_default, bounded, or full`);
-    }
     const min = hint.min;
     const max = hint.max;
-    if (min !== undefined && typeof min !== "number") errors.push(`metadata.json randomize.${key}.min must be a number`);
-    if (max !== undefined && typeof max !== "number") errors.push(`metadata.json randomize.${key}.max must be a number`);
     if (typeof min === "number" && (min < param.min || min > param.max)) {
       errors.push(`metadata.json randomize.${key}.min ${min} outside param range [${param.min}, ${param.max}]`);
     }
@@ -355,58 +311,6 @@ function validateMetadata(moduleId: string, metadataJson: MetadataJson, params: 
     }
     if (typeof min === "number" && typeof max === "number" && min >= max) {
       errors.push(`metadata.json randomize.${key}: min ${min} must be < max ${max}`);
-    }
-    if (hint.amount !== undefined && (typeof hint.amount !== "number" || hint.amount <= 0 || hint.amount > 1)) {
-      errors.push(`metadata.json randomize.${key}.amount must be > 0 and <= 1`);
-    }
-  }
-}
-
-function validateParams(moduleId: string, params: Param[], errors: string[]): void {
-  const seen = new Set<string>();
-  for (const p of params) {
-    if (!p.key) {
-      errors.push(`param is missing key`);
-      continue;
-    }
-    if (!/^[a-z][a-z0-9_]*$/.test(p.key)) {
-      errors.push(`param key "${p.key}" must match /^[a-z][a-z0-9_]*$/`);
-    }
-    if (seen.has(p.key)) errors.push(`duplicate param key "${p.key}"`);
-    seen.add(p.key);
-    /* The host accepts exactly float | int | enum (chain_params.c:206-214).
-     * Anything else makes parse_param_object return -1, which fails
-     * parse_chain_params, which makes the host reject the whole module — it
-     * installs and verifies clean and then simply does not load. Note our own
-     * gen-ui-chain happily accepts "bool" as a discrete type, so this is a real
-     * trap rather than a theoretical one. */
-    if (!p.type) {
-      errors.push(`param ${p.key} missing type`);
-    } else if (!HOST_PARAM_TYPES.includes(p.type)) {
-      errors.push(
-        `param ${p.key}: type "${p.type}" is not one of ${HOST_PARAM_TYPES.join(" | ")} — ` +
-          `the host rejects the entire module rather than just this param`
-      );
-    }
-    /* A discrete control declared "float" gets enrolled in the host's
-     * audio-thread smoother and ramped through intermediate values over ~90ms,
-     * so e.g. a sync division sweeps through every setting on the way. */
-    if (p.type === "float" && typeof p.step === "number" && p.step >= 1) {
-      errors.push(
-        `param ${p.key}: step ${p.step} makes this a discrete control, so type must be ` +
-          `"int" or "enum" — the host smooths float params on the audio thread and would ` +
-          `ramp it through intermediate values`
-      );
-    }
-    if (typeof p.min !== "number" || typeof p.max !== "number") {
-      errors.push(`param ${p.key} missing min/max`);
-      continue;
-    }
-    if (p.min >= p.max) errors.push(`param ${p.key}: min ${p.min} must be < max ${p.max}`);
-    if (typeof p.default !== "number") {
-      errors.push(`param ${p.key} missing default`);
-    } else if (p.default < p.min || p.default > p.max) {
-      errors.push(`param ${p.key}: default ${p.default} outside [${p.min}, ${p.max}]`);
     }
   }
 }
@@ -418,7 +322,7 @@ function validateParams(moduleId: string, params: Param[], errors: string[]): vo
 function validatePresets(
   moduleId: string,
   presetsJson: PresetsJson,
-  params: Param[],
+  params: ModuleParam[],
   errors: string[]
 ): void {
   const paramKeys = new Set(params.map((p) => p.key));
@@ -480,7 +384,7 @@ function declaredExemptions(dsp: string, tag: string): Set<string> {
  * it exists to catch — while three ordinary Faust idioms were rejected.
  * gen-faust --check already keeps this file in step with the .dsp. */
 function validateFaustSliders(
-  params: Param[],
+  params: ModuleParam[],
   dsp: string,
   faustC: string,
   errors: string[]
@@ -597,17 +501,13 @@ async function validatePresetsAreExposed(
   }
 }
 
-function validateCoreStruct(moduleId: string, params: Param[], header: string, errors: string[]): void {
+function validateCoreStruct(moduleId: string, params: ModuleParam[], header: string, errors: string[]): void {
   for (const p of params) {
     const fieldPattern = new RegExp(`\\bfloat\\s+${p.key}\\b`);
     if (!fieldPattern.test(header)) {
       errors.push(`${moduleId}_core_t is missing field "float ${p.key};" (required by generated set/get)`);
     }
   }
-}
-
-async function readJson<T>(path: string): Promise<T> {
-  return JSON.parse(await readFile(path, "utf8"));
 }
 
 async function fileExists(path: string): Promise<boolean> {
