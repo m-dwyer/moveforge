@@ -87,7 +87,11 @@ int main(void) {
     for (int p = 0; p < get_int(api, inst, "preset_count"); p++) {
         void *k = api->create_instance(".", NULL);
         require_true(k != NULL, "create instance per kit");
-        char index[8];
+        /* Wide enough for any int, because that is what GCC checks. `p` cannot
+         * exceed the preset count, but -Wformat-truncation reasons from the
+         * *type*, not from the loop bound, so at 8 bytes it fails the build under
+         * -Werror on Linux while Apple clang says nothing. 12 covers INT_MIN. */
+        char index[12];
         snprintf(index, sizeof(index), "%d", p);
         api->set_param(k, "preset", index);
         for (int v = 0; v < 6; v++) {
