@@ -241,9 +241,9 @@ for MODULE_ID in $MODULE_IDS; do
 
   # Compare the files this build ships, not the whole remote directory. Nothing
   # here ever removes a file, so anything left behind by an earlier build — or
-  # by a rename in build.sh — used to make every subsequent install fail with a
-  # mismatch, after having already moved the new files in, and with no way out
-  # from the script. Extras are reported instead: they are worth knowing about
+  # by a rename in the packaging step — used to make every subsequent install
+  # fail with a mismatch, after having already moved the new files in, and with
+  # no way out from the script. Extras are reported instead: worth knowing about
   # (a renamed ui_chain.js is still loadable) but they are not corruption.
   split_path='p = $0; sub(/ [^ ]*$/, "", p);'
   MANIFEST_REMOTE="$(awk "NR==FNR { $split_path keep[p] = 1; next } { $split_path if (p in keep) print }" \

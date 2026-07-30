@@ -264,6 +264,7 @@ Individual gates:
 | `mise run gen-params` | Regenerate `<id>_params.gen.{h,inc}` from `module.json` |
 | `mise run gen-faust` | Regenerate `<id>_faust.c` from `<id>.dsp` (Faust modules only) |
 | `mise run gen-presets` | Regenerate `<id>_presets.gen.inc` from `presets.json` |
+| `mise run gen-ui-chain` | Regenerate `<id>/ui_chain.js` from `module.json` |
 | `mise run gen-ninja` | Regenerate `build/{host,move,wasm}.ninja` from the module graph (every build task does this first) |
 | `mise run typecheck` | Typecheck the TypeScript in `scripts/`, `shared/` and `web/` |
 | `mise run validate` | Param metadata + gen-params/gen-faust/gen-presets/gen-ui-chain drift + presets in range |
@@ -277,11 +278,11 @@ Individual gates:
 | `mise run suite` | Render all preset WAVs |
 | `mise run plot` | Generate waveform + spectrum PNGs |
 | `mise run check-renders` | Compare current suite metrics against `goldens/<id>/metrics.json` |
-| `pnpm run bless-renders` | Promote current suite metrics into goldens (after intentional change) |
+| `mise run bless-renders` | Promote current suite metrics into goldens (after intentional change) |
 | `mise run stress` | Render metadata-generated min/max stress WAVs and check safety metrics |
 | `mise run plot-stress` | Generate waveform + spectrum PNGs for stress renders |
-| `mise run stress-all` | Run stress renders/checks across all sound generators and audio FX |
-| `mise run plot-stress-all` | Generate stress plots across all sound generators and audio FX |
+| `mise run stress-all` | Alias for `stress`, which already covers every audio module |
+| `mise run plot-stress-all` | Alias for `plot-stress`, which already covers every audio module |
 | `mise run host-build` | Build host-only `.so` for local compile sanity |
 | `mise run move-build` | Cross-compile aarch64 `.so` + dist tarball for all modules, or one module with `MODULE_ID=<id>` |
 | `mise run move-install` | Build and install module package(s) to Ableton Move, without the check gate |

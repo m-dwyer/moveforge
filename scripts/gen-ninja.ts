@@ -191,10 +191,14 @@ async function hostNinja(modules: ModuleBuildTarget[]): Promise<NinjaWriter> {
   emitRules(ninja, process.env.CC || "cc");
 
   ninja.comment(
-    "Running a test is a build edge with a stamp file, so an unchanged test does\n" +
-      "not re-run. `mise run test-c --force` re-runs everything.\n" +
-      "The sanitizer pass discards stdout the way test.sh did: it re-runs the same\n" +
-      "assertions, and what is wanted from it is ASan/UBSan's own report on stderr."
+    "Running a test is a build edge with a stamp file, so a test whose inputs are\n" +
+      "unchanged does not re-run. To force every test to run again:\n" +
+      "    rm -rf build/stamp && mise run test-c\n" +
+      "(there is no --force flag here: mise passes unrecognised arguments through\n" +
+      "to ninja, which rejects them, so `mise run test-c --force` simply fails.)\n" +
+      "\n" +
+      "The sanitizer pass discards stdout: it re-runs the same assertions as the\n" +
+      "plain pass, and what is wanted from it is ASan/UBSan's own report on stderr."
   );
   ninja.rule("run_test", {
     command: "$in && touch $out",
