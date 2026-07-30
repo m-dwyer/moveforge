@@ -42,7 +42,8 @@
               "min": 0,
               "max": 1,
               "default": 0.329,
-              "step": 0.01
+              "step": 0.01,
+              "unit": "%"
             },
             {
               "key": "hat_mat",
@@ -51,7 +52,8 @@
               "min": 0,
               "max": 1,
               "default": 0.92,
-              "step": 0.01
+              "step": 0.01,
+              "unit": "%"
             },
             {
               "key": "hat_body",
@@ -60,7 +62,8 @@
               "min": 0,
               "max": 1,
               "default": 0.7,
-              "step": 0.01
+              "step": 0.01,
+              "unit": "%"
             },
             {
               "key": "hat_tone",
@@ -69,7 +72,8 @@
               "min": 0,
               "max": 1,
               "default": 0.55,
-              "step": 0.01
+              "step": 0.01,
+              "unit": "%"
             },
             {
               "key": "hat_strike",
@@ -78,7 +82,8 @@
               "min": 0,
               "max": 1,
               "default": 0.5,
-              "step": 0.01
+              "step": 0.01,
+              "unit": "%"
             },
             {
               "key": "hat_grit",
@@ -87,7 +92,8 @@
               "min": 0,
               "max": 1,
               "default": 0.3,
-              "step": 0.01
+              "step": 0.01,
+              "unit": "%"
             },
             {
               "key": "hat_level",
@@ -96,7 +102,8 @@
               "min": 0,
               "max": 1,
               "default": 0.73,
-              "step": 0.01
+              "step": 0.01,
+              "unit": "%"
             }
           ],
           "knobs": [
@@ -132,7 +139,8 @@
               "min": 0,
               "max": 1,
               "default": 0.663,
-              "step": 0.01
+              "step": 0.01,
+              "unit": "%"
             },
             {
               "key": "oh_mat",
@@ -141,7 +149,8 @@
               "min": 0,
               "max": 1,
               "default": 1,
-              "step": 0.01
+              "step": 0.01,
+              "unit": "%"
             },
             {
               "key": "oh_body",
@@ -150,7 +159,8 @@
               "min": 0,
               "max": 1,
               "default": 0.7,
-              "step": 0.01
+              "step": 0.01,
+              "unit": "%"
             },
             {
               "key": "oh_tone",
@@ -159,7 +169,8 @@
               "min": 0,
               "max": 1,
               "default": 0.55,
-              "step": 0.01
+              "step": 0.01,
+              "unit": "%"
             },
             {
               "key": "oh_strike",
@@ -168,7 +179,8 @@
               "min": 0,
               "max": 1,
               "default": 0.44,
-              "step": 0.01
+              "step": 0.01,
+              "unit": "%"
             },
             {
               "key": "oh_grit",
@@ -177,7 +189,8 @@
               "min": 0,
               "max": 1,
               "default": 0.26,
-              "step": 0.01
+              "step": 0.01,
+              "unit": "%"
             },
             {
               "key": "oh_level",
@@ -186,7 +199,8 @@
               "min": 0,
               "max": 1,
               "default": 0.5,
-              "step": 0.01
+              "step": 0.01,
+              "unit": "%"
             }
           ],
           "knobs": [
@@ -219,7 +233,8 @@
               "min": 0,
               "max": 1,
               "default": 0.924,
-              "step": 0.01
+              "step": 0.01,
+              "unit": "%"
             },
             {
               "key": "ride_mat",
@@ -228,7 +243,8 @@
               "min": 0,
               "max": 1,
               "default": 0.95,
-              "step": 0.01
+              "step": 0.01,
+              "unit": "%"
             },
             {
               "key": "ride_body",
@@ -237,7 +253,8 @@
               "min": 0,
               "max": 1,
               "default": 0.8,
-              "step": 0.01
+              "step": 0.01,
+              "unit": "%"
             },
             {
               "key": "ride_tone",
@@ -246,7 +263,8 @@
               "min": 0,
               "max": 1,
               "default": 0.52,
-              "step": 0.01
+              "step": 0.01,
+              "unit": "%"
             },
             {
               "key": "ride_strike",
@@ -255,7 +273,8 @@
               "min": 0,
               "max": 1,
               "default": 0.4,
-              "step": 0.01
+              "step": 0.01,
+              "unit": "%"
             },
             {
               "key": "ride_grit",
@@ -264,7 +283,8 @@
               "min": 0,
               "max": 1,
               "default": 0.18,
-              "step": 0.01
+              "step": 0.01,
+              "unit": "%"
             },
             {
               "key": "ride_level",
@@ -273,7 +293,8 @@
               "min": 0,
               "max": 1,
               "default": 0.34,
-              "step": 0.01
+              "step": 0.01,
+              "unit": "%"
             }
           ],
           "knobs": [
@@ -306,7 +327,8 @@
               "min": 0,
               "max": 1,
               "default": 0.566,
-              "step": 0.01
+              "step": 0.01,
+              "unit": "%"
             },
             {
               "key": "clap_mat",
@@ -315,7 +337,8 @@
               "min": 0,
               "max": 1,
               "default": 0.92,
-              "step": 0.01
+              "step": 0.01,
+              "unit": "%"
             },
             {
               "key": "clap_body",
@@ -324,7 +347,8 @@
               "min": 0,
               "max": 1,
               "default": 0.65,
-              "step": 0.01
+              "step": 0.01,
+              "unit": "%"
             },
             {
               "key": "clap_tone",
@@ -333,7 +357,8 @@
               "min": 0,
               "max": 1,
               "default": 0.5,
-              "step": 0.01
+              "step": 0.01,
+              "unit": "%"
             },
             {
               "key": "clap_strike",
@@ -342,7 +367,8 @@
               "min": 0,
               "max": 1,
               "default": 0.86,
-              "step": 0.01
+              "step": 0.01,
+              "unit": "%"
             },
             {
               "key": "clap_grit",
@@ -351,7 +377,8 @@
               "min": 0,
               "max": 1,
               "default": 0.34,
-              "step": 0.01
+              "step": 0.01,
+              "unit": "%"
             },
             {
               "key": "clap_level",
@@ -360,7 +387,8 @@
               "min": 0,
               "max": 1,
               "default": 0.48,
-              "step": 0.01
+              "step": 0.01,
+              "unit": "%"
             }
           ],
           "knobs": [
@@ -393,7 +421,8 @@
               "min": 0,
               "max": 1,
               "default": 0.631,
-              "step": 0.01
+              "step": 0.01,
+              "unit": "%"
             },
             {
               "key": "conga_mat",
@@ -402,7 +431,8 @@
               "min": 0,
               "max": 1,
               "default": 0.5,
-              "step": 0.01
+              "step": 0.01,
+              "unit": "%"
             },
             {
               "key": "conga_body",
@@ -411,7 +441,8 @@
               "min": 0,
               "max": 1,
               "default": 0.72,
-              "step": 0.01
+              "step": 0.01,
+              "unit": "%"
             },
             {
               "key": "conga_tone",
@@ -420,7 +451,8 @@
               "min": 0,
               "max": 1,
               "default": 0.42,
-              "step": 0.01
+              "step": 0.01,
+              "unit": "%"
             },
             {
               "key": "conga_strike",
@@ -429,7 +461,8 @@
               "min": 0,
               "max": 1,
               "default": 0.52,
-              "step": 0.01
+              "step": 0.01,
+              "unit": "%"
             },
             {
               "key": "conga_grit",
@@ -438,7 +471,8 @@
               "min": 0,
               "max": 1,
               "default": 0.22,
-              "step": 0.01
+              "step": 0.01,
+              "unit": "%"
             },
             {
               "key": "conga_level",
@@ -447,7 +481,8 @@
               "min": 0,
               "max": 1,
               "default": 0.62,
-              "step": 0.01
+              "step": 0.01,
+              "unit": "%"
             }
           ],
           "knobs": [
@@ -480,7 +515,8 @@
               "min": 0,
               "max": 1,
               "default": 0.448,
-              "step": 0.01
+              "step": 0.01,
+              "unit": "%"
             },
             {
               "key": "wood_mat",
@@ -489,7 +525,8 @@
               "min": 0,
               "max": 1,
               "default": 0.04,
-              "step": 0.01
+              "step": 0.01,
+              "unit": "%"
             },
             {
               "key": "wood_body",
@@ -498,7 +535,8 @@
               "min": 0,
               "max": 1,
               "default": 0.66,
-              "step": 0.01
+              "step": 0.01,
+              "unit": "%"
             },
             {
               "key": "wood_tone",
@@ -507,7 +545,8 @@
               "min": 0,
               "max": 1,
               "default": 0.48,
-              "step": 0.01
+              "step": 0.01,
+              "unit": "%"
             },
             {
               "key": "wood_strike",
@@ -516,7 +555,8 @@
               "min": 0,
               "max": 1,
               "default": 0.54,
-              "step": 0.01
+              "step": 0.01,
+              "unit": "%"
             },
             {
               "key": "wood_grit",
@@ -525,7 +565,8 @@
               "min": 0,
               "max": 1,
               "default": 0.2,
-              "step": 0.01
+              "step": 0.01,
+              "unit": "%"
             },
             {
               "key": "wood_level",
@@ -534,7 +575,8 @@
               "min": 0,
               "max": 1,
               "default": 0.35,
-              "step": 0.01
+              "step": 0.01,
+              "unit": "%"
             }
           ],
           "knobs": [
@@ -558,7 +600,8 @@
               "min": 0,
               "max": 1,
               "default": 0.75,
-              "step": 0.01
+              "step": 0.01,
+              "unit": "%"
             },
             {
               "key": "drive",
@@ -567,7 +610,8 @@
               "min": 0,
               "max": 1,
               "default": 0.18,
-              "step": 0.01
+              "step": 0.01,
+              "unit": "%"
             },
             {
               "key": "curve",
@@ -585,7 +629,8 @@
               "min": 0,
               "max": 1,
               "default": 0.5,
-              "step": 0.01
+              "step": 0.01,
+              "unit": "%"
             },
             {
               "key": "shape",
@@ -594,7 +639,8 @@
               "min": 0,
               "max": 1,
               "default": 0.3,
-              "step": 0.01
+              "step": 0.01,
+              "unit": "%"
             },
             {
               "key": "human",
@@ -603,7 +649,8 @@
               "min": 0,
               "max": 1,
               "default": 0.25,
-              "step": 0.01
+              "step": 0.01,
+              "unit": "%"
             },
             {
               "key": "vel_depth",
@@ -612,7 +659,8 @@
               "min": 0,
               "max": 1,
               "default": 0.6,
-              "step": 0.01
+              "step": 0.01,
+              "unit": "%"
             },
             {
               "key": "spread",
@@ -621,7 +669,8 @@
               "min": 0,
               "max": 1,
               "default": 0.4,
-              "step": 0.01
+              "step": 0.01,
+              "unit": "%"
             }
           ],
           "knobs": [
@@ -672,7 +721,8 @@
               "min": 0,
               "max": 1,
               "default": 0.5,
-              "step": 0.01
+              "step": 0.01,
+              "unit": "%"
             },
             {
               "key": "bright",
@@ -681,7 +731,8 @@
               "min": 0,
               "max": 1,
               "default": 0.5,
-              "step": 0.01
+              "step": 0.01,
+              "unit": "%"
             },
             {
               "key": "warp",
@@ -690,7 +741,8 @@
               "min": 0,
               "max": 1,
               "default": 0.5,
-              "step": 0.01
+              "step": 0.01,
+              "unit": "%"
             }
           ],
           "knobs": [
