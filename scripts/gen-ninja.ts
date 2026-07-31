@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 /**
  * Generate build/{host,move,wasm}.ninja from the module graph.
  *

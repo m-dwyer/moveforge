@@ -129,7 +129,7 @@ function copyStaticAssets(): Plugin {
           wasmCount += 1;
         }
       } catch (err) {
-        this.warn(`no WASM found under web/wasm (${(err as Error).message}); run `mise run wasm-build` first`);
+        this.warn(`no WASM found under web/wasm (${(err as Error).message}); run \`mise run wasm-build\` first`);
       }
       if (wasmCount === 0) this.warn("copied 0 .wasm files — the deployed app will show no modules");
 

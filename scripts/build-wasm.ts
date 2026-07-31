@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 /**
  * Emscripten-compile the browser modules.
  *
