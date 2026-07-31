@@ -67,8 +67,8 @@ export default defineConfig(({ mode, command }) => {
   };
 });
 
-// Expose src/modules/<id>/{module,presets,metadata}.json + src/modules/index.json at
-// /modules/* — those files live outside the Vite root (web/), so they need
+// Expose src/modules/<id>/{module.def,presets,metadata}.json + src/modules/index.json
+// at /modules/* — those files live outside the Vite root (web/), so they need
 // an explicit URL mapping rather than Vite's filesystem fallthrough.
 function serveRepoModules(): Plugin {
   const sourceDir = resolve(REPO_ROOT, "src/modules");
@@ -134,7 +134,12 @@ function copyStaticAssets(): Plugin {
       if (wasmCount === 0) this.warn("copied 0 .wasm files — the deployed app will show no modules");
 
       // Repo module metadata, mirroring what serveRepoModules exposes in dev:
-      // index.json plus each module's module/presets/metadata JSON.
+      // index.json plus each module's definition, presets and metadata.
+      //
+      // module.json is deliberately not copied. It is the Schwung target's
+      // emitted manifest, and the browser reads the authored definition — it is
+      // previewing the module, not the target. Shipping it would serve a file
+      // nothing fetches.
       const modulesSrc = resolve(REPO_ROOT, "src/modules");
       const modulesOut = join(outDir, "modules");
       await mkdir(modulesOut, { recursive: true });
@@ -144,7 +149,7 @@ function copyStaticAssets(): Plugin {
         const srcDir = join(modulesSrc, entry.name);
         const dstDir = join(modulesOut, entry.name);
         await mkdir(dstDir, { recursive: true });
-        for (const file of ["module.json", "presets.json", "metadata.json"]) {
+        for (const file of ["module.def.json", "presets.json", "metadata.json"]) {
           await copyFile(join(srcDir, file), join(dstDir, file)).catch(() => {});
         }
       }

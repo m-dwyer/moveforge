@@ -119,15 +119,34 @@ export function parseModuleDefinition(value: unknown, source: string): ModuleDef
 }
 
 /**
+ * Parameters with the group that declared them, in ABI order.
+ *
+ * The primitive; `definitionParams` is defined in terms of it so a caller that
+ * wants the grouping — bank labels on the device, section headers in the browser
+ * — cannot end up walking the definition a second, differently-ordered time to
+ * get it. Same reasoning as `ui-hierarchy.ts`'s `paramGroups`, and for the same
+ * reason: the flattened index *is* the parameter id.
+ */
+export function definitionGroups(definition: ModuleDefinition) {
+  return definition.groups.map((group) => ({
+    group: group.key,
+    knobs: group.knobs ?? [],
+    label: group.name,
+    params: group.params
+  }));
+}
+
+/**
  * Every parameter, in the order that is the ABI.
  *
- * The one walk over a definition's parameters, for the same reason
- * `ui-hierarchy.ts` is the one walk over a Schwung `ui_hierarchy`: a second walk
- * that disagrees is a module addressing the wrong parameters with nothing
- * failing.
+ * That order reaches the generated C by a different route — through the emitted
+ * `ui_hierarchy` and `flattenParams` — so the two must agree. They do by
+ * construction, since the emitter writes one level per group in array order, and
+ * `tests/module-definition.test.ts` asserts it against every real module rather
+ * than leaving it to construction.
  */
 export function definitionParams(definition: ModuleDefinition) {
-  return definition.groups.flatMap((group) => group.params);
+  return definitionGroups(definition).flatMap((group) => group.params);
 }
 
 /** Every hardware-control assignment, in control order, as parameter keys. */
