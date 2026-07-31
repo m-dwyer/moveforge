@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { argv, exit } from "node:process";
 import { spawnSync } from "node:child_process";
 import { renderTemplateTree, type TemplateContext } from "./lib/templates.ts";
+import { generate as generateModuleJson } from "./gen-module-json.ts";
 import { generate as generateParams } from "./gen-params.ts";
 import { generate as generatePresets } from "./gen-presets.ts";
 import { generate as generateFaust } from "./gen-faust.ts";
@@ -16,7 +17,8 @@ if (!id) {
 
 Scaffolds a new Schwung module by copying the matching template and
 substituting MODULE_ID / MODULE_UPPER / MODULE_NAME / MODULE_ABBREV placeholders.
-Also generates the per-module params header from module.json. Faust modules
+Also emits module.json for the Schwung target and the per-module params
+header from it. Faust modules
 also regenerate their checked-in generated C.
 
 Arguments:
@@ -94,6 +96,7 @@ const renderedFiles = await renderTemplateTree({
     : join(targetDir, rel)
 });
 const generatedFiles = [
+  `${targetDir}/module.json`,
   `${targetDir}/dsp/${id}_params.gen.h`,
   `${targetDir}/dsp/${id}_params.gen.inc`,
   `${targetDir}/dsp/${id}_presets.gen.inc`,
@@ -102,6 +105,9 @@ const generatedFiles = [
 ];
 
 if (!dryRun) {
+  /* module.json first: every generator below reads it, and it is emitted from
+     the scaffolded module.def.json. */
+  await generateModuleJson({ moduleIds: [id], mode: "write" });
   await generateParams({ moduleIds: [id], mode: "write" });
   await generatePresets({ moduleIds: [id], mode: "write" });
   if (dsp === "faust") await generateFaust({ moduleIds: [id], mode: "write" });

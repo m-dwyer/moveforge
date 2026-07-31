@@ -26,6 +26,10 @@ run = "python3 -m venv .venv && .venv/bin/python -m pip install -r requirements-
 
 # --- codegen ---------------------------------------------------------------
 
+[tasks.gen-module-json]
+description = "Generate each module.json for the Schwung target from its module.def.json"
+run = "node scripts/gen-module-json.ts"
+
 [tasks.gen-params]
 description = "Generate <module>_params.gen.inc files from each module.json"
 run = "pnpm run gen-params"

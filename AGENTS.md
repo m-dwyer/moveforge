@@ -28,7 +28,8 @@ plans/                  working documents for in-flight work
 A module directory, plain C on the left, Faust on the right:
 
 ```
-module.json             SINGLE SOURCE OF TRUTH: metadata + parameter schema
+module.def.json         SINGLE SOURCE OF TRUTH: metadata + parameter schema
+module.json             GENERATED for the Schwung target from module.def.json
 presets.json            presets, and the render-suite clips
 metadata.json           randomize ranges
 ui.js                   on-device solo screen
@@ -53,9 +54,11 @@ sound generators and audio FX; MIDI FX are always plain C.
 
 ## Rules that prevent silent breakage
 
-1. **`module.json` is the single source of truth** for metadata and the
+1. **`module.def.json` is the single source of truth** for metadata and the
    parameter schema. Params, their ranges and defaults are declared there and
    nowhere else — the C, the on-device UI and the browser all derive from it.
+   `module.json` is **generated** from it for the Schwung target
+   (`mise run gen-module-json`); edit the definition, never the output.
    They derive through `shared/ui-hierarchy.ts`, which is the **only** place that
    walks `ui_hierarchy` — parameter *order* is an ABI between the generated enum,
    the device's knob list and the browser's parameter ids, so a second walk that
@@ -84,7 +87,7 @@ sound generators and audio FX; MIDI FX are always plain C.
    their param's range, and every check that reads the C or the `.dsp` — stays in
    `scripts/validate-params.ts`, which carries the upstream citations for it.
 2. **Never hand-edit a generated file.** Anything named `*.gen.*`, plus
-   `ui_chain.js` and `<id>_faust.c`. Edit the source and re-run the generator;
+   `module.json`, `ui_chain.js` and `<id>_faust.c`. Edit the source and re-run the generator;
    `mise run validate` fails on drift. There are two template systems, split
    along a real seam: `templates/generated/*.eta` emit repetitive C from data
    (loops and conditionals, rendered via `scripts/lib/eta.ts`), while
@@ -116,11 +119,11 @@ pnpm run new-module -- --id <id> --kind sound_generator|audio_fx|midi_fx
 This scaffolds from `templates/modules/`, runs every generator, and registers
 the module in `src/modules/index.json`.
 
-Adding a parameter touches `module.json`, the core struct or the `.dsp`, and
+Adding a parameter touches `module.def.json`, the core struct or the `.dsp`, and
 then the generators. **`skills/schwung-dsp-development/SKILL.md` is the
 canonical step-by-step** for both — follow it rather than reconstructing the
-order, because the generators have to run in sequence and `validate` checks all
-four for drift.
+order, because the generators have to run in sequence (`gen-module-json` first,
+since the rest read its output) and `validate` checks all five for drift.
 
 ## Where to look next
 

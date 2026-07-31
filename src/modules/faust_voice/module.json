@@ -16,21 +16,17 @@
     "midi_out": false,
     "chainable": true,
     "component_type": "sound_generator",
-    "scope": {
-      "mode": "continuous",
-      "style": "triggered",
-      "window": 1024
-    },
+    "scope": { "mode": "continuous", "style": "triggered", "window": 1024 },
     "ui_hierarchy": {
       "levels": {
         "root": {
           "name": "Faust Voice",
           "params": [
-            { "key": "cutoff",    "name": "Cutoff",    "type": "float", "min": 0,     "max": 1,    "default": 0.6,  "step": 0.01, "unit": "%" },
-            { "key": "resonance", "name": "Resonance", "type": "float", "min": 0,     "max": 1,    "default": 0.3,  "step": 0.01, "unit": "%" },
-            { "key": "attack",    "name": "Attack",    "type": "float", "min": 0.001, "max": 1,    "default": 0.01, "step": 0.001, "unit": "sec" },
-            { "key": "release",   "name": "Release",   "type": "float", "min": 0.01,  "max": 4,    "default": 0.3,  "step": 0.01, "unit": "sec" },
-            { "key": "level",     "name": "Level",     "type": "float", "min": 0,     "max": 1,    "default": 0.7,  "step": 0.01, "unit": "%" }
+            { "default": 0.6, "key": "cutoff", "max": 1, "min": 0, "name": "Cutoff", "step": 0.01, "type": "float", "unit": "%" },
+            { "default": 0.3, "key": "resonance", "max": 1, "min": 0, "name": "Resonance", "step": 0.01, "type": "float", "unit": "%" },
+            { "default": 0.01, "key": "attack", "max": 1, "min": 0.001, "name": "Attack", "step": 0.001, "type": "float", "unit": "sec" },
+            { "default": 0.3, "key": "release", "max": 4, "min": 0.01, "name": "Release", "step": 0.01, "type": "float", "unit": "sec" },
+            { "default": 0.7, "key": "level", "max": 1, "min": 0, "name": "Level", "step": 0.01, "type": "float", "unit": "%" }
           ],
           "knobs": ["cutoff", "resonance", "attack", "release"]
         }

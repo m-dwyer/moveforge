@@ -1,6 +1,10 @@
 import { readFile, readdir, stat } from "node:fs/promises";
 
 import {
+  type ModuleDefinition,
+  parseModuleDefinition
+} from "../../shared/module-definition.ts";
+import {
   type MetadataJson,
   parseMetadataJson,
   parsePresetsJson,
@@ -19,6 +23,7 @@ export type ModulePaths = {
   faustC: string;
   faustDsp: string;
   goldenMetrics: string;
+  moduleDef: string;
   moduleDir: string;
   moduleJson: string;
   paramsGenH: string;
@@ -56,6 +61,12 @@ export type ModuleBuildTarget = {
  * presets.json and metadata.json are optional — a module with neither is valid,
  * and every caller already treated a missing file as empty.
  */
+/** The authored definition. The source of truth; module.json is emitted from it. */
+export async function readModuleDefinition(moduleId: string): Promise<ModuleDefinition> {
+  const path = modulePaths(moduleId).moduleDef;
+  return parseModuleDefinition(JSON.parse(await readFile(path, "utf8")), path);
+}
+
 export async function readModuleJson(moduleId: string): Promise<SchwungModuleJson> {
   const path = modulePaths(moduleId).moduleJson;
   return parseSchwungModuleJson(JSON.parse(await readFile(path, "utf8")), path);
@@ -110,6 +121,7 @@ export function modulePaths(moduleId: string): ModulePaths {
     faustC: `${moduleDir}/dsp/${moduleId}_faust.c`,
     faustDsp: `${moduleDir}/dsp/${moduleId}.dsp`,
     goldenMetrics: `goldens/${moduleId}/metrics.json`,
+    moduleDef: `${moduleDir}/module.def.json`,
     moduleDir,
     moduleJson: `${moduleDir}/module.json`,
     paramsGenH: `${moduleDir}/dsp/${moduleId}_params.gen.h`,

@@ -16,6 +16,7 @@
     "format-check": "./scripts/format.sh --check",
     "gen-compile-commands": "node scripts/gen-compile-commands.ts",
     "gen-faust": "node scripts/gen-faust.ts",
+    "gen-module-json": "node scripts/gen-module-json.ts",
     "gen-params": "node scripts/gen-params.ts",
     "gen-presets": "node scripts/gen-presets.ts",
     "gen-ui-chain": "node scripts/gen-ui-chain.ts",

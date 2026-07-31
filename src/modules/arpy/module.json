@@ -21,9 +21,9 @@
         "root": {
           "name": "Arpy",
           "params": [
-            { "key": "pattern", "name": "Pattern", "type": "int", "min": 0, "max": 3, "default": 1, "step": 1 },
-            { "key": "chord", "name": "Chord", "type": "int", "min": 0, "max": 4, "default": 3, "step": 1 },
-            { "key": "rate", "name": "Rate", "type": "float", "min": 0, "max": 1, "default": 0.3, "step": 0.01, "unit": "%" }
+            { "default": 1, "key": "pattern", "max": 3, "min": 0, "name": "Pattern", "step": 1, "type": "int" },
+            { "default": 3, "key": "chord", "max": 4, "min": 0, "name": "Chord", "step": 1, "type": "int" },
+            { "default": 0.3, "key": "rate", "max": 1, "min": 0, "name": "Rate", "step": 0.01, "type": "float", "unit": "%" }
           ],
           "knobs": ["pattern", "chord", "rate"]
         }

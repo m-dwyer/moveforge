@@ -21,7 +21,7 @@ See [MODULES.md](MODULES.md) for the module index grouped by component type.
 | `faust_drive` | audio_fx | Faust | Stereo drive/tone/mix — reference Faust FX |
 | `arpy` | midi_fx | plain C | Arpeggiator with clock sync |
 
-Each module lives under `src/modules/<id>/` and is self-contained: `module.json` (Schwung manifest + param schema, including root preset list metadata and root `knobs` encoder priority), optional `metadata.json` (local/web help text), `presets.json`, `ui.js`, generated `ui_chain.js` (preset browser + knob-bank param editor in chain mode), and `dsp/`.
+Each module lives under `src/modules/<id>/` and is self-contained: `module.def.json` (the authored, target-agnostic definition: metadata + param schema, parameter groups and their `knobs` encoder priority), generated `module.json` (the Schwung manifest emitted from it), optional `metadata.json` (local/web help text), `presets.json`, `ui.js`, generated `ui_chain.js` (preset browser + knob-bank param editor in chain mode), and `dsp/`.
 
 Shared module-side helpers live under `src/modules/_shared/`. Module scaffolding templates live under `templates/modules/<component_type>/<dsp>/`.
 
@@ -37,7 +37,8 @@ Both paths share the same shape: a public API header (`<id>_core.h`) declaring t
 
 ```
 src/modules/<id>/
-  module.json
+  module.def.json        ← authored
+  module.json            ← generated for the Schwung target
   metadata.json
   presets.json
   ui.js
@@ -46,7 +47,7 @@ src/modules/<id>/
     <id>_core.h            ← public API contract
     <id>_core.c            ← implementation: hand-written DSP
     <id>_params.gen.h      ← generated: param count + enum, included by _core.h
-    <id>_params.gen.inc    ← generated from module.json by gen-params
+    <id>_params.gen.inc    ← generated from module.def.json by gen-params
     <id>_presets.gen.inc   ← generated from presets.json by gen-presets
     <id>.c                 ← Schwung wrapper (plugin_api_v2 / audio_fx_api_v2 / midi_fx_api_v1)
 ```
@@ -57,7 +58,8 @@ Best for: MIDI FX (event-heavy state machines), unusual signal routing, performa
 
 ```
 src/modules/<id>/
-  module.json
+  module.def.json        ← authored
+  module.json            ← generated for the Schwung target
   metadata.json
   presets.json
   ui.js
@@ -68,7 +70,7 @@ src/modules/<id>/
     <id>_core.h            ← public API contract (same shape as plain C)
     <id>_adapter.c         ← implementation: captures Faust param zones, drives compute()
     <id>_params.gen.h      ← still generated: param count + enum
-    <id>_params.gen.inc    ← still generated from module.json
+    <id>_params.gen.inc    ← still generated from module.def.json
     <id>_presets.gen.inc   ← generated from presets.json by gen-presets
     <id>.c                 ← Schwung wrapper (same shape as plain C)
 ```
@@ -155,9 +157,9 @@ Omitting `MODULE_ID` builds every module. Set `MODULE_ID=<id>` to build one modu
 
 ### Adding a parameter
 
-1. Edit `src/modules/<id>/module.json` — add to `capabilities.ui_hierarchy.levels.root.params`.
+1. Edit `src/modules/<id>/module.def.json` — add to the relevant entry in `groups[].params`.
 2. Plain C: add a matching `float <key>;` field to the core struct in `<id>_core.h`. Faust: add a matching `hslider("<key>", ...)` in `<id>.dsp`.
-3. Run `mise run gen-params` (regenerates `<id>_params.gen.h` and `<id>_params.gen.inc`).
+3. Run `mise run gen-module-json` (re-emits `module.json`), then `mise run gen-params` (regenerates `<id>_params.gen.h` and `<id>_params.gen.inc`).
 4. Faust: also run `mise run gen-faust` (regenerates `<id>_faust.c`).
 5. Use the new param in the DSP (the `.c` for plain C, the `.dsp` body for Faust).
 6. Set the key in `<id>/presets.json` for the presets that want a value other than the default — a preset omits what it does not change, and inherits the declared default for it.
@@ -187,7 +189,7 @@ For AI-assisted iteration: ask for small, contained changes (a single filter, a 
 
 The preset suite is musical and golden-backed. It answers: did our curated example sounds change unexpectedly?
 
-Stress renders are generated from `module.json`. For each audio module, they render defaults, each parameter at min/max, an all-max case, and a hot/fast combination. Sound generators render note sequences; audio FX render sweep/impulse inputs. MIDI FX are skipped because they output trace files rather than WAV audio.
+Stress renders are generated from the module definition. For each audio module, they render defaults, each parameter at min/max, an all-max case, and a hot/fast combination. Sound generators render note sequences; audio FX render sweep/impulse inputs. MIDI FX are skipped because they output trace files rather than WAV audio.
 
 Stress checks are safety gates, not golden comparisons. They fail on clipped samples, excessive DC offset, unexpected silence, too-hot peaks, or large stereo imbalance. They are useful when adding params because every exposed min/max starts getting exercised automatically.
 
@@ -261,13 +263,14 @@ Individual gates:
 
 | Task | What it does |
 |---|---|
-| `mise run gen-params` | Regenerate `<id>_params.gen.{h,inc}` from `module.json` |
+| `mise run gen-module-json` | Regenerate `module.json` for the Schwung target from `module.def.json` (run first — the rest read its output) |
+| `mise run gen-params` | Regenerate `<id>_params.gen.{h,inc}` from `module.def.json` |
 | `mise run gen-faust` | Regenerate `<id>_faust.c` from `<id>.dsp` (Faust modules only) |
 | `mise run gen-presets` | Regenerate `<id>_presets.gen.inc` from `presets.json` |
-| `mise run gen-ui-chain` | Regenerate `<id>/ui_chain.js` from `module.json` |
+| `mise run gen-ui-chain` | Regenerate `<id>/ui_chain.js` from `module.def.json` |
 | `mise run gen-ninja` | Regenerate `build/{host,move,wasm}.ninja` from the module graph (every build task does this first) |
 | `mise run typecheck` | Typecheck the TypeScript in `scripts/`, `shared/` and `web/` |
-| `mise run validate` | Param metadata + gen-params/gen-faust/gen-presets/gen-ui-chain drift + presets in range |
+| `mise run validate` | Param metadata + gen-module-json/gen-params/gen-faust/gen-presets/gen-ui-chain drift + presets in range |
 | `mise run test-c` | Core DSP smoke tests in `tests/test_<id>_core.c` |
 | `mise run test-c-san` | The same C tests under AddressSanitizer + UndefinedBehaviorSanitizer |
 | `mise run test-ui-chain` | Chain-UI behaviour tests against the generated `ui_chain.js` |

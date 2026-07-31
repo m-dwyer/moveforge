@@ -11,6 +11,7 @@
  *   gen-ui-chain --check && validate-params && check-module-targets
  */
 import { ModuleSchemaError } from "../shared/module-schema.ts";
+import { generate as genModuleJson } from "./gen-module-json.ts";
 import { generate as genParams } from "./gen-params.ts";
 import { generate as genFaust } from "./gen-faust.ts";
 import { generate as genPresets } from "./gen-presets.ts";
@@ -27,6 +28,8 @@ import { generate as genUiChain } from "./gen-ui-chain.ts";
  */
 let drift = 0;
 try {
+  /* First: everything below reads module.json, which this emits. */
+  drift += await genModuleJson({ mode: "check" });
   drift += await genParams({ mode: "check" });
   drift += await genFaust({ mode: "check" });
   drift += await genPresets({ mode: "check" });
