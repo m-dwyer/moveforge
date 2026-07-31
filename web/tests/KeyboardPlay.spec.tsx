@@ -1,6 +1,6 @@
 import { createElement } from "react";
 import { test, expect } from "vitest";
-import { render, page, audioCalls } from "./fixtures";
+import { render, page, audioCalls, flushEffects } from "./fixtures";
 import { useKeyboardPlay } from "@/lib/keyboard";
 import { PadGrid } from "@/components/PadGrid";
 
@@ -14,8 +14,9 @@ function KeyboardAndPadsHarness() {
   return createElement(PadGrid);
 }
 
-test("computer keyboard sustains a note until physical key release", () => {
+test("computer keyboard sustains a note until physical key release", async () => {
   render(createElement(KeyboardHarness));
+  await flushEffects();
 
   window.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, code: "KeyA", key: "a" }));
   window.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, code: "KeyA", key: "a", repeat: true }));
@@ -33,8 +34,9 @@ test("computer keyboard sustains a note until physical key release", () => {
   expect(noteOffs[0].note).toBe(noteOns[0].note);
 });
 
-test("computer keyboard releases held notes on window blur", () => {
+test("computer keyboard releases held notes on window blur", async () => {
   render(createElement(KeyboardHarness));
+  await flushEffects();
 
   window.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, code: "KeyS", key: "s" }));
   window.dispatchEvent(new Event("blur"));
@@ -49,7 +51,14 @@ test("computer keyboard releases held notes on window blur", () => {
 test("computer keyboard lights the matching pad while held", async () => {
   render(createElement(KeyboardAndPadsHarness));
 
+  /* Wait for the grid to be on screen before dispatching. PadGrid commits in
+   * more passes than a bare div — memoised note list, one store subscription per
+   * pad — so a fixed tick is not enough to guarantee useKeyboardPlay's effect has
+   * attached its listener, and a keydown into a page with no listener is silently
+   * a no-op. */
   const firstPad = page.getByTestId("pad").first();
+  await expect.element(firstPad).toBeInTheDocument();
+
   window.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, code: "KeyA", key: "a" }));
 
   await expect.element(firstPad).toHaveAttribute("data-active", "true");

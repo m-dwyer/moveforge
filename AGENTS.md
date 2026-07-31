@@ -103,8 +103,10 @@ sound generators and audio FX; MIDI FX are always plain C.
    (`move-install`, `move-deploy`, `move-health`).
 4. **`mise run check` is the gate.** It must exit 0 before anything ships.
    Module-aware tasks run for every module unless you set `MODULE_ID=<id>`.
-   `check` covers everything except `test-web`, which needs Playwright browsers
-   and is not gated in CI; `mise run test` is the umbrella that includes it.
+   `check` covers everything except `test-web`, which needs a Playwright browser
+   download — but it does run `web-build`, so a broken vite config or web
+   TypeScript fails locally. `test-web` is gated in CI in its own job, and
+   `mise run test` is the local umbrella that includes it.
 
 Keep musical DSP behaviour in the shared core, not in the wrappers, the web
 code or the render tools — there are three build targets and only one of them

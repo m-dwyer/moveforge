@@ -4,12 +4,11 @@ name: CI
 # ran on push to main, built WASM, and published — so nothing checked a pull
 # request, and README/SKILL both described a CI gate that did not exist.
 #
-# Deliberately NOT here: `pnpm test`, the React component suite. It is 41
-# Zustand/component tests with @/audio aliased to a mock, so it covers no audio,
-# WASM or DSP, and it needs a Playwright Chromium download. It also has a
-# known-excluded file (KeyboardPlay.spec.tsx does not match the *.spec.ts
-# include glob). Worth gating on once those are fixed — see plan items 5.10 and
-# 5.11 — not before.
+# The React component suite now runs too, in its own job — see `web` below. It
+# was held back because KeyboardPlay.spec.tsx was silently excluded by the
+# *.spec.ts include glob and failed once included; both are fixed. It still
+# covers no audio, WASM or DSP (@/audio is aliased to a mock), so it is a
+# component and store gate, not a signal about sound.
 on:
   pull_request:
   push:
@@ -76,6 +75,48 @@ jobs:
       # To check Faust drift in CI too, the version has to be pinned — a
       # container image or a source build, not apt. Tracked as plan item 3.8.
       - run: mise run check
+
+  # The browser UI. Separate from `check` because it is the one job that needs a
+  # Playwright browser download; keeping it out of `check` means a DSP-only
+  # developer running the local gate does not pay for one.
+  #
+  # `mise run check` already runs `web-build`, so a config or TypeScript break is
+  # caught there and here. What this job adds is the component and store
+  # behaviour, which nothing else exercises — and which now includes the keyboard
+  # tests that had never run at all.
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: jdx/mise-action@v2
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.2
+
+      - id: pnpm-store
+        run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache@v4
+        with:
+          path: ${{ steps.pnpm-store.outputs.path }}
+          key: pnpm-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: pnpm-${{ runner.os }}-
+
+      - run: pnpm install --frozen-lockfile
+
+      # Chromium only: vite.config.ts pins the suite to a single chromium
+      # instance, so the other engines would be an unused download.
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+
+      - name: Install Playwright Chromium
+        run: pnpm exec playwright install --with-deps chromium
+
+      - run: mise run test-web
 
   # The artifact that actually ships was never built in CI. A wrapper that fails
   # to compile for aarch64, or stops exporting its init symbol, previously got

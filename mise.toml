@@ -67,6 +67,19 @@ run = "node scripts/build-host.ts"
 description = "Cross-compile aarch64 .so and package dist/<id>/ + dist/<id>-module.tar.gz"
 run = "node scripts/build-move.ts"
 
+[tasks.web-build]
+# In `check` because nothing else there loads vite.config.ts. It went unparseable
+# for a whole commit — a template literal with unescaped backticks, plus an
+# esbuild shebang rejection — and neither `check` nor CI noticed, because the
+# only thing that built the web UI was the Pages deploy, on main, after merge.
+# This needs no Playwright download, so it costs a DSP-only developer a few
+# seconds rather than a browser install.
+#
+# It does not need WASM: with web/wasm empty the build warns and still exercises
+# the config, the TypeScript and the asset copy, which is the part that breaks.
+description = "Build the static browser UI into web/dist (catches vite config and web TypeScript breaks)"
+run = "pnpm run build:web"
+
 [tasks.wasm-build]
 description = "Emscripten-compile browser .wasm into web/wasm/"
 run = "node scripts/build-wasm.ts"
@@ -108,8 +121,11 @@ description = "Run local chain-UI behaviour tests (generated ui_chain.js, no dev
 run = "pnpm run test:ui-chain"
 
 [tasks.test]
-# Everything test-shaped, including the browser suite. `check` deliberately does
-# NOT depend on this: test-web needs Playwright browsers and is not gated in CI.
+# Everything test-shaped, including the browser suite. `check` depends on
+# `web-build` but not on `test-web`: the build catches a broken web config for
+# free, while the browser suite needs a Playwright download that a DSP-only
+# developer should not have to pay for. CI runs test-web in its own job, so it
+# is gated — just not locally.
 description = "Run every test suite: C, C+sanitizers, chain UI, and the browser components"
 depends = ["test-c", "test-c-san", "test-ui-chain", "test-web"]
 
@@ -250,6 +266,7 @@ run = [
   "mise run stress",
   "mise run plot",
   "mise run host-build",
+  "mise run web-build",
 ]
 
 [tasks.check-all]

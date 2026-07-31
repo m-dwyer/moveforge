@@ -55,6 +55,20 @@ export function render(node: ReactNode): void {
   root.render(createElement(TooltipProvider, { delayDuration: 0, children: node }));
 }
 
+/**
+ * Wait for React to commit and run effects.
+ *
+ * `createRoot().render()` schedules work rather than doing it, so a test that
+ * acts on the DOM synchronously after `render` acts on a tree whose effects have
+ * not run. Most tests here never noticed: they reach for the DOM through
+ * `page.getBy*`, which retries until it finds something. A test that dispatches
+ * an event instead gets one shot, and hits a component that has not subscribed
+ * to anything yet.
+ */
+export function flushEffects(): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, 0));
+}
+
 export function audioCalls(): AudioCall[] {
   return window.__moveforgeAudioCalls__ ?? [];
 }

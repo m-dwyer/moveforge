@@ -52,7 +52,7 @@ export default defineConfig(({ mode, command }) => {
       ...(isTest ? [] : [wasmRebuilder()])
     ],
     test: {
-      include: ["tests/**/*.spec.ts"],
+      include: ["tests/**/*.spec.ts", "tests/**/*.spec.tsx"],
       browser: {
         enabled: true,
         headless: true,
