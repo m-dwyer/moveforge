@@ -1,6 +1,7 @@
 import { fileURLToPath } from "node:url";
 import { densePresetValues } from "../shared/presets.ts";
-import { type ModuleParam, type Preset } from "../shared/module-schema.ts";
+import { type Preset } from "../shared/module-schema.ts";
+import { type SchwungParam } from "../shared/targets/schwung.ts";
 import { flattenParams } from "../shared/ui-hierarchy.ts";
 import { modulePaths, readModuleJson, readPresetsJson, selectedModuleIds } from "./lib/modules.ts";
 import { cFloatLiteral, escapeCString } from "./lib/c.ts";
@@ -19,7 +20,7 @@ export async function generate(options: GenerateOptions = {}): Promise<number> {
   for (const moduleId of moduleIds) {
     const paths = modulePaths(moduleId);
     const moduleJson = await readModuleJson(moduleId);
-    const params = flattenParams<ModuleParam>(moduleJson.capabilities.ui_hierarchy);
+    const params = flattenParams<SchwungParam>(moduleJson.capabilities.ui_hierarchy);
     if (params.length === 0) {
       console.warn(`[${moduleId}] no params in any capabilities.ui_hierarchy level — skipping`);
       continue;
@@ -48,7 +49,7 @@ export async function generate(options: GenerateOptions = {}): Promise<number> {
  * to emit a literal C reads back as the same float. Both are contracts; the
  * template only lays the results out.
  */
-function renderInc(moduleId: string, params: ModuleParam[], presets: Preset[]): string {
+function renderInc(moduleId: string, params: SchwungParam[], presets: Preset[]): string {
   const upper = moduleId.toUpperCase();
   return renderGenerated("presets.gen.inc", {
     coreType: `${moduleId}_core_t`,

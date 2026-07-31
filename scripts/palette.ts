@@ -3,7 +3,7 @@ import { spawnSync } from "node:child_process";
 import { describe, fingerprint, spreadOf, type Descriptors } from "./lib/descriptors.ts";
 import { readModuleJson, readPresetsJson, selectedModuleTargets } from "./lib/modules.ts";
 import { densePresetValues, type PresetParam } from "../shared/presets.ts";
-import { type ModuleJson, type ModuleParam } from "../shared/module-schema.ts";
+import { type SchwungModuleJson, type SchwungParam } from "../shared/targets/schwung.ts";
 import { paramGroups } from "../shared/ui-hierarchy.ts";
 import { readWav } from "./wav-io.ts";
 
@@ -95,7 +95,7 @@ async function paletteFor(moduleId: string, renderBin: string): Promise<void> {
 
   /* Through paramGroups, never by re-reading `levels`: parameter order is an ABI
    * and shared/ui-hierarchy.ts is the only walk of it in the tree. */
-  const groups = paramGroups<ModuleParam>(moduleJson.capabilities.ui_hierarchy);
+  const groups = paramGroups<SchwungParam>(moduleJson.capabilities.ui_hierarchy);
   const params = groups.flatMap((g) =>
     g.params.map((p) => ({ ...p, group: g.label ?? g.group }))
   );
@@ -161,7 +161,7 @@ async function paletteFor(moduleId: string, renderBin: string): Promise<void> {
     index < sounding.length ? sounding[index] : fallbackNote;
 
   /* ---- 2. knob sweeps ---- */
-  type Sweep = { param: ModuleParam & { group: string }; rows: Row[] };
+  type Sweep = { param: SchwungParam & { group: string }; rows: Row[] };
   const sweeps: Sweep[] = [];
   for (const p of params) {
     /* Sweep each parameter on the voice it belongs to. A per-voice `decay`
@@ -269,9 +269,9 @@ const HEADER = `${pad("", 22)} ${padL("peak", 7)} ${padL("T60", 8)} ${padL("cent
 
 function renderMarkdown(
   moduleId: string,
-  moduleJson: ModuleJson,
+  moduleJson: SchwungModuleJson,
   notes: Row[],
-  sweeps: Array<{ param: ModuleParam & { group: string }; rows: Row[] }>,
+  sweeps: Array<{ param: SchwungParam & { group: string }; rows: Row[] }>,
   presetKits: Array<{ name: string; rows: Row[] }>,
   noteMapped: boolean
 ): string {
@@ -430,10 +430,10 @@ async function bandsFor(dir: string, file: string): Promise<number[]> {
 
 async function renderHtml(
   moduleId: string,
-  moduleJson: ModuleJson,
+  moduleJson: SchwungModuleJson,
   dir: string,
   notes: Row[],
-  sweeps: Array<{ param: ModuleParam & { group: string }; rows: Row[] }>,
+  sweeps: Array<{ param: SchwungParam & { group: string }; rows: Row[] }>,
   presetKits: Array<{ name: string; rows: Row[] }>
 ): Promise<string> {
   const rowHtml = async (r: Row): Promise<string> => {

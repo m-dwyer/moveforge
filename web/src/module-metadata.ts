@@ -22,9 +22,11 @@ export type ParamDefinition = {
   max: number;
   min: number;
   description?: string;
+  display_format?: string;
   randomize?: RandomizeHint;
   step?: number;
   type?: string;
+  unit?: string;
   value: number;
 };
 
@@ -37,12 +39,16 @@ export type RandomizeHint = {
 
 type RawParam = {
   default: number;
+  display_format?: string;
   key: string;
   max: number;
   min: number;
   name?: string;
   step?: number;
   type?: string;
+  /* Host fields (chain_internal.h:111-112). Carried through so the browser can
+   * show what the device shows instead of a bare float. */
+  unit?: string;
 };
 
 export type ModuleMetadataJson = {
@@ -171,9 +177,11 @@ function paramsFromModuleJson(
     max: item.max,
     min: item.min,
     description: descriptions[item.key],
+    display_format: item.display_format,
     randomize: randomizeHints[item.key],
     step: item.step,
     type: item.type,
+    unit: item.unit,
     value: item.default
   }));
 }

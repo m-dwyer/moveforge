@@ -10,11 +10,10 @@ import {
 import {
   ModuleSchemaError,
   type MetadataJson,
-  type ModuleJson,
-  type ModuleParam,
   parseModuleIndex,
   type PresetsJson
 } from "../shared/module-schema.ts";
+import { type SchwungModuleJson, type SchwungParam } from "../shared/targets/schwung.ts";
 import {
   modulePaths,
   readMetadataJson,
@@ -103,7 +102,7 @@ async function validateModule(moduleId: string, errors: string[]): Promise<void>
    * A structural failure stops the module here rather than reporting it and
    * carrying on, because every check below reads fields the parse just proved
    * absent or malformed. */
-  let moduleJson: ModuleJson;
+  let moduleJson: SchwungModuleJson;
   let metadataJson: MetadataJson;
   let presetsJson: PresetsJson;
   try {
@@ -150,7 +149,7 @@ async function validateModule(moduleId: string, errors: string[]): Promise<void>
     }
   }
 
-  const params = flattenParams<ModuleParam>(caps.ui_hierarchy);
+  const params = flattenParams<SchwungParam>(caps.ui_hierarchy);
   if (params.length > 0) {
     validateSoundGeneratorLevelParams(caps.component_type, params, errors);
     validatePresets(moduleId, presetsJson, params, errors);
@@ -211,7 +210,7 @@ async function validateModule(moduleId: string, errors: string[]): Promise<void>
  *     only trace is a chain_log line at :536-537.
  * Truncation is silent, so an over-long key becomes a key the module itself
  * does not answer to — a dead knob rather than an error. */
-function validateHostLimits(moduleJson: ModuleJson, jsonBytes: number, errors: string[]): void {
+function validateHostLimits(moduleJson: SchwungModuleJson, jsonBytes: number, errors: string[]): void {
   if (jsonBytes >= HOST_MAX_MODULE_JSON_BYTES) {
     errors.push(
       `module.json is ${jsonBytes} bytes — the host refuses to read it at ` +
@@ -227,7 +226,7 @@ function validateHostLimits(moduleJson: ModuleJson, jsonBytes: number, errors: s
    * param array alongside the levels, so it counts toward the cap and collides
    * with level keys — walking only `levels` left a duplicate there passing
    * validation and killing the module's parameters on device. */
-  for (const { group, params: groupParams } of paramGroups(moduleJson.capabilities.ui_hierarchy)) {
+  for (const { group, params: groupParams } of paramGroups<SchwungParam>(moduleJson.capabilities.ui_hierarchy)) {
     const groupName = group === SHARED_PARAMS_GROUP ? group : `levels.${group}`;
     for (const param of groupParams) {
       total++;
@@ -272,7 +271,7 @@ function validateHostLimits(moduleJson: ModuleJson, jsonBytes: number, errors: s
   }
 }
 
-function validateSoundGeneratorLevelParams(componentType: string | undefined, params: ModuleParam[], errors: string[]): void {
+function validateSoundGeneratorLevelParams(componentType: string | undefined, params: SchwungParam[], errors: string[]): void {
   if (componentType !== "sound_generator") return;
   for (const param of params) {
     if (!/^(volume|level)$/i.test(param.key)) continue;
@@ -282,7 +281,7 @@ function validateSoundGeneratorLevelParams(componentType: string | undefined, pa
   }
 }
 
-function validateMetadata(moduleId: string, metadataJson: MetadataJson, params: ModuleParam[], errors: string[]): void {
+function validateMetadata(moduleId: string, metadataJson: MetadataJson, params: SchwungParam[], errors: string[]): void {
   const paramKeys = new Set(params.map((p) => p.key));
   const paramByKey = new Map(params.map((p) => [p.key, p]));
   for (const key of Object.keys(metadataJson.params || {})) {
@@ -322,7 +321,7 @@ function validateMetadata(moduleId: string, metadataJson: MetadataJson, params: 
 function validatePresets(
   moduleId: string,
   presetsJson: PresetsJson,
-  params: ModuleParam[],
+  params: SchwungParam[],
   errors: string[]
 ): void {
   const paramKeys = new Set(params.map((p) => p.key));
@@ -384,7 +383,7 @@ function declaredExemptions(dsp: string, tag: string): Set<string> {
  * it exists to catch — while three ordinary Faust idioms were rejected.
  * gen-faust --check already keeps this file in step with the .dsp. */
 function validateFaustSliders(
-  params: ModuleParam[],
+  params: SchwungParam[],
   dsp: string,
   faustC: string,
   errors: string[]
@@ -501,7 +500,7 @@ async function validatePresetsAreExposed(
   }
 }
 
-function validateCoreStruct(moduleId: string, params: ModuleParam[], header: string, errors: string[]): void {
+function validateCoreStruct(moduleId: string, params: SchwungParam[], header: string, errors: string[]): void {
   for (const p of params) {
     const fieldPattern = new RegExp(`\\bfloat\\s+${p.key}\\b`);
     if (!fieldPattern.test(header)) {

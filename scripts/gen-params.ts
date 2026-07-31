@@ -1,6 +1,6 @@
 import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { type ModuleParam, type ScopeConfig } from "../shared/module-schema.ts";
+import { type SchwungParam, type ScopeConfig } from "../shared/targets/schwung.ts";
 import { flattenParams } from "../shared/ui-hierarchy.ts";
 import { modulePaths, readModuleJson, selectedModuleIds } from "./lib/modules.ts";
 import { cFloatLiteral } from "./lib/c.ts";
@@ -31,7 +31,7 @@ export async function generate(options: GenerateOptions = {}): Promise<number> {
   for (const moduleId of moduleIds) {
     const paths = modulePaths(moduleId);
     const moduleJson = await readModuleJson(moduleId);
-    const params = flattenParams<ModuleParam>(moduleJson.capabilities.ui_hierarchy);
+    const params = flattenParams<SchwungParam>(moduleJson.capabilities.ui_hierarchy);
     if (params.length === 0) {
       console.warn(`[${moduleId}] no params in any capabilities.ui_hierarchy level — skipping`);
       continue;
@@ -100,7 +100,7 @@ function renderScopeInc(moduleId: string, scope: ScopeConfig): string {
  * emit a literal C reads back as the same float — `${p.min}` would silently
  * produce `0.10000000149011612` where the C wants `0.1f`.
  */
-function templateContext(moduleId: string, params: ModuleParam[]) {
+function templateContext(moduleId: string, params: SchwungParam[]) {
   const upper = moduleId.toUpperCase();
   return {
     cf: (value: number) => cFloatLiteral(value, "param value"),
@@ -115,14 +115,14 @@ function templateContext(moduleId: string, params: ModuleParam[]) {
 /* The param count and enum live in their own header so <id>_core.h can size
  * arrays indexed by param id (e.g. a Faust adapter's zones[]) from the
  * generated count rather than a hand-maintained literal. */
-function renderHeader(moduleId: string, params: ModuleParam[]): string {
+function renderHeader(moduleId: string, params: SchwungParam[]): string {
   return renderGenerated("params.gen.h", {
     ...templateContext(moduleId, params),
     guard: `${moduleId.toUpperCase()}_PARAMS_GEN_H`
   });
 }
 
-function renderInc(moduleId: string, params: ModuleParam[], isFaust: boolean): string {
+function renderInc(moduleId: string, params: SchwungParam[], isFaust: boolean): string {
   return renderGenerated("params.gen.inc", {
     ...templateContext(moduleId, params),
     guard: `${moduleId.toUpperCase()}_PARAMS_GEN_INC`,

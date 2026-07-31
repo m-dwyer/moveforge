@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
 import { densePresetValues, type PresetParam } from "../shared/presets.ts";
-import { type ModuleParam } from "../shared/module-schema.ts";
+import { type SchwungParam } from "../shared/targets/schwung.ts";
 import { flattenParams } from "../shared/ui-hierarchy.ts";
 import { readModuleJson, selectedModuleTargets } from "./lib/modules.ts";
 
@@ -95,7 +95,7 @@ for (const target of await selectedModuleTargets()) {
    * does not quietly depend on the module's apply_defaults agreeing with
    * module.json — which validate enforces, but a render should not need to assume. */
   const moduleJson = await readModuleJson(moduleId);
-  const declaredParams = flattenParams<ModuleParam>(moduleJson.capabilities.ui_hierarchy);
+  const declaredParams = flattenParams<SchwungParam>(moduleJson.capabilities.ui_hierarchy);
 
   for (const preset of data.presets) {
     const render = preset.render;

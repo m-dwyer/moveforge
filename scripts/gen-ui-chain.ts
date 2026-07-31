@@ -15,7 +15,7 @@
  * re-run `mise run gen-ui-chain`.
  */
 import { fileURLToPath } from "node:url";
-import { type ModuleJson, type ModuleParam } from "../shared/module-schema.ts";
+import { type SchwungModuleJson, type SchwungParam } from "../shared/targets/schwung.ts";
 import { flattenKnobs, flattenParams } from "../shared/ui-hierarchy.ts";
 import { modulePaths, readModuleJson, selectedModuleIds } from "./lib/modules.ts";
 import { renderGenerated } from "./lib/eta.ts";
@@ -27,7 +27,7 @@ const ENCODER_COUNT = 8; // Move parameter encoders, CC 71-78
 
 /* Knob detents across a param's range. Continuous controls use normalized
  * full-range travel; discrete selectors keep their declared step. */
-function editStep(p: ModuleParam): number {
+function editStep(p: SchwungParam): number {
   const range = p.max - p.min;
   if (range <= 0) return 0.01;
   const declared = p.step ?? 0;
@@ -35,7 +35,7 @@ function editStep(p: ModuleParam): number {
   return range / 100;
 }
 
-function isDiscreteParam(p: ModuleParam): boolean {
+function isDiscreteParam(p: SchwungParam): boolean {
   const type = (p.type ?? "").toLowerCase();
   if (type === "int" || type === "enum" || type === "bool") return true;
   return (p.step ?? 0) >= 1;
@@ -47,7 +47,7 @@ function decimalsFor(step: number): number {
   return 2;
 }
 
-function renderUiChain(id: string, json: ModuleJson, params: ModuleParam[]): string {
+function renderUiChain(id: string, json: SchwungModuleJson, params: SchwungParam[]): string {
   const name = json.name ?? id;
   const requestedKnobs = flattenKnobs(json.capabilities?.ui_hierarchy);
   const paramIndexByKey = new Map(params.map((p, i) => [p.key, i]));
@@ -96,7 +96,7 @@ export async function generate(options: GenerateOptions = {}): Promise<number> {
     const paths = modulePaths(id);
     const json = await readModuleJson(id);
     const ct = json.capabilities.component_type;
-    const params = flattenParams<ModuleParam>(json.capabilities.ui_hierarchy);
+    const params = flattenParams<SchwungParam>(json.capabilities.ui_hierarchy);
 
     const outPath = `${paths.moduleDir}/ui_chain.js`;
 

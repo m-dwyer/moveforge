@@ -3,6 +3,7 @@ import { trackSlotKey, useStore, selectSelectedSlot, type SlotParamRow } from "@
 import { Slider } from "@/components/ui/slider";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { settingsParamDefs, type ScopedParamDefinition } from "@/chain-state";
+import { formatParamValue } from "../../../shared/param-format.ts";
 
 export function Controls() {
   const slot = useStore(selectSelectedSlot);
@@ -33,7 +34,10 @@ export function Controls() {
         min: p.min,
         max: p.max,
         description: p.description,
+        display_format: p.display_format,
         step: p.step ?? 0.01,
+        type: p.type,
+        unit: p.unit,
         value: p.value
       }));
     }
@@ -47,7 +51,10 @@ export function Controls() {
         min: p.min,
         max: p.max,
         description: p.description,
+        display_format: p.display_format,
         step: p.step ?? 0.01,
+        type: p.type,
+        unit: p.unit,
         value: (slot.params as Record<string, number>)[p.key] ?? p.default
       }));
     }
@@ -192,7 +199,12 @@ function rowsFromDefs(defs: ScopedParamDefinition[], values: Record<string, numb
   }));
 }
 
-function formatValue(p: { key: string; value: number; step: number }): string {
+/* The `slot:` and transport keys are the browser's own controls, not module
+ * parameters — they have no module.json entry and so no unit, and their
+ * renderings ("Thru", "All", "Off") are not numbers at all. They stay here.
+ * Everything below them is a real parameter, so it formats the way the device
+ * formats it, falling back to the old step-based rule when it carries no unit. */
+function formatValue(p: SlotParamRow & { value: number }): string {
   if (p.key === "transpose") return (p.value > 0 ? "+" : "") + p.value.toFixed(0);
   if (p.key === "slot:muted" || p.key === "slot:soloed" || p.key.endsWith(":enabled")) {
     return p.value < 0.5 ? "Off" : "On";
@@ -206,6 +218,10 @@ function formatValue(p: { key: string; value: number; step: number }): string {
   }
   if (p.key === "midi_fx_pre_mode") return p.value < 0.5 ? "Post" : "Pre";
   if (p.key === "lfo1:depth" || p.key === "lfo2:depth") return `${Math.round(p.value * 100)}%`;
+
+  const formatted = formatParamValue(p.value, p);
+  if (formatted !== null) return formatted;
+
   if (p.step >= 1) return p.value.toFixed(0);
   return p.value.toFixed(2);
 }

@@ -685,7 +685,12 @@ export type SlotParamRow = {
   min: number;
   max: number;
   description?: string;
+  /* Carried from module.json so a value renders the way the device renders it
+   * (shared/param-format.ts) rather than as a bare float. */
+  display_format?: string;
   step: number;
+  type?: string;
+  unit?: string;
   value: number;
 };
 

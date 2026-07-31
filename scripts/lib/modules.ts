@@ -2,12 +2,11 @@ import { readFile, readdir, stat } from "node:fs/promises";
 
 import {
   type MetadataJson,
-  type ModuleJson,
   parseMetadataJson,
-  parseModuleJson,
   parsePresetsJson,
   type PresetsJson
 } from "../../shared/module-schema.ts";
+import { parseSchwungModuleJson, type SchwungModuleJson } from "../../shared/targets/schwung.ts";
 
 export type ComponentType = "sound_generator" | "audio_fx" | "midi_fx";
 export type DspAuthoring = "c" | "faust";
@@ -57,9 +56,9 @@ export type ModuleBuildTarget = {
  * presets.json and metadata.json are optional — a module with neither is valid,
  * and every caller already treated a missing file as empty.
  */
-export async function readModuleJson(moduleId: string): Promise<ModuleJson> {
+export async function readModuleJson(moduleId: string): Promise<SchwungModuleJson> {
   const path = modulePaths(moduleId).moduleJson;
-  return parseModuleJson(JSON.parse(await readFile(path, "utf8")), path);
+  return parseSchwungModuleJson(JSON.parse(await readFile(path, "utf8")), path);
 }
 
 export async function readPresetsJson(moduleId: string): Promise<PresetsJson> {

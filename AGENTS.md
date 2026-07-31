@@ -67,7 +67,19 @@ sound generators and audio FX; MIDI FX are always plain C.
    `scripts/lib/modules.ts` rather than `JSON.parse(...) as T` — eight files
    used to declare their own `ModuleJson`, each a different subset, so a field
    one generator relied on was checked by none of the others.
-   The schema owns what is intrinsic to one object (field types, ranges, enums);
+
+   That description is **layered, and the layering is the point**.
+   `shared/module-schema.ts` is target-agnostic: a module is parameters with
+   musical semantics — key, name, type, range, step, unit. It knows about no
+   host. Everything host-shaped lives in a target under `shared/targets/`, and
+   the only one today is `schwung.ts`: the `module.json` layout, `capabilities`,
+   `ui_hierarchy`, `abbrev`, `display_format`, and the host's fixed buffers. The
+   test for where a field goes is whether it exists only because something reads
+   a file at runtime — `api_version` and `dsp: "dsp.so"` do, `unit` does not. A
+   future CLAP or VST target emits a C descriptor table and no manifest at all,
+   and must inherit none of schwung's constraints.
+
+   Schemas own what is intrinsic to one object (field types, ranges, enums);
    anything relational — duplicate keys, host byte limits, preset values against
    their param's range, and every check that reads the C or the `.dsp` — stays in
    `scripts/validate-params.ts`, which carries the upstream citations for it.
