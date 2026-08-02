@@ -121,6 +121,14 @@ run = "node scripts/gen-ninja.ts && ninja -f build/host.ninja tests"
 description = "Re-run the C tests under AddressSanitizer + UndefinedBehaviorSanitizer"
 run = "node scripts/gen-ninja.ts && ninja -f build/host.ninja tests-san"
 
+[tasks.test-c-linux]
+# Not in `check`: it needs Docker, and on a Mac it is the slowest thing here.
+# But `test-c-san` on macOS is a weaker test than the same task in CI —
+# LeakSanitizer ships with ASan on Linux and does not exist under Apple clang —
+# so this is the local answer to "why is CI red when check was green".
+description = "Run the C tests under ASan+UBSan+LSan on Linux (Docker), as CI does"
+run = "./scripts/test-c-linux.sh"
+
 [tasks.test-web]
 description = "Run Vitest browser-mode component tests for the React web UI"
 run = "pnpm test"
