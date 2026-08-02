@@ -24,7 +24,7 @@
  *
  * Regenerate with: mise run gen-ninja
  */
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, rename, rm, writeFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 
 import { NinjaWriter } from "./lib/ninja.ts";
@@ -72,8 +72,36 @@ async function main(): Promise<void> {
   for (const path of await generateNinjaFiles()) console.log(`wrote ${path}`);
 }
 
+/**
+ * Write one build file atomically.
+ *
+ * Concurrent invocations are ordinary rather than exotic: five entry points call
+ * generateNinjaFiles(), each rewrites all three files regardless of which target
+ * it wants, and mise runs `depends` in parallel. `mise run test` alone puts
+ * test-c and test-c-san in flight together, both regenerating build/host.ninja
+ * and then handing it to ninja; `mise run move-deploy` does the same across
+ * `check` and move-build.
+ *
+ * writeFile truncates before it writes, so a reader can see an empty or partial
+ * build file — either a parse error a long way from its cause, or a successfully
+ * parsed subset of the graph, which is worse. rename(2) is atomic within a
+ * filesystem, so a reader gets the old file or the new one and never a half of
+ * either.
+ *
+ * The temp name carries the pid because otherwise the writers would race on the
+ * temp file instead, which is the same bug one level down. `build/` is
+ * gitignored and `mise run clean` removes it, so a stray .tmp from a killed
+ * process is harmless; it is unlinked on failure anyway.
+ */
 async function writeNinja(path: string, writer: NinjaWriter): Promise<string> {
-  await writeFile(path, writer.toString());
+  const temp = `${path}.${process.pid}.tmp`;
+  try {
+    await writeFile(temp, writer.toString());
+    await rename(temp, path);
+  } catch (err) {
+    await rm(temp, { force: true });
+    throw err;
+  }
   return path;
 }
 
