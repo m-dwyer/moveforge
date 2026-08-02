@@ -90,7 +90,10 @@ only if hand-picking styles proves annoying across many modules.
 - DSP: `src/modules/_shared/scope.h` (`mf_scope_t`, `mf_scope_capture`). Add an
   `MF_SCOPE_ADAPTIVE` style and the estimator state; keep the serialized format
   unchanged so the UI needs no changes.
-- Metadata: `capabilities.scope.style` in each `module.json`.
+- Metadata: the top-level `scope.style` block in each `module.def.json`. (It
+  reaches the wrapper as `<ID>_SCOPE_STYLE` via the emitted
+  `capabilities.scope` and `gen-params`; `module.json` is generated, so the
+  authored definition is what changes.)
 - UI: `templates/generated/ui_chain.js.eta` — no change required (style-agnostic).
 - Solo UI: `src/modules/<id>/ui.js` overlay (westfold has one) — also unchanged.
 - Tests: extend `test_scope_styles` in `tests/test_westfold_plugin.c`.

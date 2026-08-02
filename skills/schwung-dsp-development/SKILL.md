@@ -1,24 +1,30 @@
 ---
 name: schwung-dsp-development
-description: Author DSP modules for Ableton Move's Schwung host inside the moveforge repo (~/src/moveforge). Covers sound generators (synth voices), audio FX, and MIDI FX, in either Faust (`.dsp`) or plain C. Use this skill whenever the user mentions creating, modifying, debugging, or deploying Schwung modules, moveforge modules, Move plugins, faust modules, or DSP iteration — even if they don't name the skill explicitly. Trigger on phrases like "new synth", "add a delay", "new module", "Faust drive", "Schwung deploy", "fix this DSP", or paths under `src/modules/`.
+description: Author DSP modules for Ableton Move's Schwung host inside the moveforge repo. Covers sound generators (synth voices), audio FX, and MIDI FX, in either Faust (`.dsp`) or plain C. Use this skill whenever the user mentions creating, modifying, debugging, or deploying Schwung modules, moveforge modules, Move plugins, faust modules, or DSP iteration — even if they don't name the skill explicitly. Trigger on phrases like "new synth", "add a delay", "new module", "Faust drive", "Schwung deploy", "fix this DSP", or paths under `src/modules/`.
 ---
 
 # Schwung DSP Development
 
-Guide DSP iteration in the moveforge repo at `~/src/moveforge`. The repo builds custom modules for Ableton Move's Schwung host. Each module compiles to the same `dsp.so` (aarch64 device build) and `web/wasm/<id>.wasm` (browser audition) from a single source tree, so what works locally is what plays on device.
+Guide DSP iteration in the moveforge repo — the working copy you are in, not a
+fixed path. Naming one was a real trap: a second clone of this repo elsewhere on
+disk is likely to be behind, and following the path meant reading a checkout
+predating `module.def.json`. The repo builds custom modules for Ableton Move's Schwung host. Each module compiles to the same `dsp.so` (aarch64 device build) and `web/wasm/<id>.wasm` (browser audition) from a single source tree, so what works locally is what plays on device.
 
 This skill exists because there are now **two authoring paths** (Faust and plain C) sharing one wrapper pipeline, and the right path depends on the kind of module and what the user wants to iterate on. Picking the wrong path early causes wasted refactor work later.
 
 ## Read first
 
-Before suggesting changes, skim these in `~/src/moveforge`:
+Before suggesting changes, skim these at the repo root:
 
+- `AGENTS.md` — layout, the rules that prevent silent breakage, and where to look next
 - `README.md` — current command surface and the authoring-paths section
 - `MODULES.md` — module index grouped by component type and quick descriptions
-- `CLAUDE.md` — architecture, conventions, ABI, hard constraints (sample rate, block size, no per-block allocation)
-- `docs/faust-first-schwung-dsp-workflow.md` — the design doc that motivated the Faust path
+- `docs/architecture.md` — how the pieces fit together, and why
+- `docs/module-design.md` — what a good module sounds like, and real-time safety
 
-Don't re-derive these. Specifically, read `CLAUDE.md`'s "Architecture" and "Development Conventions" sections — they're the canonical source for what shapes a module.
+Don't re-derive these. `AGENTS.md` is the canonical source for what shapes a
+module; `CLAUDE.md` is a short pointer that imports it, so read `AGENTS.md`
+rather than looking for sections in `CLAUDE.md` that are not there.
 
 ## Pick the authoring path
 
@@ -144,7 +150,7 @@ MODULE_ID=<id> mise run plot-stress
 
 # 7. Compare against blessed goldens (or initialize them)
 mise run check-renders
-# If intentional change: MODULE_ID=<id> pnpm run bless-renders
+# If intentional change: MODULE_ID=<id> mise run bless-renders
 
 # 8. Browser audition with hot reload
 mise run dev
@@ -195,19 +201,21 @@ MODULE_ID=<id> mise run move-deploy      # the full `check` gate first, then bui
 
 Each build task regenerates `build/{host,move,wasm}.ninja` from the module graph first, so a new module or parameter never needs a separate `mise run gen-ninja`.
 
-Run `mise run check` (or `mise run check-all` for every module) before suggesting a commit. It's the canonical gate: typecheck + validate + test-ui-chain + test-c + test-c-san + suite + check-renders + stress + plot + host-build. It leaves out `test-web` (Playwright browsers, not gated in CI) — `mise run test` is the umbrella that adds it. While iterating on one module, `MODULE_ID=<id> mise run stress` is the fast subset of the gate's stress step; run it unscoped before promoting stress checks into a broad cleanup, because it intentionally fails on existing unsafe extremes.
+Run `mise run check` (or `mise run check-all` for every module) before suggesting a commit. It's the canonical gate: typecheck + validate + test-ui-chain + test-c + test-c-san + suite + check-renders + stress + plot + host-build + web-build. It leaves out `test-web`, which needs a Playwright browser download a DSP-only developer should not have to pay for — `mise run test` is the local umbrella that adds it, and CI gates it in its own job. `web-build` is in the gate precisely because nothing else there loads `vite.config.ts`.
+
+Note that `mise run check` on a Mac is a weaker gate than the same task in CI: LeakSanitizer ships with ASan on Linux and does not exist under Apple clang, so a leak passes locally and fails on the runner. `mise run test-c-linux` runs the sanitizer pass in a Linux container and is the answer to "why is CI red when check was green". While iterating on one module, `MODULE_ID=<id> mise run stress` is the fast subset of the gate's stress step; run it unscoped before promoting stress checks into a broad cleanup, because it intentionally fails on existing unsafe extremes.
 
 ## Rules
 
 These are load-bearing — violating them causes real bugs or wastes time:
 
-1. **Never edit generated files by hand.** `_params.gen.h`, `_params.gen.inc`, `_presets.gen.inc`, `ui_chain.js`, and `_faust.c` are produced by `gen-params`, `gen-presets`, `gen-ui-chain`, and `gen-faust`. Hand edits will be silently overwritten the next time those run, and `validate` will flag drift in CI. If you want different output, edit the source (`module.json`, `presets.json`, or `.dsp`) or the generator.
+1. **Never edit generated files by hand.** `_params.gen.h`, `_params.gen.inc`, `_presets.gen.inc`, `ui_chain.js`, `_faust.c` — and `module.json`, which is emitted from `module.def.json` for the Schwung target. Hand edits will be silently overwritten the next time a generator runs, and `validate` will flag drift in CI. If you want different output, edit the source (`module.def.json`, `presets.json`, or `.dsp`) or the generator.
 
-2. **Always re-run generators after editing their sources.** Run `gen-params` and `gen-ui-chain` after editing `module.json`, `gen-presets` after editing `presets.json`, and `gen-faust` after editing `.dsp`. `pnpm run validate` includes check steps that fail on stale generated output.
+2. **Always re-run generators after editing their sources.** Run `gen-params` and `gen-ui-chain` after editing `module.def.json`, `gen-presets` after editing `presets.json`, and `gen-faust` after editing `.dsp`. Both of the first two `depend` on `gen-module-json`, so the manifest is re-emitted for you rather than being a step you have to remember. `mise run validate` includes check steps that fail on stale generated output.
 
 3. **Don't deploy from a dirty working tree.** `scripts/install-to-move.sh` refuses by default. The point is that every device build maps to a known commit — if it sounds wrong on the device, you need to be able to reproduce the source.
 
-4. **Don't hand-edit the goldens.** `goldens/<id>/metrics.json` is regenerated by `pnpm run bless-renders` after you've listened/looked at the suite and decided the change is intentional. The `.wav` golden files are gitignored (only the metrics matter for CI).
+4. **Don't hand-edit the goldens.** `goldens/<id>/metrics.json` is regenerated by `mise run bless-renders` after you've listened/looked at the suite and decided the change is intentional. The `.wav` golden files are gitignored (only the metrics matter for CI).
 
 5. **Render before claiming a fix.** "It compiles" doesn't tell you it sounds right. Render the suite, run stress, look at the plots, listen, then commit.
 
@@ -329,10 +337,11 @@ When you need a concrete pattern to copy:
 |---|---|
 | Current module catalog by type | `MODULES.md` |
 | Faust audio_fx with stereo I/O | `src/modules/faust_drive/` |
+| Faust delay with tempo sync and a C-side tail | `src/modules/trail/` |
 | Faust sound_generator with C-owned MIDI | `src/modules/faust_voice/` (see how `gate`/`freq`/`gain` zones are captured and pushed each block) |
 | Hand-written FM oscillator + wavefolder + low-pass gate | `src/modules/westfold/dsp/westfold_core.c` |
 | Hand-written subtractive voice + resonant filter | `src/modules/dustline/` |
-| Hand-written stereo feedback delay (audio_fx) | `src/modules/trail/` |
+| Hand-written stereo looper/glitch (audio_fx) | `src/modules/lobber/` |
 | MIDI FX (event dispatch, clock sync, voice tracking) | `src/modules/arpy/` |
 | Shared Faust adapter boilerplate | `src/host/faust_adapter.h` |
 | Faust architecture template | `src/host/faust_module_arch.c.in` |
@@ -348,7 +357,7 @@ When a module misbehaves:
 3. **Renders sound wrong?** `mise run plot` → look at `renders/plots/<id>/`. Spectrum tells you cutoff frequency, harmonic content, and noise floor at a glance. Waveform tells you envelope shape, clipping, and DC offset.
 4. **A parameter extreme misbehaves?** `MODULE_ID=<id> mise run plot-stress` → inspect `renders/plots/<id>-stress/`. The generated stress cases come from `module.json`, so if a new param has unsafe min/max behavior this is where it should show up.
 5. **WASM builds but no sound in browser?** Check that the module is registered in `src/modules/index.json` and the WASM file exists at `web/wasm/<id>.wasm`.
-6. **`check-renders` fails on a Faust module after editing `.dsp`?** Expected — DSP changed. Listen to the renders, look at the plots, decide if intentional, then `pnpm run bless-renders`.
+6. **`check-renders` fails on a Faust module after editing `.dsp`?** Expected — DSP changed. Listen to the renders, look at the plots, decide if intentional, then `mise run bless-renders`.
 7. **Faust output looks weird?** The generated `_faust.c` is readable but verbose. Trust the `.dsp` source — start there, regenerate, and only inspect the generated C if symbol-level debugging needs it.
 
 ## What this skill does NOT do

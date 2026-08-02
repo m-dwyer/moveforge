@@ -66,10 +66,15 @@ sound generators and audio FX; MIDI FX are always plain C.
    Its other half is `shared/module-schema.ts`, the **only** place that describes
    what those files *contain*: ui-hierarchy says what order parameters come in,
    module-schema says what a parameter is. Read them through
-   `readModuleJson` / `readPresetsJson` / `readMetadataJson` in
-   `scripts/lib/modules.ts` rather than `JSON.parse(...) as T` — eight files
-   used to declare their own `ModuleJson`, each a different subset, so a field
-   one generator relied on was checked by none of the others.
+   `readModuleDefinition` / `readModuleJson` / `readPresetsJson` /
+   `readMetadataJson` in `scripts/lib/modules.ts` rather than
+   `JSON.parse(...) as T` — eight files used to declare their own `ModuleJson`,
+   each a different subset, so a field one generator relied on was checked by
+   none of the others. Three call sites have not been converted yet and are the
+   places a malformed file still surfaces as a `TypeError` rather than a message
+   naming the field: `scripts/render-suite.ts:91`, `scripts/check-renders.ts:374`
+   and `scripts/new-module.ts:194` (the last reads `index.json`, for which
+   `moduleIndexSchema` already exists).
 
    That description is **layered, and the layering is the point**.
    `shared/module-schema.ts` is target-agnostic: a module is parameters with
@@ -89,8 +94,9 @@ sound generators and audio FX; MIDI FX are always plain C.
 2. **Never hand-edit a generated file.** Anything named `*.gen.*`, plus
    `module.json`, `ui_chain.js` and `<id>_faust.c`. Edit the source and re-run the generator;
    `mise run validate` fails on drift. There are two template systems, split
-   along a real seam: `templates/generated/*.eta` emit repetitive C from data
-   (loops and conditionals, rendered via `scripts/lib/eta.ts`), while
+   along a real seam: `templates/generated/*.eta` emit repetitive code from data
+   (loops and conditionals, rendered via `scripts/lib/eta.ts`) — four of the five
+   emit C, and `ui_chain.js.eta` emits the on-device JavaScript — while
    `templates/modules/` is the scaffold tree, where `scripts/lib/templates.ts`
    does dumb `{{token}}` substitution over file *contents and filenames* and
    throws on an unknown key. Both reject a typo'd key rather than writing
@@ -103,10 +109,23 @@ sound generators and audio FX; MIDI FX are always plain C.
    (`move-install`, `move-deploy`, `move-health`).
 4. **`mise run check` is the gate.** It must exit 0 before anything ships.
    Module-aware tasks run for every module unless you set `MODULE_ID=<id>`.
-   `check` covers everything except `test-web`, which needs a Playwright browser
-   download — but it does run `web-build`, so a broken vite config or web
-   TypeScript fails locally. `test-web` is gated in CI in its own job, and
-   `mise run test` is the local umbrella that includes it.
+   `check` leaves out `test-web`, which needs a Playwright browser download —
+   but it does run `web-build`, so a broken vite config or web TypeScript fails
+   locally. `test-web` is gated in CI in its own job, and `mise run test` is the
+   local umbrella that includes it.
+
+   Three things `check` does **not** cover, so a green local gate is not a green
+   CI. Two of them CI does; the third is nobody's:
+   - **Leaks.** LeakSanitizer ships with ASan on Linux and does not exist under
+     Apple clang, so `test-c-san` on a Mac is a weaker test than the same task
+     on the runner — this let three Faust core tests leak with `check` green.
+     `mise run test-c-linux` runs the sanitizer pass in a Linux container.
+   - **The aarch64 build.** `check` never cross-compiles. The CI `device-build`
+     job runs `move-build` and verifies each `dsp.so` exports a Schwung entry
+     point; locally that is `mise run move-build`.
+   - **`format-check` and `check-gcc`** are in neither `check` nor CI. `check-gcc`
+     exists because Apple clang does not implement `-Wformat-truncation`, so run
+     it by hand before a C-heavy change.
 
 Keep musical DSP behaviour in the shared core, not in the wrappers, the web
 code or the render tools — there are three build targets and only one of them

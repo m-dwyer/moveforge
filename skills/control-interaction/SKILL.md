@@ -52,8 +52,12 @@ which then reads as every control being dead. Check `## Note map` in
 
 Then read them with the same descriptors palette uses, rather than by eye:
 
+`node` comes from `mise.toml`'s `[tools]` and is not on `PATH` outside mise, so
+this is `mise exec -- node`, not a bare `node` (the same trap `mise run` exists
+to avoid). Run it from the repo root — the import paths are relative to it.
+
 ```bash
-node -e '
+mise exec -- node -e '
 import("./scripts/lib/descriptors.ts").then(async (d) => {
   const { readWav } = await import("./scripts/wav-io.ts");
   for (const f of process.argv.slice(1)) {

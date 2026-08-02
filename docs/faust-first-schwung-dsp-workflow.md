@@ -140,7 +140,9 @@ Before or alongside Faust support:
    - Current code suggests audio FX and MIDI FX lack browser/offline paths.
    - The repo now has render/WASM support for these paths.
 
-4. Add a fast iteration command.
+4. Add a fast iteration command. **Not implemented** — there is no `mise run
+   iterate` task, and every other command in this document has been updated to
+   a real one, so it would otherwise read as current.
 
 ```bash
 mise run iterate
