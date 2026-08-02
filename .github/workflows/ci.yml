@@ -134,8 +134,17 @@ jobs:
       - name: Install aarch64 binutils
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends binutils-aarch64-linux-gnu
 
-      # No pnpm install: the build reads module.json and drives ninja with node
-      # builtins only, so it needs no third-party packages.
+      # The build graph is resolved by scripts/gen-ninja.ts, which reads
+      # module.json through the zod schemas in shared/. This job used to skip the
+      # install on the grounds that it "drives ninja with node builtins only" —
+      # that stopped being true when the readers moved behind parseSchwungModuleJson,
+      # and the job failed on ERR_MODULE_NOT_FOUND before compiling anything.
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.2
+
+      - run: pnpm install --frozen-lockfile
+
       - name: Cross-compile for Move (aarch64)
         run: mise run move-build
 
@@ -188,6 +197,14 @@ jobs:
           ldd --version | head -1
 
       - uses: jdx/mise-action@v2
+
+      # Needed by scripts/gen-ninja.ts, which resolves the module graph through
+      # the zod schemas in shared/ — see the note on device-build above.
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.2
+
+      - run: pnpm install --frozen-lockfile
 
       # This used to be twenty lines of inlined gcc with the module list written
       # out by hand — and it had already drifted: `ballast` and `swarf` existed
