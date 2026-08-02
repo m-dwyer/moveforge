@@ -51,14 +51,13 @@ test("computer keyboard releases held notes on window blur", async () => {
 test("computer keyboard lights the matching pad while held", async () => {
   render(createElement(KeyboardAndPadsHarness));
 
-  /* Wait for the grid to be on screen before dispatching. PadGrid commits in
-   * more passes than a bare div — memoised note list, one store subscription per
-   * pad — so a fixed tick is not enough to guarantee useKeyboardPlay's effect has
-   * attached its listener, and a keydown into a page with no listener is silently
-   * a no-op. */
-  const firstPad = page.getByTestId("pad").first();
-  await expect.element(firstPad).toBeInTheDocument();
+  /* A keydown into a page with no listener is silently a no-op, so the effect
+   * has to have run before dispatching. `toBeInTheDocument` does not prove that:
+   * it resolves on commit, and useKeyboardPlay's effect runs after. flushEffects
+   * drains the work loop, which does. */
+  await flushEffects();
 
+  const firstPad = page.getByTestId("pad").first();
   window.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, code: "KeyA", key: "a" }));
 
   await expect.element(firstPad).toHaveAttribute("data-active", "true");

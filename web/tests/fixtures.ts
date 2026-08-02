@@ -1,7 +1,7 @@
 import { beforeEach, afterEach } from "vitest";
 import { page } from "vitest/browser";
 import { createRoot, type Root } from "react-dom/client";
-import { createElement, type ReactNode } from "react";
+import { act, createElement, type ReactNode } from "react";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { STORE_PERSIST_KEY, useStore } from "@/store";
 import { makeInitialState, type ChainSlot, type SettingsSlot, type AudioFxSlot, type MidiFxSlot, type SoundSlot } from "@/chain-state";
@@ -13,6 +13,10 @@ declare global {
     __moveforgeAudioCalls__: AudioCall[];
   }
 }
+
+/* React 18 gates act() behind this global and warns on every call without it.
+ * Every spec imports this module, so it is the one place to set it. */
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 let root: Root | null = null;
 let container: HTMLElement | null = null;
@@ -64,9 +68,15 @@ export function render(node: ReactNode): void {
  * `page.getBy*`, which retries until it finds something. A test that dispatches
  * an event instead gets one shot, and hits a component that has not subscribed
  * to anything yet.
+ *
+ * This drains React's work loop rather than waiting a tick. `setTimeout(0)` was
+ * not a barrier: React 18 flushes passive effects on a MessageChannel task, and
+ * whether that lands before a clamped timer is an event-loop implementation
+ * detail. It held on macOS and failed in CI on KeyboardPlay.spec.tsx, which
+ * dispatches a keydown at a hook that had not yet attached its listener.
  */
-export function flushEffects(): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, 0));
+export async function flushEffects(): Promise<void> {
+  await act(async () => {});
 }
 
 export function audioCalls(): AudioCall[] {
