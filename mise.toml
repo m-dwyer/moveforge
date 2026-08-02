@@ -67,13 +67,35 @@ run = "pnpm run gen-compile-commands"
 #
 # Each of these regenerates the ninja files first, so adding a module or a
 # parameter never needs a separate `mise run gen-ninja`.
+#
+# They also depend on `validate`, so you cannot build an artifact from a tree
+# whose generated files are stale. That matters because the generated C is
+# checked in and has no build edge: `gen-ninja` emits no rule producing
+# *_params.gen.h or module.json — they are inputs to the build, never outputs —
+# so ninja will happily compile a parameter enum that no longer matches the
+# definition it came from, and say nothing.
+#
+# Giving ninja those edges instead would be worse. ninja decides staleness by
+# mtime, and git does not preserve mtimes: after a fresh clone the ordering
+# between a source and its generated output is a sub-millisecond coin flip
+# (measured — module.json landed 0.3ms newer than trail_params.gen.h). Every
+# clone would regenerate at random, and for <id>_faust.c that means invoking
+# `faust`, which is fatal when it is absent and rewrites tens of KB when the
+# version differs. `validate` has neither problem: it skips the Faust drift
+# check when `faust` is missing or mismatched, so it stays runnable by a
+# contributor touching only plain-C modules.
+#
+# ~0.5s per build task. mise does not dedupe a shared dependency, so `check`
+# pays it twice; still noise against a 45s gate.
 
 [tasks.host-build]
 description = "Build host-only shared libraries into dist-host/ for local compile checks"
+depends = ["validate"]
 run = "node scripts/build-host.ts"
 
 [tasks.move-build]
 description = "Cross-compile aarch64 .so and package dist/<id>/ + dist/<id>-module.tar.gz"
+depends = ["validate"]
 run = "node scripts/build-move.ts"
 
 [tasks.web-build]
@@ -90,7 +112,11 @@ description = "Build the static browser UI into web/dist (catches vite config an
 run = "pnpm run build:web"
 
 [tasks.wasm-build]
+# The dev server calls buildWasm() in-process rather than through mise, so the
+# hot-reload loop is deliberately not gated on this — only the artifact-producing
+# path is.
 description = "Emscripten-compile browser .wasm into web/wasm/"
+depends = ["validate"]
 run = "node scripts/build-wasm.ts"
 
 [tasks.render-build]
