@@ -14,40 +14,20 @@
  * GENERATED FILE — do not hand-edit <module>/ui_chain.js; edit module.json and
  * re-run `mise run gen-ui-chain`.
  */
-import { readFileSync } from "node:fs";
-import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
-import { flattenKnobs, flattenParams, type UiHierarchy } from "../shared/ui-hierarchy.ts";
-import { renderTemplateString } from "./lib/templates.ts";
-import { modulePaths, selectedModuleIds } from "./lib/modules.ts";
+import { type SchwungModuleJson, type SchwungParam } from "../shared/targets/schwung.ts";
+import { flattenKnobs, flattenParams } from "../shared/ui-hierarchy.ts";
+import { modulePaths, readModuleJson, selectedModuleIds } from "./lib/modules.ts";
+import { renderGenerated } from "./lib/eta.ts";
 import { type GenerateOptions, writeGeneratedFile } from "./lib/generated-files.ts";
 
-const TEMPLATE_PATH = "templates/generated/ui_chain.js.tmpl";
-
-type Param = {
-  key: string;
-  name?: string;
-  type?: string;
-  min: number;
-  max: number;
-  default: number;
-  step?: number;
-};
-type ModuleJson = {
-  name?: string;
-  ui_chain?: string;
-  capabilities?: {
-    component_type?: string;
-    ui_hierarchy?: UiHierarchy<Param>;
-  };
-};
 
 const EDITABLE_TYPES = new Set(["sound_generator", "audio_fx", "midi_fx"]);
 const ENCODER_COUNT = 8; // Move parameter encoders, CC 71-78
 
 /* Knob detents across a param's range. Continuous controls use normalized
  * full-range travel; discrete selectors keep their declared step. */
-function editStep(p: Param): number {
+function editStep(p: SchwungParam): number {
   const range = p.max - p.min;
   if (range <= 0) return 0.01;
   const declared = p.step ?? 0;
@@ -55,7 +35,7 @@ function editStep(p: Param): number {
   return range / 100;
 }
 
-function isDiscreteParam(p: Param): boolean {
+function isDiscreteParam(p: SchwungParam): boolean {
   const type = (p.type ?? "").toLowerCase();
   if (type === "int" || type === "enum" || type === "bool") return true;
   return (p.step ?? 0) >= 1;
@@ -67,40 +47,35 @@ function decimalsFor(step: number): number {
   return 2;
 }
 
-function renderUiChain(id: string, json: ModuleJson, params: Param[]): string {
+function renderUiChain(id: string, json: SchwungModuleJson, params: SchwungParam[]): string {
   const name = json.name ?? id;
   const requestedKnobs = flattenKnobs(json.capabilities?.ui_hierarchy);
   const paramIndexByKey = new Map(params.map((p, i) => [p.key, i]));
   const knobIndexes = (requestedKnobs.length > 0 ? requestedKnobs : params.map((p) => p.key))
     .map((key) => paramIndexByKey.get(key))
     .filter((index): index is number => index !== undefined);
-  const rows = params
-    .map((p) => {
-      const step = editStep(p);
-      const dec = decimalsFor(step);
-      const label = p.name ?? p.key;
-      return `    { key: ${JSON.stringify(p.key)}, name: ${JSON.stringify(label)}, ` +
-        `min: ${p.min}, max: ${p.max}, step: ${round(step)}, dec: ${dec}, def: ${p.default} }`;
-    })
-    .join(",\n");
-  const knobRows = knobIndexes.map((index) => `    ${index}`).join(",\n");
-
-  return renderTemplateString(readUiChainTemplate(), {
+  /* editStep/decimalsFor are knob feel, not layout: how far one detent moves a
+   * control and how many decimals that warrants. They stay here and the template
+   * lays the rows out. */
+  return renderGenerated("ui_chain.js", {
     encoderCount: ENCODER_COUNT,
-    knobIndexRows: knobRows,
+    json: (value: string) => JSON.stringify(value),
+    knobIndexes,
     moduleName: name,
     moduleNameJson: JSON.stringify(name),
-    paramsRows: rows
+    params: params.map((p) => {
+      const step = editStep(p);
+      return {
+        def: p.default,
+        dec: decimalsFor(step),
+        key: p.key,
+        label: p.name ?? p.key,
+        max: p.max,
+        min: p.min,
+        step: round(step)
+      };
+    })
   });
-}
-
-let uiChainTemplate: string | undefined;
-
-function readUiChainTemplate(): string {
-  if (uiChainTemplate === undefined) {
-    uiChainTemplate = readFileSync(TEMPLATE_PATH, "utf8");
-  }
-  return uiChainTemplate;
 }
 
 function round(n: number): number {
@@ -119,13 +94,13 @@ export async function generate(options: GenerateOptions = {}): Promise<number> {
   let drift = 0;
   for (const id of moduleIds) {
     const paths = modulePaths(id);
-    const json: ModuleJson = JSON.parse(await readFile(paths.moduleJson, "utf8"));
-    const ct = json.capabilities?.component_type;
-    const params = flattenParams(json.capabilities?.ui_hierarchy);
+    const json = await readModuleJson(id);
+    const ct = json.capabilities.component_type;
+    const params = flattenParams<SchwungParam>(json.capabilities.ui_hierarchy);
 
     const outPath = `${paths.moduleDir}/ui_chain.js`;
 
-    if (!ct || !EDITABLE_TYPES.has(ct) || params.length === 0) {
+    if (!EDITABLE_TYPES.has(ct) || params.length === 0) {
       continue; // nothing to render (e.g. settings/tool modules)
     }
 

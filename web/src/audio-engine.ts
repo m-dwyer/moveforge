@@ -166,7 +166,7 @@ export class AudioEngine {
     }
     const wasmBytes = await wasmResponse.arrayBuffer();
     if (!looksLikeWasm(wasmBytes)) {
-      const message = `Could not load ${entry.moduleId}: missing WASM build. Run MODULE_ID=${entry.moduleId} mise run wasm.`;
+      const message = `Could not load ${entry.moduleId}: missing WASM build. Run MODULE_ID=${entry.moduleId} mise run wasm-build.`;
       this.#config?.onError(entry.slotId, message);
       throw new Error(`${message} ${wasmPath} did not contain a WebAssembly binary.`);
     }

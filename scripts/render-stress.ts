@@ -1,24 +1,9 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
 import { join } from "node:path";
-import { flattenParams, type UiHierarchy } from "../shared/ui-hierarchy.ts";
-import { selectedModuleTargets } from "./lib/modules.ts";
-
-type Param = {
-  key: string;
-  name: string;
-  type: string;
-  min: number;
-  max: number;
-  default: number;
-};
-
-type ModuleJson = {
-  capabilities?: {
-    component_type?: string;
-    ui_hierarchy?: UiHierarchy<Param>;
-  };
-};
+import { type SchwungParam } from "../shared/targets/schwung.ts";
+import { flattenParams } from "../shared/ui-hierarchy.ts";
+import { readModuleJson, selectedModuleTargets } from "./lib/modules.ts";
 
 type StressCase = {
   file: string;
@@ -36,7 +21,7 @@ type StressCase = {
  * and fourteen of its stress gates failed for reasons that were all the harness's.
  * A module that declares a `root` note-block parameter gets its whole block, read
  * from that case's own value so the `root` min/max cases move the notes with it. */
-function stressNotes(params: Param[], values: Record<string, number>): string {
+function stressNotes(params: SchwungParam[], values: Record<string, number>): string {
   const root = params.find((param) => param.key === "root");
   if (!root) return "36,43,48,55,60";
   const base = Math.round(values.root ?? root.default);
@@ -52,9 +37,9 @@ type StressManifest = {
 for (const target of await selectedModuleTargets()) {
   const moduleId = target.id;
   const paths = target.paths;
-  const moduleJson = JSON.parse(await readFile(paths.moduleJson, "utf8")) as ModuleJson;
+  const moduleJson = await readModuleJson(moduleId);
   const componentType = target.componentType;
-  const params = flattenParams(moduleJson.capabilities?.ui_hierarchy);
+  const params = flattenParams<SchwungParam>(moduleJson.capabilities.ui_hierarchy);
 
   if (componentType !== "sound_generator" && componentType !== "audio_fx") {
     console.log(`[${moduleId}] skipping stress render: component_type='${componentType}'`);
@@ -92,7 +77,7 @@ for (const target of await selectedModuleTargets()) {
   console.log(`[${moduleId}] wrote ${cases.length} stress render(s) to ${stressDir}`);
 }
 
-function buildCases(params: Param[], defaults: Record<string, number>, kind: string): StressCase[] {
+function buildCases(params: SchwungParam[], defaults: Record<string, number>, kind: string): StressCase[] {
   const cases: StressCase[] = [];
   const add = (label: string, values: Record<string, number>, expectSilence = false,
                velocity?: number) => {
@@ -169,14 +154,14 @@ function silencesAtMax(key: string): boolean {
   return /^(mute)$/i.test(key);
 }
 
-function isSilencingParam(param: Param, value: number, kind: string): boolean {
+function isSilencingParam(param: SchwungParam, value: number, kind: string): boolean {
   if (value === param.max && silencesAtMax(param.key)) return true;
   if (value !== 0) return false;
   if (kind === "sound_generator") return /^(volume|level)$/i.test(param.key);
   return /^level$/i.test(param.key);
 }
 
-function hasSlowMaxAttack(params: Param[]): boolean {
+function hasSlowMaxAttack(params: SchwungParam[]): boolean {
   return params.some((param) => /attack/i.test(param.key) && param.max >= 1.5);
 }
 

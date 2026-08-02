@@ -1,0 +1,132 @@
+{
+  "id": "swarf",
+  "name": "Swarf",
+  "abbrev": "SWF",
+  "version": "0.1.0",
+  "description": "Six note-mapped percussion voices sharing one engine",
+  "author": "Local",
+  "kind": "instrument",
+  "io": { "audio_in": false, "audio_out": true, "midi_in": true, "midi_out": false },
+  "scope": { "mode": "oneshot", "style": "envelope", "window": 1024 },
+  "preset_browse": { "group": "hat", "list_param": "preset", "count_param": "preset_count", "name_param": "preset_name" },
+  "groups": [
+    {
+      "key": "hat",
+      "name": "1 Hat",
+      "params": [
+        { "key": "hat_tune", "name": "Hat Tune", "type": "float", "min": 24, "max": 108, "default": 84, "step": 0.01 },
+        { "key": "hat_decay", "name": "Hat Decay", "type": "float", "min": 0, "max": 1, "default": 0.329, "step": 0.01, "unit": "%" },
+        { "key": "hat_mat", "name": "Hat Mat", "type": "float", "min": 0, "max": 1, "default": 0.92, "step": 0.01, "unit": "%" },
+        { "key": "hat_body", "name": "Hat Body", "type": "float", "min": 0, "max": 1, "default": 0.7, "step": 0.01, "unit": "%" },
+        { "key": "hat_tone", "name": "Hat Tone", "type": "float", "min": 0, "max": 1, "default": 0.55, "step": 0.01, "unit": "%" },
+        { "key": "hat_strike", "name": "Hat Strike", "type": "float", "min": 0, "max": 1, "default": 0.5, "step": 0.01, "unit": "%" },
+        { "key": "hat_grit", "name": "Hat Grit", "type": "float", "min": 0, "max": 1, "default": 0.3, "step": 0.01, "unit": "%" },
+        { "key": "hat_level", "name": "Hat Level", "type": "float", "min": 0, "max": 1, "default": 0.73, "step": 0.01, "unit": "%" }
+      ],
+      "knobs": ["hat_tune", "hat_decay", "hat_mat", "hat_body", "hat_tone", "hat_strike", "hat_grit", "hat_level"]
+    },
+    {
+      "key": "oh",
+      "name": "2 OpenHat",
+      "params": [
+        { "key": "oh_tune", "name": "OpenHat Tune", "type": "float", "min": 24, "max": 108, "default": 88, "step": 0.01 },
+        { "key": "oh_decay", "name": "OpenHat Decay", "type": "float", "min": 0, "max": 1, "default": 0.663, "step": 0.01, "unit": "%" },
+        { "key": "oh_mat", "name": "OpenHat Mat", "type": "float", "min": 0, "max": 1, "default": 1, "step": 0.01, "unit": "%" },
+        { "key": "oh_body", "name": "OpenHat Body", "type": "float", "min": 0, "max": 1, "default": 0.7, "step": 0.01, "unit": "%" },
+        { "key": "oh_tone", "name": "OpenHat Tone", "type": "float", "min": 0, "max": 1, "default": 0.55, "step": 0.01, "unit": "%" },
+        { "key": "oh_strike", "name": "OpenHat Strike", "type": "float", "min": 0, "max": 1, "default": 0.44, "step": 0.01, "unit": "%" },
+        { "key": "oh_grit", "name": "OpenHat Grit", "type": "float", "min": 0, "max": 1, "default": 0.26, "step": 0.01, "unit": "%" },
+        { "key": "oh_level", "name": "OpenHat Level", "type": "float", "min": 0, "max": 1, "default": 0.5, "step": 0.01, "unit": "%" }
+      ],
+      "knobs": ["oh_tune", "oh_decay", "oh_mat", "oh_body", "oh_tone", "oh_strike", "oh_grit", "oh_level"]
+    },
+    {
+      "key": "ride",
+      "name": "3 Ride",
+      "params": [
+        { "key": "ride_tune", "name": "Ride Tune", "type": "float", "min": 24, "max": 108, "default": 74, "step": 0.01 },
+        { "key": "ride_decay", "name": "Ride Decay", "type": "float", "min": 0, "max": 1, "default": 0.924, "step": 0.01, "unit": "%" },
+        { "key": "ride_mat", "name": "Ride Mat", "type": "float", "min": 0, "max": 1, "default": 0.95, "step": 0.01, "unit": "%" },
+        { "key": "ride_body", "name": "Ride Body", "type": "float", "min": 0, "max": 1, "default": 0.8, "step": 0.01, "unit": "%" },
+        { "key": "ride_tone", "name": "Ride Tone", "type": "float", "min": 0, "max": 1, "default": 0.52, "step": 0.01, "unit": "%" },
+        { "key": "ride_strike", "name": "Ride Strike", "type": "float", "min": 0, "max": 1, "default": 0.4, "step": 0.01, "unit": "%" },
+        { "key": "ride_grit", "name": "Ride Grit", "type": "float", "min": 0, "max": 1, "default": 0.18, "step": 0.01, "unit": "%" },
+        { "key": "ride_level", "name": "Ride Level", "type": "float", "min": 0, "max": 1, "default": 0.34, "step": 0.01, "unit": "%" }
+      ],
+      "knobs": ["ride_tune", "ride_decay", "ride_mat", "ride_body", "ride_tone", "ride_strike", "ride_grit", "ride_level"]
+    },
+    {
+      "key": "clap",
+      "name": "4 Clap",
+      "params": [
+        { "key": "clap_tune", "name": "Clap Tune", "type": "float", "min": 24, "max": 108, "default": 68, "step": 0.01 },
+        { "key": "clap_decay", "name": "Clap Decay", "type": "float", "min": 0, "max": 1, "default": 0.566, "step": 0.01, "unit": "%" },
+        { "key": "clap_mat", "name": "Clap Mat", "type": "float", "min": 0, "max": 1, "default": 0.92, "step": 0.01, "unit": "%" },
+        { "key": "clap_body", "name": "Clap Body", "type": "float", "min": 0, "max": 1, "default": 0.65, "step": 0.01, "unit": "%" },
+        { "key": "clap_tone", "name": "Clap Tone", "type": "float", "min": 0, "max": 1, "default": 0.5, "step": 0.01, "unit": "%" },
+        { "key": "clap_strike", "name": "Clap Strike", "type": "float", "min": 0, "max": 1, "default": 0.86, "step": 0.01, "unit": "%" },
+        { "key": "clap_grit", "name": "Clap Grit", "type": "float", "min": 0, "max": 1, "default": 0.34, "step": 0.01, "unit": "%" },
+        { "key": "clap_level", "name": "Clap Level", "type": "float", "min": 0, "max": 1, "default": 0.48, "step": 0.01, "unit": "%" }
+      ],
+      "knobs": ["clap_tune", "clap_decay", "clap_mat", "clap_body", "clap_tone", "clap_strike", "clap_grit", "clap_level"]
+    },
+    {
+      "key": "conga",
+      "name": "5 Conga",
+      "params": [
+        { "key": "conga_tune", "name": "Conga Tune", "type": "float", "min": 24, "max": 108, "default": 58, "step": 0.01 },
+        { "key": "conga_decay", "name": "Conga Decay", "type": "float", "min": 0, "max": 1, "default": 0.631, "step": 0.01, "unit": "%" },
+        { "key": "conga_mat", "name": "Conga Mat", "type": "float", "min": 0, "max": 1, "default": 0.5, "step": 0.01, "unit": "%" },
+        { "key": "conga_body", "name": "Conga Body", "type": "float", "min": 0, "max": 1, "default": 0.72, "step": 0.01, "unit": "%" },
+        { "key": "conga_tone", "name": "Conga Tone", "type": "float", "min": 0, "max": 1, "default": 0.42, "step": 0.01, "unit": "%" },
+        { "key": "conga_strike", "name": "Conga Strike", "type": "float", "min": 0, "max": 1, "default": 0.52, "step": 0.01, "unit": "%" },
+        { "key": "conga_grit", "name": "Conga Grit", "type": "float", "min": 0, "max": 1, "default": 0.22, "step": 0.01, "unit": "%" },
+        { "key": "conga_level", "name": "Conga Level", "type": "float", "min": 0, "max": 1, "default": 0.62, "step": 0.01, "unit": "%" }
+      ],
+      "knobs": ["conga_tune", "conga_decay", "conga_mat", "conga_body", "conga_tone", "conga_strike", "conga_grit", "conga_level"]
+    },
+    {
+      "key": "wood",
+      "name": "6 Wood",
+      "params": [
+        { "key": "wood_tune", "name": "Wood Tune", "type": "float", "min": 24, "max": 108, "default": 71, "step": 0.01 },
+        { "key": "wood_decay", "name": "Wood Decay", "type": "float", "min": 0, "max": 1, "default": 0.448, "step": 0.01, "unit": "%" },
+        { "key": "wood_mat", "name": "Wood Mat", "type": "float", "min": 0, "max": 1, "default": 0.04, "step": 0.01, "unit": "%" },
+        { "key": "wood_body", "name": "Wood Body", "type": "float", "min": 0, "max": 1, "default": 0.66, "step": 0.01, "unit": "%" },
+        { "key": "wood_tone", "name": "Wood Tone", "type": "float", "min": 0, "max": 1, "default": 0.48, "step": 0.01, "unit": "%" },
+        { "key": "wood_strike", "name": "Wood Strike", "type": "float", "min": 0, "max": 1, "default": 0.54, "step": 0.01, "unit": "%" },
+        { "key": "wood_grit", "name": "Wood Grit", "type": "float", "min": 0, "max": 1, "default": 0.2, "step": 0.01, "unit": "%" },
+        { "key": "wood_level", "name": "Wood Level", "type": "float", "min": 0, "max": 1, "default": 0.35, "step": 0.01, "unit": "%" }
+      ],
+      "knobs": ["wood_tune", "wood_decay", "wood_mat", "wood_body", "wood_tone", "wood_strike", "wood_grit", "wood_level"]
+    },
+    {
+      "key": "kit",
+      "name": "Kit",
+      "params": [
+        { "key": "volume", "name": "Volume", "type": "float", "min": 0, "max": 1, "default": 0.75, "step": 0.01, "unit": "%" },
+        { "key": "drive", "name": "Drive", "type": "float", "min": 0, "max": 1, "default": 0.18, "step": 0.01, "unit": "%" },
+        { "key": "curve", "name": "Curve", "type": "int", "min": 0, "max": 4, "default": 0, "step": 1 },
+        { "key": "tone", "name": "Bus Tone", "type": "float", "min": 0, "max": 1, "default": 0.5, "step": 0.01, "unit": "%" },
+        { "key": "shape", "name": "Shape", "type": "float", "min": 0, "max": 1, "default": 0.3, "step": 0.01, "unit": "%" },
+        { "key": "human", "name": "Human", "type": "float", "min": 0, "max": 1, "default": 0.25, "step": 0.01, "unit": "%" },
+        { "key": "vel_depth", "name": "Vel Depth", "type": "float", "min": 0, "max": 1, "default": 0.6, "step": 0.01, "unit": "%" },
+        { "key": "spread", "name": "Spread", "type": "float", "min": 0, "max": 1, "default": 0.4, "step": 0.01, "unit": "%" }
+      ],
+      "knobs": ["volume", "drive", "curve", "tone", "shape", "human", "vel_depth", "spread"]
+    },
+    {
+      "key": "map",
+      "name": "Map",
+      "params": [
+        { "key": "root", "name": "Root", "type": "int", "min": 0, "max": 96, "default": 36, "step": 1 },
+        { "key": "chrom", "name": "Chrom", "type": "int", "min": 0, "max": 6, "default": 0, "step": 1 },
+        { "key": "choke", "name": "Choke", "type": "int", "min": 0, "max": 2, "default": 1, "step": 1 },
+        { "key": "kit_decay", "name": "Kit Decay", "type": "float", "min": 0, "max": 1, "default": 0.5, "step": 0.01, "unit": "%" },
+        { "key": "bright", "name": "Bright", "type": "float", "min": 0, "max": 1, "default": 0.5, "step": 0.01, "unit": "%" },
+        { "key": "warp", "name": "Warp", "type": "float", "min": 0, "max": 1, "default": 0.5, "step": 0.01, "unit": "%" }
+      ],
+      "knobs": ["root", "chrom", "choke", "kit_decay", "bright", "warp"]
+    }
+  ]
+}

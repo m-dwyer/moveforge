@@ -12,21 +12,21 @@ module_target() {
 MODULE_IDS="$(module_target ids)"
 MOVE_HOST="${MOVE_HOST:-ableton@move.local}"
 FORCE=0
-SKIP_BUILD=0
 
 for arg in "$@"; do
   case "$arg" in
     --force) FORCE=1 ;;
-    --skip-build) SKIP_BUILD=1 ;;
     -h|--help)
       cat <<EOF
-Usage: $(basename "$0") [--force] [--skip-build]
+Usage: $(basename "$0") [--force]
 
-Build (unless --skip-build) and install module(s) to \$MOVE_HOST.
+Install already-built module(s) from dist/ to \$MOVE_HOST. This does not build:
+run 'mise run move-install' (build + install) or 'mise run move-deploy'
+(check + build + install) rather than calling this directly.
 Without MODULE_ID, installs every module. Set MODULE_ID=<id> to target one.
 
 Pre-flight checks (any failure aborts unless --force):
-  * dist/<id>/dsp.so must be aarch64
+  * dist/<id>/dsp.so must exist and be aarch64
   * \$MOVE_HOST must be reachable over SSH
   * remote module partition must have at least 10 MiB free
 
@@ -155,13 +155,14 @@ for MODULE_ID in $MODULE_IDS; do
   move_guard_validate_component_type "$COMPONENT_DIR"
   REMOTE_DIR="/data/UserData/schwung/modules/$COMPONENT_DIR"
 
-  if [ "$SKIP_BUILD" = "1" ]; then
-    if [ ! -f "dist/$MODULE_ID/dsp.so" ]; then
-      echo "install-to-move: --skip-build set but dist/$MODULE_ID/dsp.so is missing" >&2
-      exit 1
-    fi
-  else
-    MODULE_ID="$MODULE_ID" ./scripts/build.sh
+  # Installing never builds. `mise run move-install` and `mise run move-deploy`
+  # both depend on move-build, so the artifact is already current by the time we
+  # get here — and when this script built for itself, it re-entered the
+  # cross-compile container once per module, and `move-deploy` built everything
+  # twice (once inside the check gate, once here).
+  if [ ! -f "dist/$MODULE_ID/dsp.so" ]; then
+    echo "install-to-move: dist/$MODULE_ID/dsp.so is missing — run 'mise run move-build' first" >&2
+    exit 1
   fi
 
   LOCAL_SO="dist/$MODULE_ID/dsp.so"
@@ -240,9 +241,9 @@ for MODULE_ID in $MODULE_IDS; do
 
   # Compare the files this build ships, not the whole remote directory. Nothing
   # here ever removes a file, so anything left behind by an earlier build — or
-  # by a rename in build.sh — used to make every subsequent install fail with a
-  # mismatch, after having already moved the new files in, and with no way out
-  # from the script. Extras are reported instead: they are worth knowing about
+  # by a rename in the packaging step — used to make every subsequent install
+  # fail with a mismatch, after having already moved the new files in, and with
+  # no way out from the script. Extras are reported instead: worth knowing about
   # (a renamed ui_chain.js is still loadable) but they are not corruption.
   split_path='p = $0; sub(/ [^ ]*$/, "", p);'
   MANIFEST_REMOTE="$(awk "NR==FNR { $split_path keep[p] = 1; next } { $split_path if (p in keep) print }" \

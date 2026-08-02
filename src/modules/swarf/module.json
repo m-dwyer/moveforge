@@ -16,691 +16,121 @@
     "midi_out": false,
     "chainable": true,
     "component_type": "sound_generator",
-    "scope": {
-      "mode": "oneshot",
-      "style": "envelope",
-      "window": 1024
-    },
+    "scope": { "mode": "oneshot", "style": "envelope", "window": 1024 },
     "ui_hierarchy": {
       "levels": {
         "hat": {
           "name": "1 Hat",
-          "params": [
-            {
-              "key": "hat_tune",
-              "name": "Hat Tune",
-              "type": "float",
-              "min": 24,
-              "max": 108,
-              "default": 84,
-              "step": 0.01
-            },
-            {
-              "key": "hat_decay",
-              "name": "Hat Decay",
-              "type": "float",
-              "min": 0,
-              "max": 1,
-              "default": 0.329,
-              "step": 0.01
-            },
-            {
-              "key": "hat_mat",
-              "name": "Hat Mat",
-              "type": "float",
-              "min": 0,
-              "max": 1,
-              "default": 0.92,
-              "step": 0.01
-            },
-            {
-              "key": "hat_body",
-              "name": "Hat Body",
-              "type": "float",
-              "min": 0,
-              "max": 1,
-              "default": 0.7,
-              "step": 0.01
-            },
-            {
-              "key": "hat_tone",
-              "name": "Hat Tone",
-              "type": "float",
-              "min": 0,
-              "max": 1,
-              "default": 0.55,
-              "step": 0.01
-            },
-            {
-              "key": "hat_strike",
-              "name": "Hat Strike",
-              "type": "float",
-              "min": 0,
-              "max": 1,
-              "default": 0.5,
-              "step": 0.01
-            },
-            {
-              "key": "hat_grit",
-              "name": "Hat Grit",
-              "type": "float",
-              "min": 0,
-              "max": 1,
-              "default": 0.3,
-              "step": 0.01
-            },
-            {
-              "key": "hat_level",
-              "name": "Hat Level",
-              "type": "float",
-              "min": 0,
-              "max": 1,
-              "default": 0.73,
-              "step": 0.01
-            }
-          ],
-          "knobs": [
-            "hat_tune",
-            "hat_decay",
-            "hat_mat",
-            "hat_body",
-            "hat_tone",
-            "hat_strike",
-            "hat_grit",
-            "hat_level"
-          ],
           "list_param": "preset",
           "count_param": "preset_count",
-          "name_param": "preset_name"
+          "name_param": "preset_name",
+          "params": [
+            { "default": 84, "key": "hat_tune", "max": 108, "min": 24, "name": "Hat Tune", "step": 0.01, "type": "float" },
+            { "default": 0.329, "key": "hat_decay", "max": 1, "min": 0, "name": "Hat Decay", "step": 0.01, "type": "float", "unit": "%" },
+            { "default": 0.92, "key": "hat_mat", "max": 1, "min": 0, "name": "Hat Mat", "step": 0.01, "type": "float", "unit": "%" },
+            { "default": 0.7, "key": "hat_body", "max": 1, "min": 0, "name": "Hat Body", "step": 0.01, "type": "float", "unit": "%" },
+            { "default": 0.55, "key": "hat_tone", "max": 1, "min": 0, "name": "Hat Tone", "step": 0.01, "type": "float", "unit": "%" },
+            { "default": 0.5, "key": "hat_strike", "max": 1, "min": 0, "name": "Hat Strike", "step": 0.01, "type": "float", "unit": "%" },
+            { "default": 0.3, "key": "hat_grit", "max": 1, "min": 0, "name": "Hat Grit", "step": 0.01, "type": "float", "unit": "%" },
+            { "default": 0.73, "key": "hat_level", "max": 1, "min": 0, "name": "Hat Level", "step": 0.01, "type": "float", "unit": "%" }
+          ],
+          "knobs": ["hat_tune", "hat_decay", "hat_mat", "hat_body", "hat_tone", "hat_strike", "hat_grit", "hat_level"]
         },
         "oh": {
           "name": "2 OpenHat",
           "params": [
-            {
-              "key": "oh_tune",
-              "name": "OpenHat Tune",
-              "type": "float",
-              "min": 24,
-              "max": 108,
-              "default": 88,
-              "step": 0.01
-            },
-            {
-              "key": "oh_decay",
-              "name": "OpenHat Decay",
-              "type": "float",
-              "min": 0,
-              "max": 1,
-              "default": 0.663,
-              "step": 0.01
-            },
-            {
-              "key": "oh_mat",
-              "name": "OpenHat Mat",
-              "type": "float",
-              "min": 0,
-              "max": 1,
-              "default": 1,
-              "step": 0.01
-            },
-            {
-              "key": "oh_body",
-              "name": "OpenHat Body",
-              "type": "float",
-              "min": 0,
-              "max": 1,
-              "default": 0.7,
-              "step": 0.01
-            },
-            {
-              "key": "oh_tone",
-              "name": "OpenHat Tone",
-              "type": "float",
-              "min": 0,
-              "max": 1,
-              "default": 0.55,
-              "step": 0.01
-            },
-            {
-              "key": "oh_strike",
-              "name": "OpenHat Strike",
-              "type": "float",
-              "min": 0,
-              "max": 1,
-              "default": 0.44,
-              "step": 0.01
-            },
-            {
-              "key": "oh_grit",
-              "name": "OpenHat Grit",
-              "type": "float",
-              "min": 0,
-              "max": 1,
-              "default": 0.26,
-              "step": 0.01
-            },
-            {
-              "key": "oh_level",
-              "name": "OpenHat Level",
-              "type": "float",
-              "min": 0,
-              "max": 1,
-              "default": 0.5,
-              "step": 0.01
-            }
+            { "default": 88, "key": "oh_tune", "max": 108, "min": 24, "name": "OpenHat Tune", "step": 0.01, "type": "float" },
+            { "default": 0.663, "key": "oh_decay", "max": 1, "min": 0, "name": "OpenHat Decay", "step": 0.01, "type": "float", "unit": "%" },
+            { "default": 1, "key": "oh_mat", "max": 1, "min": 0, "name": "OpenHat Mat", "step": 0.01, "type": "float", "unit": "%" },
+            { "default": 0.7, "key": "oh_body", "max": 1, "min": 0, "name": "OpenHat Body", "step": 0.01, "type": "float", "unit": "%" },
+            { "default": 0.55, "key": "oh_tone", "max": 1, "min": 0, "name": "OpenHat Tone", "step": 0.01, "type": "float", "unit": "%" },
+            { "default": 0.44, "key": "oh_strike", "max": 1, "min": 0, "name": "OpenHat Strike", "step": 0.01, "type": "float", "unit": "%" },
+            { "default": 0.26, "key": "oh_grit", "max": 1, "min": 0, "name": "OpenHat Grit", "step": 0.01, "type": "float", "unit": "%" },
+            { "default": 0.5, "key": "oh_level", "max": 1, "min": 0, "name": "OpenHat Level", "step": 0.01, "type": "float", "unit": "%" }
           ],
-          "knobs": [
-            "oh_tune",
-            "oh_decay",
-            "oh_mat",
-            "oh_body",
-            "oh_tone",
-            "oh_strike",
-            "oh_grit",
-            "oh_level"
-          ]
+          "knobs": ["oh_tune", "oh_decay", "oh_mat", "oh_body", "oh_tone", "oh_strike", "oh_grit", "oh_level"]
         },
         "ride": {
           "name": "3 Ride",
           "params": [
-            {
-              "key": "ride_tune",
-              "name": "Ride Tune",
-              "type": "float",
-              "min": 24,
-              "max": 108,
-              "default": 74,
-              "step": 0.01
-            },
-            {
-              "key": "ride_decay",
-              "name": "Ride Decay",
-              "type": "float",
-              "min": 0,
-              "max": 1,
-              "default": 0.924,
-              "step": 0.01
-            },
-            {
-              "key": "ride_mat",
-              "name": "Ride Mat",
-              "type": "float",
-              "min": 0,
-              "max": 1,
-              "default": 0.95,
-              "step": 0.01
-            },
-            {
-              "key": "ride_body",
-              "name": "Ride Body",
-              "type": "float",
-              "min": 0,
-              "max": 1,
-              "default": 0.8,
-              "step": 0.01
-            },
-            {
-              "key": "ride_tone",
-              "name": "Ride Tone",
-              "type": "float",
-              "min": 0,
-              "max": 1,
-              "default": 0.52,
-              "step": 0.01
-            },
-            {
-              "key": "ride_strike",
-              "name": "Ride Strike",
-              "type": "float",
-              "min": 0,
-              "max": 1,
-              "default": 0.4,
-              "step": 0.01
-            },
-            {
-              "key": "ride_grit",
-              "name": "Ride Grit",
-              "type": "float",
-              "min": 0,
-              "max": 1,
-              "default": 0.18,
-              "step": 0.01
-            },
-            {
-              "key": "ride_level",
-              "name": "Ride Level",
-              "type": "float",
-              "min": 0,
-              "max": 1,
-              "default": 0.34,
-              "step": 0.01
-            }
+            { "default": 74, "key": "ride_tune", "max": 108, "min": 24, "name": "Ride Tune", "step": 0.01, "type": "float" },
+            { "default": 0.924, "key": "ride_decay", "max": 1, "min": 0, "name": "Ride Decay", "step": 0.01, "type": "float", "unit": "%" },
+            { "default": 0.95, "key": "ride_mat", "max": 1, "min": 0, "name": "Ride Mat", "step": 0.01, "type": "float", "unit": "%" },
+            { "default": 0.8, "key": "ride_body", "max": 1, "min": 0, "name": "Ride Body", "step": 0.01, "type": "float", "unit": "%" },
+            { "default": 0.52, "key": "ride_tone", "max": 1, "min": 0, "name": "Ride Tone", "step": 0.01, "type": "float", "unit": "%" },
+            { "default": 0.4, "key": "ride_strike", "max": 1, "min": 0, "name": "Ride Strike", "step": 0.01, "type": "float", "unit": "%" },
+            { "default": 0.18, "key": "ride_grit", "max": 1, "min": 0, "name": "Ride Grit", "step": 0.01, "type": "float", "unit": "%" },
+            { "default": 0.34, "key": "ride_level", "max": 1, "min": 0, "name": "Ride Level", "step": 0.01, "type": "float", "unit": "%" }
           ],
-          "knobs": [
-            "ride_tune",
-            "ride_decay",
-            "ride_mat",
-            "ride_body",
-            "ride_tone",
-            "ride_strike",
-            "ride_grit",
-            "ride_level"
-          ]
+          "knobs": ["ride_tune", "ride_decay", "ride_mat", "ride_body", "ride_tone", "ride_strike", "ride_grit", "ride_level"]
         },
         "clap": {
           "name": "4 Clap",
           "params": [
-            {
-              "key": "clap_tune",
-              "name": "Clap Tune",
-              "type": "float",
-              "min": 24,
-              "max": 108,
-              "default": 68,
-              "step": 0.01
-            },
-            {
-              "key": "clap_decay",
-              "name": "Clap Decay",
-              "type": "float",
-              "min": 0,
-              "max": 1,
-              "default": 0.566,
-              "step": 0.01
-            },
-            {
-              "key": "clap_mat",
-              "name": "Clap Mat",
-              "type": "float",
-              "min": 0,
-              "max": 1,
-              "default": 0.92,
-              "step": 0.01
-            },
-            {
-              "key": "clap_body",
-              "name": "Clap Body",
-              "type": "float",
-              "min": 0,
-              "max": 1,
-              "default": 0.65,
-              "step": 0.01
-            },
-            {
-              "key": "clap_tone",
-              "name": "Clap Tone",
-              "type": "float",
-              "min": 0,
-              "max": 1,
-              "default": 0.5,
-              "step": 0.01
-            },
-            {
-              "key": "clap_strike",
-              "name": "Clap Strike",
-              "type": "float",
-              "min": 0,
-              "max": 1,
-              "default": 0.86,
-              "step": 0.01
-            },
-            {
-              "key": "clap_grit",
-              "name": "Clap Grit",
-              "type": "float",
-              "min": 0,
-              "max": 1,
-              "default": 0.34,
-              "step": 0.01
-            },
-            {
-              "key": "clap_level",
-              "name": "Clap Level",
-              "type": "float",
-              "min": 0,
-              "max": 1,
-              "default": 0.48,
-              "step": 0.01
-            }
+            { "default": 68, "key": "clap_tune", "max": 108, "min": 24, "name": "Clap Tune", "step": 0.01, "type": "float" },
+            { "default": 0.566, "key": "clap_decay", "max": 1, "min": 0, "name": "Clap Decay", "step": 0.01, "type": "float", "unit": "%" },
+            { "default": 0.92, "key": "clap_mat", "max": 1, "min": 0, "name": "Clap Mat", "step": 0.01, "type": "float", "unit": "%" },
+            { "default": 0.65, "key": "clap_body", "max": 1, "min": 0, "name": "Clap Body", "step": 0.01, "type": "float", "unit": "%" },
+            { "default": 0.5, "key": "clap_tone", "max": 1, "min": 0, "name": "Clap Tone", "step": 0.01, "type": "float", "unit": "%" },
+            { "default": 0.86, "key": "clap_strike", "max": 1, "min": 0, "name": "Clap Strike", "step": 0.01, "type": "float", "unit": "%" },
+            { "default": 0.34, "key": "clap_grit", "max": 1, "min": 0, "name": "Clap Grit", "step": 0.01, "type": "float", "unit": "%" },
+            { "default": 0.48, "key": "clap_level", "max": 1, "min": 0, "name": "Clap Level", "step": 0.01, "type": "float", "unit": "%" }
           ],
-          "knobs": [
-            "clap_tune",
-            "clap_decay",
-            "clap_mat",
-            "clap_body",
-            "clap_tone",
-            "clap_strike",
-            "clap_grit",
-            "clap_level"
-          ]
+          "knobs": ["clap_tune", "clap_decay", "clap_mat", "clap_body", "clap_tone", "clap_strike", "clap_grit", "clap_level"]
         },
         "conga": {
           "name": "5 Conga",
           "params": [
-            {
-              "key": "conga_tune",
-              "name": "Conga Tune",
-              "type": "float",
-              "min": 24,
-              "max": 108,
-              "default": 58,
-              "step": 0.01
-            },
-            {
-              "key": "conga_decay",
-              "name": "Conga Decay",
-              "type": "float",
-              "min": 0,
-              "max": 1,
-              "default": 0.631,
-              "step": 0.01
-            },
-            {
-              "key": "conga_mat",
-              "name": "Conga Mat",
-              "type": "float",
-              "min": 0,
-              "max": 1,
-              "default": 0.5,
-              "step": 0.01
-            },
-            {
-              "key": "conga_body",
-              "name": "Conga Body",
-              "type": "float",
-              "min": 0,
-              "max": 1,
-              "default": 0.72,
-              "step": 0.01
-            },
-            {
-              "key": "conga_tone",
-              "name": "Conga Tone",
-              "type": "float",
-              "min": 0,
-              "max": 1,
-              "default": 0.42,
-              "step": 0.01
-            },
-            {
-              "key": "conga_strike",
-              "name": "Conga Strike",
-              "type": "float",
-              "min": 0,
-              "max": 1,
-              "default": 0.52,
-              "step": 0.01
-            },
-            {
-              "key": "conga_grit",
-              "name": "Conga Grit",
-              "type": "float",
-              "min": 0,
-              "max": 1,
-              "default": 0.22,
-              "step": 0.01
-            },
-            {
-              "key": "conga_level",
-              "name": "Conga Level",
-              "type": "float",
-              "min": 0,
-              "max": 1,
-              "default": 0.62,
-              "step": 0.01
-            }
+            { "default": 58, "key": "conga_tune", "max": 108, "min": 24, "name": "Conga Tune", "step": 0.01, "type": "float" },
+            { "default": 0.631, "key": "conga_decay", "max": 1, "min": 0, "name": "Conga Decay", "step": 0.01, "type": "float", "unit": "%" },
+            { "default": 0.5, "key": "conga_mat", "max": 1, "min": 0, "name": "Conga Mat", "step": 0.01, "type": "float", "unit": "%" },
+            { "default": 0.72, "key": "conga_body", "max": 1, "min": 0, "name": "Conga Body", "step": 0.01, "type": "float", "unit": "%" },
+            { "default": 0.42, "key": "conga_tone", "max": 1, "min": 0, "name": "Conga Tone", "step": 0.01, "type": "float", "unit": "%" },
+            { "default": 0.52, "key": "conga_strike", "max": 1, "min": 0, "name": "Conga Strike", "step": 0.01, "type": "float", "unit": "%" },
+            { "default": 0.22, "key": "conga_grit", "max": 1, "min": 0, "name": "Conga Grit", "step": 0.01, "type": "float", "unit": "%" },
+            { "default": 0.62, "key": "conga_level", "max": 1, "min": 0, "name": "Conga Level", "step": 0.01, "type": "float", "unit": "%" }
           ],
-          "knobs": [
-            "conga_tune",
-            "conga_decay",
-            "conga_mat",
-            "conga_body",
-            "conga_tone",
-            "conga_strike",
-            "conga_grit",
-            "conga_level"
-          ]
+          "knobs": ["conga_tune", "conga_decay", "conga_mat", "conga_body", "conga_tone", "conga_strike", "conga_grit", "conga_level"]
         },
         "wood": {
           "name": "6 Wood",
           "params": [
-            {
-              "key": "wood_tune",
-              "name": "Wood Tune",
-              "type": "float",
-              "min": 24,
-              "max": 108,
-              "default": 71,
-              "step": 0.01
-            },
-            {
-              "key": "wood_decay",
-              "name": "Wood Decay",
-              "type": "float",
-              "min": 0,
-              "max": 1,
-              "default": 0.448,
-              "step": 0.01
-            },
-            {
-              "key": "wood_mat",
-              "name": "Wood Mat",
-              "type": "float",
-              "min": 0,
-              "max": 1,
-              "default": 0.04,
-              "step": 0.01
-            },
-            {
-              "key": "wood_body",
-              "name": "Wood Body",
-              "type": "float",
-              "min": 0,
-              "max": 1,
-              "default": 0.66,
-              "step": 0.01
-            },
-            {
-              "key": "wood_tone",
-              "name": "Wood Tone",
-              "type": "float",
-              "min": 0,
-              "max": 1,
-              "default": 0.48,
-              "step": 0.01
-            },
-            {
-              "key": "wood_strike",
-              "name": "Wood Strike",
-              "type": "float",
-              "min": 0,
-              "max": 1,
-              "default": 0.54,
-              "step": 0.01
-            },
-            {
-              "key": "wood_grit",
-              "name": "Wood Grit",
-              "type": "float",
-              "min": 0,
-              "max": 1,
-              "default": 0.2,
-              "step": 0.01
-            },
-            {
-              "key": "wood_level",
-              "name": "Wood Level",
-              "type": "float",
-              "min": 0,
-              "max": 1,
-              "default": 0.35,
-              "step": 0.01
-            }
+            { "default": 71, "key": "wood_tune", "max": 108, "min": 24, "name": "Wood Tune", "step": 0.01, "type": "float" },
+            { "default": 0.448, "key": "wood_decay", "max": 1, "min": 0, "name": "Wood Decay", "step": 0.01, "type": "float", "unit": "%" },
+            { "default": 0.04, "key": "wood_mat", "max": 1, "min": 0, "name": "Wood Mat", "step": 0.01, "type": "float", "unit": "%" },
+            { "default": 0.66, "key": "wood_body", "max": 1, "min": 0, "name": "Wood Body", "step": 0.01, "type": "float", "unit": "%" },
+            { "default": 0.48, "key": "wood_tone", "max": 1, "min": 0, "name": "Wood Tone", "step": 0.01, "type": "float", "unit": "%" },
+            { "default": 0.54, "key": "wood_strike", "max": 1, "min": 0, "name": "Wood Strike", "step": 0.01, "type": "float", "unit": "%" },
+            { "default": 0.2, "key": "wood_grit", "max": 1, "min": 0, "name": "Wood Grit", "step": 0.01, "type": "float", "unit": "%" },
+            { "default": 0.35, "key": "wood_level", "max": 1, "min": 0, "name": "Wood Level", "step": 0.01, "type": "float", "unit": "%" }
           ],
-          "knobs": [
-            "wood_tune",
-            "wood_decay",
-            "wood_mat",
-            "wood_body",
-            "wood_tone",
-            "wood_strike",
-            "wood_grit",
-            "wood_level"
-          ]
+          "knobs": ["wood_tune", "wood_decay", "wood_mat", "wood_body", "wood_tone", "wood_strike", "wood_grit", "wood_level"]
         },
         "kit": {
           "name": "Kit",
           "params": [
-            {
-              "key": "volume",
-              "name": "Volume",
-              "type": "float",
-              "min": 0,
-              "max": 1,
-              "default": 0.75,
-              "step": 0.01
-            },
-            {
-              "key": "drive",
-              "name": "Drive",
-              "type": "float",
-              "min": 0,
-              "max": 1,
-              "default": 0.18,
-              "step": 0.01
-            },
-            {
-              "key": "curve",
-              "name": "Curve",
-              "type": "int",
-              "min": 0,
-              "max": 4,
-              "default": 0,
-              "step": 1
-            },
-            {
-              "key": "tone",
-              "name": "Bus Tone",
-              "type": "float",
-              "min": 0,
-              "max": 1,
-              "default": 0.5,
-              "step": 0.01
-            },
-            {
-              "key": "shape",
-              "name": "Shape",
-              "type": "float",
-              "min": 0,
-              "max": 1,
-              "default": 0.3,
-              "step": 0.01
-            },
-            {
-              "key": "human",
-              "name": "Human",
-              "type": "float",
-              "min": 0,
-              "max": 1,
-              "default": 0.25,
-              "step": 0.01
-            },
-            {
-              "key": "vel_depth",
-              "name": "Vel Depth",
-              "type": "float",
-              "min": 0,
-              "max": 1,
-              "default": 0.6,
-              "step": 0.01
-            },
-            {
-              "key": "spread",
-              "name": "Spread",
-              "type": "float",
-              "min": 0,
-              "max": 1,
-              "default": 0.4,
-              "step": 0.01
-            }
+            { "default": 0.75, "key": "volume", "max": 1, "min": 0, "name": "Volume", "step": 0.01, "type": "float", "unit": "%" },
+            { "default": 0.18, "key": "drive", "max": 1, "min": 0, "name": "Drive", "step": 0.01, "type": "float", "unit": "%" },
+            { "default": 0, "key": "curve", "max": 4, "min": 0, "name": "Curve", "step": 1, "type": "int" },
+            { "default": 0.5, "key": "tone", "max": 1, "min": 0, "name": "Bus Tone", "step": 0.01, "type": "float", "unit": "%" },
+            { "default": 0.3, "key": "shape", "max": 1, "min": 0, "name": "Shape", "step": 0.01, "type": "float", "unit": "%" },
+            { "default": 0.25, "key": "human", "max": 1, "min": 0, "name": "Human", "step": 0.01, "type": "float", "unit": "%" },
+            { "default": 0.6, "key": "vel_depth", "max": 1, "min": 0, "name": "Vel Depth", "step": 0.01, "type": "float", "unit": "%" },
+            { "default": 0.4, "key": "spread", "max": 1, "min": 0, "name": "Spread", "step": 0.01, "type": "float", "unit": "%" }
           ],
-          "knobs": [
-            "volume",
-            "drive",
-            "curve",
-            "tone",
-            "shape",
-            "human",
-            "vel_depth",
-            "spread"
-          ]
+          "knobs": ["volume", "drive", "curve", "tone", "shape", "human", "vel_depth", "spread"]
         },
         "map": {
           "name": "Map",
           "params": [
-            {
-              "key": "root",
-              "name": "Root",
-              "type": "int",
-              "min": 0,
-              "max": 96,
-              "default": 36,
-              "step": 1
-            },
-            {
-              "key": "chrom",
-              "name": "Chrom",
-              "type": "int",
-              "min": 0,
-              "max": 6,
-              "default": 0,
-              "step": 1
-            },
-            {
-              "key": "choke",
-              "name": "Choke",
-              "type": "int",
-              "min": 0,
-              "max": 2,
-              "default": 1,
-              "step": 1
-            },
-            {
-              "key": "kit_decay",
-              "name": "Kit Decay",
-              "type": "float",
-              "min": 0,
-              "max": 1,
-              "default": 0.5,
-              "step": 0.01
-            },
-            {
-              "key": "bright",
-              "name": "Bright",
-              "type": "float",
-              "min": 0,
-              "max": 1,
-              "default": 0.5,
-              "step": 0.01
-            },
-            {
-              "key": "warp",
-              "name": "Warp",
-              "type": "float",
-              "min": 0,
-              "max": 1,
-              "default": 0.5,
-              "step": 0.01
-            }
+            { "default": 36, "key": "root", "max": 96, "min": 0, "name": "Root", "step": 1, "type": "int" },
+            { "default": 0, "key": "chrom", "max": 6, "min": 0, "name": "Chrom", "step": 1, "type": "int" },
+            { "default": 1, "key": "choke", "max": 2, "min": 0, "name": "Choke", "step": 1, "type": "int" },
+            { "default": 0.5, "key": "kit_decay", "max": 1, "min": 0, "name": "Kit Decay", "step": 0.01, "type": "float", "unit": "%" },
+            { "default": 0.5, "key": "bright", "max": 1, "min": 0, "name": "Bright", "step": 0.01, "type": "float", "unit": "%" },
+            { "default": 0.5, "key": "warp", "max": 1, "min": 0, "name": "Warp", "step": 0.01, "type": "float", "unit": "%" }
           ],
-          "knobs": [
-            "root",
-            "chrom",
-            "choke",
-            "kit_decay",
-            "bright",
-            "warp"
-          ]
+          "knobs": ["root", "chrom", "choke", "kit_decay", "bright", "warp"]
         }
       }
     }

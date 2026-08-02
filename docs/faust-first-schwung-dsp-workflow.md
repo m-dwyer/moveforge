@@ -72,17 +72,17 @@ same wrapper pipeline already used by C modules.
 A Faust-backed module must support:
 
 ```bash
-pnpm run validate
-./scripts/test.sh
-MODULE_ID=<id> ./scripts/render-demo.sh --suite
-MODULE_ID=<id> ./scripts/build-wasm.sh
-MODULE_ID=<id> ./scripts/build.sh
+mise run validate
+mise run test-c
+MODULE_ID=<id> mise run suite
+MODULE_ID=<id> mise run wasm-build
+MODULE_ID=<id> mise run move-build
 ```
 
 And eventually:
 
 ```bash
-MODULE_ID=<id> mise run install
+MODULE_ID=<id> mise run move-install
 ```
 
 ## Scaffolding
@@ -129,7 +129,7 @@ Before or alongside Faust support:
      - `midi_fx -> midi_fx`
 
 2. Fix package completeness.
-   - `scripts/build.sh` should include:
+   - The `move-build` package should include:
      - `module.json`
      - `ui.js`
      - `ui_chain.js`
@@ -140,7 +140,9 @@ Before or alongside Faust support:
    - Current code suggests audio FX and MIDI FX lack browser/offline paths.
    - The repo now has render/WASM support for these paths.
 
-4. Add a fast iteration command.
+4. Add a fast iteration command. **Not implemented** — there is no `mise run
+   iterate` task, and every other command in this document has been updated to
+   a real one, so it would otherwise read as current.
 
 ```bash
 mise run iterate
@@ -157,7 +159,7 @@ Suggested behavior:
 5. Keep Move deploy explicit.
 
 ```bash
-mise run deploy
+mise run move-deploy
 ```
 
 ## Bake-Off

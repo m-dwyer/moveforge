@@ -1,5 +1,17 @@
 import { readFile, readdir, stat } from "node:fs/promises";
 
+import {
+  type ModuleDefinition,
+  parseModuleDefinition
+} from "../../shared/module-definition.ts";
+import {
+  type MetadataJson,
+  parseMetadataJson,
+  parsePresetsJson,
+  type PresetsJson
+} from "../../shared/module-schema.ts";
+import { parseSchwungModuleJson, type SchwungModuleJson } from "../../shared/targets/schwung.ts";
+
 export type ComponentType = "sound_generator" | "audio_fx" | "midi_fx";
 export type DspAuthoring = "c" | "faust";
 export type RenderKind = ComponentType;
@@ -11,6 +23,7 @@ export type ModulePaths = {
   faustC: string;
   faustDsp: string;
   goldenMetrics: string;
+  moduleDef: string;
   moduleDir: string;
   moduleJson: string;
   paramsGenH: string;
@@ -39,11 +52,37 @@ export type ModuleBuildTarget = {
   wasmGlue: string | null;
 };
 
-type ModuleJson = {
-  capabilities?: {
-    component_type?: string;
-  };
-};
+/**
+ * Read and validate a module's JSON. These are the only places the tooling
+ * turns those files into values, so a malformed one fails here with a path and
+ * a message rather than as a TypeError inside whichever generator reached the
+ * missing field first.
+ *
+ * presets.json and metadata.json are optional — a module with neither is valid,
+ * and every caller already treated a missing file as empty.
+ */
+/** The authored definition. The source of truth; module.json is emitted from it. */
+export async function readModuleDefinition(moduleId: string): Promise<ModuleDefinition> {
+  const path = modulePaths(moduleId).moduleDef;
+  return parseModuleDefinition(JSON.parse(await readFile(path, "utf8")), path);
+}
+
+export async function readModuleJson(moduleId: string): Promise<SchwungModuleJson> {
+  const path = modulePaths(moduleId).moduleJson;
+  return parseSchwungModuleJson(JSON.parse(await readFile(path, "utf8")), path);
+}
+
+export async function readPresetsJson(moduleId: string): Promise<PresetsJson> {
+  const path = modulePaths(moduleId).presets;
+  const raw = await readFile(path, "utf8").catch(() => '{"presets":[]}');
+  return parsePresetsJson(JSON.parse(raw), path);
+}
+
+export async function readMetadataJson(moduleId: string): Promise<MetadataJson> {
+  const path = `${modulePaths(moduleId).moduleDir}/metadata.json`;
+  const raw = await readFile(path, "utf8").catch(() => "{}");
+  return parseMetadataJson(JSON.parse(raw), path);
+}
 
 export async function selectedModuleIds(): Promise<string[]> {
   return process.env.MODULE_ID ? [process.env.MODULE_ID] : listModuleIds();
@@ -51,6 +90,19 @@ export async function selectedModuleIds(): Promise<string[]> {
 
 export async function selectedModuleTargets(): Promise<ModuleBuildTarget[]> {
   return Promise.all((await selectedModuleIds()).map((moduleId) => readModuleTarget(moduleId)));
+}
+
+/**
+ * Every module, ignoring MODULE_ID.
+ *
+ * The generated ninja files use this rather than the selection: a build file
+ * describes the whole graph, and MODULE_ID picks which of its targets to build.
+ * Generating a partial build file instead would mean `MODULE_ID=x mise run
+ * wasm-build` left behind a build/wasm.ninja that knows about one module, so a
+ * later bare `ninja -f build/wasm.ninja` would silently build only that one.
+ */
+export async function allModuleTargets(): Promise<ModuleBuildTarget[]> {
+  return Promise.all((await listModuleIds()).map((moduleId) => readModuleTarget(moduleId)));
 }
 
 export async function listModuleIds(): Promise<string[]> {
@@ -69,6 +121,7 @@ export function modulePaths(moduleId: string): ModulePaths {
     faustC: `${moduleDir}/dsp/${moduleId}_faust.c`,
     faustDsp: `${moduleDir}/dsp/${moduleId}.dsp`,
     goldenMetrics: `goldens/${moduleId}/metrics.json`,
+    moduleDef: `${moduleDir}/module.def.json`,
     moduleDir,
     moduleJson: `${moduleDir}/module.json`,
     paramsGenH: `${moduleDir}/dsp/${moduleId}_params.gen.h`,
@@ -86,9 +139,9 @@ export function modulePaths(moduleId: string): ModulePaths {
 
 export async function readModuleTarget(moduleId: string): Promise<ModuleBuildTarget> {
   const paths = modulePaths(moduleId);
-  const moduleJson = JSON.parse(await readFile(paths.moduleJson, "utf8")) as ModuleJson;
-  const componentType = moduleJson.capabilities?.component_type ?? "";
-  const dspAuthoring: DspAuthoring = await exists(paths.faustDsp) ? "faust" : "c";
+  const moduleJson = await readModuleJson(moduleId);
+  const componentType = moduleJson.capabilities.component_type;
+  const dspAuthoring: DspAuthoring = await fileExists(paths.faustDsp) ? "faust" : "c";
   const coreImpl = dspAuthoring === "faust" ? paths.adapterC : paths.coreC;
   const renderKind = renderKindFor(componentType);
 
@@ -138,7 +191,7 @@ function deviceComponentDirFor(componentType: string): string | null {
   return null;
 }
 
-async function exists(path: string): Promise<boolean> {
+export async function fileExists(path: string): Promise<boolean> {
   try {
     await stat(path);
     return true;

@@ -94,7 +94,7 @@ async function checkWavSuite(target: ModuleBuildTarget): Promise<boolean> {
     .sort();
 
   if (wavs.length === 0) {
-    console.error(`[${moduleId}] no WAVs in ${suiteDir} — run scripts/render-demo.sh --suite first`);
+    console.error(`[${moduleId}] no WAVs in ${suiteDir} — run 'mise run suite' first`);
     return true;
   }
 
@@ -274,7 +274,7 @@ async function checkTraceSuite(target: ModuleBuildTarget): Promise<boolean> {
     .sort();
 
   if (traces.length === 0) {
-    console.error(`[${moduleId}] no .trace files in ${suiteDir} — run scripts/render-demo.sh --suite first`);
+    console.error(`[${moduleId}] no .trace files in ${suiteDir} — run 'mise run suite' first`);
     return true;
   }
 

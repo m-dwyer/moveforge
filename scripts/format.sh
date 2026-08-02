@@ -4,7 +4,7 @@
 #
 # NOTE: the repo is not yet formatted — a first pass would rewrite ~34% of
 # lines, so it is deliberately left as its own commit rather than mixed into
-# functional changes. `format-check` is therefore not in `make check` yet.
+# functional changes. `format-check` is therefore not in `mise run check` yet.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"

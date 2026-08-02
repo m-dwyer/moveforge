@@ -1,0 +1,36 @@
+{
+  "id": "westfold",
+  "name": "Westfold",
+  "abbrev": "WFD",
+  "version": "0.1.0",
+  "description": "Compact West Coast voice with dual oscillator FM, wavefolder, and low-pass gate",
+  "author": "Local",
+  "kind": "instrument",
+  "io": { "audio_in": false, "audio_out": true, "midi_in": true, "midi_out": false },
+  "scope": { "mode": "continuous", "style": "envelope", "window": 1024 },
+  "preset_browse": { "group": "root", "list_param": "preset", "count_param": "preset_count", "name_param": "preset_name" },
+  "groups": [
+    {
+      "key": "root",
+      "name": "Westfold",
+      "params": [
+        { "key": "volume", "name": "Volume", "type": "float", "min": 0, "max": 1, "default": 0.75, "step": 0.01, "unit": "%" },
+        { "key": "ratio", "name": "Ratio", "type": "float", "min": 0.25, "max": 4, "default": 1.5, "step": 0.01 },
+        { "key": "snap", "name": "Snap", "type": "float", "min": 0, "max": 1, "default": 0.7, "step": 0.01, "unit": "%" },
+        { "key": "fm", "name": "FM", "type": "float", "min": 0, "max": 1, "default": 0.15, "step": 0.01, "unit": "%" },
+        { "key": "fold", "name": "Fold", "type": "float", "min": 0, "max": 1, "default": 0.35, "step": 0.01, "unit": "%" },
+        { "key": "lpg", "name": "LPG", "type": "float", "min": 0, "max": 1, "default": 0.55, "step": 0.01, "unit": "%" },
+        { "key": "tone", "name": "Tone", "type": "float", "min": 0, "max": 1, "default": 0.55, "step": 0.01, "unit": "%" },
+        { "key": "drive", "name": "Drive", "type": "float", "min": 0, "max": 1, "default": 0.28, "step": 0.01, "unit": "%" },
+        { "key": "strike", "name": "Strike", "type": "float", "min": 0, "max": 1, "default": 0.45, "step": 0.01, "unit": "%" },
+        { "key": "chaos", "name": "Chaos", "type": "float", "min": 0, "max": 1, "default": 0.12, "step": 0.01, "unit": "%" },
+        { "key": "width", "name": "Width", "type": "float", "min": 0, "max": 1, "default": 0.2, "step": 0.01, "unit": "%" },
+        { "key": "sustain", "name": "Sustain", "type": "float", "min": 0, "max": 1, "default": 0.25, "step": 0.01, "unit": "%" },
+        { "key": "decay", "name": "Decay", "type": "float", "min": 0.02, "max": 2.5, "default": 0.45, "step": 0.01, "unit": "sec" },
+        { "key": "release", "name": "Release", "type": "float", "min": 0.02, "max": 4, "default": 0.8, "step": 0.01, "unit": "sec" },
+        { "key": "bend_range", "name": "Bend", "type": "float", "min": 0, "max": 12, "default": 2, "step": 0.1, "unit": "st" }
+      ],
+      "knobs": ["volume", "ratio", "fm", "fold", "lpg", "tone", "drive", "strike", "snap", "chaos", "width", "sustain", "decay", "release", "bend_range"]
+    }
+  ]
+}

@@ -1,7 +1,23 @@
 name: Deploy web UI to GitHub Pages
 
+# Runs after CI succeeds on main, not on the push itself.
+#
+# This used to trigger on `push: branches: [main]` independently, so a red gate
+# never stopped a publish — the site could be built from a commit whose C tests,
+# cross-compile or component suite had failed, and nobody would learn it from the
+# deployment.
+#
+# `workflow_run` is the gate. It is deliberately not a `needs:` inside ci.yml:
+# that workflow sets `cancel-in-progress: true`, which is right for a gate and
+# wrong for a publish — a second push would cancel a deployment mid-flight. A
+# separate workflow keeps the `cancel-in-progress: false` below.
+#
+# Note the file must be on the default branch for `workflow_run` to fire at all,
+# so this takes effect once merged, not on the branch that introduces it.
 on:
-  push:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
     branches: [main]
   workflow_dispatch:
 
@@ -17,25 +33,42 @@ concurrency:
 
 jobs:
   build:
+    # A completed CI run can have failed; only a green one may publish.
+    # workflow_dispatch has no workflow_run payload, so it is allowed through
+    # explicitly — that is the manual escape hatch for republishing.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     steps:
+      # Pin to the commit CI actually validated. Without this, a workflow_run
+      # build checks out the branch tip, which may already have moved on to a
+      # commit nothing has gated.
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.ref }}
+
+      - uses: jdx/mise-action@v2
 
       - uses: pnpm/action-setup@v4
         with:
           version: 10.33.2
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: pnpm
-
       - run: pnpm install --frozen-lockfile
 
       # Compile every module to WASM via the same Emscripten Docker image used
       # locally. Docker is preinstalled on GitHub-hosted Ubuntu runners.
+      #
+      # `wasm-build` depends on `validate`, which is what keeps the two halves of
+      # the deployed app agreeing: the browser derives its parameter ids from
+      # module.def.json at runtime, while the WASM's enum is compiled from the
+      # checked-in <id>_params.gen.h. Nothing regenerates the second, so a
+      # reordered parameter that was never re-generated would leave every knob
+      # addressing the wrong one, in a page that loads and looks normal. That
+      # dependency covers the manual-dispatch path too, where the CI gate above
+      # does not apply.
       - name: Build WASM (all modules)
-        run: ./scripts/build-wasm.sh
+        run: mise run wasm-build
 
       - name: Build web UI
         run: pnpm build:web

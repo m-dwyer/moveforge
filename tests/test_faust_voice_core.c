@@ -46,6 +46,7 @@ static void test_held_note_falls_back(void) {
     require_true(v.active_note == -1, "no note is tracked once all are released");
 
     /* Releasing an underlying note must not disturb the sounding one. */
+    faust_voice_destroy(&v);
     faust_voice_init(&v);
     faust_voice_note_on(&v, 60, 1.0f);
     faust_voice_note_on(&v, 64, 1.0f);
@@ -56,6 +57,7 @@ static void test_held_note_falls_back(void) {
     require_true(v.gate < 0.5f, "and then releasing it stops, with no ghost entry");
 
     /* all-notes-off clears the whole stack, not just the top. */
+    faust_voice_destroy(&v);
     faust_voice_init(&v);
     faust_voice_note_on(&v, 60, 1.0f);
     faust_voice_note_on(&v, 64, 1.0f);
@@ -63,6 +65,8 @@ static void test_held_note_falls_back(void) {
     require_true(v.gate < 0.5f && v.active_note == -1, "all-notes-off silences the voice");
     faust_voice_note_off(&v, 60);
     require_true(v.gate < 0.5f, "a stale note-off after all-notes-off does not revive it");
+
+    faust_voice_destroy(&v);
 }
 
 int main(void) {

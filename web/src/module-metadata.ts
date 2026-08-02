@@ -1,4 +1,8 @@
-import { flattenParams, paramGroups, type UiHierarchy } from "../../shared/ui-hierarchy.ts";
+import {
+  definitionGroups,
+  definitionParams,
+  type ModuleDefinition
+} from "../../shared/module-definition.ts";
 
 export type ModuleIndexItem = {
   id: string;
@@ -22,9 +26,11 @@ export type ParamDefinition = {
   max: number;
   min: number;
   description?: string;
+  display_format?: string;
   randomize?: RandomizeHint;
   step?: number;
   type?: string;
+  unit?: string;
   value: number;
 };
 
@@ -37,22 +43,23 @@ export type RandomizeHint = {
 
 type RawParam = {
   default: number;
+  display_format?: string;
   key: string;
   max: number;
   min: number;
   name?: string;
   step?: number;
   type?: string;
+  /* Host fields (chain_internal.h:111-112). Carried through so the browser can
+   * show what the device shows instead of a bare float. */
+  unit?: string;
 };
 
-export type ModuleMetadataJson = {
-  capabilities?: {
-    component_type?: string;
-    ui_hierarchy?: UiHierarchy<RawParam>;
-  };
-  id: string;
-  name?: string;
-};
+/* The authored definition, which is what the browser reads. It deliberately does
+ * not read the emitted module.json: that file is the Schwung target's artifact,
+ * and the browser is previewing the module, not the target. Emitter drift is
+ * caught by `mise run validate`, not here. */
+export type ModuleMetadataJson = ModuleDefinition;
 
 export type Preset = {
   name: string;
@@ -79,7 +86,7 @@ export type LoadedModuleMetadata = {
 
 export async function loadModuleMetadata(moduleId: string): Promise<LoadedModuleMetadata> {
   const [moduleJson, presetJson, metadataJson] = await Promise.all([
-    loadJson<ModuleMetadataJson>(`${import.meta.env.BASE_URL}modules/${moduleId}/module.json`),
+    loadJson<ModuleMetadataJson>(`${import.meta.env.BASE_URL}modules/${moduleId}/module.def.json`),
     loadJson<PresetsJson>(`${import.meta.env.BASE_URL}modules/${moduleId}/presets.json`),
     loadOptionalJson<MetadataJson>(`${import.meta.env.BASE_URL}modules/${moduleId}/metadata.json`)
   ]);
@@ -140,26 +147,23 @@ function paramsFromModuleJson(
   descriptions: Record<string, string>,
   randomizeHints: Record<string, RandomizeHint>
 ): ParamDefinition[] {
-  /* `index` becomes the id the worklet is addressed by, so this has to be the
-   * same order the generated <MODULE>_PARAM_* enum counts in — which is why the
-   * flatten is shared with the generators rather than repeated here.
-   *
-   * Walking the groups instead of the flat list is safe *because* flattenParams is
-   * itself defined as paramGroups().flatMap: the running index below counts in
-   * exactly the order flattenParams would produce. Recovering the grouping by any
-   * other route — re-reading `levels`, matching on key prefixes — would be a second
-   * walk that can disagree, which is the failure shared/ui-hierarchy.ts exists to
-   * prevent. */
+  /* `index` becomes the id the worklet is addressed by, so this has to count in
+   * the same order the generated <MODULE>_PARAM_* enum does. Both derive from
+   * the definition's `groups` array — the browser directly, the C through the
+   * emitted ui_hierarchy — which is why definitionGroups is shared rather than
+   * repeated here. Recovering the grouping by any other route (re-reading the
+   * emitted levels, matching on key prefixes) would be a second walk that can
+   * disagree. */
   const raw: Array<RawParam & { group: string; groupLabel?: string }> = [];
-  for (const g of paramGroups<RawParam>(moduleJson.capabilities?.ui_hierarchy)) {
-    for (const item of g.params) raw.push({ ...item, group: g.group, groupLabel: g.label });
+  for (const g of definitionGroups(moduleJson)) {
+    for (const item of g.params) raw.push({ ...(item as RawParam), group: g.group, groupLabel: g.label });
   }
   /* Cheap, and it is the one thing that must not drift: `id` is the index the
    * worklet addresses, so a group walk that disagreed with the flat walk would
    * silently point every knob at the wrong parameter. */
-  const flat = flattenParams<RawParam>(moduleJson.capabilities?.ui_hierarchy);
+  const flat = definitionParams(moduleJson);
   if (flat.length !== raw.length || flat.some((item, i) => item.key !== raw[i].key)) {
-    throw new Error(`${moduleJson.id}: grouped parameter order disagrees with flattenParams`);
+    throw new Error(`${moduleJson.id}: grouped parameter order disagrees with definitionParams`);
   }
   return raw.map((item, index) => ({
     default: item.default,
@@ -171,9 +175,11 @@ function paramsFromModuleJson(
     max: item.max,
     min: item.min,
     description: descriptions[item.key],
+    display_format: item.display_format,
     randomize: randomizeHints[item.key],
     step: item.step,
     type: item.type,
+    unit: item.unit,
     value: item.default
   }));
 }

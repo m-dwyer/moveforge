@@ -17,11 +17,7 @@
     "chainable": true,
     "requires_continuous_processing": true,
     "component_type": "audio_fx",
-    "scope": {
-      "mode": "continuous",
-      "style": "envelope",
-      "window": 1024
-    },
+    "scope": { "mode": "continuous", "style": "envelope", "window": 1024 },
     "ui_hierarchy": {
       "levels": {
         "root": {
@@ -30,20 +26,20 @@
           "count_param": "preset_count",
           "name_param": "preset_name",
           "params": [
-            { "key": "active", "name": "Lob", "type": "int", "min": 0, "max": 1, "default": 0, "step": 1 },
-            { "key": "offset", "name": "Slices Back", "type": "int", "min": 0, "max": 16, "default": 2, "step": 1 },
-            { "key": "division", "name": "Slice", "type": "int", "min": 0, "max": 5, "default": 2, "step": 1 },
-            { "key": "mode", "name": "Play Mode", "type": "int", "min": 0, "max": 2, "default": 0, "step": 1 },
-            { "key": "loop", "name": "Loop", "type": "int", "min": 0, "max": 1, "default": 1, "step": 1 },
-            { "key": "ratchet", "name": "Ratchet", "type": "int", "min": 0, "max": 4, "default": 0, "step": 1 },
-            { "key": "reverse", "name": "Reverse", "type": "int", "min": 0, "max": 1, "default": 0, "step": 1 },
-            { "key": "freeze", "name": "Freeze", "type": "int", "min": 0, "max": 1, "default": 0, "step": 1 },
-            { "key": "mute", "name": "Mute", "type": "int", "min": 0, "max": 1, "default": 0, "step": 1 },
-            { "key": "capture", "name": "Capture", "type": "int", "min": 0, "max": 1, "default": 0, "step": 1 },
-            { "key": "loop_beats", "name": "Loop Beats", "type": "int", "min": 1, "max": 16, "default": 4, "step": 1 },
-            { "key": "mix", "name": "Mix", "type": "float", "min": 0, "max": 1, "default": 1, "step": 0.01 },
-            { "key": "bpm", "name": "Tempo", "type": "int", "min": 40, "max": 200, "default": 120, "step": 1 },
-            { "key": "xfade", "name": "Declick", "type": "float", "min": 0, "max": 25, "default": 4, "step": 0.5 }
+            { "default": 0, "key": "active", "max": 1, "min": 0, "name": "Lob", "step": 1, "type": "int" },
+            { "default": 2, "key": "offset", "max": 16, "min": 0, "name": "Slices Back", "step": 1, "type": "int" },
+            { "default": 2, "key": "division", "max": 5, "min": 0, "name": "Slice", "step": 1, "type": "int" },
+            { "default": 0, "key": "mode", "max": 2, "min": 0, "name": "Play Mode", "step": 1, "type": "int" },
+            { "default": 1, "key": "loop", "max": 1, "min": 0, "name": "Loop", "step": 1, "type": "int" },
+            { "default": 0, "key": "ratchet", "max": 4, "min": 0, "name": "Ratchet", "step": 1, "type": "int" },
+            { "default": 0, "key": "reverse", "max": 1, "min": 0, "name": "Reverse", "step": 1, "type": "int" },
+            { "default": 0, "key": "freeze", "max": 1, "min": 0, "name": "Freeze", "step": 1, "type": "int" },
+            { "default": 0, "key": "mute", "max": 1, "min": 0, "name": "Mute", "step": 1, "type": "int" },
+            { "default": 0, "key": "capture", "max": 1, "min": 0, "name": "Capture", "step": 1, "type": "int" },
+            { "default": 4, "key": "loop_beats", "max": 16, "min": 1, "name": "Loop Beats", "step": 1, "type": "int" },
+            { "default": 1, "key": "mix", "max": 1, "min": 0, "name": "Mix", "step": 0.01, "type": "float", "unit": "%" },
+            { "default": 120, "key": "bpm", "max": 200, "min": 40, "name": "Tempo", "step": 1, "type": "int" },
+            { "default": 4, "key": "xfade", "max": 25, "min": 0, "name": "Declick", "step": 0.5, "type": "float", "unit": "ms" }
           ],
           "knobs": ["active", "offset", "division", "mode", "loop", "reverse", "freeze", "mix", "ratchet", "mute", "loop_beats", "capture", "bpm", "xfade"]
         }

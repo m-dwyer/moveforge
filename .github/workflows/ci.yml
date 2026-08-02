@@ -4,12 +4,11 @@ name: CI
 # ran on push to main, built WASM, and published — so nothing checked a pull
 # request, and README/SKILL both described a CI gate that did not exist.
 #
-# Deliberately NOT here: `pnpm test`, the React component suite. It is 41
-# Zustand/component tests with @/audio aliased to a mock, so it covers no audio,
-# WASM or DSP, and it needs a Playwright Chromium download. It also has a
-# known-excluded file (KeyboardPlay.spec.tsx does not match the *.spec.ts
-# include glob). Worth gating on once those are fixed — see plan items 5.10 and
-# 5.11 — not before.
+# The React component suite now runs too, in its own job — see `web` below. It
+# was held back because KeyboardPlay.spec.tsx was silently excluded by the
+# *.spec.ts include glob and failed once included; both are fixed. It still
+# covers no audio, WASM or DSP (@/audio is aliased to a mock), so it is a
+# component and store gate, not a signal about sound.
 on:
   pull_request:
   push:
@@ -32,26 +31,37 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Provisions node *and* ninja from mise.toml's [tools], so CI runs the same
+      # toolchain versions as a developer machine and can invoke the same
+      # `mise run ...` tasks. CI used to call `make` directly and never touch
+      # mise at all, which meant the entry points it exercised were not the ones
+      # anybody actually ran locally.
+      - uses: jdx/mise-action@v2
+
       - uses: pnpm/action-setup@v4
         with:
           version: 10.33.2
 
-      - uses: actions/setup-node@v4
+      - id: pnpm-store
+        run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache@v4
         with:
-          node-version: 24
-          cache: pnpm
+          path: ${{ steps.pnpm-store.outputs.path }}
+          key: pnpm-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: pnpm-${{ runner.os }}-
 
       - run: pnpm install --frozen-lockfile
 
-      # `make plot` needs numpy/pillow. Cached on requirements-dev.txt so this
-      # is a no-op on most runs.
+      # `mise run plot` needs numpy/pillow. Cached on requirements-dev.txt so
+      # this is a no-op on most runs.
       - uses: actions/cache@v4
         with:
           path: .venv
           key: venv-${{ runner.os }}-${{ hashFiles('requirements-dev.txt') }}
 
       - name: Python plotting deps
-        run: test -x .venv/bin/python || make dev-deps
+        run: test -x .venv/bin/python || mise run setup
 
       # Faust is deliberately NOT installed. The generated *_faust.c embeds its
       # compiler and stdfaust.lib versions and the drift check is byte-exact, so
@@ -64,35 +74,79 @@ jobs:
       #
       # To check Faust drift in CI too, the version has to be pinned — a
       # container image or a source build, not apt. Tracked as plan item 3.8.
-      - run: make check
+      - run: mise run check
 
-  # The artifact that actually ships was never built in CI. A wrapper that fails
-  # to compile for aarch64, or stops exporting its init symbol, previously got
-  # caught only by a human running `mise run move`.
-  device-build:
+  # The browser UI. Separate from `check` because it is the one job that needs a
+  # Playwright browser download; keeping it out of `check` means a DSP-only
+  # developer running the local gate does not pay for one.
+  #
+  # `mise run check` already runs `web-build`, so a config or TypeScript break is
+  # caught there and here. What this job adds is the component and store
+  # behaviour, which nothing else exercises — and which now includes the keyboard
+  # tests that had never run at all.
+  web:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - uses: jdx/mise-action@v2
 
       - uses: pnpm/action-setup@v4
         with:
           version: 10.33.2
 
-      - uses: actions/setup-node@v4
+      - id: pnpm-store
+        run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache@v4
         with:
-          node-version: 24
-          cache: pnpm
+          path: ${{ steps.pnpm-store.outputs.path }}
+          key: pnpm-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: pnpm-${{ runner.os }}-
 
       - run: pnpm install --frozen-lockfile
 
-      # build.sh cross-compiles inside its own Docker image, so the aarch64
+      # Chromium only: vite.config.ts pins the suite to a single chromium
+      # instance, so the other engines would be an unused download.
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+
+      - name: Install Playwright Chromium
+        run: pnpm exec playwright install --with-deps chromium
+
+      - run: mise run test-web
+
+  # The artifact that actually ships was never built in CI. A wrapper that fails
+  # to compile for aarch64, or stops exporting its init symbol, previously got
+  # caught only by a human running `mise run move-build`.
+  device-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: jdx/mise-action@v2
+
+      # move-build cross-compiles inside its own Docker image, so the aarch64
       # binutils are not on the host — but the symbol check below runs on the
       # host and needs them.
       - name: Install aarch64 binutils
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends binutils-aarch64-linux-gnu
 
+      # The build graph is resolved by scripts/gen-ninja.ts, which reads
+      # module.json through the zod schemas in shared/. This job used to skip the
+      # install on the grounds that it "drives ninja with node builtins only" —
+      # that stopped being true when the readers moved behind parseSchwungModuleJson,
+      # and the job failed on ERR_MODULE_NOT_FOUND before compiling anything.
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.2
+
+      - run: pnpm install --frozen-lockfile
+
       - name: Cross-compile for Move (aarch64)
-        run: make move
+        run: mise run move-build
 
       # Building is not the same as being loadable: the chain host resolves
       # move_plugin_init_v2 / move_audio_fx_init_v2 / move_midi_fx_init by name,
@@ -142,22 +196,21 @@ jobs:
           gcc --version | head -1
           ldd --version | head -1
 
+      - uses: jdx/mise-action@v2
+
+      # Needed by scripts/gen-ninja.ts, which resolves the module graph through
+      # the zod schemas in shared/ — see the note on device-build above.
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.2
+
+      - run: pnpm install --frozen-lockfile
+
+      # This used to be twenty lines of inlined gcc with the module list written
+      # out by hand — and it had already drifted: `ballast` and `swarf` existed
+      # and were never tested here, silently. The list now comes from the same
+      # module graph everything else uses, so a new module is covered the day it
+      # is scaffolded. `cc` on this runner is the target's gcc, which is the
+      # whole point of the job.
       - name: C tests on the target ISA
-        run: |
-          set -euo pipefail
-          CFLAGS="-std=c11 -O2 -Wall -Wextra -Werror -Isrc"
-          # shellcheck disable=SC2086
-          gcc $CFLAGS tests/test_mf_dsp.c -o /tmp/t_shared -lm && /tmp/t_shared
-          for m in westfold dustline lobber arpy faust_voice trail faust_drive; do
-            impl="src/modules/$m/dsp/${m}_core.c"
-            [ -f "src/modules/$m/dsp/$m.dsp" ] && impl="src/modules/$m/dsp/${m}_adapter.c"
-            # shellcheck disable=SC2086
-            gcc $CFLAGS -Isrc/modules/$m/dsp "tests/test_${m}_core.c" "$impl" -o "/tmp/t_$m" -lm
-            "/tmp/t_$m"
-            if [ -f "tests/test_${m}_plugin.c" ]; then
-              # shellcheck disable=SC2086
-              gcc $CFLAGS -Isrc/modules/$m/dsp "tests/test_${m}_plugin.c" \
-                "src/modules/$m/dsp/$m.c" "$impl" -o "/tmp/p_$m" -lm
-              "/tmp/p_$m"
-            fi
-          done
+        run: mise run test-c

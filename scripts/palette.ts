@@ -1,9 +1,10 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
 import { describe, fingerprint, spreadOf, type Descriptors } from "./lib/descriptors.ts";
-import { selectedModuleTargets } from "./lib/modules.ts";
+import { readModuleJson, readPresetsJson, selectedModuleTargets } from "./lib/modules.ts";
 import { densePresetValues, type PresetParam } from "../shared/presets.ts";
-import { paramGroups, type UiHierarchy } from "../shared/ui-hierarchy.ts";
+import { type SchwungModuleJson, type SchwungParam } from "../shared/targets/schwung.ts";
+import { paramGroups } from "../shared/ui-hierarchy.ts";
 import { readWav } from "./wav-io.ts";
 
 /* Audition a module: what does every voice, every knob and every preset sound
@@ -43,16 +44,6 @@ const SWEEP_SECONDS = 1.5;
 const AUDITION_SECONDS = 3;
 const NOTE_SPAN = 12;        /* notes probed above `root` */
 
-type ParamDef = {
-  key: string;
-  name?: string;
-  min: number;
-  max: number;
-  default: number;
-  step?: number;
-  type?: string;
-};
-
 type Row = {
   id: string;
   label: string;
@@ -60,11 +51,6 @@ type Row = {
   note: number;
   file: string;
   d: Descriptors;
-};
-
-type ModuleJson = {
-  capabilities?: { component_type?: string; ui_hierarchy?: UiHierarchy<ParamDef> };
-  name?: string;
 };
 
 function fmtHz(hz: number): string {
@@ -104,16 +90,12 @@ async function paletteFor(moduleId: string, renderBin: string): Promise<void> {
   const dir = `renders/palette/${moduleId}`;
   await mkdir(dir, { recursive: true });
 
-  const moduleJson = JSON.parse(
-    await readFile(`src/modules/${moduleId}/module.json`, "utf8")
-  ) as ModuleJson;
-  const presetsJson = JSON.parse(
-    await readFile(`src/modules/${moduleId}/presets.json`, "utf8")
-  ) as { presets?: Array<{ name: string; params?: Record<string, number> }> };
+  const moduleJson = await readModuleJson(moduleId);
+  const presetsJson = await readPresetsJson(moduleId);
 
   /* Through paramGroups, never by re-reading `levels`: parameter order is an ABI
    * and shared/ui-hierarchy.ts is the only walk of it in the tree. */
-  const groups = paramGroups<ParamDef>(moduleJson.capabilities?.ui_hierarchy);
+  const groups = paramGroups<SchwungParam>(moduleJson.capabilities.ui_hierarchy);
   const params = groups.flatMap((g) =>
     g.params.map((p) => ({ ...p, group: g.label ?? g.group }))
   );
@@ -179,7 +161,7 @@ async function paletteFor(moduleId: string, renderBin: string): Promise<void> {
     index < sounding.length ? sounding[index] : fallbackNote;
 
   /* ---- 2. knob sweeps ---- */
-  type Sweep = { param: ParamDef & { group: string }; rows: Row[] };
+  type Sweep = { param: SchwungParam & { group: string }; rows: Row[] };
   const sweeps: Sweep[] = [];
   for (const p of params) {
     /* Sweep each parameter on the voice it belongs to. A per-voice `decay`
@@ -287,9 +269,9 @@ const HEADER = `${pad("", 22)} ${padL("peak", 7)} ${padL("T60", 8)} ${padL("cent
 
 function renderMarkdown(
   moduleId: string,
-  moduleJson: ModuleJson,
+  moduleJson: SchwungModuleJson,
   notes: Row[],
-  sweeps: Array<{ param: ParamDef & { group: string }; rows: Row[] }>,
+  sweeps: Array<{ param: SchwungParam & { group: string }; rows: Row[] }>,
   presetKits: Array<{ name: string; rows: Row[] }>,
   noteMapped: boolean
 ): string {
@@ -448,10 +430,10 @@ async function bandsFor(dir: string, file: string): Promise<number[]> {
 
 async function renderHtml(
   moduleId: string,
-  moduleJson: ModuleJson,
+  moduleJson: SchwungModuleJson,
   dir: string,
   notes: Row[],
-  sweeps: Array<{ param: ParamDef & { group: string }; rows: Row[] }>,
+  sweeps: Array<{ param: SchwungParam & { group: string }; rows: Row[] }>,
   presetKits: Array<{ name: string; rows: Row[] }>
 ): Promise<string> {
   const rowHtml = async (r: Row): Promise<string> => {

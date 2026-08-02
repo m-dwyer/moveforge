@@ -9,7 +9,6 @@
   "ui_chain": "ui_chain.js",
   "dsp": "dsp.so",
   "api_version": 2,
-  "component_type": "audio_fx",
   "capabilities": {
     "audio_out": true,
     "audio_in": true,
@@ -26,15 +25,15 @@
           "count_param": "preset_count",
           "name_param": "preset_name",
           "params": [
-            { "key": "time", "name": "Time", "type": "float", "min": 0, "max": 1, "default": 0.12, "step": 0.01 },
-            { "key": "sync", "name": "Sync", "type": "int", "min": 0, "max": 9, "default": 0, "step": 1 },
-            { "key": "feedback", "name": "Feedback", "type": "float", "min": 0, "max": 0.88, "default": 0.22, "step": 0.01 },
-            { "key": "tone", "name": "Tone", "type": "float", "min": 0, "max": 1, "default": 0.55, "step": 0.01 },
-            { "key": "mod", "name": "Mod", "type": "float", "min": 0, "max": 1, "default": 0.2, "step": 0.01 },
-            { "key": "width", "name": "Width", "type": "float", "min": 0, "max": 1, "default": 0.5, "step": 0.01 },
-            { "key": "drive", "name": "Drive", "type": "float", "min": 0, "max": 1, "default": 0.15, "step": 0.01 },
-            { "key": "space", "name": "Space", "type": "float", "min": 0, "max": 1, "default": 0.05, "step": 0.01 },
-            { "key": "mix", "name": "Mix", "type": "float", "min": 0, "max": 1, "default": 0.18, "step": 0.01 }
+            { "default": 0.12, "key": "time", "max": 1, "min": 0, "name": "Time", "step": 0.01, "type": "float", "unit": "%" },
+            { "default": 0, "key": "sync", "max": 9, "min": 0, "name": "Sync", "step": 1, "type": "int" },
+            { "default": 0.22, "key": "feedback", "max": 0.88, "min": 0, "name": "Feedback", "step": 0.01, "type": "float", "unit": "%" },
+            { "default": 0.55, "key": "tone", "max": 1, "min": 0, "name": "Tone", "step": 0.01, "type": "float", "unit": "%" },
+            { "default": 0.2, "key": "mod", "max": 1, "min": 0, "name": "Mod", "step": 0.01, "type": "float", "unit": "%" },
+            { "default": 0.5, "key": "width", "max": 1, "min": 0, "name": "Width", "step": 0.01, "type": "float", "unit": "%" },
+            { "default": 0.15, "key": "drive", "max": 1, "min": 0, "name": "Drive", "step": 0.01, "type": "float", "unit": "%" },
+            { "default": 0.05, "key": "space", "max": 1, "min": 0, "name": "Space", "step": 0.01, "type": "float", "unit": "%" },
+            { "default": 0.18, "key": "mix", "max": 1, "min": 0, "name": "Mix", "step": 0.01, "type": "float", "unit": "%" }
           ],
           "knobs": ["time", "sync", "feedback", "tone", "mod", "width", "drive", "space", "mix"]
         }

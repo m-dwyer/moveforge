@@ -21,10 +21,10 @@
         "root": {
           "name": "Faust Drive",
           "params": [
-            { "key": "drive", "name": "Drive", "type": "float", "min": 0, "max": 1, "default": 0.3, "step": 0.01 },
-            { "key": "tone",  "name": "Tone",  "type": "float", "min": 0, "max": 1, "default": 0.5, "step": 0.01 },
-            { "key": "mix",   "name": "Mix",   "type": "float", "min": 0, "max": 1, "default": 1.0, "step": 0.01 },
-            { "key": "level", "name": "Level", "type": "float", "min": 0, "max": 1, "default": 0.8, "step": 0.01 }
+            { "default": 0.3, "key": "drive", "max": 1, "min": 0, "name": "Drive", "step": 0.01, "type": "float", "unit": "%" },
+            { "default": 0.5, "key": "tone", "max": 1, "min": 0, "name": "Tone", "step": 0.01, "type": "float", "unit": "%" },
+            { "default": 1, "key": "mix", "max": 1, "min": 0, "name": "Mix", "step": 0.01, "type": "float", "unit": "%" },
+            { "default": 0.8, "key": "level", "max": 1, "min": 0, "name": "Level", "step": 0.01, "type": "float", "unit": "%" }
           ],
           "knobs": ["drive", "tone", "mix", "level"]
         }

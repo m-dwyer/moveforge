@@ -1,0 +1,8 @@
+/* GENERATED from capabilities.scope in <%= it.moduleId %>/module.json by gen-params.
+ * Do not edit by hand — re-run `mise run gen-params` after editing the scope block. */
+#ifndef <%= it.upper %>_SCOPE_GEN_INC
+#define <%= it.upper %>_SCOPE_GEN_INC
+#define <%= it.upper %>_SCOPE_STYLE  <%= it.style %>
+#define <%= it.upper %>_SCOPE_MODE   <%= it.mode %>
+#define <%= it.upper %>_SCOPE_WINDOW <%= it.window %>
+#endif

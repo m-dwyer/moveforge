@@ -14,14 +14,17 @@ See [MODULES.md](MODULES.md) for the module index grouped by component type.
 
 | id | kind | authoring | notes |
 |---|---|---|---|
+| `swarf` | sound_generator | plain C | Six note-mapped percussion voices sharing one engine; the only multi-group module (8 levels, 62 params) |
+| `ballast` | sound_generator | plain C | Kick/tom/sub from one low-end voice: two-stage pitch envelope, click and grain layers, five drive curves |
 | `westfold` | sound_generator | plain C | West Coast voice: dual oscillator FM, snap-assisted ratio, wavefolder, low-pass gate, tone, width |
 | `dustline` | sound_generator | plain C | Subtractive/noise voice: oscillator blend, resonant filter, drive |
 | `faust_voice` | sound_generator | Faust | Mono sawtooth + ADSR + resonant LPF + tanh — reference Faust voice |
 | `trail` | audio_fx | Faust | Lush stereo delay: tempo-syncable, modulated, filtered/saturated feedback, ping-pong width, reverb tail |
 | `faust_drive` | audio_fx | Faust | Stereo drive/tone/mix — reference Faust FX |
+| `lobber` | audio_fx | plain C | Tempo-locked slice buffer: toss/stutter/reverse/freeze the incoming audio |
 | `arpy` | midi_fx | plain C | Arpeggiator with clock sync |
 
-Each module lives under `src/modules/<id>/` and is self-contained: `module.json` (Schwung manifest + param schema, including root preset list metadata and root `knobs` encoder priority), optional `metadata.json` (local/web help text), `presets.json`, `ui.js`, generated `ui_chain.js` (preset browser + knob-bank param editor in chain mode), and `dsp/`.
+Each module lives under `src/modules/<id>/` and is self-contained: `module.def.json` (the authored, target-agnostic definition: metadata + param schema, parameter groups and their `knobs` encoder priority), generated `module.json` (the Schwung manifest emitted from it), optional `metadata.json` (local/web help text), `presets.json`, `ui.js`, generated `ui_chain.js` (preset browser + knob-bank param editor in chain mode), and `dsp/`.
 
 Shared module-side helpers live under `src/modules/_shared/`. Module scaffolding templates live under `templates/modules/<component_type>/<dsp>/`.
 
@@ -37,7 +40,8 @@ Both paths share the same shape: a public API header (`<id>_core.h`) declaring t
 
 ```
 src/modules/<id>/
-  module.json
+  module.def.json        ← authored
+  module.json            ← generated for the Schwung target
   metadata.json
   presets.json
   ui.js
@@ -46,7 +50,7 @@ src/modules/<id>/
     <id>_core.h            ← public API contract
     <id>_core.c            ← implementation: hand-written DSP
     <id>_params.gen.h      ← generated: param count + enum, included by _core.h
-    <id>_params.gen.inc    ← generated from module.json by gen-params
+    <id>_params.gen.inc    ← generated from module.def.json by gen-params
     <id>_presets.gen.inc   ← generated from presets.json by gen-presets
     <id>.c                 ← Schwung wrapper (plugin_api_v2 / audio_fx_api_v2 / midi_fx_api_v1)
 ```
@@ -57,7 +61,8 @@ Best for: MIDI FX (event-heavy state machines), unusual signal routing, performa
 
 ```
 src/modules/<id>/
-  module.json
+  module.def.json        ← authored
+  module.json            ← generated for the Schwung target
   metadata.json
   presets.json
   ui.js
@@ -68,12 +73,12 @@ src/modules/<id>/
     <id>_core.h            ← public API contract (same shape as plain C)
     <id>_adapter.c         ← implementation: captures Faust param zones, drives compute()
     <id>_params.gen.h      ← still generated: param count + enum
-    <id>_params.gen.inc    ← still generated from module.json
+    <id>_params.gen.inc    ← still generated from module.def.json
     <id>_presets.gen.inc   ← generated from presets.json by gen-presets
     <id>.c                 ← Schwung wrapper (same shape as plain C)
 ```
 
-A module is Faust-backed if and only if `<id>.dsp` exists. The build scripts (`build.sh`, `build-wasm.sh`, `test.sh`, `render-demo.sh`) detect the `.dsp` and compile `<id>_adapter.c` instead of `<id>_core.c`. No flag, no config — the file layout is the signal.
+A module is Faust-backed if and only if `<id>.dsp` exists. `scripts/gen-ninja.ts` — which emits the `build/{host,move,wasm}.ninja` files every build and test task runs — detects the `.dsp` and compiles `<id>_adapter.c` instead of `<id>_core.c`, for every target at once. No flag, no config — the file layout is the signal.
 
 Best for: audio FX and sound generators by default. Faust source is typically much shorter than the equivalent hand-written C and eliminates whole classes of memory/state bugs. Plain-C audio DSP should be treated as an explicit exception, not the default.
 
@@ -92,7 +97,7 @@ brew install faust
 Render a local audio demo:
 
 ```bash
-./scripts/render-demo.sh
+mise run render
 ```
 
 Writes:
@@ -104,7 +109,7 @@ renders/<module-id>-demo.wav
 Render the preset comparison suite:
 
 ```bash
-./scripts/render-demo.sh --suite
+mise run suite
 ```
 
 Writes labeled clips under `renders/<module-id>-suite/`.
@@ -121,7 +126,7 @@ Stress renders go under `renders/<module-id>-stress/`; plots go under `renders/p
 Build the browser WASM for one module:
 
 ```bash
-MODULE_ID=faust_voice ./scripts/build-wasm.sh
+MODULE_ID=faust_voice mise run wasm-build
 ```
 
 Omitting `MODULE_ID` builds every module.
@@ -134,12 +139,12 @@ mise run dev
 
 Opens at `http://localhost:8765/`. The dev server watches `src/modules/*` and rebuilds the relevant WASM (or regenerates Faust C, if you change a `.dsp` — see `mise run gen-faust`), then hot-swaps the audio engine without a page reload.
 
-Play the pads or use the computer keyboard row `a w s d r f t g h u j i k o l`; audio starts on the first note. If your browser supports Web MIDI, connected MIDI keyboards are also routed to the synth. MIDI CC 20-27 map to the first eight parameters.
+Play the pads or use the computer keyboard row `a w s d r f t g h u j i k o l`; audio starts on the first note. There is no Web MIDI support — `requestMIDIAccess` appears nowhere in `web/`, so a connected MIDI keyboard does nothing.
 
 Build the module folder and release tarball:
 
 ```bash
-./scripts/build.sh
+mise run move-build
 ```
 
 Outputs:
@@ -149,20 +154,20 @@ dist/<id>/                 (module.json, ui.js, ui_chain.js, presets.json, dsp.s
 dist/<id>-module.tar.gz
 ```
 
-Omitting `MODULE_ID` builds every module. Set `MODULE_ID=<id>` to build one module. `scripts/build.sh` cross-compiles for Move's aarch64 Linux target and uses Docker automatically when no local cross compiler is present.
+Omitting `MODULE_ID` builds every module. Set `MODULE_ID=<id>` to build one module. `move-build` cross-compiles for Move's aarch64 Linux target and uses Docker automatically when no local cross compiler is present.
 
 ## Module Authoring Loop
 
 ### Adding a parameter
 
-1. Edit `src/modules/<id>/module.json` — add to `capabilities.ui_hierarchy.levels.root.params`.
+1. Edit `src/modules/<id>/module.def.json` — add to the relevant entry in `groups[].params`.
 2. Plain C: add a matching `float <key>;` field to the core struct in `<id>_core.h`. Faust: add a matching `hslider("<key>", ...)` in `<id>.dsp`.
-3. Run `mise run gen-params` (regenerates `<id>_params.gen.h` and `<id>_params.gen.inc`).
+3. Run `mise run gen-params` (regenerates `<id>_params.gen.h` and `<id>_params.gen.inc`). It depends on `gen-module-json`, so `module.json` is re-emitted first for you.
 4. Faust: also run `mise run gen-faust` (regenerates `<id>_faust.c`).
 5. Use the new param in the DSP (the `.c` for plain C, the `.dsp` body for Faust).
 6. Set the key in `<id>/presets.json` for the presets that want a value other than the default — a preset omits what it does not change, and inherits the declared default for it.
 7. Run `mise run gen-presets` so Move-facing preset helpers stay in sync.
-8. Update `capabilities.ui_hierarchy.levels.root.knobs` if the param should be on the Move encoders. Entries are grouped into banks of 8 in the generated chain UI; the first 8 are the parent Schwung screen's main encoder mapping.
+8. Add the key to that group's `knobs` array in `module.def.json` if the param should be on the Move encoders — a knob must name a param of its own group. Entries are grouped into banks of 8 in the generated chain UI; the first 8 are the parent Schwung screen's main encoder mapping.
 9. Run `mise run gen-ui-chain` if the chain-mode parameter surface changed.
 10. Add a short tooltip description to `<id>/metadata.json` under `params.<key>`.
 11. Add a focused assertion in `tests/test_<id>_core.c`.
@@ -172,14 +177,14 @@ Omitting `MODULE_ID` builds every module. Set `MODULE_ID=<id>` to build one modu
 
 1. Edit DSP source (`<id>_core.c` or `<id>.dsp`).
 2. Faust only: `mise run gen-faust` (or rely on `mise run dev` to rebuild on save).
-3. `mise run test` — core smoke tests.
+3. `mise run test-c` — core smoke tests.
 4. `mise run suite` — renders preset WAVs.
 5. `mise run plot` — waveform + log-frequency spectrum PNGs at `renders/plots/<id>/`.
 6. `mise run stress` — renders metadata-generated min/max parameter cases and checks safety metrics.
 7. `mise run plot-stress` — waveform + spectrum PNGs for stress cases at `renders/plots/<id>-stress/`.
 8. Listen to `renders/<id>-demo.wav` and `renders/<id>-suite/*.wav`.
 9. Browser audition: `mise run dev`.
-10. `mise run check-renders` to confirm no unintended regression against blessed goldens. `pnpm run bless-renders` after an intentional sound change.
+10. `mise run check-renders` to confirm no unintended regression against blessed goldens. `mise run bless-renders` after an intentional sound change.
 
 For AI-assisted iteration: ask for small, contained changes (a single filter, a single envelope). Always render and check the plots before judging the sound. Audio bugs are much easier to catch from a deterministic WAV fixture than from code review alone.
 
@@ -187,7 +192,7 @@ For AI-assisted iteration: ask for small, contained changes (a single filter, a 
 
 The preset suite is musical and golden-backed. It answers: did our curated example sounds change unexpectedly?
 
-Stress renders are generated from `module.json`. For each audio module, they render defaults, each parameter at min/max, an all-max case, and a hot/fast combination. Sound generators render note sequences; audio FX render sweep/impulse inputs. MIDI FX are skipped because they output trace files rather than WAV audio.
+Stress renders are generated from the module definition. For each audio module, they render defaults, each parameter at min/max, an all-max case, and a hot/fast combination. Sound generators render note sequences; audio FX render sweep/impulse inputs. MIDI FX are skipped because they output trace files rather than WAV audio.
 
 Stress checks are safety gates, not golden comparisons. They fail on clipped samples, excessive DC offset, unexpected silence, too-hot peaks, or large stereo imbalance. They are useful when adding params because every exposed min/max starts getting exercised automatically.
 
@@ -215,18 +220,18 @@ where `<kind>` is `sound_generators`, `audio_fx`, or `midi_fx` matching the modu
 Once you have a Move with Schwung installed:
 
 ```bash
-mise run install
+mise run move-install
 ```
 
-The script builds first, then copies `dist/<id>/` to `ableton@move.local`.
+This builds first (`move-build`), then copies `dist/<id>/` to `ableton@move.local`. There is no test gate — it is the fast hardware-iteration loop. `scripts/install-to-move.sh` itself never builds; it fails if `dist/<id>/dsp.so` is missing.
 
 For a checked deploy path:
 
 ```bash
-mise run deploy
+mise run move-deploy
 ```
 
-This runs DSP tests, renders the preset suite, builds the host library, then builds and installs the Move package. Set `MOVE_HOST=ableton@192.168.1.42` if mDNS is not resolving `move.local`.
+This runs the full `check` gate first — typecheck, param/codegen validation, chain-UI tests, the C tests with and without sanitizers, the preset suite compared against goldens, the stress safety checks, plots and the host build — and only then builds the aarch64 package and installs it. Set `MOVE_HOST=ableton@192.168.1.42` if mDNS is not resolving `move.local`.
 
 Useful hardware-debug helpers:
 
@@ -245,49 +250,77 @@ See `docs/schwung-device-workflow.md` for the device log, cache, restart, and up
 Install local Python plotting dependencies:
 
 ```bash
-mise run setup     # or: make dev-deps
+mise run setup
 ```
 
 Run everything CI would run:
 
 ```bash
-mise run check     # typecheck, validate (params + faust + presets drift), test, suite, check-renders, plot, host
-mise run check-all # same, across every module
+mise run check     # typecheck, validate (params + faust + presets drift), test-c, test-c-san, test-ui-chain, suite, check-renders, stress, plot, host-build, web-build
+mise run check-all # alias for check, which already covers every module
 ```
+
+`check` deliberately leaves out `test-web`: the browser suite needs a Playwright browser download that a DSP-only developer should not have to pay for. CI gates it in its own `web` job, so it is gated — just not locally. `mise run test` is the local umbrella that adds it. `web-build` *is* in the gate, because nothing else there loads `vite.config.ts`.
+
+Two things `check` cannot tell you, both covered in CI:
+
+- **Leaks.** LeakSanitizer ships with ASan on Linux and does not exist under Apple clang, so `test-c-san` on a Mac is a weaker test than the same task on the runner. `mise run test-c-linux` runs the sanitizer pass in a Linux container (Docker, native on Apple Silicon).
+- **The aarch64 build.** `check` never cross-compiles; the CI `device-build` job does, and also verifies each `dsp.so` exports a Schwung entry point.
 
 Individual gates:
 
 | Task | What it does |
 |---|---|
-| `mise run gen-params` | Regenerate `<id>_params.gen.{h,inc}` from `module.json` |
+| `mise run gen-module-json` | Regenerate `module.json` for the Schwung target from `module.def.json` |
+| `mise run gen-params` | Regenerate `<id>_params.gen.{h,inc}`. Reads the emitted `module.json`, so it depends on `gen-module-json` |
 | `mise run gen-faust` | Regenerate `<id>_faust.c` from `<id>.dsp` (Faust modules only) |
-| `mise run gen-presets` | Regenerate `<id>_presets.gen.inc` from `presets.json` |
-| `mise run validate` | Param metadata + gen-params/gen-faust/gen-presets/gen-ui-chain drift + presets in range |
-| `mise run test` | Core DSP smoke tests in `tests/test_<id>_core.c` |
+| `mise run gen-presets` | Regenerate `<id>_presets.gen.inc` from `presets.json`. Depends on `gen-module-json` (it validates keys against the manifest) |
+| `mise run gen-ui-chain` | Regenerate `<id>/ui_chain.js`. Also reads `module.json`, so it depends on `gen-module-json` |
+| `mise run gen-ninja` | Regenerate `build/{host,move,wasm}.ninja` from the module graph (every build task does this first) |
+| `mise run typecheck` | Typecheck the TypeScript in `scripts/`, `shared/` and `web/` |
+| `mise run validate` | Param metadata + gen-module-json/gen-params/gen-faust/gen-presets/gen-ui-chain drift + presets in range |
+| `mise run test-c` | Core DSP smoke tests in `tests/test_<id>_core.c` |
+| `mise run test-c-san` | The same C tests under AddressSanitizer + UndefinedBehaviorSanitizer |
+| `mise run test-c-linux` | The sanitizer pass in a Linux container, where LeakSanitizer exists (Apple clang has none) |
+| `mise run test-ui-chain` | Chain-UI behaviour tests against the generated `ui_chain.js` |
+| `mise run test-web` | Vitest browser-mode component tests for the React UI |
+| `mise run test` | `test-c`, `test-c-san`, `test-ui-chain` and `test-web` |
+| `mise run render` | Render the default demo WAV for each module |
+| `mise run render-build` | Build only the offline render/trace harness binaries |
 | `mise run suite` | Render all preset WAVs |
 | `mise run plot` | Generate waveform + spectrum PNGs |
 | `mise run check-renders` | Compare current suite metrics against `goldens/<id>/metrics.json` |
-| `pnpm run bless-renders` | Promote current suite metrics into goldens (after intentional change) |
+| `mise run bless-renders` | Promote current suite metrics into goldens (after intentional change) |
 | `mise run stress` | Render metadata-generated min/max stress WAVs and check safety metrics |
 | `mise run plot-stress` | Generate waveform + spectrum PNGs for stress renders |
-| `mise run stress-all` | Run stress renders/checks across all sound generators and audio FX |
-| `mise run plot-stress-all` | Generate stress plots across all sound generators and audio FX |
-| `mise run host` | Build host-only `.so` for local compile sanity |
-| `mise run move` | Cross-compile aarch64 `.so` + dist tarball for all modules, or one module with `MODULE_ID=<id>` |
-| `mise run install` | Build and install module package(s) to Ableton Move |
-| `mise run wasm` | Emscripten-compile browser `.wasm` |
+| `mise run stress-all` | Alias for `stress`, which already covers every audio module |
+| `mise run plot-stress-all` | Alias for `plot-stress`, which already covers every audio module |
+| `mise run host-build` | Build host-only `.so` for local compile sanity |
+| `mise run move-build` | Cross-compile aarch64 `.so` + dist tarball for all modules, or one module with `MODULE_ID=<id>` |
+| `mise run move-install` | Build and install module package(s) to Ableton Move, without the check gate |
+| `mise run move-deploy` | Run `check`, then build and install to Ableton Move |
+| `mise run wasm-build` | Emscripten-compile browser `.wasm` |
 | `mise run web` / `mise run dev` | WASM + Vite browser UI at `http://localhost:8765/` |
 | `mise run clean` | Remove build outputs, rendered plots, and browser WASM artifacts |
 
-## Agent Skill
+## Agent Skills
 
-For LLM-assisted iteration, this repo ships an agent skill at `skills/schwung-dsp-development/SKILL.md` that walks Claude (or Codex) through the full module-authoring workflow described above. Install it into your personal skills tree:
+For LLM-assisted iteration, this repo ships four agent skills under `skills/`, covering the arc from design to judgement:
+
+| Skill | Use it to |
+|---|---|
+| `module-architect` | Design a module's controls before any DSP exists — signal flow, parameter set, knob assignment |
+| `schwung-dsp-development` | Build and iterate on a module: the authoring paths, the dev loop, the gate |
+| `sonic-reviewer` | Judge whether a module's knobs and presets actually do anything, from `mise run palette` |
+| `control-interaction` | Judge whether two controls fight, or one is only changing loudness |
+
+Install them into your personal skills tree:
 
 ```bash
 ./scripts/install-skill.sh
 ```
 
-This copies the skill to `~/.agents/skills/schwung-dsp-development/` and symlinks it from `~/.claude/skills/` so Claude Code picks it up. Re-run the script any time the in-repo `SKILL.md` changes. The skill is the canonical workflow doc — read it on GitHub even without installing.
+The script globs `skills/*/`, so all four install. It copies each to `~/.agents/skills/<name>/` and symlinks it from `~/.claude/skills/` so Claude Code picks it up. Re-run it any time an in-repo `SKILL.md` changes. They are the canonical workflow docs — readable on GitHub without installing.
 
 ## Useful Upstream References
 

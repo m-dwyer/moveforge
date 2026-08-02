@@ -63,10 +63,10 @@ Wrapper:
 
 ## Verification gates
 - [x] `gen-params`/`gen-presets`/`gen-ui-chain` no drift; `mise run validate`.
-- [x] `MODULE_ID=lobber mise run test`.
+- [x] `MODULE_ID=lobber mise run test-c`.
 - [x] `MODULE_ID=lobber mise run suite && … plot`.
-- [ ] Browser: `wasm` + `serve`, drive Live/Loop/Slice from knobs.
-- [x] `mise run web-test`; `mise run check`.
+- [ ] Browser: `wasm-build` + `serve`, drive Live/Loop/Slice from knobs.
+- [x] `mise run test-web`; `mise run check`.
 
 ---
 
@@ -104,12 +104,12 @@ Wrapper:
 
 **Dev loop** (`pnpm` is only on PATH inside mise → use `mise exec -- pnpm …`):
 ```
-MODULE_ID=lobber mise run test          # C core tests (tests/test_lobber_core.c)
-mise exec -- pnpm run test:ui-chain     # node tests incl. tests/lobber-ui.test.ts
+MODULE_ID=lobber mise run test-c        # C core tests (tests/test_lobber_core.c)
+mise run test-ui-chain                  # node tests incl. tests/lobber-ui.test.ts
 MODULE_ID=lobber mise run suite && MODULE_ID=lobber mise run plot   # renders + PNGs
 MODULE_ID=lobber mise exec -- pnpm run bless-renders                # re-bless goldens
 mise run validate                       # codegen drift + schema
-MODULE_ID=lobber mise run wasm          # browser build
+MODULE_ID=lobber mise run wasm-build    # browser build
 ```
 Goldens: `goldens/lobber/metrics.json`; plots: `renders/plots/lobber/`.
 

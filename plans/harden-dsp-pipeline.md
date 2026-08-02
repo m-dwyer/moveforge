@@ -1,12 +1,22 @@
 # Hardening the DSP pipeline — working plan
 
-Status: **in progress on branch `harden-dsp-pipeline`.** This is the working
-document for that branch, not a retrospective. Check items off as they land.
+Status: **in progress, and no longer confined to one branch.** It began as the
+working document for `harden-dsp-pipeline`; items have since been closed from
+`swarf-perc-engine` and `build-task-split` too. Check items off wherever they
+land, and keep closing notes on the item rather than in a commit message only.
 
-Every finding below was verified against the code at branch point (`fe81dc5`).
-Line references are to that commit. Upstream Schwung references are marked `SW/`
-and are relative to the checkout at `upstream/schwung` (schwung 0.11.4; override
-with `$UPSTREAM_DIR`, see `scripts/update-upstream-schwung.sh`).
+**Read line references with suspicion.** Every finding was verified against the
+code at the original branch point (`fe81dc5`) and the line numbers are to that
+commit. Several of the files named no longer exist: `Makefile`,
+`scripts/build.sh`, `scripts/build-wasm.sh`, `scripts/test.sh` and
+`scripts/render-demo.sh` were all replaced by generated ninja plus TypeScript
+entry points, and `make <target>` is now `mise run <task>`. An item citing one
+of those is describing a problem that may have moved, been solved, or stopped
+existing — verify before working it.
+
+Upstream Schwung references are marked `SW/` and are relative to the checkout at
+`upstream/schwung` (schwung 0.11.4; override with `$UPSTREAM_DIR`, see
+`scripts/update-upstream-schwung.sh`).
 
 ---
 
@@ -394,17 +404,23 @@ parameters under automation (band_energy in dB).
       renders the suite once. (Was already fixed; the bullet was stale.)
 - [x] `check-all` is now an alias for `check` (which already covers every
       module), keeping existing docs and muscle memory working.
-- [ ] `scripts/module-target.ts` is spawned ~6× per module per script
-      (~42 ms each, ~145 spawns ≈ 6 s across `make check`). One
-      `module-target ids --json` call per script removes it.
-- [ ] Mount a named volume at the emsdk cache dir in `scripts/build-wasm.sh:128-133`.
-      `~/.emscripten_cache` currently lives inside the ephemeral container, so
-      emscripten's sysroot cache is rebuilt from cold on **every** `docker run`.
-      Largest single wall-clock win in the dev loop.
-- [ ] `scripts/build.sh:59-60` only builds the Docker image if it does not
-      exist, so editing `scripts/Dockerfile` never rebuilds it.
-- [ ] Pin `faust` and `pnpm` in `mise.toml [tools]`. `node = "lts"` is floating
-      while every `scripts/*.ts` relies on Node ≥22.6 type-stripping.
+- [ ] `scripts/module-target.ts` is still spawned by the four device shell
+      scripts. Mostly resolved: the build and test path went to ninja, and
+      `gen-ninja.ts` imports `lib/modules.ts` directly instead of shelling out,
+      so the ~145 spawns across the old `make check` are gone. What remains is
+      `install-to-move.sh` and friends, where the cost is a few spawns per run.
+- [ ] Mount a named volume at the emsdk cache dir. `~/.emscripten_cache` still
+      lives inside the ephemeral container, so emscripten's sysroot cache is
+      rebuilt from cold on **every** `docker run`. Largest single wall-clock win
+      in the dev loop. (`build-wasm.sh` is gone; the container invocation is now
+      `scripts/build-wasm.ts` via `scripts/lib/container.ts`.)
+- [x] Editing `scripts/Dockerfile` rebuilds the image. `build.sh` is gone;
+      `scripts/lib/container.ts` tags images by Dockerfile content hash, so a
+      changed Dockerfile is a changed tag and a cache miss.
+- [ ] Pin `faust` and `pnpm` in `mise.toml [tools]`. Still only `node = "lts"`
+      and `ninja = "latest"`, both floating, while every `scripts/*.ts` relies on
+      Node ≥22.6 type-stripping. pnpm is pinned in `package.json`'s
+      `packageManager` but is not provisioned by mise at all.
 - [x] `mise run validate` no longer fails without Faust. `gen-faust.ts` check
       mode now compares the version recorded in the committed `*_faust.c`
       against the local `faust --version`, and skips with a warning when Faust
@@ -424,18 +440,21 @@ golden cannot be merged green. — **met**, with the caveats in 3.8/3.9 below.
       byte-exact check meaningless (3.2 above). So Faust drift is currently
       verified only on a developer machine whose version matches. Pinning needs
       a container image or a source build.
-- [ ] **3.9 Gate `pnpm test`.** Not added to CI yet: it is 41 Zustand/component
-      tests with `@/audio` aliased to a mock, so it covers no audio, WASM or DSP,
-      it needs a Playwright Chromium download, and `KeyboardPlay.spec.tsx` is
-      silently excluded by the `tests/**/*.spec.ts` glob. Gate it after 5.10 and
-      5.11, when the suite is honest about what it covers.
-- [ ] **3.10 `device-build` is unverified in CI itself.** `make move` and the
-      symbol check were both run locally against Docker, and the symbol-grep
-      loop was exercised against the host build. The GitHub-hosted path
-      (`binutils-aarch64-linux-gnu` on the runner, since `build.sh`
-      cross-compiles inside its own image) has not run yet.
+- [x] **3.9 Gate `pnpm test`.** Done: CI runs `test-web` in its own job with a
+      cached Playwright Chromium, and `check` runs `web-build` — which needs no
+      browser and catches the config and TypeScript breaks that had been slipping
+      through entirely (nothing loaded `vite.config.ts` on a PR). 5.10 was fixed
+      first, as this item asked. 5.11 was not: the suite is gated with that
+      limitation standing, because `@/audio` is mocked either way, so it remains
+      a component and store gate rather than a signal about sound.
+- [ ] **3.10 `device-build` is unverified on a GitHub runner.** `mise run
+      move-build` and the symbol check both pass locally against Docker — most
+      recently against the regenerated `module.json` files, all nine packages
+      aarch64 with the right entry point. The GitHub-hosted path
+      (`binutils-aarch64-linux-gnu` on the runner, since the cross-compile runs
+      inside its own image) still has not run.
 - [ ] **3.11 Reformat the repo** in a standalone commit, then add
-      `format-check` to `make check`. See 3.7.
+      `format-check` to `mise run check`. See 3.7.
 
 ---
 
@@ -602,9 +621,9 @@ worth doing when they trade sound for a fraction of a percent.
       `MANUAL.md` inside a module dir still resets your audio — once per
       loaded slot since 5.2, and no longer once per event since reloads are
       serialized, but the event should not fire at all.
-- [ ] **5.6 Add `depends = ["wasm"]` to `mise.toml`'s `dev`** (`:110-112`);
-      `web` has it, `dev` does not, and `web/wasm/` is gitignored — so a fresh
-      clone runs `mise run dev` and gets a UI with zero working modules.
+- [x] **5.6 `dev` builds WASM first.** Done: `dev` and `web` both
+      `depends = ["wasm-build"]`, so a fresh clone no longer gets a UI with zero
+      working modules.
 - [ ] **5.7 Export `sch_get_param` from the WASM glue** and add it to
       `SCH_EXPORTS` (`build-wasm.sh:42`). Params are currently write-only in the
       browser, which is the structural reason the scope, meters and any DSP-side
@@ -624,9 +643,14 @@ worth doing when they trade sound for a fraction of a percent.
       remove the affordance. Separately, audio-FX bypass currently *disposes* the
       instance (`audio-engine.ts:59-61`), hard-cutting delay/reverb tails and
       making bypass useless for A/B on time-based FX.
-- [ ] **5.10 Fix the test glob.** `vite.config.ts:54` is `tests/**/*.spec.ts`,
-      so `web/tests/KeyboardPlay.spec.tsx` **never runs** — three tests silently
-      excluded.
+- [x] **5.10 Fix the test glob.** Done: the include is now
+      `["tests/**/*.spec.ts", "tests/**/*.spec.tsx"]`. All three KeyboardPlay
+      tests failed on first inclusion — not a regression but a harness
+      assumption. `render()` calls React 18's `createRoot().render()`, which
+      schedules rather than commits, and these are the only tests that dispatch
+      an event synchronously instead of reaching through the retrying
+      `page.getBy*`. Fixed by awaiting a commit before dispatching; the pad test
+      waits for the grid, which takes more passes than a bare div.
 - [ ] **5.11 `initialize()` silently empties `moduleIndex` in tests.**
       `module-metadata.ts:98-109` filters every module through `hasWasmBuild`,
       which fetches the real `.wasm` (absent in CI), so every `AppRoot` mount
@@ -937,12 +961,12 @@ it is that every fix has to be made seven times.
       goes through it (`SW/src/shared/knob_engine.mjs`, enforced by
       `SW/tests/shadow/test_shadow_uses_knob_engine.sh`); the generated
       `ui_chain.js` uses raw `decodeDelta` + a fixed step
-      (`templates/generated/ui_chain.js.tmpl:191-194,407-451`), so encoder feel
+      (`templates/generated/ui_chain.js.eta:191-194,407-451`), so encoder feel
       diverges from every stock module — no acceleration, no self-reset, no
       enum divisor.
 - [ ] **7.6 Batch `fetchParams()`.** `host_module_get_param` is a synchronous
       SHM round-trip serviced once per SPI frame (~2.9 ms,
-      `SW/src/shadow/shadow_ui.c:810-830`). `ui_chain.js.tmpl:157-161` does one
+      `SW/src/shadow/shadow_ui.c:810-830`). `ui_chain.js.eta:157-161` does one
       call **per param**, and `changePreset()` calls it on every jog detent
       (`:229`) — ~18 × 2.9 ms ≈ 50 ms of lag per detent for westfold.
 - [ ] **7.7 Deduplicate the small stuff.** `<id>_params_clampf_` is a 7× copy of

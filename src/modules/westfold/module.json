@@ -16,11 +16,7 @@
     "midi_out": false,
     "chainable": true,
     "component_type": "sound_generator",
-    "scope": {
-      "mode": "continuous",
-      "style": "envelope",
-      "window": 1024
-    },
+    "scope": { "mode": "continuous", "style": "envelope", "window": 1024 },
     "ui_hierarchy": {
       "levels": {
         "root": {
@@ -29,21 +25,21 @@
           "count_param": "preset_count",
           "name_param": "preset_name",
           "params": [
-            { "key": "volume", "name": "Volume", "type": "float", "min": 0, "max": 1, "default": 0.75, "step": 0.01 },
-            { "key": "ratio", "name": "Ratio", "type": "float", "min": 0.25, "max": 4, "default": 1.5, "step": 0.01 },
-            { "key": "snap", "name": "Snap", "type": "float", "min": 0, "max": 1, "default": 0.7, "step": 0.01 },
-            { "key": "fm", "name": "FM", "type": "float", "min": 0, "max": 1, "default": 0.15, "step": 0.01 },
-            { "key": "fold", "name": "Fold", "type": "float", "min": 0, "max": 1, "default": 0.35, "step": 0.01 },
-            { "key": "lpg", "name": "LPG", "type": "float", "min": 0, "max": 1, "default": 0.55, "step": 0.01 },
-            { "key": "tone", "name": "Tone", "type": "float", "min": 0, "max": 1, "default": 0.55, "step": 0.01 },
-            { "key": "drive", "name": "Drive", "type": "float", "min": 0, "max": 1, "default": 0.28, "step": 0.01 },
-            { "key": "strike", "name": "Strike", "type": "float", "min": 0, "max": 1, "default": 0.45, "step": 0.01 },
-            { "key": "chaos", "name": "Chaos", "type": "float", "min": 0, "max": 1, "default": 0.12, "step": 0.01 },
-            { "key": "width", "name": "Width", "type": "float", "min": 0, "max": 1, "default": 0.2, "step": 0.01 },
-            { "key": "sustain", "name": "Sustain", "type": "float", "min": 0, "max": 1, "default": 0.25, "step": 0.01 },
-            { "key": "decay", "name": "Decay", "type": "float", "min": 0.02, "max": 2.5, "default": 0.45, "step": 0.01 },
-            { "key": "release", "name": "Release", "type": "float", "min": 0.02, "max": 4, "default": 0.8, "step": 0.01 },
-            { "key": "bend_range", "name": "Bend", "type": "float", "min": 0, "max": 12, "default": 2, "step": 0.1 }
+            { "default": 0.75, "key": "volume", "max": 1, "min": 0, "name": "Volume", "step": 0.01, "type": "float", "unit": "%" },
+            { "default": 1.5, "key": "ratio", "max": 4, "min": 0.25, "name": "Ratio", "step": 0.01, "type": "float" },
+            { "default": 0.7, "key": "snap", "max": 1, "min": 0, "name": "Snap", "step": 0.01, "type": "float", "unit": "%" },
+            { "default": 0.15, "key": "fm", "max": 1, "min": 0, "name": "FM", "step": 0.01, "type": "float", "unit": "%" },
+            { "default": 0.35, "key": "fold", "max": 1, "min": 0, "name": "Fold", "step": 0.01, "type": "float", "unit": "%" },
+            { "default": 0.55, "key": "lpg", "max": 1, "min": 0, "name": "LPG", "step": 0.01, "type": "float", "unit": "%" },
+            { "default": 0.55, "key": "tone", "max": 1, "min": 0, "name": "Tone", "step": 0.01, "type": "float", "unit": "%" },
+            { "default": 0.28, "key": "drive", "max": 1, "min": 0, "name": "Drive", "step": 0.01, "type": "float", "unit": "%" },
+            { "default": 0.45, "key": "strike", "max": 1, "min": 0, "name": "Strike", "step": 0.01, "type": "float", "unit": "%" },
+            { "default": 0.12, "key": "chaos", "max": 1, "min": 0, "name": "Chaos", "step": 0.01, "type": "float", "unit": "%" },
+            { "default": 0.2, "key": "width", "max": 1, "min": 0, "name": "Width", "step": 0.01, "type": "float", "unit": "%" },
+            { "default": 0.25, "key": "sustain", "max": 1, "min": 0, "name": "Sustain", "step": 0.01, "type": "float", "unit": "%" },
+            { "default": 0.45, "key": "decay", "max": 2.5, "min": 0.02, "name": "Decay", "step": 0.01, "type": "float", "unit": "sec" },
+            { "default": 0.8, "key": "release", "max": 4, "min": 0.02, "name": "Release", "step": 0.01, "type": "float", "unit": "sec" },
+            { "default": 2, "key": "bend_range", "max": 12, "min": 0, "name": "Bend", "step": 0.1, "type": "float", "unit": "st" }
           ],
           "knobs": ["volume", "ratio", "fm", "fold", "lpg", "tone", "drive", "strike", "snap", "chaos", "width", "sustain", "decay", "release", "bend_range"]
         }

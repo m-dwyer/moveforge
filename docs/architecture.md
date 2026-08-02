@@ -23,7 +23,7 @@ a param, the dev loop); this doc is the conceptual map.
                            │ WASM module per <module-id> per kind
                            ▼
 ┌──────────────────────────────────────────────────────────────┐
-│ Compiled artifact (web/wasm/<id>.wasm or Move .schw)         │
+│ Compiled artifact (web/wasm/<id>.wasm or dist/<id>/dsp.so)   │
 │   Schwung wrapper (sound_generator / audio_fx / midi_fx)     │
 └──────────────────────────┬───────────────────────────────────┘
                            │ same C, two build targets
@@ -34,7 +34,10 @@ a param, the dev loop); this doc is the conceptual map.
 └──────────────────────────────────────────────────────────────┘
 
        Single source of truth for metadata + params:
-       src/modules/<id>/module.json
+       src/modules/<id>/module.def.json     (authored)
+              │ scripts/gen-module-json.ts — the Schwung target's emitter
+              ▼
+       src/modules/<id>/module.json         (GENERATED — never hand-edit)
        Drives codegen (*_params.gen.{h,inc}), UI (browser + on-device),
        and validation.
 ```
@@ -78,7 +81,7 @@ a param, the dev loop); this doc is the conceptual map.
   appropriate glue in `src/host/schwung_wasm_glue_{sg,fx}.c` or
   `src/host/midi_fx_wasm_glue.c`.
 - **Device:** `dist/<id>/` + `dist/<id>-module.tar.gz`, an aarch64 build for
-  Move via `make move` (uses the same C, different target).
+  Move via `mise run move-build` (uses the same C, different target).
 - Same `.c` files feed both targets; only the linked glue + target arch differ.
 
 ### Schwung wrapper — `src/modules/<id>/dsp/<id>.c`
@@ -103,27 +106,44 @@ for audio modules; midi_fx uses `<module>_process_midi` + `<module>_tick`.
 Tested via `tests/test_<id>_core.c` against the same float pipeline the
 wrapper drives — no audio APIs in the test suite.
 
-## Cross-cutting: `module.json` is the source of truth
+## Cross-cutting: `module.def.json` is the source of truth
 
-For every module, **one file** declares everything else needs to know:
+For every module, **one authored file** declares what everything else needs to
+know — `src/modules/<id>/module.def.json`:
 
-- Identity: `id`, `name`, abbrev, `component_type`, `api_version`
-- Parameter schema: `capabilities.ui_hierarchy.levels.root.params` —
-  `{ key, name, type, min, max, default, step }` per param
-- Encoder priority: `capabilities.ui_hierarchy.levels.root.knobs` — param keys
+- Identity: `id`, `name`, `abbrev`, `kind`, `io`
+- Parameter schema: `groups[].params` —
+  `{ key, name, type, min, max, default, step, unit }` per param
+- Encoder priority: `groups[].knobs` — param keys, in control order,
   grouped into banks of 8 by the generated chain UI
 
-From this one file, `scripts/gen-params.ts` emits
+`groups` is an ordered **array**, not a map, and that is load-bearing: the
+flattened order of its parameters is the index the generated C enum, the
+device's knob list and the browser's parameter ids all agree on. Parameter order
+is an ABI.
+
+`module.json` is **generated** from it by `scripts/gen-module-json.ts`, which is
+the Schwung target's emitter — it supplies everything host-shaped that is not
+worth authoring (`api_version`, `dsp: "dsp.so"`, the `capabilities` block, the
+`ui_hierarchy` spelling of those ordered groups). It is a build artifact; never
+hand-edit it. A future CLAP or VST target would emit something else entirely
+from the same definition, which is why nothing in the definition mentions a
+host. The split lives in `shared/module-schema.ts` (target-agnostic) and
+`shared/targets/schwung.ts` (everything that exists only because the Schwung
+host reads a file at runtime).
+
+From the emitted manifest, `scripts/gen-params.ts` emits
 `src/modules/<id>/dsp/<id>_params.gen.h` (the param count and enum, included
 by `<id>_core.h` so arrays indexed by param id can be sized from it) and
 `<id>_params.gen.inc` (which gives the C core `<module>_set_param` with
-clamps, `<module>_get_param`, and `<module>_apply_defaults`). The same `params` block drives:
+clamps, `<module>_get_param`, and `<module>_apply_defaults`). The same parameters drive:
 
-- Move's on-device chain host (when the .schw is loaded)
+- Move's on-device chain host, which reads the generated `module.json`
 - The browser harness's param sliders (via `loadModuleMetadata` →
-  `topLevelParams` / `slotMeta`)
-- Validation (`pnpm run validate` — checks that the gen.inc is in sync and
-  that presets reference only declared keys)
+  `topLevelParams` / `slotMeta`), which read the **definition** — the browser is
+  previewing the module, not the target, so `module.json` is not even served
+- Validation (`mise run validate` — checks that every generated file is in sync
+  with its source and that presets reference only declared keys)
 
 `presets.json` sits alongside and is similarly cross-consumed: render-suite
 fixtures + browser preset row + on-device preset list all read it.
@@ -138,12 +158,14 @@ fixtures + browser preset row + on-device preset list all read it.
    `module-worklet.js`, which loads `web/wasm/<id>.wasm` and exposes a port
    for `noteOn`/`noteOff`/`param`/`midiIn` messages.
 4. Edits to `src/modules/<id>/dsp/*.c` trigger the Vite WASM plugin →
-   `./scripts/build-wasm.sh` → `engine.reloadSlot(slotId)`. No page reload.
+   `scripts/build-wasm.ts` → `engine.reloadSlot(slotId)`. No page reload.
 
 ### Move device deploy
 
-1. `mise run move` builds the aarch64 module (`dist/<id>/`).
-2. `mise run install` copies to `ableton@move.local:/data/UserData/schwung/modules/...`
+1. `mise run move-build` builds the aarch64 module (`dist/<id>/`).
+2. `mise run move-install` builds, then copies to
+   `ableton@move.local:/data/UserData/schwung/modules/...`. `mise run move-deploy`
+   is the same copy behind the full `check` gate.
 3. Move's Schwung runtime loads the same wrapper + core via the
    `plugin_api_v2_t` / `audio_fx_api_v2_t` / `midi_fx_api_v1_t` ABI.
 4. UI on the OLED comes from `src/modules/<id>/ui.js` (solo mode) and

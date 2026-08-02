@@ -1,0 +1,23 @@
+{
+  "id": "faust_drive",
+  "name": "Faust Drive",
+  "abbrev": "FDR",
+  "version": "0.1.0",
+  "description": "Faust-authored stereo drive/tone/mix",
+  "author": "Local",
+  "kind": "effect",
+  "io": { "audio_in": true, "audio_out": true, "midi_in": false, "midi_out": false },
+  "groups": [
+    {
+      "key": "root",
+      "name": "Faust Drive",
+      "params": [
+        { "key": "drive", "name": "Drive", "type": "float", "min": 0, "max": 1, "default": 0.3, "step": 0.01, "unit": "%" },
+        { "key": "tone", "name": "Tone", "type": "float", "min": 0, "max": 1, "default": 0.5, "step": 0.01, "unit": "%" },
+        { "key": "mix", "name": "Mix", "type": "float", "min": 0, "max": 1, "default": 1, "step": 0.01, "unit": "%" },
+        { "key": "level", "name": "Level", "type": "float", "min": 0, "max": 1, "default": 0.8, "step": 0.01, "unit": "%" }
+      ],
+      "knobs": ["drive", "tone", "mix", "level"]
+    }
+  ]
+}

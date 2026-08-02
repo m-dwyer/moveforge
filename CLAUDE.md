@@ -7,6 +7,9 @@ same thing. It is imported here rather than duplicated.
 
 ## Claude-specific
 
-- `skills/schwung-dsp-development/SKILL.md` doubles as an installable agent
-  skill. `scripts/install-skill.sh` adds it to your personal Claude or Codex
-  skills directory; inside this repo you can just read it in place.
+- `skills/*/SKILL.md` double as installable agent skills.
+  `scripts/install-skill.sh` adds every one of them to your personal Claude or
+  Codex skills directory; inside this repo you can just read them in place.
+  `schwung-dsp-development` builds a module; `module-architect` designs one
+  before any DSP exists; `sonic-reviewer` and `control-interaction` judge one
+  from rendered evidence.
