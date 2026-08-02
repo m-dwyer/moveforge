@@ -25,6 +25,12 @@ description = "Install local Python dev dependencies"
 run = "python3 -m venv .venv && .venv/bin/python -m pip install -r requirements-dev.txt"
 
 # --- codegen ---------------------------------------------------------------
+#
+# module.def.json is the source of truth, but only gen-module-json reads it: the
+# rest read the module.json it emits. So they have to run after it, and that
+# ordering is a `depends` rather than a line in a doc — running `gen-params`
+# alone after editing a definition otherwise emits C from the stale manifest,
+# and nothing says so until `validate` reports drift much later.
 
 [tasks.gen-module-json]
 description = "Generate each module.json for the Schwung target from its module.def.json"
@@ -32,6 +38,7 @@ run = "node scripts/gen-module-json.ts"
 
 [tasks.gen-params]
 description = "Generate <module>_params.gen.inc files from each module.json"
+depends = ["gen-module-json"]
 run = "pnpm run gen-params"
 
 [tasks.gen-faust]
@@ -40,10 +47,12 @@ run = "pnpm run gen-faust"
 
 [tasks.gen-presets]
 description = "Generate <module>_presets.gen.inc files from presets.json"
+depends = ["gen-module-json"]
 run = "pnpm run gen-presets"
 
 [tasks.gen-ui-chain]
 description = "Generate <module>/ui_chain.js (chain-slot param editor) from each module.json"
+depends = ["gen-module-json"]
 run = "pnpm run gen-ui-chain"
 
 [tasks.gen-ninja]
