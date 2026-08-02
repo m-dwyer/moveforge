@@ -132,6 +132,9 @@ since the rest read its output) and `validate` checks all five for drift.
 | for | read |
 |---|---|
 | module authoring, the dev loop, the Faust vs plain-C decision | `skills/schwung-dsp-development/SKILL.md` |
+| designing a module's controls before writing DSP | `skills/module-architect/SKILL.md` |
+| whether a module's knobs and presets actually do anything | `skills/sonic-reviewer/SKILL.md` |
+| whether two controls fight, or one is only changing loudness | `skills/control-interaction/SKILL.md` |
 | what a module actually *sounds* like, and whether its knobs do anything | `mise run palette` |
 | what each module is and does | `MODULES.md` |
 | how the pieces fit together, and why | `docs/architecture.md` |
