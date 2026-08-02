@@ -162,6 +162,7 @@ int main(void) {
 
     /* Tempo sync: a single clean tap at 1/4 @ 120 BPM should land near
      * 0.5 s (22050 samples), not before. */
+    trail_destroy(&fx);
     trail_init(&fx);
     trail_set_tempo(&fx, 120.0f, 1);
     trail_set_param(&fx, sync_id, 5.0f);   /* 1/4 = 1 beat */
