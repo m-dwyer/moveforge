@@ -21,6 +21,15 @@
  *   Schwung host reads them, so the emitter supplies them and they are absent
  *   here. `midi_in` on an effect is not derivable — lobber accepts MIDI and
  *   trail does not — so `io` is authored.
+ *
+ * Every schema here is strict, which is the opposite of `module-schema.ts`'s
+ * base and deliberately so. A target extends a parameter, so the *base* has to
+ * pass unknown keys through or a round-trip would strip them. Nothing extends
+ * the authored definition — so there, an unknown key is a typo, and because the
+ * emitter spreads optional fields only when present, a typo is indistinguishable
+ * from an absent field: `knob` for `knobs` silently ships a module.json with no
+ * hardware controls and `mise run check` stays green. Strict turns each of those
+ * into a parse error naming the key.
  */
 import { z } from "zod";
 
@@ -42,13 +51,32 @@ export const MODULE_KINDS = ["instrument", "effect", "midi-effect"] as const;
  * order — a subset of `params`, by key. Eight is what Move offers; a target with
  * a different number takes the first N, and one with no hardware ignores it.
  */
-export const paramGroupSchema = z.looseObject({
+/**
+ * A parameter as authored.
+ *
+ * `.strict()` keeps paramSchema's refinements and rejects unknown keys, so
+ * `units` for `unit` fails here instead of being written through into the
+ * module.json that ships. The loose base is still what targets extend.
+ *
+ * `display_format` is the one deliberate exception to this file's
+ * target-neutrality. It is a Schwung field — a printf string for its snprintf —
+ * but the emitter passes parameters through verbatim, so this is the only place
+ * an author can set one. What is accepted here is only *a string*: the shape
+ * (`%.2f`), the host's 15-byte buffer and the conflict with `unit: "%"` are
+ * Schwung's rules and stay in `shared/targets/schwung.ts`, where a second target
+ * will not inherit them.
+ */
+export const authoredParamSchema = paramSchema
+  .safeExtend({ display_format: z.string().optional() })
+  .strict();
+
+export const paramGroupSchema = z.strictObject({
   /* Stable identifier for the bank. Distinct from `name`, which is a label:
    * "1 Hat" is what a performer reads, `hat` is what the tooling addresses. */
   key: z.string().min(1),
   knobs: z.array(z.string()).optional(),
   name: z.string().optional(),
-  params: z.array(paramSchema).default([])
+  params: z.array(authoredParamSchema).default([])
 });
 
 /**
@@ -58,7 +86,7 @@ export const paramGroupSchema = z.looseObject({
  * inferred: an effect that also listens to MIDI is an ordinary thing to want and
  * there is no way to derive it.
  */
-export const moduleIoSchema = z.looseObject({
+export const moduleIoSchema = z.strictObject({
   audio_in: z.boolean(),
   audio_out: z.boolean(),
   midi_in: z.boolean(),
@@ -70,10 +98,12 @@ export const moduleIoSchema = z.looseObject({
  * universal, but it describes the module's output, not any host's UI, so it is
  * authored here and each target decides whether it can honour it.
  */
-export const scopeSchema = z.looseObject({
+export const scopeSchema = z.strictObject({
   mode: z.string().optional(),
   style: z.string().optional(),
-  window: z.number().optional()
+  /* Sample count, so a fraction or a negative would reach the wrapper as
+   * `#define <ID>_SCOPE_WINDOW -5` via gen-params' Math.round. */
+  window: z.number().int().positive().optional()
 });
 
 /**
@@ -81,14 +111,14 @@ export const scopeSchema = z.looseObject({
  * selected index, the count, and the name. Named parameters rather than a
  * boolean because the host addresses them by key.
  */
-export const presetBrowseSchema = z.looseObject({
+export const presetBrowseSchema = z.strictObject({
   count_param: z.string(),
   group: z.string(),
   list_param: z.string(),
   name_param: z.string()
 });
 
-export const moduleDefinitionSchema = z.looseObject({
+export const moduleDefinitionSchema = z.strictObject({
   /* Short label for displays with no room for `name`. The length limit is a
    * target's business — Schwung's chain slot wants 3-6. */
   abbrev: z.string().min(1),
@@ -105,7 +135,25 @@ export const moduleDefinitionSchema = z.looseObject({
   requires_continuous_processing: z.boolean().optional(),
   scope: scopeSchema.optional(),
   version: z.string().optional()
-});
+})
+  /* `preset_browse` points at a group by key, and that the target has to resolve
+   * it says nothing about the target: a definition whose browse block names no
+   * group is incoherent on its own terms. Checked here rather than in the
+   * emitter, which stays a pure transform — and every target inherits it. */
+  .refine((d) => !d.preset_browse || d.groups.some((g) => g.key === d.preset_browse!.group), {
+    error: (issue) => {
+      const d = issue.input as BrowseShape;
+      return (
+        `preset_browse.group "${d.preset_browse?.group}" names no group ` +
+        `(have: ${d.groups.map((g) => g.key).join(", ")})`
+      );
+    }
+  });
+
+/* Just enough of the definition to phrase the message above. Spelled out rather
+ * than reusing ModuleDefinition, which is inferred from the schema this sits on
+ * and so cannot reference itself. */
+type BrowseShape = { groups: { key: string }[]; preset_browse?: { group: string } };
 
 export type ModuleKind = (typeof MODULE_KINDS)[number];
 export type ParamGroup = z.infer<typeof paramGroupSchema>;
