@@ -29,6 +29,24 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      # This workflow does not depend on CI — it triggers on push to main on its
+      # own, so a red gate does not stop a publish. That matters more than it
+      # sounds, because the deployed app reads two things that can disagree:
+      #
+      #   the browser's parameter ids  <- module.def.json, fetched at runtime
+      #   the WASM's parameter enum    <- <id>_params.gen.h, compiled in
+      #
+      # Nothing here regenerates the second. gen-ninja emits no rule producing
+      # *_params.gen.h or module.json — generated sources are inputs to the build,
+      # never outputs of it — so wasm-build compiles whatever generated C is
+      # checked in. Push a reordered or inserted parameter without re-running the
+      # generators and every knob addresses the wrong parameter, in a page that
+      # loads and looks completely normal.
+      #
+      # `validate` is what notices, so it runs here rather than only in CI.
+      - name: Check generated files are in sync with their sources
+        run: mise run validate
+
       # Compile every module to WASM via the same Emscripten Docker image used
       # locally. Docker is preinstalled on GitHub-hosted Ubuntu runners.
       - name: Build WASM (all modules)
