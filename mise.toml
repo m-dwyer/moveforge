@@ -134,7 +134,12 @@ description = "Run Vitest browser-mode component tests for the React web UI"
 run = "pnpm test"
 
 [tasks.test-ui-chain]
-description = "Run local chain-UI behaviour tests (generated ui_chain.js, no device)"
+# Named for what it started as. It runs vitest.node.config.ts, which globs
+# tests/**/*.test.ts — so it is every Node-environment test, not only the chain
+# UI: module-definition (the parameter-order ABI assertion), ui-hierarchy,
+# presets and lobber-ui all run here. A new Node test belongs in tests/ and is
+# picked up by this task with no wiring.
+description = "Run the Node-environment test suite: chain UI, module definitions, ui-hierarchy, presets"
 run = "pnpm run test:ui-chain"
 
 [tasks.test]

@@ -121,12 +121,15 @@ console.log(`${dryRun ? "would generate" : "generated"} ${generatedFiles.length}
 for (const f of generatedFiles) console.log(`  ${f}`);
 if (dryRun) exit(0);
 console.log(`\nnext steps:`);
+/* module.def.json, not module.json: the latter is emitted from it and an edit
+ * there is lost on the next generator run. gen-params now depends on
+ * gen-module-json, so re-emitting the manifest is no longer a separate step. */
 if (dsp === "faust") {
   console.log(`  1. edit ${targetDir}/dsp/${id}.dsp to implement DSP behavior`);
-  console.log(`  2. edit params in ${targetDir}/module.json and matching hslider labels, then re-run \`MODULE_ID=${id} mise run gen-params && MODULE_ID=${id} mise run gen-faust && MODULE_ID=${id} mise run gen-presets\``);
+  console.log(`  2. edit params in ${targetDir}/module.def.json and matching hslider labels, then re-run \`MODULE_ID=${id} mise run gen-params && MODULE_ID=${id} mise run gen-faust && MODULE_ID=${id} mise run gen-presets\``);
 } else {
   console.log(`  1. edit ${targetDir}/dsp/${id}_core.c to implement DSP behavior`);
-  console.log(`  2. edit params in ${targetDir}/module.json then re-run \`MODULE_ID=${id} mise run gen-params && MODULE_ID=${id} mise run gen-presets\``);
+  console.log(`  2. edit params in ${targetDir}/module.def.json then re-run \`MODULE_ID=${id} mise run gen-params && MODULE_ID=${id} mise run gen-presets\``);
 }
 console.log(`  3. add parameter tooltip descriptions to ${targetDir}/metadata.json`);
 console.log(`  4. add presets to ${targetDir}/presets.json`);
