@@ -45,9 +45,10 @@ int main(void) {
         in_r[i] = -in_l[i];
     }
 
-    /* Maximum resonance at every filter shape is where an SVF blows up if the
-     * trim and the saturator are wrong, so assert the bound there rather than
-     * at a comfortable setting. */
+    /* Maximum resonance at every filter shape is where an SVF blows up, and
+     * nothing attenuates broadband to hide it: the saturator's ceiling is the
+     * only thing holding the peak, so assert that ceiling rather than merely
+     * that the output is normalized. */
     filter_set_param(&fx, resonance_id, 1.0f);
     for (int shape = 0; shape <= 2; shape++) {
         filter_set_param(&fx, cutoff_id, 0.35f);
@@ -55,8 +56,8 @@ int main(void) {
         filter_process_float(&fx, in_l, in_r, out_l, out_r, FRAMES);
         for (int i = 0; i < FRAMES; i++) {
             require_true(isfinite(out_l[i]) && isfinite(out_r[i]), "output is finite");
-            require_true(out_l[i] <= 1.0f && out_l[i] >= -1.0f, "left output remains normalized");
-            require_true(out_r[i] <= 1.0f && out_r[i] >= -1.0f, "right output remains normalized");
+            require_true(fabsf(out_l[i]) <= 0.9f, "left output stays under the saturator ceiling");
+            require_true(fabsf(out_r[i]) <= 0.9f, "right output stays under the saturator ceiling");
         }
     }
 

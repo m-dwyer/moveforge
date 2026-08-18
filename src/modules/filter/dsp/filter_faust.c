@@ -82,10 +82,10 @@ inline int faustmini(int a, int b) { return (a < b) ? a : b; }
 #endif
 
 typedef struct {
-	FAUSTFLOAT fHslider0;
 	int fSampleRate;
 	float fConst0;
 	float fConst1;
+	FAUSTFLOAT fHslider0;
 	FAUSTFLOAT fHslider1;
 	float fRec0[2];
 	float fRec1[2];
@@ -147,8 +147,8 @@ void classInitfilter_faust(int sample_rate) {
 }
 
 void instanceResetUserInterfacefilter_faust(filter_faust* dsp) {
-	dsp->fHslider0 = (FAUSTFLOAT)(0.0f);
-	dsp->fHslider1 = (FAUSTFLOAT)(1.0f);
+	dsp->fHslider0 = (FAUSTFLOAT)(1.0f);
+	dsp->fHslider1 = (FAUSTFLOAT)(0.0f);
 	dsp->fHslider2 = (FAUSTFLOAT)(0.0f);
 }
 
@@ -211,9 +211,9 @@ void initfilter_faust(filter_faust* dsp, int sample_rate) {
 
 void buildUserInterfacefilter_faust(filter_faust* dsp, UIGlue* ui_interface) {
 	ui_interface->openVerticalBox(ui_interface->uiInterface, "filter");
-	ui_interface->addHorizontalSlider(ui_interface->uiInterface, "cutoff", &dsp->fHslider1, (FAUSTFLOAT)1.0f, (FAUSTFLOAT)0.0f, (FAUSTFLOAT)1.0f, (FAUSTFLOAT)0.01f);
+	ui_interface->addHorizontalSlider(ui_interface->uiInterface, "cutoff", &dsp->fHslider0, (FAUSTFLOAT)1.0f, (FAUSTFLOAT)0.0f, (FAUSTFLOAT)1.0f, (FAUSTFLOAT)0.01f);
 	ui_interface->addHorizontalSlider(ui_interface->uiInterface, "morph", &dsp->fHslider2, (FAUSTFLOAT)0.0f, (FAUSTFLOAT)0.0f, (FAUSTFLOAT)1.0f, (FAUSTFLOAT)0.01f);
-	ui_interface->addHorizontalSlider(ui_interface->uiInterface, "resonance", &dsp->fHslider0, (FAUSTFLOAT)0.0f, (FAUSTFLOAT)0.0f, (FAUSTFLOAT)1.0f, (FAUSTFLOAT)0.01f);
+	ui_interface->addHorizontalSlider(ui_interface->uiInterface, "resonance", &dsp->fHslider1, (FAUSTFLOAT)0.0f, (FAUSTFLOAT)0.0f, (FAUSTFLOAT)1.0f, (FAUSTFLOAT)0.01f);
 	ui_interface->closeBox(ui_interface->uiInterface);
 }
 
@@ -222,47 +222,45 @@ void computefilter_faust(filter_faust* dsp, int count, FAUSTFLOAT** RESTRICT inp
 	FAUSTFLOAT* input1 = inputs[1];
 	FAUSTFLOAT* output0 = outputs[0];
 	FAUSTFLOAT* output1 = outputs[1];
-	float fSlow0 = powf(4e+01f, (float)(dsp->fHslider0));
-	float fSlow1 = 1.0f / sqrtf(fSlow0);
-	float fSlow2 = tanf(dsp->fConst1 * powf(9e+02f, (float)(dsp->fHslider1)));
-	float fSlow3 = 2.0f / fSlow0;
-	float fSlow4 = fSlow2 * (fSlow2 + fSlow3) + 1.0f;
-	float fSlow5 = 2.0f / fSlow4;
-	float fSlow6 = fSlow2 / fSlow4;
-	float fSlow7 = 1.0f / fSlow4;
-	float fSlow8 = dsp->fConst2 * (float)(dsp->fHslider2);
+	float fSlow0 = tanf(dsp->fConst1 * powf(9e+02f, (float)(dsp->fHslider0)));
+	float fSlow1 = 2.0f / powf(4e+01f, (float)(dsp->fHslider1));
+	float fSlow2 = fSlow0 * (fSlow0 + fSlow1) + 1.0f;
+	float fSlow3 = 2.0f / fSlow2;
+	float fSlow4 = fSlow0 / fSlow2;
+	float fSlow5 = 1.0f / fSlow2;
+	float fSlow6 = dsp->fConst2 * (float)(dsp->fHslider2);
 	/* C99 loop */
 	{
 		int i0;
 		for (i0 = 0; i0 < count; i0 = i0 + 1) {
 			float fTemp0 = (float)(input0[i0]);
-			float fTemp1 = dsp->fRec0[1] + fSlow2 * (fTemp0 - dsp->fRec1[1]);
-			float fTemp2 = fSlow5 * fTemp1 - dsp->fRec0[1];
+			float fTemp1 = dsp->fRec0[1] + fSlow0 * (fTemp0 - dsp->fRec1[1]);
+			float fTemp2 = fSlow3 * fTemp1 - dsp->fRec0[1];
 			dsp->fRec0[0] = ((fabsf(fTemp2) > 1.1754944e-38f) ? fTemp2 : 0.0f);
-			float fTemp3 = dsp->fRec1[1] + fSlow6 * fTemp1;
+			float fTemp3 = dsp->fRec1[1] + fSlow4 * fTemp1;
 			float fTemp4 = 2.0f * fTemp3 - dsp->fRec1[1];
 			dsp->fRec1[0] = ((fabsf(fTemp4) > 1.1754944e-38f) ? fTemp4 : 0.0f);
-			float fTemp5 = fSlow7 * fTemp1;
+			float fTemp5 = fSlow5 * fTemp1;
 			float fRec2 = ((fabsf(fTemp5) > 1.1754944e-38f) ? fTemp5 : 0.0f);
 			float fRec3 = ((fabsf(fTemp3) > 1.1754944e-38f) ? fTemp3 : 0.0f);
-			float fTemp6 = fSlow8 + dsp->fConst3 * dsp->fRec4[1];
+			float fTemp6 = fSlow6 + dsp->fConst3 * dsp->fRec4[1];
 			dsp->fRec4[0] = ((fabsf(fTemp6) > 1.1754944e-38f) ? fTemp6 : 0.0f);
 			float fTemp7 = dsp->fRec4[0] + -1.0f;
 			float fTemp8 = fmaxf(-fTemp7, 0.0f);
 			float fTemp9 = sqrtf(1.0f - filter_faust_faustpower2_f(fTemp7));
 			float fTemp10 = fmaxf(fTemp7, 0.0f);
-			output0[i0] = (FAUSTFLOAT)(tanhf(fSlow1 * (fRec3 * fTemp8 + fRec2 * fTemp9 + (fTemp0 - (fRec3 + fSlow3 * fRec2)) * fTemp10)));
+			output0[i0] = (FAUSTFLOAT)(0.9f * tanhf(1.1111112f * (fRec3 * fTemp8 + fRec2 * fTemp9 + (fTemp0 - (fRec3 + fSlow1 * fRec2)) * fTemp10)));
 			float fTemp11 = (float)(input1[i0]);
-			float fTemp12 = dsp->fRec5[1] + fSlow2 * (fTemp11 - dsp->fRec6[1]);
-			float fTemp13 = fSlow5 * fTemp12 - dsp->fRec5[1];
+			float fTemp12 = dsp->fRec5[1] + fSlow0 * (fTemp11 - dsp->fRec6[1]);
+			float fTemp13 = fSlow3 * fTemp12 - dsp->fRec5[1];
 			dsp->fRec5[0] = ((fabsf(fTemp13) > 1.1754944e-38f) ? fTemp13 : 0.0f);
-			float fTemp14 = dsp->fRec6[1] + fSlow6 * fTemp12;
+			float fTemp14 = dsp->fRec6[1] + fSlow4 * fTemp12;
 			float fTemp15 = 2.0f * fTemp14 - dsp->fRec6[1];
 			dsp->fRec6[0] = ((fabsf(fTemp15) > 1.1754944e-38f) ? fTemp15 : 0.0f);
-			float fTemp16 = fSlow7 * fTemp12;
+			float fTemp16 = fSlow5 * fTemp12;
 			float fRec7 = ((fabsf(fTemp16) > 1.1754944e-38f) ? fTemp16 : 0.0f);
 			float fRec8 = ((fabsf(fTemp14) > 1.1754944e-38f) ? fTemp14 : 0.0f);
-			output1[i0] = (FAUSTFLOAT)(tanhf(fSlow1 * (fRec8 * fTemp8 + fRec7 * fTemp9 + fTemp10 * (fTemp11 - (fRec8 + fSlow3 * fRec7)))));
+			output1[i0] = (FAUSTFLOAT)(0.9f * tanhf(1.1111112f * (fRec8 * fTemp8 + fRec7 * fTemp9 + fTemp10 * (fTemp11 - (fRec8 + fSlow1 * fRec7)))));
 			dsp->fRec0[1] = dsp->fRec0[0];
 			dsp->fRec1[1] = dsp->fRec1[0];
 			dsp->fRec4[1] = dsp->fRec4[0];
