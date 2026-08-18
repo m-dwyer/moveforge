@@ -1,0 +1,37 @@
+{
+  "id": "filter",
+  "name": "Multimode Filter",
+  "abbrev": "FLT",
+  "version": "0.1.0",
+  "description": "Stereo state-variable filter morphing lowpass to bandpass to highpass",
+  "author": "Local",
+  "ui": "ui.js",
+  "ui_chain": "ui_chain.js",
+  "dsp": "dsp.so",
+  "api_version": 2,
+  "capabilities": {
+    "audio_out": true,
+    "audio_in": true,
+    "midi_in": false,
+    "midi_out": false,
+    "chainable": true,
+    "component_type": "audio_fx",
+    "scope": { "mode": "continuous", "style": "envelope", "window": 1024 },
+    "ui_hierarchy": {
+      "levels": {
+        "root": {
+          "name": "Multimode Filter",
+          "list_param": "preset",
+          "count_param": "preset_count",
+          "name_param": "preset_name",
+          "params": [
+            { "default": 1, "key": "cutoff", "max": 1, "min": 0, "name": "Cutoff", "step": 0.01, "type": "float", "unit": "%" },
+            { "default": 0, "key": "resonance", "max": 1, "min": 0, "name": "Resonance", "step": 0.01, "type": "float", "unit": "%" },
+            { "default": 0, "key": "morph", "max": 1, "min": 0, "name": "Morph", "step": 0.01, "type": "float", "unit": "%" }
+          ],
+          "knobs": ["cutoff", "resonance", "morph"]
+        }
+      }
+    }
+  }
+}
