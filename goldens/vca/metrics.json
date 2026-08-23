@@ -1,0 +1,166 @@
+{
+  "00-open.wav": {
+    "sample_rate": 44100,
+    "channels": 2,
+    "frames": 176400,
+    "duration_seconds": 4,
+    "peak": 0.70184,
+    "rms": 0.46175,
+    "dc_offset": 0.000556,
+    "dc_offset_per_channel": [
+      0.000556,
+      0.000556
+    ],
+    "silence_ratio": 0.0011,
+    "clipped_samples": 0,
+    "zero_crossing_rate": [
+      0.151,
+      0.151
+    ],
+    "stereo_correlation": 1,
+    "slew_ratio": 0.3311,
+    "time_profile": [
+      -8.41,
+      -8.4,
+      -8.41,
+      -8.41,
+      -8.76,
+      -9.48,
+      -10.2,
+      -10.91
+    ],
+    "band_energy": [
+      -8.78,
+      -7.52,
+      -7.78,
+      -7.53,
+      -8.59,
+      -9.54,
+      -11.41,
+      -15.95
+    ]
+  },
+  "01-pluck.wav": {
+    "sample_rate": 44100,
+    "channels": 2,
+    "frames": 176400,
+    "duration_seconds": 4,
+    "peak": 0.70154,
+    "rms": 0.22457,
+    "dc_offset": 0.000564,
+    "dc_offset_per_channel": [
+      0.000564,
+      0.000564
+    ],
+    "silence_ratio": 0.008,
+    "clipped_samples": 0,
+    "zero_crossing_rate": [
+      0.151,
+      0.151
+    ],
+    "stereo_correlation": 1,
+    "slew_ratio": 0.24752,
+    "time_profile": [
+      -9.02,
+      -9.03,
+      -9.04,
+      -9.04,
+      -9.03,
+      -9.03,
+      -9.03,
+      -9.03
+    ],
+    "band_energy": [
+      -9.5,
+      -7.03,
+      -7.96,
+      -8.46,
+      -8.77,
+      -8.9,
+      -9.06,
+      -29.41
+    ]
+  },
+  "02-swell.wav": {
+    "sample_rate": 44100,
+    "channels": 2,
+    "frames": 176400,
+    "duration_seconds": 4,
+    "peak": 0.70184,
+    "rms": 0.35842,
+    "dc_offset": 0,
+    "dc_offset_per_channel": [
+      0,
+      0
+    ],
+    "silence_ratio": 0.0025,
+    "clipped_samples": 0,
+    "zero_crossing_rate": [
+      0.151,
+      0.151
+    ],
+    "stereo_correlation": 1,
+    "slew_ratio": 0.23482,
+    "time_profile": [
+      -14.21,
+      -8.09,
+      -6.32,
+      -6.21,
+      -7.57,
+      -10.47,
+      -13.37,
+      -16.27
+    ],
+    "band_energy": [
+      -14.68,
+      -7.1,
+      -5.66,
+      -5.61,
+      -8.76,
+      -12.15,
+      -16.17,
+      -22.03
+    ]
+  },
+  "03-trance-gate.wav": {
+    "sample_rate": 44100,
+    "channels": 2,
+    "frames": 132300,
+    "duration_seconds": 3,
+    "peak": 0.69995,
+    "rms": 0.29005,
+    "dc_offset": -0.000572,
+    "dc_offset_per_channel": [
+      -0.000572,
+      -0.000572
+    ],
+    "silence_ratio": 0.278,
+    "clipped_samples": 0,
+    "zero_crossing_rate": [
+      0.44597,
+      0.44597
+    ],
+    "stereo_correlation": 1,
+    "slew_ratio": 0.86426,
+    "time_profile": [
+      -7.88,
+      -10.67,
+      -7.84,
+      -10.66,
+      -7.83,
+      -10.63,
+      -7.87,
+      -10.64
+    ],
+    "band_energy": [
+      -23.7,
+      -21.84,
+      -18.13,
+      -13.97,
+      -10.51,
+      -6.84,
+      -4.99,
+      -4.94
+    ]
+  }
+}

@@ -8,9 +8,16 @@
  *
  * Usage:
  *   render_fx_<id> <out.wav> [--input <in.wav>] [--signal sweep|noise|impulse|silence]
- *                  [--seconds N] [--key=value ...]
+ *                  [--seconds N] [--note N] [--velocity N]
+ *                  [--note-blocks N] [--gate-blocks N] [--key=value ...]
  *
  * Defaults: 4 seconds of a 50Hz -> 8kHz exponential sine sweep at -3dBFS.
+ *
+ * An effect may declare midi_in and be gated by notes, in which case the
+ * generated signal alone renders whatever it does when nothing is played --
+ * for a VCA, silence or an untouched passthrough. `--note-blocks` sets the
+ * period between note-ons and `--gate-blocks` how many blocks each is held,
+ * naming the same things they name for a sound generator.
  */
 
 #include <stdint.h>
@@ -44,6 +51,21 @@ unsigned long moveforge_nonfinite_count = 0;
 static float g_render_bpm = 120.0f;
 static float render_get_bpm(void) { return g_render_bpm; }
 static int render_get_clock_status(void) { return MOVE_CLOCK_STATUS_RUNNING; }
+
+/* One monophonic gate is enough to exercise an effect's envelope: a VCA cares
+ * that a note is down, not which. */
+static int g_gate_note = -1;
+static int g_gate_velocity = 100;
+static int g_note_blocks = 0;
+static int g_gate_blocks = 0;
+
+static void send_fx_midi(const audio_fx_api_v2_t *api, void *inst,
+                         uint8_t status, uint8_t d1, uint8_t d2) {
+    uint8_t msg[3];
+    if (!api->on_midi) return;
+    msg[0] = status; msg[1] = d1; msg[2] = d2;
+    api->on_midi(inst, msg, 3, 0);
+}
 
 static void write_u16(FILE *f, uint16_t v) { fputc(v & 255, f); fputc((v >> 8) & 255, f); }
 static void write_u32(FILE *f, uint32_t v) {
@@ -146,7 +168,7 @@ static void generate_signal(const char *kind, int16_t *buf, uint32_t frames) {
 
 int main(int argc, char **argv) {
     if (argc < 2) {
-        fprintf(stderr, "usage: %s <out.wav> [--input <in.wav>] [--signal sweep|noise|impulse|silence] [--seconds N] [--key=value ...]\n", argv[0]);
+        fprintf(stderr, "usage: %s <out.wav> [--input <in.wav>] [--signal sweep|noise|impulse|silence] [--seconds N] [--note N] [--velocity N] [--note-blocks N] [--gate-blocks N] [--key=value ...]\n", argv[0]);
         return 2;
     }
     const char *out_path = argv[1];
@@ -162,6 +184,10 @@ int main(int argc, char **argv) {
         if (strcmp(argv[i], "--signal") == 0 && i + 1 < argc) { signal_kind = argv[++i]; continue; }
         if (strcmp(argv[i], "--seconds") == 0 && i + 1 < argc) { seconds = atoi(argv[++i]); continue; }
         if (strcmp(argv[i], "--bpm") == 0 && i + 1 < argc) { g_render_bpm = (float)atof(argv[++i]); continue; }
+        if (strcmp(argv[i], "--note") == 0 && i + 1 < argc) { g_gate_note = atoi(argv[++i]); continue; }
+        if (strcmp(argv[i], "--velocity") == 0 && i + 1 < argc) { g_gate_velocity = atoi(argv[++i]); continue; }
+        if (strcmp(argv[i], "--note-blocks") == 0 && i + 1 < argc) { g_note_blocks = atoi(argv[++i]); continue; }
+        if (strcmp(argv[i], "--gate-blocks") == 0 && i + 1 < argc) { g_gate_blocks = atoi(argv[++i]); continue; }
         if (strcmp(argv[i], "--automate") == 0 && i + 1 < argc) {
             if (mf_automate_add(&automation, argv[++i]) != 0) return 2;
             continue;
@@ -207,6 +233,15 @@ int main(int argc, char **argv) {
     for (uint32_t frame = 0; frame < total_frames; frame += BLOCK) {
         uint32_t this_block = total_frames - frame;
         if (this_block > BLOCK) this_block = BLOCK;
+        /* A gate longer than its period never releases, which is how a
+         * sustained note is asked for. */
+        if (g_gate_note >= 0 && g_note_blocks > 0) {
+            uint32_t phase = (frame / BLOCK) % (uint32_t)g_note_blocks;
+            if (phase == 0)
+                send_fx_midi(api, inst, 0x90, (uint8_t)g_gate_note, (uint8_t)g_gate_velocity);
+            else if (phase == (uint32_t)g_gate_blocks)
+                send_fx_midi(api, inst, 0x80, (uint8_t)g_gate_note, 0);
+        }
         /* Block-rate automation, matching how the host delivers parameters. */
         if (automation.count > 0) {
             mf_automate_apply(&automation, (double)frame / (double)total_frames,

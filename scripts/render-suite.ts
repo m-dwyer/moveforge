@@ -52,8 +52,14 @@ type SoundGenRender = CommonRender & {
 
 type AudioFxRender = CommonRender & {
   file: string;
+  /* A note-gated effect renders what it does when nothing is played unless the
+   * clip asks for a gate, which for a VCA is an untouched passthrough. */
+  gate_blocks?: number;
+  note?: number;
+  note_blocks?: number;
   seconds?: number;
   signal?: "sweep" | "noise" | "impulse" | "silence";
+  velocity?: number;
 };
 
 type MidiFxRender = CommonRender & {
@@ -107,6 +113,10 @@ for (const target of await selectedModuleTargets()) {
     if (kind === "audio_fx") {
       const fx = render as AudioFxRender;
       args = [outPath, "--signal", fx.signal ?? "sweep", "--seconds", String(fx.seconds ?? 4)];
+      if (fx.note !== undefined) args.push("--note", String(fx.note));
+      if (fx.velocity !== undefined) args.push("--velocity", String(fx.velocity));
+      if (fx.note_blocks !== undefined) args.push("--note-blocks", String(fx.note_blocks));
+      if (fx.gate_blocks !== undefined) args.push("--gate-blocks", String(fx.gate_blocks));
     } else if (kind === "midi_fx") {
       const mfx = render as MidiFxRender;
       args = [outPath];

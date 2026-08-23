@@ -1,0 +1,15 @@
+{
+  "module_id": "vca",
+  "params": {
+    "attack": "How long the level takes to reach full after a note starts. At zero the note is instant.",
+    "decay": "How long the level takes to fall from full to the sustain level while the note is held.",
+    "sustain": "The level held for as long as the note is held. At full, decay does nothing.",
+    "release": "How long the level takes to fall away after the last note ends."
+  },
+  "randomize": {
+    "attack": { "mode": "bounded", "min": 0, "max": 0.4 },
+    "decay": { "mode": "bounded", "min": 0.02, "max": 1.2 },
+    "sustain": { "mode": "full" },
+    "release": { "mode": "bounded", "min": 0.02, "max": 1.5 }
+  }
+}
