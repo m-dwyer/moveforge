@@ -26,6 +26,11 @@
       "kind": "sound_generator"
     },
     {
+      "id": "filter",
+      "name": "Multimode Filter",
+      "kind": "audio_fx"
+    },
+    {
       "id": "lobber",
       "name": "Lobber",
       "kind": "audio_fx"

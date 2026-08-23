@@ -20,6 +20,7 @@ See [MODULES.md](MODULES.md) for the module index grouped by component type.
 | `dustline` | sound_generator | plain C | Subtractive/noise voice: oscillator blend, resonant filter, drive |
 | `faust_voice` | sound_generator | Faust | Mono sawtooth + ADSR + resonant LPF + tanh — reference Faust voice |
 | `trail` | audio_fx | Faust | Lush stereo delay: tempo-syncable, modulated, filtered/saturated feedback, ping-pong width, reverb tail |
+| `filter` | audio_fx | Faust | Stereo state-variable filter morphing lowpass → bandpass → highpass on one recursion |
 | `faust_drive` | audio_fx | Faust | Stereo drive/tone/mix — reference Faust FX |
 | `lobber` | audio_fx | plain C | Tempo-locked slice buffer: toss/stutter/reverse/freeze the incoming audio |
 | `arpy` | midi_fx | plain C | Arpeggiator with clock sync |
