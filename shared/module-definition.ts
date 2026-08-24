@@ -93,12 +93,10 @@ export const moduleIoSchema = z
     midi_in: z.boolean(),
     /* What the MIDI it accepts *means*: true when the notes it wants are the
      * ones the instrument beside it is playing, false when they are a control
-     * surface it happens to read as notes. `midi_in` cannot answer this — vca
-     * and lobber both accept MIDI, but vca is a note-gated amplifier and
-     * lobber's channel-0 notes are a pad grid — and a host that fans a
-     * sequenced phrase out to every effect makes lobber stutter continuously.
-     * Required, not optional, for the reason `chainable` is: a host must be
-     * able to tell "declared false" from "did not say". */
+     * surface it reads as notes. `midi_in` cannot answer this — vca is a
+     * note-gated amplifier, lobber's channel-0 notes are a pad grid, and both
+     * set it. Required for the reason `chainable` is: a host must be able to
+     * tell "declared false" from "did not say". */
     note_driven: z.boolean(),
     midi_out: z.boolean()
   })

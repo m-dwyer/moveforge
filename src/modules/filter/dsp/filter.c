@@ -96,8 +96,7 @@ static int get_param(void *instance, const char *key, char *buf, int buf_len) {
 }
 
 /* No on_midi: it is optional in audio_fx_api_v2, and a filter is not played by
- * notes. An empty stub says the same thing to a host that only asks whether the
- * pointer is set, which is one more way for a host to get this wrong. */
+ * notes. An empty stub tells a host that checks the pointer the opposite. */
 static audio_fx_api_v2_t g_api = {
     .api_version = AUDIO_FX_API_VERSION_2,
     .create_instance = create_instance,
