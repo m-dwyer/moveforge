@@ -6,7 +6,7 @@
   "description": "Arpy MIDI effect",
   "author": "Local",
   "kind": "midi-effect",
-  "io": { "audio_in": false, "audio_out": false, "midi_in": true, "midi_out": true },
+  "io": { "audio_in": false, "audio_out": false, "midi_in": true, "note_driven": true, "midi_out": true },
   "groups": [
     {
       "key": "root",

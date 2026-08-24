@@ -74,16 +74,16 @@ static int get_param(void *instance, const char *key, char *buf, int buf_len) {
     return snprintf(buf, (size_t)buf_len, "%.6f", myfx_get_param(&p->core, id));
 }
 
-static void on_midi(void *i, const uint8_t *m, int l, int s) { (void)i; (void)m; (void)l; (void)s; }
-
+/* No on_midi: it is optional in the ABI, and leaving it NULL is how an effect
+   that is not played by notes says so. An empty stub says the same thing to a
+   host that only checks whether the pointer is set. */
 static audio_fx_api_v2_t g_api = {
     .api_version = AUDIO_FX_API_VERSION_2,
     .create_instance = create_instance,
     .destroy_instance = destroy_instance,
     .process_block = process_block,
     .set_param = set_param,
-    .get_param = get_param,
-    .on_midi = on_midi
+    .get_param = get_param
 };
 
 audio_fx_api_v2_t* move_audio_fx_init_v2(const host_api_v1_t *host) {
@@ -102,6 +102,7 @@ audio_fx_api_v2_t* move_audio_fx_init_v2(const host_api_v1_t *host) {
     "audio_in": true,
     "audio_out": true,
     "midi_in": false,
+    "note_driven": false,
     "midi_out": false,
     "chainable": true,
     "component_type": "audio_fx"

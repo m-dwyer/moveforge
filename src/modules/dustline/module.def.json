@@ -6,7 +6,7 @@
   "description": "Compact subtractive voice with oscillator blend, noise, resonant filter, and drive",
   "author": "Local",
   "kind": "instrument",
-  "io": { "audio_in": false, "audio_out": true, "midi_in": true, "midi_out": false },
+  "io": { "audio_in": false, "audio_out": true, "midi_in": true, "note_driven": true, "midi_out": false },
   "groups": [
     {
       "key": "root",

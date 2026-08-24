@@ -6,7 +6,7 @@
   "description": "Faust-authored stereo drive/tone/mix",
   "author": "Local",
   "kind": "effect",
-  "io": { "audio_in": true, "audio_out": true, "midi_in": false, "midi_out": false },
+  "io": { "audio_in": true, "audio_out": true, "midi_in": false, "note_driven": false, "midi_out": false },
   "groups": [
     {
       "key": "root",

@@ -13,6 +13,7 @@
     "audio_out": true,
     "audio_in": true,
     "midi_in": true,
+    "note_driven": true,
     "midi_out": false,
     "chainable": true,
     "component_type": "audio_fx",

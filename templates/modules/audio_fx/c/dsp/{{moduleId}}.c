@@ -91,21 +91,17 @@ static int get_param(void *instance, const char *key, char *buf, int buf_len) {
     return snprintf(buf, (size_t)buf_len, "%.6f", {{moduleId}}_get_param(&p->core, id));
 }
 
-static void on_midi(void *instance, const uint8_t *msg, int len, int source) {
-    (void)instance;
-    (void)msg;
-    (void)len;
-    (void)source;
-}
-
+/* on_midi is optional in audio_fx_api_v2 and this scaffold declares none, which
+ * matches module.def.json's `io.midi_in: false` / `note_driven: false`. Add a
+ * handler only alongside those, and set `note_driven` only if the notes you
+ * want are the ones playing the Source above you — a pad grid is not. */
 static audio_fx_api_v2_t g_api = {
     .api_version = AUDIO_FX_API_VERSION_2,
     .create_instance = create_instance,
     .destroy_instance = destroy_instance,
     .process_block = process_block,
     .set_param = set_param,
-    .get_param = get_param,
-    .on_midi = on_midi
+    .get_param = get_param
 };
 
 audio_fx_api_v2_t* move_audio_fx_init_v2(const host_api_v1_t *host) {
