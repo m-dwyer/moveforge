@@ -46,6 +46,11 @@
       "kind": "audio_fx"
     },
     {
+      "id": "vca",
+      "name": "VCA",
+      "kind": "audio_fx"
+    },
+    {
       "id": "westfold",
       "name": "Westfold",
       "kind": "sound_generator"

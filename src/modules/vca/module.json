@@ -1,0 +1,38 @@
+{
+  "id": "vca",
+  "name": "VCA",
+  "abbrev": "VCA",
+  "version": "0.1.0",
+  "description": "Note-gated ADSR amplifier: gives a chain an amp envelope its Source has not got",
+  "author": "Local",
+  "ui": "ui.js",
+  "ui_chain": "ui_chain.js",
+  "dsp": "dsp.so",
+  "api_version": 2,
+  "capabilities": {
+    "audio_out": true,
+    "audio_in": true,
+    "midi_in": true,
+    "midi_out": false,
+    "chainable": true,
+    "component_type": "audio_fx",
+    "scope": { "mode": "continuous", "style": "envelope", "window": 1024 },
+    "ui_hierarchy": {
+      "levels": {
+        "root": {
+          "name": "VCA",
+          "list_param": "preset",
+          "count_param": "preset_count",
+          "name_param": "preset_name",
+          "params": [
+            { "default": 0, "key": "attack", "max": 2, "min": 0, "name": "Attack", "step": 0.001, "type": "float", "unit": "sec" },
+            { "default": 0, "key": "decay", "max": 4, "min": 0, "name": "Decay", "step": 0.01, "type": "float", "unit": "sec" },
+            { "default": 1, "key": "sustain", "max": 1, "min": 0, "name": "Sustain", "step": 0.01, "type": "float", "unit": "%" },
+            { "default": 6, "key": "release", "max": 6, "min": 0, "name": "Release", "step": 0.01, "type": "float", "unit": "sec" }
+          ],
+          "knobs": ["attack", "decay", "sustain", "release"]
+        }
+      }
+    }
+  }
+}

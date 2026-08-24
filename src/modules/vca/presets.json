@@ -1,0 +1,57 @@
+{
+  "module_id": "vca",
+  "presets": [
+    {
+      "name": "Open",
+      "params": { "attack": 0, "decay": 0, "sustain": 1, "release": 6 },
+      "render": {
+        "file": "00-open.wav",
+        "signal": "sweep",
+        "seconds": 4,
+        "note": 60,
+        "velocity": 100,
+        "note_blocks": 1378,
+        "gate_blocks": 689
+      }
+    },
+    {
+      "name": "Pluck",
+      "params": { "attack": 0.002, "decay": 0.25, "sustain": 0, "release": 0.12 },
+      "render": {
+        "file": "01-pluck.wav",
+        "signal": "sweep",
+        "seconds": 4,
+        "note": 60,
+        "velocity": 100,
+        "note_blocks": 172,
+        "gate_blocks": 43
+      }
+    },
+    {
+      "name": "Swell",
+      "params": { "attack": 1.2, "decay": 0, "sustain": 1, "release": 1.5 },
+      "render": {
+        "file": "02-swell.wav",
+        "signal": "sweep",
+        "seconds": 4,
+        "note": 60,
+        "velocity": 100,
+        "note_blocks": 1378,
+        "gate_blocks": 689
+      }
+    },
+    {
+      "name": "Trance Gate",
+      "params": { "attack": 0.003, "decay": 0, "sustain": 1, "release": 0.01 },
+      "render": {
+        "file": "03-trance-gate.wav",
+        "signal": "noise",
+        "seconds": 3,
+        "note": 60,
+        "velocity": 100,
+        "note_blocks": 86,
+        "gate_blocks": 43
+      }
+    }
+  ]
+}
