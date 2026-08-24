@@ -107,6 +107,69 @@ int main(void) {
     }
 
     {
+        /* Release arrives in the time it says, for the same reason attack does:
+         * the Amp page draws attack and release against one axis by their
+         * declared seconds, so a release that only approached silence would be
+         * drawn as the shorter of the two while sounding several times longer. */
+        vca_core_t fx;
+        vca_init(&fx);
+        vca_set_param(&fx, vca_param_id("release"), 0.5f);
+        note_on(&fx, 60);
+        (void)gain_after(&fx, 0.05f);
+        note_off(&fx, 60);
+        require_true(gain_after(&fx, 0.25f) > 0.2f, "release is still sounding halfway through");
+        require_true(gain_after(&fx, 0.25f) < 0.001f, "release reaches silence by its stated time");
+    }
+
+    {
+        /* Decay arrives at sustain in the time it says, rather than approaching
+         * it for the whole note. */
+        vca_core_t fx;
+        vca_init(&fx);
+        vca_set_param(&fx, vca_param_id("decay"), 0.5f);
+        vca_set_param(&fx, vca_param_id("sustain"), 0.25f);
+        note_on(&fx, 60);
+        require_true(gain_after(&fx, 0.25f) > 0.4f, "decay is still falling halfway through");
+        require_true(fabsf(gain_after(&fx, 0.25f) - 0.25f) < 0.001f,
+                     "decay reaches sustain by its stated time");
+    }
+
+    {
+        /* The first note takes the gain from the pass-through, and over a chain
+         * that is sounding it has to take it continuously. Stepping a ringing
+         * chain from 1 to 0 in one sample is a click, and a long attack holds it
+         * there long enough to hear. */
+        vca_core_t fx;
+        static float in_l[256], in_r[256], out_l[256], out_r[256];
+        int i;
+        vca_init(&fx);
+        vca_set_param(&fx, vca_param_id("attack"), 1.2f);
+        for (i = 0; i < 256; i++) { in_l[i] = 1.0f; in_r[i] = 1.0f; }
+        vca_process_float(&fx, in_l, in_r, out_l, out_r, 256);
+        require_true(out_l[255] == 1.0f, "passes the sounding chain through before any note");
+        note_on(&fx, 60);
+        vca_process_float(&fx, in_l, in_r, out_l, out_r, 256);
+        require_true(out_l[0] > 0.9f, "the first note over a sounding chain does not cut it");
+    }
+
+    {
+        /* Over a chain that was silent there is nothing to cut, so the same
+         * first note has to be heard attacking from silence. */
+        vca_core_t fx;
+        static float in_l[256], in_r[256], out_l[256], out_r[256];
+        int i;
+        vca_init(&fx);
+        vca_set_param(&fx, vca_param_id("attack"), 0.5f);
+        for (i = 0; i < 256; i++) { in_l[i] = 0.0f; in_r[i] = 0.0f; }
+        vca_process_float(&fx, in_l, in_r, out_l, out_r, 256);
+        note_on(&fx, 60);
+        for (i = 0; i < 256; i++) { in_l[i] = 1.0f; in_r[i] = 1.0f; }
+        vca_process_float(&fx, in_l, in_r, out_l, out_r, 256);
+        require_true(out_l[0] < 0.01f, "the first note over a silent chain attacks from silence");
+        require_true(gain_after(&fx, 0.5f) > 0.99f, "and still reaches full at its stated time");
+    }
+
+    {
         /* Nothing here may produce a non-finite sample or exceed unity, at any
          * setting, with any note history. */
         vca_core_t fx;

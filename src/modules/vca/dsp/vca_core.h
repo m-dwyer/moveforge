@@ -23,8 +23,12 @@ typedef struct {
     uint32_t held[4];
 
     /* Until the first note arrives the gain is 1, so loading a VCA over a
-     * sounding chain is inaudible rather than a cut. */
+     * sounding chain is inaudible rather than a cut. `arming` marks the render
+     * that takes the gain, and `passthrough_peak` is what the chain was doing
+     * when it did, so the handover can be continuous. */
     int armed;
+    int arming;
+    float passthrough_peak;
     int stage;
     float value;
 
