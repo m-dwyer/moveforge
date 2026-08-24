@@ -86,12 +86,23 @@ export const paramGroupSchema = z.strictObject({
  * inferred: an effect that also listens to MIDI is an ordinary thing to want and
  * there is no way to derive it.
  */
-export const moduleIoSchema = z.strictObject({
-  audio_in: z.boolean(),
-  audio_out: z.boolean(),
-  midi_in: z.boolean(),
-  midi_out: z.boolean()
-});
+export const moduleIoSchema = z
+  .strictObject({
+    audio_in: z.boolean(),
+    audio_out: z.boolean(),
+    midi_in: z.boolean(),
+    /* What the MIDI it accepts *means*: true when the notes it wants are the
+     * ones the instrument beside it is playing, false when they are a control
+     * surface it reads as notes. `midi_in` cannot answer this — vca is a
+     * note-gated amplifier, lobber's channel-0 notes are a pad grid, and both
+     * set it. Required for the reason `chainable` is: a host must be able to
+     * tell "declared false" from "did not say". */
+    note_driven: z.boolean(),
+    midi_out: z.boolean()
+  })
+  .refine((io) => !io.note_driven || io.midi_in, {
+    error: "io.note_driven is set on a module that declares no midi_in"
+  });
 
 /**
  * A visualisation hint for the module's own screen. moveforge-local rather than

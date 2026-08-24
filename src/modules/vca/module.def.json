@@ -6,7 +6,7 @@
   "description": "Note-gated ADSR amplifier: gives a chain an amp envelope its Source has not got",
   "author": "Local",
   "kind": "effect",
-  "io": { "audio_in": true, "audio_out": true, "midi_in": true, "midi_out": false },
+  "io": { "audio_in": true, "audio_out": true, "midi_in": true, "note_driven": true, "midi_out": false },
   "scope": { "mode": "continuous", "style": "envelope", "window": 1024 },
   "preset_browse": { "group": "root", "list_param": "preset", "count_param": "preset_count", "name_param": "preset_name" },
   "groups": [

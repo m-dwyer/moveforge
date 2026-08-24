@@ -86,6 +86,7 @@ export function emitSchwungModuleJson(definition: ModuleDefinition): SchwungModu
       audio_out: definition.io.audio_out,
       audio_in: definition.io.audio_in,
       midi_in: definition.io.midi_in,
+      note_driven: definition.io.note_driven,
       midi_out: definition.io.midi_out,
       /* Every module built here is meant to sit in a chain slot. A target-level
        * default rather than an authored field: it says nothing about the module,

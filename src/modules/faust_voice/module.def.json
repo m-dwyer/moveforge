@@ -6,7 +6,7 @@
   "description": "Faust-authored monophonic sawtooth voice with ADSR and resonant LPF",
   "author": "Local",
   "kind": "instrument",
-  "io": { "audio_in": false, "audio_out": true, "midi_in": true, "midi_out": false },
+  "io": { "audio_in": false, "audio_out": true, "midi_in": true, "note_driven": true, "midi_out": false },
   "scope": { "mode": "continuous", "style": "triggered", "window": 1024 },
   "groups": [
     {

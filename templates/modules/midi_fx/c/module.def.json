@@ -6,7 +6,7 @@
   "description": "{{moduleName}} MIDI effect",
   "author": "Local",
   "kind": "midi-effect",
-  "io": { "audio_in": false, "audio_out": false, "midi_in": true, "midi_out": true },
+  "io": { "audio_in": false, "audio_out": false, "midi_in": true, "note_driven": true, "midi_out": true },
   "preset_browse": { "group": "root", "list_param": "preset", "count_param": "preset_count", "name_param": "preset_name" },
   "groups": [
     {

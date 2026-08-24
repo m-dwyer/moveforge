@@ -6,7 +6,7 @@
   "description": "Lush stereo delay: tempo-syncable, modulated, filtered feedback with reverb tail",
   "author": "Local",
   "kind": "effect",
-  "io": { "audio_in": true, "audio_out": true, "midi_in": false, "midi_out": false },
+  "io": { "audio_in": true, "audio_out": true, "midi_in": false, "note_driven": false, "midi_out": false },
   "requires_continuous_processing": true,
   "preset_browse": { "group": "root", "list_param": "preset", "count_param": "preset_count", "name_param": "preset_name" },
   "groups": [

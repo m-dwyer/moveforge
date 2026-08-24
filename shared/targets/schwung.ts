@@ -120,6 +120,9 @@ export const capabilitiesSchema = z.looseObject({
   component_type: z.enum(COMPONENT_TYPES),
   midi_in: z.boolean().optional(),
   midi_out: z.boolean().optional(),
+  /* Optional here and required in the authored definition: a manifest this repo
+   * did not emit may predate the field. */
+  note_driven: z.boolean().optional(),
   scope: scopeSchema.optional(),
   ui_hierarchy: uiHierarchySchema.optional()
 });
