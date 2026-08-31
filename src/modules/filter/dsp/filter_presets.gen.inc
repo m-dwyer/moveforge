@@ -11,17 +11,22 @@ typedef struct {
     const float *values;
 } filter_preset_t;
 
-static const char *filter_preset_param_keys[3] = {
+static const char *filter_preset_param_keys[8] = {
     "cutoff",
     "resonance",
-    "morph"
+    "morph",
+    "env_amount",
+    "filter_attack",
+    "filter_decay",
+    "filter_sustain",
+    "filter_release"
 };
 
-static const float filter_preset_values_0[3] = { 18000.0f, 0.5f, 0.0f };
-static const float filter_preset_values_1[3] = { 427.0111f, 1.5121f, 0.0f };
-static const float filter_preset_values_2[3] = { 153.9227f, 11.5006f, 0.0f };
-static const float filter_preset_values_3[3] = { 843.0695f, 3.1623f, 0.5f };
-static const float filter_preset_values_4[3] = { 216.2793f, 1.2574f, 1.0f };
+static const float filter_preset_values_0[8] = { 18000.0f, 0.5f, 0.0f, 0.0f, 0.0f, 0.2f, 0.0f, 0.2f };
+static const float filter_preset_values_1[8] = { 427.0111f, 1.5121f, 0.0f, 0.0f, 0.0f, 0.2f, 0.0f, 0.2f };
+static const float filter_preset_values_2[8] = { 153.9227f, 11.5006f, 0.0f, 0.0f, 0.0f, 0.2f, 0.0f, 0.2f };
+static const float filter_preset_values_3[8] = { 843.0695f, 3.1623f, 0.5f, 0.0f, 0.0f, 0.2f, 0.0f, 0.2f };
+static const float filter_preset_values_4[8] = { 216.2793f, 1.2574f, 1.0f, 0.0f, 0.0f, 0.2f, 0.0f, 0.2f };
 
 static const filter_preset_t filter_presets[5] = {
     { "Open", filter_preset_values_0 },
@@ -52,7 +57,7 @@ static void filter_apply_preset(filter_core_t *s, int index) {
     index = filter_clamp_preset_index(index);
     const float *values = filter_presets[index].values;
     if (!values) return;
-    for (int i = 0; i < 3; i++) {
+    for (int i = 0; i < 8; i++) {
         filter_set_param(s, filter_param_id(filter_preset_param_keys[i]), values[i]);
     }
 }

@@ -12,8 +12,8 @@
   "capabilities": {
     "audio_out": true,
     "audio_in": true,
-    "midi_in": false,
-    "note_driven": false,
+    "midi_in": true,
+    "note_driven": true,
     "midi_out": false,
     "chainable": true,
     "component_type": "audio_fx",
@@ -48,9 +48,14 @@
               "unit": "Q",
               "taper": "exp"
             },
-            { "default": 0, "key": "morph", "max": 1, "min": 0, "name": "Morph", "step": 0.01, "type": "float", "unit": "%" }
+            { "default": 0, "key": "morph", "max": 1, "min": 0, "name": "Morph", "step": 0.01, "type": "float", "unit": "%" },
+            { "default": 0, "key": "env_amount", "max": 8, "min": -8, "name": "Env Amount", "step": 0.01, "type": "float", "unit": "oct" },
+            { "default": 0, "key": "filter_attack", "max": 2, "min": 0, "name": "Filter Attack", "step": 0.001, "type": "float", "unit": "sec" },
+            { "default": 0.2, "key": "filter_decay", "max": 4, "min": 0, "name": "Filter Decay", "step": 0.01, "type": "float", "unit": "sec" },
+            { "default": 0, "key": "filter_sustain", "max": 1, "min": 0, "name": "Filter Sustain", "step": 0.01, "type": "float", "unit": "%" },
+            { "default": 0.2, "key": "filter_release", "max": 6, "min": 0, "name": "Filter Release", "step": 0.01, "type": "float", "unit": "sec" }
           ],
-          "knobs": ["cutoff", "resonance", "morph"]
+          "knobs": ["cutoff", "resonance", "morph", "env_amount", "filter_attack", "filter_decay", "filter_sustain", "filter_release"]
         }
       }
     }

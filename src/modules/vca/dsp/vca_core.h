@@ -3,13 +3,7 @@
 
 #include <stdint.h>
 
-/* Which part of the envelope owns the gain right now. */
-enum {
-    VCA_STAGE_IDLE = 0,
-    VCA_STAGE_ATTACK,
-    VCA_STAGE_DECAY,
-    VCA_STAGE_RELEASE
-};
+#include "modules/_shared/mf_dsp.h"
 
 typedef struct {
     /* one float per module.json key (gen-params writes these) */
@@ -18,9 +12,8 @@ typedef struct {
     float sustain;
     float release;
 
-    /* Which notes are down, one bit per MIDI note. A count would drift on an
-     * unmatched note-off and leave the gate stuck open; a bitmask cannot. */
-    uint32_t held[4];
+    /* The shape, the stage machine and which notes are down. */
+    mf_adsr_t env;
 
     /* Until the first note arrives the gain is 1, so loading a VCA over a
      * sounding chain is inaudible rather than a cut. `arming` marks the render
@@ -29,15 +22,6 @@ typedef struct {
     int armed;
     int arming;
     float passthrough_peak;
-    int stage;
-    float value;
-
-    float attack_coeff;
-    float decay_coeff;
-    float release_coeff;
-    float coeff_attack_seconds;
-    float coeff_decay_seconds;
-    float coeff_release_seconds;
 } vca_core_t;
 
 void vca_init(vca_core_t *s);

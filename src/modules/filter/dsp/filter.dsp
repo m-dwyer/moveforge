@@ -2,15 +2,22 @@
 // lowpass -> bandpass -> highpass morph.
 //
 // Param keys here must match filter/module.def.json.
+//
+// The envelope is computed in filter_adapter.c and reaches this DSP only as
+// the swept cutoff, so its params have no slider of their own here.
+// moveforge-adapter-params: filter_attack, filter_decay, filter_sustain, filter_release, env_amount
 
 import("stdfaust.lib");
 
 // Cutoff and resonance arrive in the units they are, not as 0..1 knobs. The
 // host owns the taper (declared "exp" in module.def.json), which is what lets
-// it read the value back as "6.2 kHz" and draw the response the filter has.
-freq = hslider("cutoff",    18000.0, 20.0, 18000.0, 0.1);
-q    = hslider("resonance",     0.5,  0.5,    20.0, 0.001);
-morphCtl = hslider("morph",     0.0,  0.0,     1.0, 0.01);
+// it read the value back as "6.2 kHz" and draw the response this filter has.
+//
+// The cutoff the host sends is the parked one. What reaches this slider is the
+// envelope's swept value, written per sub-block by filter_adapter.c.
+freq     = hslider("cutoff",    18000.0, 20.0, 18000.0, 0.1);
+q        = hslider("resonance",     0.5,  0.5,    20.0, 0.001);
+morphCtl = hslider("morph",         0.0,  0.0,     1.0, 0.01);
 
 // Deliberately unsmoothed. Faust hoists slider-only expressions out of the
 // sample loop, so freq and q cost one tan per block rather than per sample.

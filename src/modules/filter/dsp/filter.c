@@ -59,6 +59,12 @@ static void process_block(void *instance, int16_t *audio_inout, int frames) {
 static void set_param(void *instance, const char *key, const char *val) {
     filter_plugin_t *p = (filter_plugin_t*)instance;
     if (!p || !key || !val) return;
+    /* The Rack panics a lane through this key rather than the note wire, so an
+     * envelope that a note-off never reached still closes. */
+    if (strcmp(key, "all_notes_off") == 0) {
+        filter_all_notes_off(&p->core);
+        return;
+    }
     if (strcmp(key, "preset") == 0) {
         /* Idempotent on purpose. The host enrols "preset" in its audio-thread
          * smoother — is_smoothable_float("0") and ("1") both return 1, and
@@ -95,15 +101,23 @@ static int get_param(void *instance, const char *key, char *buf, int buf_len) {
     return snprintf(buf, (size_t)buf_len, "%.6f", filter_get_param(&p->core, id));
 }
 
-/* No on_midi: it is optional in audio_fx_api_v2, and a filter is not played by
- * notes. An empty stub tells a host that checks the pointer the opposite. */
+/* The notes that play the Source open and close the filter envelope too, which
+ * is what `note_driven` in module.json declares. */
+static void on_midi(void *instance, const uint8_t *msg, int len, int source) {
+    filter_plugin_t *p = (filter_plugin_t*)instance;
+    (void)source;
+    if (!p || !msg || len < 3) return;
+    filter_handle_midi(&p->core, msg[0], msg[1], msg[2]);
+}
+
 static audio_fx_api_v2_t g_api = {
     .api_version = AUDIO_FX_API_VERSION_2,
     .create_instance = create_instance,
     .destroy_instance = destroy_instance,
     .process_block = process_block,
     .set_param = set_param,
-    .get_param = get_param
+    .get_param = get_param,
+    .on_midi = on_midi
 };
 
 audio_fx_api_v2_t* move_audio_fx_init_v2(const host_api_v1_t *host) {
