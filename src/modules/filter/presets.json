@@ -22,6 +22,11 @@
       "render": { "file": "03-bandpass.wav", "signal": "noise", "seconds": 4 }
     },
     {
+      "name": "Sweep",
+      "params": { "cutoff": 120.0, "resonance": 8.0, "morph": 0.0, "env_amount": 4.0, "filter_attack": 0.005, "filter_decay": 1.2, "filter_sustain": 0.0, "filter_release": 0.4 },
+      "render": { "file": "05-sweep.wav", "signal": "sweep", "seconds": 4, "note": 60, "note_blocks": 40, "gate_blocks": 200 }
+    },
+    {
       "name": "Highpass",
       "params": { "cutoff": 216.2793, "resonance": 1.2574, "morph": 1.0 },
       "render": { "file": "04-highpass.wav", "signal": "sweep", "seconds": 4 }

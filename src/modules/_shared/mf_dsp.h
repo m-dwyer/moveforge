@@ -421,6 +421,13 @@ static inline float mf_ar_tick(mf_ar_t *e, int gate_open, float sustain)
  * Coefficients are per-block work: call mf_adsr_set_times() outside the loop.
  * ------------------------------------------------------------------------- */
 
+/*
+ * MF_ADSR_IDLE is a past tense: nothing returns to it. A completed release
+ * stays in MF_ADSR_RELEASE with its value at zero, which is what lets a caller
+ * read "this is the first note this instance has ever had" off the stage. A
+ * future edit that resets the stage to IDLE when the release finishes would
+ * silently make every note after the first look like the first.
+ */
 enum {
     MF_ADSR_IDLE = 0,
     MF_ADSR_ATTACK,
