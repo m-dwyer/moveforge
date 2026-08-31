@@ -201,6 +201,61 @@ static void test_param_add_fails_rather_than_truncating(void) {
     fprintf(stderr, "--- end expected parse errors ---\n");
 }
 
+/* The collapsed-argv regression: zsh does not word-split an unquoted `$PARAMS`,
+ * so eight assignments arrived as one token, atof() read the first number and
+ * the other seven parameters silently stayed at their defaults. The render
+ * exited 0, and a filter envelope was investigated for a week on the strength
+ * of it. Whitespace is the tell, because no key or value ever contains any. */
+static void test_param_add_rejects_a_collapsed_argument_list(void) {
+    char collapsed[] = "cutoff=200 resonance=20 env_amount=6";
+    char spaced_value[] = "cutoff= 200";
+    char ok[] = "cutoff=200";
+    mf_param_list_t list = {0};
+
+    fprintf(stderr, "--- expected parse errors follow ---\n");
+    require_true(mf_param_add(&list, collapsed) != 0,
+                 "several assignments in one token fail the render");
+    require_true(list.count == 0, "the collapsed token is not stored");
+    require_true(mf_param_add(&list, spaced_value) != 0, "whitespace in a value is an error");
+    fprintf(stderr, "--- end expected parse errors ---\n");
+
+    require_true(mf_param_add(&list, ok) == 0, "a clean assignment is still accepted");
+    require_true(list.count == 1, "the clean assignment is stored");
+}
+
+/* A module's set_param is deliberately lenient, so a misspelt key is a no-op
+ * and the render measures defaults while exiting 0. Only get_param can tell the
+ * harness the key does not exist. */
+static int fake_get_param(void *instance, const char *key, char *buf, int buf_len) {
+    (void)instance;
+    if (strcmp(key, "cutoff") != 0) return -1;
+    return snprintf(buf, (size_t)buf_len, "200.0");
+}
+
+static void test_param_check_keys_rejects_a_key_the_module_lacks(void) {
+    char good[] = "cutoff=200";
+    char typo[] = "resonanace=20";
+    char command[] = "all_notes_off=1";
+    int instance = 0;
+    mf_param_list_t list = {0};
+
+    require_true(mf_param_add(&list, good) == 0, "the known key is accepted by the parser");
+    require_true(mf_param_check_keys(list.items, list.count, &instance, fake_get_param) == 0,
+                 "a key the module has passes the pre-flight");
+
+    /* Write-only commands have nothing to read back, so get_param rejecting one
+     * is correct rather than a typo. */
+    require_true(mf_param_add(&list, command) == 0, "a command key is accepted by the parser");
+    require_true(mf_param_check_keys(list.items, list.count, &instance, fake_get_param) == 0,
+                 "a write-only command is exempt from the pre-flight");
+
+    fprintf(stderr, "--- expected parse errors follow ---\n");
+    require_true(mf_param_add(&list, typo) == 0, "the parser has no opinion on the key itself");
+    require_true(mf_param_check_keys(list.items, list.count, &instance, fake_get_param) != 0,
+                 "a key the module lacks fails the render");
+    fprintf(stderr, "--- end expected parse errors ---\n");
+}
+
 int main(void) {
     test_pattern_csv_is_one_note_per_step();
     test_pattern_polyphonic_steps();
@@ -211,6 +266,8 @@ int main(void) {
     test_param_add_splits_in_place();
     test_param_add_ignores_non_parameters();
     test_param_add_fails_rather_than_truncating();
+    test_param_add_rejects_a_collapsed_argument_list();
+    test_param_check_keys_rejects_a_key_the_module_lacks();
     printf("render harness argument tests passed\n");
     return 0;
 }

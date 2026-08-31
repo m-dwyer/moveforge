@@ -150,6 +150,73 @@ int main(void) {
                      "a panic closes the envelope with no note-off");
     }
 
+    /* The swept cutoff moves at least once every 32 frames.
+     *
+     * filter_adapter.c holds the cutoff still for FILTER_SWEEP_FRAMES and calls
+     * the Faust dsp once per sub-block, and its comment sells that as "about
+     * 0.7 ms of envelope resolution" — 32 frames at 44.1 kHz. Nothing checked
+     * it, and nothing could: rendered at one update per 128-frame block instead,
+     * the 05-sweep golden moves rms by 0.004% and every metric in check-renders
+     * stays inside tolerance, so the suite is blind to a fourfold coarsening.
+     *
+     * Sub-dividing is what makes this observable without reaching inside. The
+     * sub-block boundaries of one 128-frame call and of four consecutive
+     * 32-frame calls coincide exactly when the stride divides 32, so the two
+     * must agree sample for sample. Measured against this core, they do at a
+     * stride of 1, 8 and 32, and diverge by 0.2 and 0.39 at 64 and 128.
+     *
+     * The envelope has to be moving for any of this to mean anything. The
+     * "a note sweeps the cutoff up" case above is what guards that; were the
+     * envelope to stop reaching the cutoff, it would fail first and this would
+     * pass on two identically frozen filters. */
+    {
+        enum { SWEEP_BLOCK = 128, SWEEP_STEP = 32 };
+        float sweep_in[SWEEP_BLOCK];
+        float whole_l[SWEEP_BLOCK], whole_r[SWEEP_BLOCK];
+        float split_l[SWEEP_BLOCK], split_r[SWEEP_BLOCK];
+        filter_core_t whole, split;
+        filter_core_t *both[2] = { &whole, &split };
+        double worst = 0.0;
+
+        for (int i = 0; i < SWEEP_BLOCK; i++)
+            sweep_in[i] = 0.7f * sinf(2.0f * 3.14159265f * 1000.0f * (float)i / 44100.0f);
+
+        /* A fast decay from a wide-open cutoff: the sweep crosses several
+         * octaves inside the one block under test. */
+        for (int c = 0; c < 2; c++) {
+            filter_init(both[c]);
+            filter_set_param(both[c], cutoff_id, 120.0f);
+            filter_set_param(both[c], resonance_id, 8.0f);
+            filter_set_param(both[c], morph_id, 0.0f);
+            filter_set_param(both[c], filter_param_id("env_amount"), 5.0f);
+            filter_set_param(both[c], filter_param_id("filter_attack"), 0.0f);
+            filter_set_param(both[c], filter_param_id("filter_decay"), 0.03f);
+            filter_set_param(both[c], filter_param_id("filter_sustain"), 0.0f);
+            filter_set_param(both[c], filter_param_id("filter_release"), 0.2f);
+            filter_handle_midi(both[c], 0x90, 60, 100);
+        }
+
+        filter_process_float(&whole, sweep_in, sweep_in, whole_l, whole_r, SWEEP_BLOCK);
+        for (int off = 0; off < SWEEP_BLOCK; off += SWEEP_STEP) {
+            filter_process_float(&split, sweep_in + off, sweep_in + off,
+                                 split_l + off, split_r + off, SWEEP_STEP);
+        }
+
+        for (int i = 0; i < SWEEP_BLOCK; i++) {
+            double d = fabs((double)whole_l[i] - (double)split_l[i]);
+            if (d > worst) worst = d;
+        }
+        /* Both paths run the identical arithmetic in the identical order, so
+         * this is exact in practice; the tolerance is there so a compiler that
+         * contracts differently between the two call shapes reports a real
+         * coarsening rather than its own rounding. */
+        require_true(worst < 1e-6,
+                     "the cutoff sweeps at least once every 32 frames");
+
+        filter_destroy(&whole);
+        filter_destroy(&split);
+    }
+
     filter_destroy(&fx);
     printf("filter core tests passed\n");
     return 0;

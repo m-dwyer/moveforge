@@ -86,6 +86,11 @@ static int render_case(plugin_api_v2_t *api, const render_case_t *rc, const char
     void *inst = api->create_instance(".", NULL);
     if (!inst) return 1;
 
+    if (mf_param_check_keys(rc->params, rc->param_count, inst, api->get_param) != 0) {
+        api->destroy_instance(inst);
+        fclose(f);
+        return 2;
+    }
     for (int i = 0; i < rc->param_count; i++) {
         api->set_param(inst, rc->params[i].key, rc->params[i].value);
     }
@@ -170,13 +175,14 @@ static int render_case(plugin_api_v2_t *api, const render_case_t *rc, const char
     return 0;
 }
 
+/* The demo render is one binary's built-in, and every sound generator links its
+ * own copy of it, so it can carry a note pattern but not parameters: `ratio`,
+ * `fm`, `fold`, `lpg` and `release` are westfold's, and on ballast, swarf,
+ * dustline and faust_voice they resolved to nothing while the render reported
+ * success. It now renders each module's own apply_defaults, which is what those
+ * four have effectively been showing all along. Per-preset parameters belong to
+ * the suite, which reads them from presets.json. */
 static const char seq_demo[] = "48,55,60,62,67,72,67,62";
-static const mf_param_t p_demo[] = {
-    {"volume", "0.82"}, {"ratio", "1.997"}, {"fm", "0.23"}, {"fold", "0.52"},
-    {"lpg", "0.68"}, {"decay", "0.38"}, {"release", "1.2"}
-};
-
-#define ARRAY_LEN(a) ((int)(sizeof(a) / sizeof((a)[0])))
 
 int main(int argc, char **argv) {
     host_api_v1_t host;
@@ -244,8 +250,8 @@ int main(int argc, char **argv) {
     if (mf_pattern_parse(&demo_pattern, seq_demo, 102) != 0) return 2;
     const render_case_t demo = {
         .name = "demo",
-        .params = p_demo,
-        .param_count = ARRAY_LEN(p_demo),
+        .params = NULL,
+        .param_count = 0,
         .pattern = &demo_pattern,
         .note_blocks = 86,
         .gate_blocks = 64,
