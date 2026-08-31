@@ -53,6 +53,11 @@ export const PARAM_UNITS = ["%", "dB", "Hz", "ms", "sec", "st", "BPM"] as const;
 
 export const RANDOMIZE_MODES = ["around_default", "bounded", "full"] as const;
 
+/* How a range is spread under the finger. Absent is an even spread. Declare
+ * "exp" where the low end needs most of the travel, so a host turning a cutoff
+ * over three decades does not lose the bottom four octaves in one detent. */
+export const PARAM_TAPERS = ["exp"] as const;
+
 const PARAM_KEY_RE = /^[a-z][a-z0-9_]*$/;
 
 /**
@@ -80,7 +85,8 @@ export const paramSchema = z
     /* Free text rather than an enum of PARAM_UNITS: a unit nobody has a rule
      * for still reads correctly when it is appended verbatim, and rejecting
      * "V" or "cents" would be inventing a restriction no target imposes. */
-    unit: z.string().optional()
+    unit: z.string().optional(),
+    taper: z.enum(PARAM_TAPERS).optional()
   })
   .refine((p) => p.min < p.max, {
     error: (issue) => {
@@ -98,6 +104,13 @@ export const paramSchema = z
    * and calling it continuous misdescribes it. Targets act on that: schwung
    * enrols float params in an audio-thread smoother and would ramp such a
    * control through every intermediate setting on the way. */
+  /* An exponential taper works by ratio, so it needs a range above zero. */
+  .refine((p) => !(p.taper === "exp" && p.min <= 0), {
+    error: (issue) => {
+      const p = issue.input as { min: number };
+      return `taper "exp" needs min > 0, not ${p.min}`;
+    }
+  })
   .refine((p) => !(p.type === "float" && typeof p.step === "number" && p.step >= 1), {
     error: (issue) => {
       const p = issue.input as { step: number };
@@ -144,6 +157,7 @@ export const moduleIndexSchema = z.looseObject({
 export type Param = z.infer<typeof paramSchema>;
 export type ParamType = (typeof PARAM_TYPES)[number];
 export type ParamUnit = (typeof PARAM_UNITS)[number];
+export type ParamTaper = (typeof PARAM_TAPERS)[number];
 export type Preset = z.infer<typeof presetSchema>;
 export type PresetsJson = z.infer<typeof presetsJsonSchema>;
 export type RandomizeHint = z.infer<typeof randomizeHintSchema>;

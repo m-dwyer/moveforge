@@ -6,7 +6,7 @@
 
 /* ------------------------------------------------------------
 name: "filter"
-Code generated with Faust 2.85.5 (https://faust.grame.fr)
+Code generated with Faust 2.85.9 (https://faust.grame.fr)
 Compilation options: -a src/host/faust_module_arch.c.in -lang c -fpga-mem-th 4 -ct 1 -cn filter_faust -es 1 -mcd 16 -mdd 1024 -mdy 33 -single -ftz 1
 ------------------------------------------------------------ */
 
@@ -77,8 +77,8 @@ static float filter_faust_faustpower2_f(float value) {
 #endif
 #ifndef FAUSTMAXI
 #define FAUSTMAXI
-inline int faustmaxi(int a, int b) { return (a > b) ? a : b; }
-inline int faustmini(int a, int b) { return (a < b) ? a : b; }
+static inline int faustmaxi(int a, int b) { return (a > b) ? a : b; }
+static inline int faustmini(int a, int b) { return (a < b) ? a : b; }
 #endif
 
 typedef struct {
@@ -147,8 +147,8 @@ void classInitfilter_faust(int sample_rate) {
 }
 
 void instanceResetUserInterfacefilter_faust(filter_faust* dsp) {
-	dsp->fHslider0 = (FAUSTFLOAT)(1.0f);
-	dsp->fHslider1 = (FAUSTFLOAT)(0.0f);
+	dsp->fHslider0 = (FAUSTFLOAT)(1.8e+04f);
+	dsp->fHslider1 = (FAUSTFLOAT)(0.5f);
 	dsp->fHslider2 = (FAUSTFLOAT)(0.0f);
 }
 
@@ -193,7 +193,7 @@ void instanceClearfilter_faust(filter_faust* dsp) {
 void instanceConstantsfilter_faust(filter_faust* dsp, int sample_rate) {
 	dsp->fSampleRate = sample_rate;
 	dsp->fConst0 = fminf(1.92e+05f, fmaxf(1.0f, (float)(dsp->fSampleRate)));
-	dsp->fConst1 = 62.831852f / dsp->fConst0;
+	dsp->fConst1 = 3.1415927f / dsp->fConst0;
 	dsp->fConst2 = 88.2f / dsp->fConst0;
 	dsp->fConst3 = 1.0f - 44.1f / dsp->fConst0;
 }
@@ -211,9 +211,9 @@ void initfilter_faust(filter_faust* dsp, int sample_rate) {
 
 void buildUserInterfacefilter_faust(filter_faust* dsp, UIGlue* ui_interface) {
 	ui_interface->openVerticalBox(ui_interface->uiInterface, "filter");
-	ui_interface->addHorizontalSlider(ui_interface->uiInterface, "cutoff", &dsp->fHslider0, (FAUSTFLOAT)1.0f, (FAUSTFLOAT)0.0f, (FAUSTFLOAT)1.0f, (FAUSTFLOAT)0.01f);
+	ui_interface->addHorizontalSlider(ui_interface->uiInterface, "cutoff", &dsp->fHslider0, (FAUSTFLOAT)1.8e+04f, (FAUSTFLOAT)2e+01f, (FAUSTFLOAT)1.8e+04f, (FAUSTFLOAT)0.1f);
 	ui_interface->addHorizontalSlider(ui_interface->uiInterface, "morph", &dsp->fHslider2, (FAUSTFLOAT)0.0f, (FAUSTFLOAT)0.0f, (FAUSTFLOAT)1.0f, (FAUSTFLOAT)0.01f);
-	ui_interface->addHorizontalSlider(ui_interface->uiInterface, "resonance", &dsp->fHslider1, (FAUSTFLOAT)0.0f, (FAUSTFLOAT)0.0f, (FAUSTFLOAT)1.0f, (FAUSTFLOAT)0.01f);
+	ui_interface->addHorizontalSlider(ui_interface->uiInterface, "resonance", &dsp->fHslider1, (FAUSTFLOAT)0.5f, (FAUSTFLOAT)0.5f, (FAUSTFLOAT)2e+01f, (FAUSTFLOAT)0.001f);
 	ui_interface->closeBox(ui_interface->uiInterface);
 }
 
@@ -222,9 +222,9 @@ void computefilter_faust(filter_faust* dsp, int count, FAUSTFLOAT** RESTRICT inp
 	FAUSTFLOAT* input1 = inputs[1];
 	FAUSTFLOAT* output0 = outputs[0];
 	FAUSTFLOAT* output1 = outputs[1];
-	float fSlow0 = tanf(dsp->fConst1 * powf(9e+02f, (float)(dsp->fHslider0)));
-	float fSlow1 = 2.0f / powf(4e+01f, (float)(dsp->fHslider1));
-	float fSlow2 = fSlow0 * (fSlow0 + fSlow1) + 1.0f;
+	float fSlow0 = tanf(dsp->fConst1 * (float)(dsp->fHslider0));
+	float fSlow1 = 1.0f / (float)(dsp->fHslider1);
+	float fSlow2 = fSlow0 * (fSlow1 + fSlow0) + 1.0f;
 	float fSlow3 = 2.0f / fSlow2;
 	float fSlow4 = fSlow0 / fSlow2;
 	float fSlow5 = 1.0f / fSlow2;

@@ -6,7 +6,7 @@
   "description": "Stereo state-variable filter morphing lowpass to bandpass to highpass",
   "author": "Local",
   "kind": "effect",
-  "io": { "audio_in": true, "audio_out": true, "midi_in": false, "note_driven": false, "midi_out": false },
+  "io": { "audio_in": true, "audio_out": true, "midi_in": true, "note_driven": true, "midi_out": false },
   "scope": { "mode": "continuous", "style": "envelope", "window": 1024 },
   "preset_browse": { "group": "root", "list_param": "preset", "count_param": "preset_count", "name_param": "preset_name" },
   "groups": [
@@ -14,11 +14,16 @@
       "key": "root",
       "name": "Multimode Filter",
       "params": [
-        { "key": "cutoff", "name": "Cutoff", "type": "float", "min": 0, "max": 1, "default": 1, "step": 0.01, "unit": "%" },
-        { "key": "resonance", "name": "Resonance", "type": "float", "min": 0, "max": 1, "default": 0, "step": 0.01, "unit": "%" },
-        { "key": "morph", "name": "Morph", "type": "float", "min": 0, "max": 1, "default": 0, "step": 0.01, "unit": "%" }
+        { "key": "cutoff", "name": "Cutoff", "type": "float", "min": 20, "max": 18000, "default": 18000, "step": 0.1, "unit": "Hz", "taper": "exp" },
+        { "key": "resonance", "name": "Resonance", "type": "float", "min": 0.5, "max": 20, "default": 0.5, "step": 0.001, "unit": "Q", "taper": "exp" },
+        { "key": "morph", "name": "Morph", "type": "float", "min": 0, "max": 1, "default": 0, "step": 0.01, "unit": "%" },
+        { "key": "env_amount", "name": "Env Amount", "type": "float", "min": -8, "max": 8, "default": 0, "step": 0.01, "unit": "oct" },
+        { "key": "filter_attack", "name": "Filter Attack", "type": "float", "min": 0, "max": 2, "default": 0, "step": 0.001, "unit": "sec" },
+        { "key": "filter_decay", "name": "Filter Decay", "type": "float", "min": 0, "max": 4, "default": 0.2, "step": 0.01, "unit": "sec" },
+        { "key": "filter_sustain", "name": "Filter Sustain", "type": "float", "min": 0, "max": 1, "default": 0, "step": 0.01, "unit": "%" },
+        { "key": "filter_release", "name": "Filter Release", "type": "float", "min": 0, "max": 6, "default": 0.2, "step": 0.01, "unit": "sec" }
       ],
-      "knobs": ["cutoff", "resonance", "morph"]
+      "knobs": ["cutoff", "resonance", "morph", "env_amount", "filter_attack", "filter_decay", "filter_sustain", "filter_release"]
     }
   ]
 }

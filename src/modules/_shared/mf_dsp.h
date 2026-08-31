@@ -403,6 +403,166 @@ static inline float mf_ar_tick(mf_ar_t *e, int gate_open, float sustain)
 }
 
 /* ---------------------------------------------------------------------------
+ * Note-gated ADSR envelope
+ *
+ * The four-stage envelope with its own note gate, shared by every module that
+ * has one. A module owns what the envelope drives; this owns the shape, the
+ * stage machine and which notes are down.
+ *
+ * Each stage aims past where it is going, as a share of the distance it has to
+ * cross, and snaps on arrival. A stage that only approached its destination
+ * would never reach it, and the seconds on the encoder would name a time
+ * constant rather than a duration. A host draws the stages against one axis by
+ * their declared seconds, so the seconds have to be what the stage takes.
+ *
+ * Notes are held as a bitmask, one bit per MIDI note. A count would drift on an
+ * unmatched note-off and leave the gate stuck open; a bitmask cannot.
+ *
+ * Coefficients are per-block work: call mf_adsr_set_times() outside the loop.
+ * ------------------------------------------------------------------------- */
+
+/*
+ * MF_ADSR_IDLE is a past tense: nothing returns to it. A completed release
+ * stays in MF_ADSR_RELEASE with its value at zero, which is what lets a caller
+ * read "this is the first note this instance has ever had" off the stage. A
+ * future edit that resets the stage to IDLE when the release finishes would
+ * silently make every note after the first look like the first.
+ */
+enum {
+    MF_ADSR_IDLE = 0,
+    MF_ADSR_ATTACK,
+    MF_ADSR_DECAY,
+    MF_ADSR_RELEASE
+};
+
+#define MF_ADSR_OVERSHOOT 0.2f
+#define MF_ADSR_TAU_SCALE 1.7917595f /* ln(1 + 1 / MF_ADSR_OVERSHOOT) */
+#define MF_ADSR_ATTACK_TARGET (1.0f + MF_ADSR_OVERSHOOT)
+#define MF_ADSR_RELEASE_TARGET (-MF_ADSR_OVERSHOOT)
+
+typedef struct {
+    int stage;
+    float value;
+    uint32_t held[4];
+    float attack_coeff;
+    float decay_coeff;
+    float release_coeff;
+    float coeff_attack_seconds;
+    float coeff_decay_seconds;
+    float coeff_release_seconds;
+} mf_adsr_t;
+
+static inline void mf_adsr_init(mf_adsr_t *e)
+{
+    if (!e) return;
+    e->stage = MF_ADSR_IDLE;
+    e->value = 0.0f;
+    e->held[0] = e->held[1] = e->held[2] = e->held[3] = 0u;
+    e->attack_coeff = 1.0f;
+    e->decay_coeff = 1.0f;
+    e->release_coeff = 1.0f;
+    /* Nothing has been asked for yet, so no coefficient matches its time. */
+    e->coeff_attack_seconds = -1.0f;
+    e->coeff_decay_seconds = -1.0f;
+    e->coeff_release_seconds = -1.0f;
+}
+
+/* Recomputes only the stages whose time moved. This runs per block, and an
+ * expf per sample is the one thing an envelope cannot afford. */
+static inline void mf_adsr_set_times(mf_adsr_t *e, float attack_s,
+                                     float decay_s, float release_s)
+{
+    if (!e) return;
+    if (attack_s != e->coeff_attack_seconds) {
+        e->coeff_attack_seconds = attack_s;
+        e->attack_coeff = mf_env_coeff_seconds(attack_s / MF_ADSR_TAU_SCALE);
+    }
+    if (decay_s != e->coeff_decay_seconds) {
+        e->coeff_decay_seconds = decay_s;
+        e->decay_coeff = mf_env_coeff_seconds(decay_s / MF_ADSR_TAU_SCALE);
+    }
+    if (release_s != e->coeff_release_seconds) {
+        e->coeff_release_seconds = release_s;
+        e->release_coeff = mf_env_coeff_seconds(release_s / MF_ADSR_TAU_SCALE);
+    }
+}
+
+static inline int mf_adsr_any_held(const mf_adsr_t *e)
+{
+    return (e->held[0] | e->held[1] | e->held[2] | e->held[3]) != 0u;
+}
+
+/* Returns 1 when this note starts the envelope from idle, so a caller that
+ * has to hand something over on the first note can see it. */
+static inline int mf_adsr_note_on(mf_adsr_t *e, int note)
+{
+    int first;
+    if (!e || note < 0 || note > 127) return 0;
+    first = !mf_adsr_any_held(e) && e->stage == MF_ADSR_IDLE;
+    e->held[note >> 5] |= 1u << (note & 31);
+    e->stage = MF_ADSR_ATTACK;
+    return first;
+}
+
+static inline void mf_adsr_note_off(mf_adsr_t *e, int note)
+{
+    if (!e || note < 0 || note > 127) return;
+    e->held[note >> 5] &= ~(1u << (note & 31));
+    if (!mf_adsr_any_held(e)) e->stage = MF_ADSR_RELEASE;
+}
+
+/* Releases every held note, so a panic cannot leave the gate open. */
+static inline void mf_adsr_all_notes_off(mf_adsr_t *e)
+{
+    if (!e) return;
+    e->held[0] = e->held[1] = e->held[2] = e->held[3] = 0u;
+    if (e->stage != MF_ADSR_IDLE) e->stage = MF_ADSR_RELEASE;
+}
+
+/* A note opens and closes the gate. Anything that is not a note is ignored.
+ * Returns 1 when the message started the envelope from idle. */
+static inline int mf_adsr_handle_midi(mf_adsr_t *e, int status, int d1, int d2)
+{
+    int kind;
+    if (!e || d1 < 0 || d1 > 127) return 0;
+    kind = status & 0xF0;
+    if (kind == 0x90 && d2 > 0) return mf_adsr_note_on(e, d1);
+    if (kind == 0x80 || (kind == 0x90 && d2 == 0)) mf_adsr_note_off(e, d1);
+    return 0;
+}
+
+static inline float mf_adsr_tick(mf_adsr_t *e, float sustain)
+{
+    switch (e->stage) {
+    case MF_ADSR_ATTACK:
+        e->value += (MF_ADSR_ATTACK_TARGET - e->value) * e->attack_coeff;
+        if (e->value >= 1.0f) {
+            e->value = 1.0f;
+            e->stage = MF_ADSR_DECAY;
+        }
+        break;
+    case MF_ADSR_DECAY: {
+        /* Aiming past sustain only on the way down. A sustain raised under a
+         * held note is approached from below, where an ordinary one-pole
+         * already arrives from the correct side. */
+        int falling = e->value > sustain;
+        float target = falling
+            ? sustain - MF_ADSR_OVERSHOOT * (1.0f - sustain)
+            : sustain;
+        e->value += (target - e->value) * e->decay_coeff;
+        if (falling && e->value < sustain) e->value = sustain;
+        break;
+    }
+    default:
+        e->value += (MF_ADSR_RELEASE_TARGET - e->value) * e->release_coeff;
+        if (e->value < 0.0f) e->value = 0.0f;
+        break;
+    }
+    e->value = mf_flush_denorm(e->value);
+    return moveforge_clampf(e->value, 0.0f, 1.0f);
+}
+
+/* ---------------------------------------------------------------------------
  * Two-stage decay envelope
  *
  * An exponential and a linear decay of the same length, run in parallel and

@@ -22,15 +22,25 @@ int filter_param_id(const char *key) {
     if (strcmp(key, "cutoff") == 0) return FILTER_PARAM_CUTOFF;
     if (strcmp(key, "resonance") == 0) return FILTER_PARAM_RESONANCE;
     if (strcmp(key, "morph") == 0) return FILTER_PARAM_MORPH;
+    if (strcmp(key, "env_amount") == 0) return FILTER_PARAM_ENV_AMOUNT;
+    if (strcmp(key, "filter_attack") == 0) return FILTER_PARAM_FILTER_ATTACK;
+    if (strcmp(key, "filter_decay") == 0) return FILTER_PARAM_FILTER_DECAY;
+    if (strcmp(key, "filter_sustain") == 0) return FILTER_PARAM_FILTER_SUSTAIN;
+    if (strcmp(key, "filter_release") == 0) return FILTER_PARAM_FILTER_RELEASE;
     return -1;
 }
 
 void filter_set_param(filter_core_t *s, int param_id, float value) {
     if (!s) return;
     switch (param_id) {
-        case FILTER_PARAM_CUTOFF: s->cutoff = filter_params_clampf_(value, 0.0f, 1.0f); break;
-        case FILTER_PARAM_RESONANCE: s->resonance = filter_params_clampf_(value, 0.0f, 1.0f); break;
+        case FILTER_PARAM_CUTOFF: s->cutoff = filter_params_clampf_(value, 20.0f, 18000.0f); break;
+        case FILTER_PARAM_RESONANCE: s->resonance = filter_params_clampf_(value, 0.5f, 20.0f); break;
         case FILTER_PARAM_MORPH: s->morph = filter_params_clampf_(value, 0.0f, 1.0f); break;
+        case FILTER_PARAM_ENV_AMOUNT: s->env_amount = filter_params_clampf_(value, -8.0f, 8.0f); break;
+        case FILTER_PARAM_FILTER_ATTACK: s->filter_attack = filter_params_clampf_(value, 0.0f, 2.0f); break;
+        case FILTER_PARAM_FILTER_DECAY: s->filter_decay = filter_params_clampf_(value, 0.0f, 4.0f); break;
+        case FILTER_PARAM_FILTER_SUSTAIN: s->filter_sustain = filter_params_clampf_(value, 0.0f, 1.0f); break;
+        case FILTER_PARAM_FILTER_RELEASE: s->filter_release = filter_params_clampf_(value, 0.0f, 6.0f); break;
         default: break;
     }
 }
@@ -41,15 +51,25 @@ float filter_get_param(const filter_core_t *s, int param_id) {
         case FILTER_PARAM_CUTOFF: return s->cutoff;
         case FILTER_PARAM_RESONANCE: return s->resonance;
         case FILTER_PARAM_MORPH: return s->morph;
+        case FILTER_PARAM_ENV_AMOUNT: return s->env_amount;
+        case FILTER_PARAM_FILTER_ATTACK: return s->filter_attack;
+        case FILTER_PARAM_FILTER_DECAY: return s->filter_decay;
+        case FILTER_PARAM_FILTER_SUSTAIN: return s->filter_sustain;
+        case FILTER_PARAM_FILTER_RELEASE: return s->filter_release;
         default: return 0.0f;
     }
 }
 
 void filter_apply_defaults(filter_core_t *s) {
     if (!s) return;
-    s->cutoff = 1.0f;
-    s->resonance = 0.0f;
+    s->cutoff = 18000.0f;
+    s->resonance = 0.5f;
     s->morph = 0.0f;
+    s->env_amount = 0.0f;
+    s->filter_attack = 0.0f;
+    s->filter_decay = 0.2f;
+    s->filter_sustain = 0.0f;
+    s->filter_release = 0.2f;
 }
 
 #endif

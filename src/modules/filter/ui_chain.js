@@ -44,15 +44,25 @@ const KNOB_TOUCHES = [
 ];
 
 const PARAMS = [
-    { key: "cutoff", name: "Cutoff", min: 0, max: 1, step: 0.01, dec: 2, def: 1 },
-    { key: "resonance", name: "Resonance", min: 0, max: 1, step: 0.01, dec: 2, def: 0 },
-    { key: "morph", name: "Morph", min: 0, max: 1, step: 0.01, dec: 2, def: 0 }
+    { key: "cutoff", name: "Cutoff", min: 20, max: 18000, step: 179.8, dec: 0, def: 18000 },
+    { key: "resonance", name: "Resonance", min: 0.5, max: 20, step: 0.195, dec: 1, def: 0.5 },
+    { key: "morph", name: "Morph", min: 0, max: 1, step: 0.01, dec: 2, def: 0 },
+    { key: "env_amount", name: "Env Amount", min: -8, max: 8, step: 0.16, dec: 1, def: 0 },
+    { key: "filter_attack", name: "Filter Attack", min: 0, max: 2, step: 0.02, dec: 2, def: 0 },
+    { key: "filter_decay", name: "Filter Decay", min: 0, max: 4, step: 0.04, dec: 2, def: 0.2 },
+    { key: "filter_sustain", name: "Filter Sustain", min: 0, max: 1, step: 0.01, dec: 2, def: 0 },
+    { key: "filter_release", name: "Filter Release", min: 0, max: 6, step: 0.06, dec: 2, def: 0.2 }
 ];
 
 const KNOB_PARAM_INDEXES = [
     0,
     1,
-    2
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
 ];
 
 let selectedIndex = 0;

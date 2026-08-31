@@ -4,31 +4,38 @@
 #ifndef FILTER_PRESETS_GEN_INC
 #define FILTER_PRESETS_GEN_INC
 
-#define FILTER_PRESET_COUNT 5
+#define FILTER_PRESET_COUNT 6
 
 typedef struct {
     const char *name;
     const float *values;
 } filter_preset_t;
 
-static const char *filter_preset_param_keys[3] = {
+static const char *filter_preset_param_keys[8] = {
     "cutoff",
     "resonance",
-    "morph"
+    "morph",
+    "env_amount",
+    "filter_attack",
+    "filter_decay",
+    "filter_sustain",
+    "filter_release"
 };
 
-static const float filter_preset_values_0[3] = { 1.0f, 0.0f, 0.0f };
-static const float filter_preset_values_1[3] = { 0.45f, 0.3f, 0.0f };
-static const float filter_preset_values_2[3] = { 0.3f, 0.85f, 0.0f };
-static const float filter_preset_values_3[3] = { 0.55f, 0.5f, 0.5f };
-static const float filter_preset_values_4[3] = { 0.35f, 0.25f, 1.0f };
+static const float filter_preset_values_0[8] = { 18000.0f, 0.5f, 0.0f, 0.0f, 0.0f, 0.2f, 0.0f, 0.2f };
+static const float filter_preset_values_1[8] = { 427.0111f, 1.5121f, 0.0f, 0.0f, 0.0f, 0.2f, 0.0f, 0.2f };
+static const float filter_preset_values_2[8] = { 153.9227f, 11.5006f, 0.0f, 0.0f, 0.0f, 0.2f, 0.0f, 0.2f };
+static const float filter_preset_values_3[8] = { 843.0695f, 3.1623f, 0.5f, 0.0f, 0.0f, 0.2f, 0.0f, 0.2f };
+static const float filter_preset_values_4[8] = { 120.0f, 8.0f, 0.0f, 4.0f, 0.005f, 1.2f, 0.0f, 0.4f };
+static const float filter_preset_values_5[8] = { 216.2793f, 1.2574f, 1.0f, 0.0f, 0.0f, 0.2f, 0.0f, 0.2f };
 
-static const filter_preset_t filter_presets[5] = {
+static const filter_preset_t filter_presets[6] = {
     { "Open", filter_preset_values_0 },
     { "Lowpass", filter_preset_values_1 },
     { "Squelch", filter_preset_values_2 },
     { "Bandpass", filter_preset_values_3 },
-    { "Highpass", filter_preset_values_4 }
+    { "Sweep", filter_preset_values_4 },
+    { "Highpass", filter_preset_values_5 }
 };
 
 static int filter_preset_count(void) {
@@ -52,7 +59,7 @@ static void filter_apply_preset(filter_core_t *s, int index) {
     index = filter_clamp_preset_index(index);
     const float *values = filter_presets[index].values;
     if (!values) return;
-    for (int i = 0; i < 3; i++) {
+    for (int i = 0; i < 8; i++) {
         filter_set_param(s, filter_param_id(filter_preset_param_keys[i]), values[i]);
     }
 }

@@ -3,27 +3,32 @@
   "presets": [
     {
       "name": "Open",
-      "params": { "cutoff": 1.0, "resonance": 0.0, "morph": 0.0 },
+      "params": { "cutoff": 18000.0, "resonance": 0.5, "morph": 0.0 },
       "render": { "file": "00-open.wav", "signal": "sweep", "seconds": 4 }
     },
     {
       "name": "Lowpass",
-      "params": { "cutoff": 0.45, "resonance": 0.3, "morph": 0.0 },
+      "params": { "cutoff": 427.0111, "resonance": 1.5121, "morph": 0.0 },
       "render": { "file": "01-lowpass.wav", "signal": "sweep", "seconds": 4 }
     },
     {
       "name": "Squelch",
-      "params": { "cutoff": 0.3, "resonance": 0.85, "morph": 0.0 },
+      "params": { "cutoff": 153.9227, "resonance": 11.5006, "morph": 0.0 },
       "render": { "file": "02-squelch.wav", "signal": "noise", "seconds": 4 }
     },
     {
       "name": "Bandpass",
-      "params": { "cutoff": 0.55, "resonance": 0.5, "morph": 0.5 },
+      "params": { "cutoff": 843.0695, "resonance": 3.1623, "morph": 0.5 },
       "render": { "file": "03-bandpass.wav", "signal": "noise", "seconds": 4 }
     },
     {
+      "name": "Sweep",
+      "params": { "cutoff": 120.0, "resonance": 8.0, "morph": 0.0, "env_amount": 4.0, "filter_attack": 0.005, "filter_decay": 1.2, "filter_sustain": 0.0, "filter_release": 0.4 },
+      "render": { "file": "05-sweep.wav", "signal": "sweep", "seconds": 4, "note": 60, "note_blocks": 40, "gate_blocks": 200 }
+    },
+    {
       "name": "Highpass",
-      "params": { "cutoff": 0.35, "resonance": 0.25, "morph": 1.0 },
+      "params": { "cutoff": 216.2793, "resonance": 1.2574, "morph": 1.0 },
       "render": { "file": "04-highpass.wav", "signal": "sweep", "seconds": 4 }
     }
   ]
