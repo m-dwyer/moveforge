@@ -94,6 +94,10 @@ int main(int argc, char **argv) {
     void *inst = api->create_instance(".", NULL);
     if (!inst) { fprintf(stderr, "create_instance failed\n"); return 1; }
 
+    if (mf_param_check_keys(params.items, params.count, inst, api->get_param) != 0) {
+        api->destroy_instance(inst);
+        return 2;
+    }
     for (int i = 0; i < params.count; i++) {
         api->set_param(inst, params.items[i].key, params.items[i].value);
     }
