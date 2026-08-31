@@ -35,10 +35,12 @@ int main(void) {
     require_true(cutoff_id >= 0 && resonance_id >= 0 && morph_id >= 0, "params resolve");
     require_true(filter_param_id("does_not_exist") < 0, "unknown param fails");
 
-    filter_set_param(&fx, cutoff_id, 2.0f);
-    require_true(filter_get_param(&fx, cutoff_id) <= 1.0f, "cutoff clamps high");
+    /* Cutoff is declared in Hz and resonance as a Q, so the bounds are the
+     * musical ones rather than 0..1. */
+    filter_set_param(&fx, cutoff_id, 40000.0f);
+    require_true(filter_get_param(&fx, cutoff_id) <= 18000.0f, "cutoff clamps high");
     filter_set_param(&fx, resonance_id, -1.0f);
-    require_true(filter_get_param(&fx, resonance_id) >= 0.0f, "resonance clamps low");
+    require_true(filter_get_param(&fx, resonance_id) >= 0.5f, "resonance clamps low");
 
     for (int i = 0; i < FRAMES; i++) {
         in_l[i] = i % 2 == 0 ? 0.25f : -0.25f;
@@ -49,9 +51,9 @@ int main(void) {
      * nothing attenuates broadband to hide it: the saturator's ceiling is the
      * only thing holding the peak, so assert that ceiling rather than merely
      * that the output is normalized. */
-    filter_set_param(&fx, resonance_id, 1.0f);
+    filter_set_param(&fx, resonance_id, 20.0f);
     for (int shape = 0; shape <= 2; shape++) {
-        filter_set_param(&fx, cutoff_id, 0.35f);
+        filter_set_param(&fx, cutoff_id, 216.0f);
         filter_set_param(&fx, morph_id, (float)shape * 0.5f);
         filter_process_float(&fx, in_l, in_r, out_l, out_r, FRAMES);
         for (int i = 0; i < FRAMES; i++) {
@@ -61,8 +63,8 @@ int main(void) {
         }
     }
 
-    filter_set_param(&fx, cutoff_id, 1.0f);
-    filter_set_param(&fx, resonance_id, 0.0f);
+    filter_set_param(&fx, cutoff_id, 18000.0f);
+    filter_set_param(&fx, resonance_id, 0.5f);
     filter_set_param(&fx, morph_id, 0.0f);
     filter_process_float(&fx, in_l, in_r, out_l, out_r, FRAMES);
 

@@ -5,22 +5,18 @@
 
 import("stdfaust.lib");
 
-cutoffCtl    = hslider("cutoff",    1.0, 0.0, 1.0, 0.01);
-resonanceCtl = hslider("resonance", 0.0, 0.0, 1.0, 0.01);
-morphCtl     = hslider("morph",     0.0, 0.0, 1.0, 0.01);
+// Cutoff and resonance arrive in the units they are, not as 0..1 knobs. The
+// host owns the taper (declared "exp" in module.def.json), which is what lets
+// it read the value back as "6.2 kHz" and draw the response the filter has.
+freq = hslider("cutoff",    18000.0, 20.0, 18000.0, 0.1);
+q    = hslider("resonance",     0.5,  0.5,    20.0, 0.001);
+morphCtl = hslider("morph",     0.0,  0.0,     1.0, 0.01);
 
 // Deliberately unsmoothed. Faust hoists slider-only expressions out of the
-// sample loop, so freq/q/trim cost one pow and one sqrt per block rather than
-// per sample. Smoothing here would drag tan(), pow() and sqrt() into the inner
-// loop for no audible gain: a TPT filter takes a coefficient jump without
-// discontinuity, because the jump moves the coefficients and not the state.
-//
-// 20 Hz .. 18 kHz, so the musically useful bottom of the range gets most of
-// the control travel.
-freq = 20.0 * pow(900.0, cutoffCtl);
-
-// Q 0.5 .. 20. Flat until roughly a third up, self-emphasising above that.
-q = 0.5 * pow(40.0, resonanceCtl);
+// sample loop, so freq and q cost one tan per block rather than per sample.
+// Smoothing here would drag tan() into the inner loop for no audible gain: a
+// TPT filter takes a coefficient jump without discontinuity, because the jump
+// moves the coefficients and not the state.
 
 // The filter's passband is already unity at any Q — only the region at cutoff
 // rises with resonance. Any broadband trim to tame that peak therefore ducks

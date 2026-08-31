@@ -86,3 +86,62 @@ describe("module definitions", () => {
     });
   }
 });
+
+describe("param taper", () => {
+  it("accepts an exp taper over a range above zero", () => {
+    const definition = parseModuleDefinition(
+      moduleWithParam({ min: 20, max: 18000, default: 18000, taper: "exp" }),
+      "taper-ok"
+    );
+
+    expect(definitionParams(definition)[0]?.taper).toBe("exp");
+  });
+
+  it("refuses an exp taper over a range that reaches zero", () => {
+    /* An exponential taper works by ratio, so a range starting at zero has no
+     * ratio to spread the travel over. Caught here rather than left to each
+     * host to decide what it means. */
+    expect(() =>
+      parseModuleDefinition(
+        moduleWithParam({ min: 0, max: 1, default: 1, taper: "exp" }),
+        "taper-zero"
+      )
+    ).toThrow(/taper "exp" needs min > 0/);
+  });
+
+  it("refuses a taper it does not define", () => {
+    expect(() =>
+      parseModuleDefinition(
+        moduleWithParam({ min: 20, max: 18000, default: 18000, taper: "log" }),
+        "taper-unknown"
+      )
+    ).toThrow();
+  });
+});
+
+function moduleWithParam(param: Record<string, unknown>) {
+  return {
+    id: "probe",
+    name: "Probe",
+    abbrev: "PRB",
+    version: "0.1.0",
+    description: "Taper probe",
+    author: "Local",
+    kind: "effect",
+    io: {
+      audio_in: true,
+      audio_out: true,
+      midi_in: false,
+      note_driven: false,
+      midi_out: false
+    },
+    groups: [
+      {
+        key: "root",
+        name: "Probe",
+        params: [{ key: "swept", name: "Swept", type: "float", ...param }],
+        knobs: ["swept"]
+      }
+    ]
+  };
+}

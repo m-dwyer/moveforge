@@ -1,12 +1,12 @@
 {
   "params": {
     "cutoff": "Sets the filter frequency, 20 Hz to 18 kHz across the control. Most of the travel sits low, where sweeps are musical.",
-    "resonance": "Emphasises the frequencies at the cutoff. Flat until roughly a third of the way up, squelchy near the top.",
+    "resonance": "Emphasises the frequencies at the cutoff. Q 0.5 to 20, flat until roughly a third of the way up, squelchy near the top.",
     "morph": "Blends the filter shape continuously: fully down is lowpass, centred is bandpass, fully up is highpass."
   },
   "randomize": {
-    "cutoff": { "min": 0.2, "max": 0.85, "mode": "bounded" },
-    "resonance": { "min": 0, "max": 0.7, "mode": "bounded" },
+    "cutoff": { "min": 78.0, "max": 6488.4, "mode": "bounded" },
+    "resonance": { "min": 0.5, "max": 6.613, "mode": "bounded" },
     "morph": { "min": 0, "max": 1, "mode": "full" }
   }
 }

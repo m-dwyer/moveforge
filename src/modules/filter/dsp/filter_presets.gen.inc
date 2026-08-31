@@ -17,11 +17,11 @@ static const char *filter_preset_param_keys[3] = {
     "morph"
 };
 
-static const float filter_preset_values_0[3] = { 1.0f, 0.0f, 0.0f };
-static const float filter_preset_values_1[3] = { 0.45f, 0.3f, 0.0f };
-static const float filter_preset_values_2[3] = { 0.3f, 0.85f, 0.0f };
-static const float filter_preset_values_3[3] = { 0.55f, 0.5f, 0.5f };
-static const float filter_preset_values_4[3] = { 0.35f, 0.25f, 1.0f };
+static const float filter_preset_values_0[3] = { 18000.0f, 0.5f, 0.0f };
+static const float filter_preset_values_1[3] = { 427.0111f, 1.5121f, 0.0f };
+static const float filter_preset_values_2[3] = { 153.9227f, 11.5006f, 0.0f };
+static const float filter_preset_values_3[3] = { 843.0695f, 3.1623f, 0.5f };
+static const float filter_preset_values_4[3] = { 216.2793f, 1.2574f, 1.0f };
 
 static const filter_preset_t filter_presets[5] = {
     { "Open", filter_preset_values_0 },

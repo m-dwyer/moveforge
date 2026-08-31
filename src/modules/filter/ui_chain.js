@@ -44,8 +44,8 @@ const KNOB_TOUCHES = [
 ];
 
 const PARAMS = [
-    { key: "cutoff", name: "Cutoff", min: 0, max: 1, step: 0.01, dec: 2, def: 1 },
-    { key: "resonance", name: "Resonance", min: 0, max: 1, step: 0.01, dec: 2, def: 0 },
+    { key: "cutoff", name: "Cutoff", min: 20, max: 18000, step: 179.8, dec: 0, def: 18000 },
+    { key: "resonance", name: "Resonance", min: 0.5, max: 20, step: 0.195, dec: 1, def: 0.5 },
     { key: "morph", name: "Morph", min: 0, max: 1, step: 0.01, dec: 2, def: 0 }
 ];
 

@@ -28,8 +28,8 @@ int filter_param_id(const char *key) {
 void filter_set_param(filter_core_t *s, int param_id, float value) {
     if (!s) return;
     switch (param_id) {
-        case FILTER_PARAM_CUTOFF: s->cutoff = filter_params_clampf_(value, 0.0f, 1.0f); break;
-        case FILTER_PARAM_RESONANCE: s->resonance = filter_params_clampf_(value, 0.0f, 1.0f); break;
+        case FILTER_PARAM_CUTOFF: s->cutoff = filter_params_clampf_(value, 20.0f, 18000.0f); break;
+        case FILTER_PARAM_RESONANCE: s->resonance = filter_params_clampf_(value, 0.5f, 20.0f); break;
         case FILTER_PARAM_MORPH: s->morph = filter_params_clampf_(value, 0.0f, 1.0f); break;
         default: break;
     }
@@ -47,8 +47,8 @@ float filter_get_param(const filter_core_t *s, int param_id) {
 
 void filter_apply_defaults(filter_core_t *s) {
     if (!s) return;
-    s->cutoff = 1.0f;
-    s->resonance = 0.0f;
+    s->cutoff = 18000.0f;
+    s->resonance = 0.5f;
     s->morph = 0.0f;
 }
 

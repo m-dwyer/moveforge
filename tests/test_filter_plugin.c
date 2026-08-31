@@ -56,22 +56,22 @@ int main(void) {
      * index — a preset screen that browses and does nothing is the failure
      * this test exists for. Moving the param away first makes the assertion
      * hold even when preset 0 equals the module.json defaults. */
-    api->set_param(inst, "cutoff", "0.25");
-    require_true(get_float(api, inst, "cutoff") < 0.26f, "set_param moves the param");
+    api->set_param(inst, "cutoff", "1000");
+    require_true(get_float(api, inst, "cutoff") < 1001.0f, "set_param moves the param");
 
     api->set_param(inst, "preset", "0");
     require_true(get_int(api, inst, "preset") == 0, "preset 0 is selectable");
     require_true(api->get_param(inst, "preset_name", name, sizeof(name)) > 0, "preset 0 name");
     require_true(strcmp(name, "Open") == 0, "preset 0 name is Open");
-    require_true(get_float(api, inst, "cutoff") > 1.0f - 0.001f
-                     && get_float(api, inst, "cutoff") < 1.0f + 0.001f,
+    require_true(get_float(api, inst, "cutoff") > 17999.0f
+                     && get_float(api, inst, "cutoff") < 18001.0f,
                  "selecting preset 0 applies its params");
 
     /* Re-selecting the same index is a no-op, so a param moved since then is
      * left alone: set_param("preset") is called on every knob turn. */
-    api->set_param(inst, "cutoff", "0.25");
+    api->set_param(inst, "cutoff", "1000");
     api->set_param(inst, "preset", "0");
-    require_true(get_float(api, inst, "cutoff") < 0.26f, "re-selecting the same preset does not reapply it");
+    require_true(get_float(api, inst, "cutoff") < 1001.0f, "re-selecting the same preset does not reapply it");
 
     api->destroy_instance(inst);
     printf("filter plugin tests passed\n");

@@ -26,8 +26,28 @@
           "count_param": "preset_count",
           "name_param": "preset_name",
           "params": [
-            { "default": 1, "key": "cutoff", "max": 1, "min": 0, "name": "Cutoff", "step": 0.01, "type": "float", "unit": "%" },
-            { "default": 0, "key": "resonance", "max": 1, "min": 0, "name": "Resonance", "step": 0.01, "type": "float", "unit": "%" },
+            {
+              "default": 18000,
+              "key": "cutoff",
+              "max": 18000,
+              "min": 20,
+              "name": "Cutoff",
+              "step": 0.1,
+              "type": "float",
+              "unit": "Hz",
+              "taper": "exp"
+            },
+            {
+              "default": 0.5,
+              "key": "resonance",
+              "max": 20,
+              "min": 0.5,
+              "name": "Resonance",
+              "step": 0.001,
+              "type": "float",
+              "unit": "Q",
+              "taper": "exp"
+            },
             { "default": 0, "key": "morph", "max": 1, "min": 0, "name": "Morph", "step": 0.01, "type": "float", "unit": "%" }
           ],
           "knobs": ["cutoff", "resonance", "morph"]
