@@ -91,6 +91,7 @@ int main(void) {
             in_r[i] = in_l[i];
         }
 
+        filter_destroy(&fx);
         filter_init(&fx);
         filter_set_param(&fx, morph_id, 0.0f);
         filter_set_param(&fx, resonance_id, 0.5f);
@@ -98,6 +99,7 @@ int main(void) {
         filter_process_float(&fx, in_l, in_r, out_l, out_r, FRAMES);
         for (int i = 0; i < FRAMES; i++) open_energy += (double)out_l[i] * out_l[i];
 
+        filter_destroy(&fx);
         filter_init(&fx);
         filter_set_param(&fx, morph_id, 0.0f);
         filter_set_param(&fx, resonance_id, 0.5f);
@@ -115,6 +117,7 @@ int main(void) {
         double gated_energy = 0.0;
         double idle_energy = 0.0;
 
+        filter_destroy(&fx);
         filter_init(&fx);
         filter_set_param(&fx, morph_id, 0.0f);
         filter_set_param(&fx, resonance_id, 0.5f);
