@@ -21,6 +21,7 @@
  *   mf_tilt_t            complementary tilt EQ, exactly transparent at 0 dB
  *   mf_smooth_t          one-pole parameter smoother
  *   mf_ar_t              attack/release envelope
+ *   mf_retrig_t          forced fall to zero, so a repeated note re-articulates
  *   mf_decay_t           two-stage exp/linear decay, crossfaded by one control
  *   mf_tanh_approx       rational tanh, ~7 ops instead of a libm call
  *   mf_fold              triangle wavefolder
@@ -403,6 +404,101 @@ static inline float mf_ar_tick(mf_ar_t *e, int gate_open, float sustain)
 }
 
 /* ---------------------------------------------------------------------------
+ * Retrigger
+ *
+ * An envelope that sustains cannot articulate a repeated note. A note arriving
+ * while the value is near 1.0 attacks from near 1.0, which finishes on the
+ * first sample and is not heard. Per-Step repeats leave 8 to 31 ms between
+ * notes at 120 BPM, so the envelope has to move inside that gap.
+ *
+ * Snapping the value to zero clicks at any non-trivial level, so this forces a
+ * short fall first and lets the attack start from the bottom. The fall time is
+ * fixed: no comparable instrument exposes one, and a player given the number
+ * would have nothing to choose between.
+ *
+ * The overshoot constants match the ADSR's because the fall has the same shape
+ * as a release. They are declared again rather than shared so a module with its
+ * own envelope can embed this without depending on the ADSR.
+ * ------------------------------------------------------------------------ */
+
+enum {
+    MF_RETRIG_OFF = 0,  /* never fall; a new note continues the envelope */
+    MF_RETRIG_RETRIG,   /* fall unless another note is already held */
+    MF_RETRIG_ALWAYS    /* fall on every note */
+};
+
+#define MF_RETRIG_OVERSHOOT 0.2f
+#define MF_RETRIG_TAU_SCALE 1.7917595f /* ln(1 + 1 / MF_RETRIG_OVERSHOOT) */
+#define MF_RETRIG_TARGET (-MF_RETRIG_OVERSHOOT)
+#define MF_RETRIG_FALL_SECONDS 0.002f
+/* Below this the fall has arrived. Also what counts as "nothing to fall from". */
+#define MF_RETRIG_FLOOR 0.001f
+
+typedef struct {
+    int mode;
+    int falling;
+    float coeff;
+} mf_retrig_t;
+
+static inline void mf_retrig_init(mf_retrig_t *r)
+{
+    if (!r) return;
+    /* Off, so a caller that never sets a mode behaves as it did before. */
+    r->mode = MF_RETRIG_OFF;
+    r->falling = 0;
+    r->coeff = mf_env_coeff_seconds(MF_RETRIG_FALL_SECONDS / MF_RETRIG_TAU_SCALE);
+}
+
+static inline void mf_retrig_set_mode(mf_retrig_t *r, int mode)
+{
+    if (!r) return;
+    if (mode < MF_RETRIG_OFF || mode > MF_RETRIG_ALWAYS) return;
+    r->mode = mode;
+}
+
+/* Decide at a note-on whether the envelope must fall before it attacks.
+ *
+ * `at_rest` is nonzero when the value is already down, so there is nothing to
+ * fall from. `others_held` is nonzero when a note other than this one is down,
+ * which is legato and keeps its envelope.
+ *
+ * Only ever starts a fall. A note arriving mid-fall leaves it running rather
+ * than resetting it, so the attack still begins from zero. */
+static inline void mf_retrig_note_on(mf_retrig_t *r, int at_rest, int others_held)
+{
+    if (!r || r->mode == MF_RETRIG_OFF) return;
+    if (at_rest) return;
+    if (r->mode == MF_RETRIG_RETRIG && others_held) return;
+    r->falling = 1;
+}
+
+static inline void mf_retrig_cancel(mf_retrig_t *r)
+{
+    if (!r) return;
+    r->falling = 0;
+}
+
+static inline int mf_retrig_is_falling(const mf_retrig_t *r)
+{
+    return r->falling;
+}
+
+/* Advance the fall by one sample. Returns 1 while it is still running, meaning
+ * the caller must not advance its own envelope this sample. Returns 0 once the
+ * value has reached zero and the attack may start. */
+static inline int mf_retrig_tick(mf_retrig_t *r, float *value)
+{
+    if (!r->falling) return 0;
+    *value += (MF_RETRIG_TARGET - *value) * r->coeff;
+    if (*value <= MF_RETRIG_FLOOR) {
+        *value = 0.0f;
+        r->falling = 0;
+        return 0;
+    }
+    return 1;
+}
+
+/* ---------------------------------------------------------------------------
  * Note-gated ADSR envelope
  *
  * The four-stage envelope with its own note gate, shared by every module that
@@ -450,6 +546,7 @@ typedef struct {
     float coeff_attack_seconds;
     float coeff_decay_seconds;
     float coeff_release_seconds;
+    mf_retrig_t retrig;
 } mf_adsr_t;
 
 static inline void mf_adsr_init(mf_adsr_t *e)
@@ -465,6 +562,7 @@ static inline void mf_adsr_init(mf_adsr_t *e)
     e->coeff_attack_seconds = -1.0f;
     e->coeff_decay_seconds = -1.0f;
     e->coeff_release_seconds = -1.0f;
+    mf_retrig_init(&e->retrig);
 }
 
 /* Recomputes only the stages whose time moved. This runs per block, and an
@@ -487,9 +585,28 @@ static inline void mf_adsr_set_times(mf_adsr_t *e, float attack_s,
     }
 }
 
+static inline void mf_adsr_set_retrig_mode(mf_adsr_t *e, int mode)
+{
+    if (!e) return;
+    mf_retrig_set_mode(&e->retrig, mode);
+}
+
 static inline int mf_adsr_any_held(const mf_adsr_t *e)
 {
     return (e->held[0] | e->held[1] | e->held[2] | e->held[3]) != 0u;
+}
+
+/* Whether any note other than `note` is held. Called before `note`'s own bit is
+ * set, and still masks it out, because a duplicate note-on of a note already
+ * down is a retrigger rather than legato. */
+static inline int mf_adsr_held_besides(const mf_adsr_t *e, int note)
+{
+    uint32_t bit = 1u << (note & 31);
+    int word = note >> 5;
+    uint32_t any = 0u;
+    for (int i = 0; i < 4; i++)
+        any |= (i == word) ? (e->held[i] & ~bit) : e->held[i];
+    return any != 0u;
 }
 
 /* Returns 1 when this note starts the envelope from idle, so a caller that
@@ -499,6 +616,8 @@ static inline int mf_adsr_note_on(mf_adsr_t *e, int note)
     int first;
     if (!e || note < 0 || note > 127) return 0;
     first = !mf_adsr_any_held(e) && e->stage == MF_ADSR_IDLE;
+    mf_retrig_note_on(&e->retrig, e->value <= MF_RETRIG_FLOOR,
+                      mf_adsr_held_besides(e, note));
     e->held[note >> 5] |= 1u << (note & 31);
     e->stage = MF_ADSR_ATTACK;
     return first;
@@ -517,6 +636,7 @@ static inline void mf_adsr_all_notes_off(mf_adsr_t *e)
     if (!e) return;
     e->held[0] = e->held[1] = e->held[2] = e->held[3] = 0u;
     if (e->stage != MF_ADSR_IDLE) e->stage = MF_ADSR_RELEASE;
+    mf_retrig_cancel(&e->retrig);
 }
 
 /* A note opens and closes the gate. Anything that is not a note is ignored.
@@ -533,6 +653,8 @@ static inline int mf_adsr_handle_midi(mf_adsr_t *e, int status, int d1, int d2)
 
 static inline float mf_adsr_tick(mf_adsr_t *e, float sustain)
 {
+    if (mf_retrig_tick(&e->retrig, &e->value))
+        return moveforge_clampf(e->value, 0.0f, 1.0f);
     switch (e->stage) {
     case MF_ADSR_ATTACK:
         e->value += (MF_ADSR_ATTACK_TARGET - e->value) * e->attack_coeff;
