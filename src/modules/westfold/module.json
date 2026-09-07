@@ -40,9 +40,36 @@
             { "default": 0.25, "key": "sustain", "max": 1, "min": 0, "name": "Sustain", "step": 0.01, "type": "float", "unit": "%" },
             { "default": 0.45, "key": "decay", "max": 2.5, "min": 0.02, "name": "Decay", "step": 0.01, "type": "float", "unit": "sec" },
             { "default": 0.8, "key": "release", "max": 4, "min": 0.02, "name": "Release", "step": 0.01, "type": "float", "unit": "sec" },
-            { "default": 2, "key": "bend_range", "max": 12, "min": 0, "name": "Bend", "step": 0.1, "type": "float", "unit": "st" }
+            { "default": 2, "key": "bend_range", "max": 12, "min": 0, "name": "Bend", "step": 0.1, "type": "float", "unit": "st" },
+            {
+              "default": 1,
+              "key": "hard_reset",
+              "max": 2,
+              "min": 0,
+              "name": "Hard Reset",
+              "options": ["Off", "Retrig", "Always"],
+              "step": 1,
+              "type": "enum"
+            }
           ],
-          "knobs": ["volume", "ratio", "fm", "fold", "lpg", "tone", "drive", "strike", "snap", "chaos", "width", "sustain", "decay", "release", "bend_range"]
+          "knobs": [
+            "volume",
+            "ratio",
+            "fm",
+            "fold",
+            "lpg",
+            "tone",
+            "drive",
+            "strike",
+            "snap",
+            "chaos",
+            "width",
+            "sustain",
+            "decay",
+            "release",
+            "bend_range",
+            "hard_reset"
+          ]
         }
       }
     }

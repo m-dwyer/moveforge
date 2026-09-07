@@ -58,7 +58,8 @@ const PARAMS = [
     { key: "sustain", name: "Sustain", min: 0, max: 1, step: 0.01, dec: 2, def: 0.25 },
     { key: "decay", name: "Decay", min: 0.02, max: 2.5, step: 0.0248, dec: 2, def: 0.45 },
     { key: "release", name: "Release", min: 0.02, max: 4, step: 0.0398, dec: 2, def: 0.8 },
-    { key: "bend_range", name: "Bend", min: 0, max: 12, step: 0.12, dec: 1, def: 2 }
+    { key: "bend_range", name: "Bend", min: 0, max: 12, step: 0.12, dec: 1, def: 2 },
+    { key: "hard_reset", name: "Hard Reset", min: 0, max: 2, step: 1, dec: 0, def: 1 }
 ];
 
 const KNOB_PARAM_INDEXES = [
@@ -76,7 +77,8 @@ const KNOB_PARAM_INDEXES = [
     11,
     12,
     13,
-    14
+    14,
+    15
 ];
 
 let selectedIndex = 0;

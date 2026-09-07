@@ -112,6 +112,92 @@ static void test_held_note_falls_back(void) {
     require_true(v.gate < 0.5f, "a stale note-off after all-notes-off does not revive it");
 }
 
+/* Per-Step repeats leave only a handful of milliseconds between notes, so a
+ * sustaining envelope cannot articulate a repeat: a note arriving while it
+ * sits near 1.0 attacks from near 1.0 and finishes on the first sample.
+ * hard_reset forces a short fall first. A single sample near zero cannot
+ * prove this — the oscillator's own zero crossings would trip it — so this
+ * measures short-window peaks instead. */
+static void test_hard_reset_articulates_a_repeat(void) {
+    westfold_core_t s;
+    float l[128], r[128];
+    enum { WINDOW = 16 };
+    float window_peak[8];
+
+    westfold_init(&s);
+    /* Sixteen-sample windows, and a ratio rather than a level: the signal is an
+     * oscillator, so a window's peak depends on where its crest falls. The fall
+     * is ~2ms, which is five windows, and westfold's own release cannot move
+     * far enough in the 8 to 31 ms between repeats to do this on its own. */
+    westfold_set_param(&s, westfold_param_id("hard_reset"), 1.0f);
+
+    westfold_note_on(&s, 60, 1.0f);
+    for (int block = 0; block < 8; block++)
+        westfold_process_float(&s, NULL, NULL, l, r, 128);
+
+    westfold_note_off(&s, 60);
+    westfold_process_float(&s, NULL, NULL, l, r, 128);
+
+    westfold_note_on(&s, 60, 1.0f);
+    westfold_process_float(&s, NULL, NULL, l, r, 128);
+    for (int w = 0; w < 8; w++) {
+        float peak = 0.0f;
+        for (int i = 0; i < WINDOW; i++) {
+            float a = absf_local(l[w * WINDOW + i]);
+            if (a > peak) peak = a;
+        }
+        window_peak[w] = peak;
+    }
+
+    float loudest = 0.0f;
+    float quietest = window_peak[0];
+    for (int i = 0; i < 8; i++) {
+        if (window_peak[i] > loudest) loudest = window_peak[i];
+        if (window_peak[i] < quietest) quietest = window_peak[i];
+    }
+
+    require_true(quietest < loudest * 0.3f,
+                 "hard_reset falls to near-silence before the repeat's attack");
+}
+
+static void test_hard_reset_off_does_not_dip_on_repeat(void) {
+    westfold_core_t s;
+    float l[128], r[128];
+    enum { WINDOW = 16 };
+    float window_peak[8];
+
+    westfold_init(&s);
+    westfold_set_param(&s, westfold_param_id("hard_reset"), 0.0f);
+
+    westfold_note_on(&s, 60, 1.0f);
+    for (int block = 0; block < 8; block++)
+        westfold_process_float(&s, NULL, NULL, l, r, 128);
+
+    westfold_note_off(&s, 60);
+    westfold_process_float(&s, NULL, NULL, l, r, 128);
+
+    westfold_note_on(&s, 60, 1.0f);
+    westfold_process_float(&s, NULL, NULL, l, r, 128);
+    for (int w = 0; w < 8; w++) {
+        float peak = 0.0f;
+        for (int i = 0; i < WINDOW; i++) {
+            float a = absf_local(l[w * WINDOW + i]);
+            if (a > peak) peak = a;
+        }
+        window_peak[w] = peak;
+    }
+
+    float loudest = 0.0f;
+    float quietest = window_peak[0];
+    for (int i = 0; i < 8; i++) {
+        if (window_peak[i] > loudest) loudest = window_peak[i];
+        if (window_peak[i] < quietest) quietest = window_peak[i];
+    }
+
+    require_true(quietest > loudest * 0.6f,
+                 "hard_reset off leaves the repeat's level undipped");
+}
+
 int main(void) {
     westfold_core_t synth;
     float left[FRAMES];
@@ -275,6 +361,8 @@ int main(void) {
 
     test_held_note_falls_back();
 
+    test_hard_reset_articulates_a_repeat();
+    test_hard_reset_off_does_not_dip_on_repeat();
 
     printf("westfold core tests passed\n");
     return 0;

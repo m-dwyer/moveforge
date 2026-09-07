@@ -126,6 +126,7 @@ void westfold_init(westfold_core_t *s)
         return;
     memset(s, 0, sizeof(*s));
     mf_voice_init(&s->voice);
+    mf_retrig_init(&s->retrig);
     s->active_note = -1;
     westfold_apply_defaults(s);
     sync_smoothed_params(s);
@@ -154,6 +155,12 @@ void westfold_note_on(westfold_core_t *s, int note, float velocity)
         return;
     int next_note = 0;
     float next_velocity = 0.0f;
+    /* Asked before the voice stack takes the note and before start_note snaps
+     * the envelope to full, because both answers are about the state the note
+     * actually arrived into. */
+    mf_retrig_note_on(&s->retrig, s->env <= MF_RETRIG_FLOOR,
+                      mf_voice_held_besides(&s->voice, note));
+    s->retrig_strike = mf_retrig_is_falling(&s->retrig);
     if (mf_voice_note_on(&s->voice, note, velocity, &next_note, &next_velocity) == MF_VOICE_START)
         westfold_start_note(s, next_note, next_velocity);
 }
@@ -185,6 +192,8 @@ void westfold_all_notes_off(westfold_core_t *s)
     if (!s)
         return;
     mf_voice_all_off(&s->voice);
+    mf_retrig_cancel(&s->retrig);
+    s->retrig_strike = 0;
     s->gate = 0.0f;
     s->active_note = -1;
 }
@@ -213,6 +222,7 @@ void westfold_process_float(westfold_core_t *s,
     float release_coeff = 1.0f - expf(-1.0f / (s->release * MOVEFORGE_SAMPLE_RATE));
     float strike_time = 0.012f + (1.0f - s->strike) * 0.18f;
     float strike_coeff = 1.0f - expf(-1.0f / (strike_time * MOVEFORGE_SAMPLE_RATE));
+    mf_retrig_set_mode(&s->retrig, (int)(s->hard_reset + 0.5f));
 
     for (int i = 0; i < frames; i++)
     {
@@ -232,16 +242,33 @@ void westfold_process_float(westfold_core_t *s,
         float tone_floor = 18.0f + tone_curve * 92.0f;
         s->freq += (s->target_freq * bend_mul - s->freq) * 0.0015f;
 
-        if (s->gate > 0.5f)
+        /* The fall owns the envelope while it runs, so a repeat is heard: this
+         * envelope resets on every note but its release cannot fall far in the
+         * 8 to 31 ms between repeats, so the reset alone was a few percent. */
+        if (!mf_retrig_tick(&s->retrig, &s->env))
         {
-            float base_hold = 0.015f + (1.0f - s->strike) * 0.18f;
-            float hold = base_hold + s->sustain * (0.9f - base_hold);
-            s->env += (hold - s->env) * decay_coeff;
+            /* The strike the fall made room for. It lands here rather than at
+             * note-on because westfold has no attack — the gate branch below
+             * would otherwise climb from zero at the decay rate, which is an
+             * attack this instrument does not have. */
+            if (s->retrig_strike)
+            {
+                s->env = 1.0f;
+                s->retrig_strike = 0;
+            }
+            if (s->gate > 0.5f)
+            {
+                float base_hold = 0.015f + (1.0f - s->strike) * 0.18f;
+                float hold = base_hold + s->sustain * (0.9f - base_hold);
+                s->env += (hold - s->env) * decay_coeff;
+            }
+            else
+            {
+                s->env += (0.0f - s->env) * release_coeff;
+            }
         }
-        else
-        {
-            s->env += (0.0f - s->env) * release_coeff;
-        }
+        /* Outside the fall: the strike transient is 12 to 180 ms, so 2 ms of it
+         * either way is nothing, and freezing it would hold a transient open. */
         s->strike_env += (0.0f - s->strike_env) * strike_coeff;
 
         float chaos_rate = 0.07f + s->chaos_sm * 1.7f + s->freq * 0.00003f;
