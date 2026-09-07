@@ -20,6 +20,7 @@ void dustline_init(dustline_core_t *s) {
     mf_svf_init(&s->svf);
     mf_dcblock_init(&s->dc_pre);
     mf_dcblock_init(&s->dc_post);
+    mf_retrig_init(&s->retrig);
     dustline_apply_defaults(s);
 }
 
@@ -41,6 +42,11 @@ void dustline_note_on(dustline_core_t *s, int note, float velocity) {
     if (!s) return;
     int next_note = 0;
     float next_velocity = 0.0f;
+    /* Asked here rather than in dustline_start_note: that is shared with the
+     * fallback when a higher note is released, which is legato by definition
+     * and must not dip. */
+    mf_retrig_note_on(&s->retrig, s->env <= MF_RETRIG_FLOOR,
+                      mf_voice_held_besides(&s->voice, note));
     if (mf_voice_note_on(&s->voice, note, velocity, &next_note, &next_velocity) == MF_VOICE_START) {
         dustline_start_note(s, next_note, next_velocity);
     }
@@ -70,6 +76,7 @@ void dustline_all_notes_off(dustline_core_t *s) {
     mf_voice_all_off(&s->voice);
     s->gate = 0.0f;
     s->active_note = -1;
+    mf_retrig_cancel(&s->retrig);
 }
 
 void dustline_pitch_bend(dustline_core_t *s, float bend) {
@@ -102,11 +109,16 @@ void dustline_process_float(dustline_core_t *s,
     float attack_coeff = mf_env_coeff_seconds(s->attack);
     float release_coeff = mf_env_coeff_seconds(s->release);
     float target_freq_bent = s->target_freq * bend_mul;
+    mf_retrig_set_mode(&s->retrig, (int)(s->hard_reset + 0.5f));
 
     for (int i = 0; i < frames; i++) {
         s->freq += (target_freq_bent - s->freq) * 0.002f;
 
-        s->env += ((s->gate > 0.5f ? 1.0f : 0.0f) - s->env) * (s->gate > 0.5f ? attack_coeff : release_coeff);
+        /* The fall owns the envelope while it runs, so a repeat is heard: this
+         * envelope only follows the gate, and a note arriving while it sits at
+         * 1.0 would otherwise attack from 1.0 and be inaudible. */
+        if (!mf_retrig_tick(&s->retrig, &s->env))
+            s->env += ((s->gate > 0.5f ? 1.0f : 0.0f) - s->env) * (s->gate > 0.5f ? attack_coeff : release_coeff);
 
         s->phase += moveforge_clampf(s->freq, 1.0f, 16000.0f) / MOVEFORGE_SAMPLE_RATE;
         s->sub_phase += moveforge_clampf(s->freq * 0.5f, 1.0f, 16000.0f) / MOVEFORGE_SAMPLE_RATE;

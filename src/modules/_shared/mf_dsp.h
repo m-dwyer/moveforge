@@ -1406,6 +1406,17 @@ static inline int mf_voice_current(const mf_voice_t *v)
     return (int)v->note[v->count - 1];
 }
 
+/* Whether any note other than `note` is held. Call before mf_voice_note_on adds
+ * it: a module deciding whether a note-on is a retrigger or legato has to ask
+ * about the stack as it stood when the note arrived. */
+static inline int mf_voice_held_besides(const mf_voice_t *v, int note)
+{
+    if (!v) return 0;
+    for (int i = 0; i < v->count; i++)
+        if (v->note[i] != (uint8_t)note) return 1;
+    return 0;
+}
+
 static inline void mf_voice_remove_at(mf_voice_t *v, int idx)
 {
     for (int i = idx; i < v->count - 1; i++) {

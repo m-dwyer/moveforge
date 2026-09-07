@@ -20,6 +20,7 @@ typedef struct {
     mf_dcblock_t dc_post;  /* after it — tanh reintroduces DC on asymmetric input */
     mf_rng_t rng;
     mf_voice_t voice;
+    mf_retrig_t retrig;
     int active_note;
     float pitch_bend;
 
@@ -32,6 +33,7 @@ typedef struct {
     float release;
     float drive;
     float bend_range;
+    float hard_reset;
 } dustline_core_t;
 
 void dustline_init(dustline_core_t *s);
