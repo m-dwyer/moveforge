@@ -11,7 +11,7 @@ typedef struct {
     const float *values;
 } filter_preset_t;
 
-static const char *filter_preset_param_keys[8] = {
+static const char *filter_preset_param_keys[9] = {
     "cutoff",
     "resonance",
     "morph",
@@ -19,15 +19,16 @@ static const char *filter_preset_param_keys[8] = {
     "filter_attack",
     "filter_decay",
     "filter_sustain",
-    "filter_release"
+    "filter_release",
+    "hard_reset"
 };
 
-static const float filter_preset_values_0[8] = { 18000.0f, 0.5f, 0.0f, 0.0f, 0.0f, 0.2f, 0.0f, 0.2f };
-static const float filter_preset_values_1[8] = { 427.0111f, 1.5121f, 0.0f, 0.0f, 0.0f, 0.2f, 0.0f, 0.2f };
-static const float filter_preset_values_2[8] = { 153.9227f, 11.5006f, 0.0f, 0.0f, 0.0f, 0.2f, 0.0f, 0.2f };
-static const float filter_preset_values_3[8] = { 843.0695f, 3.1623f, 0.5f, 0.0f, 0.0f, 0.2f, 0.0f, 0.2f };
-static const float filter_preset_values_4[8] = { 120.0f, 8.0f, 0.0f, 4.0f, 0.005f, 1.2f, 0.0f, 0.4f };
-static const float filter_preset_values_5[8] = { 216.2793f, 1.2574f, 1.0f, 0.0f, 0.0f, 0.2f, 0.0f, 0.2f };
+static const float filter_preset_values_0[9] = { 18000.0f, 0.5f, 0.0f, 0.0f, 0.0f, 0.2f, 0.0f, 0.2f, 0.0f };
+static const float filter_preset_values_1[9] = { 427.0111f, 1.5121f, 0.0f, 0.0f, 0.0f, 0.2f, 0.0f, 0.2f, 0.0f };
+static const float filter_preset_values_2[9] = { 153.9227f, 11.5006f, 0.0f, 0.0f, 0.0f, 0.2f, 0.0f, 0.2f, 0.0f };
+static const float filter_preset_values_3[9] = { 843.0695f, 3.1623f, 0.5f, 0.0f, 0.0f, 0.2f, 0.0f, 0.2f, 0.0f };
+static const float filter_preset_values_4[9] = { 120.0f, 8.0f, 0.0f, 4.0f, 0.005f, 1.2f, 0.0f, 0.4f, 0.0f };
+static const float filter_preset_values_5[9] = { 216.2793f, 1.2574f, 1.0f, 0.0f, 0.0f, 0.2f, 0.0f, 0.2f, 0.0f };
 
 static const filter_preset_t filter_presets[6] = {
     { "Open", filter_preset_values_0 },
@@ -59,7 +60,7 @@ static void filter_apply_preset(filter_core_t *s, int index) {
     index = filter_clamp_preset_index(index);
     const float *values = filter_presets[index].values;
     if (!values) return;
-    for (int i = 0; i < 8; i++) {
+    for (int i = 0; i < 9; i++) {
         filter_set_param(s, filter_param_id(filter_preset_param_keys[i]), values[i]);
     }
 }

@@ -70,6 +70,7 @@ void vca_process_float(vca_core_t *s,
     }
 
     mf_adsr_set_times(&s->env, s->attack, s->decay, s->release);
+    mf_adsr_set_retrig_mode(&s->env, (int)(s->hard_reset + 0.5f));
 
     for (i = 0; i < frames; i++) {
         float gain = mf_adsr_tick(&s->env, s->sustain);

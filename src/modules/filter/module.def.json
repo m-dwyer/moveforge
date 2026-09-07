@@ -21,7 +21,8 @@
         { "key": "filter_attack", "name": "Filter Attack", "type": "float", "min": 0, "max": 2, "default": 0, "step": 0.001, "unit": "sec" },
         { "key": "filter_decay", "name": "Filter Decay", "type": "float", "min": 0, "max": 4, "default": 0.2, "step": 0.01, "unit": "sec" },
         { "key": "filter_sustain", "name": "Filter Sustain", "type": "float", "min": 0, "max": 1, "default": 0, "step": 0.01, "unit": "%" },
-        { "key": "filter_release", "name": "Filter Release", "type": "float", "min": 0, "max": 6, "default": 0.2, "step": 0.01, "unit": "sec" }
+        { "key": "filter_release", "name": "Filter Release", "type": "float", "min": 0, "max": 6, "default": 0.2, "step": 0.01, "unit": "sec" },
+        { "key": "hard_reset", "name": "Hard Reset", "type": "enum", "options": ["Off", "Retrig", "Always"], "min": 0, "max": 2, "default": 0, "step": 1 }
       ],
       "knobs": ["cutoff", "resonance", "morph", "env_amount", "filter_attack", "filter_decay", "filter_sustain", "filter_release"]
     }

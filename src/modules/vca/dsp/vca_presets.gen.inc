@@ -11,17 +11,18 @@ typedef struct {
     const float *values;
 } vca_preset_t;
 
-static const char *vca_preset_param_keys[4] = {
+static const char *vca_preset_param_keys[5] = {
     "attack",
     "decay",
     "sustain",
-    "release"
+    "release",
+    "hard_reset"
 };
 
-static const float vca_preset_values_0[4] = { 0.0f, 0.0f, 1.0f, 6.0f };
-static const float vca_preset_values_1[4] = { 0.002f, 0.25f, 0.0f, 0.12f };
-static const float vca_preset_values_2[4] = { 1.2f, 0.0f, 1.0f, 1.5f };
-static const float vca_preset_values_3[4] = { 0.003f, 0.0f, 1.0f, 0.01f };
+static const float vca_preset_values_0[5] = { 0.0f, 0.0f, 1.0f, 6.0f, 1.0f };
+static const float vca_preset_values_1[5] = { 0.002f, 0.25f, 0.0f, 0.12f, 1.0f };
+static const float vca_preset_values_2[5] = { 1.2f, 0.0f, 1.0f, 1.5f, 1.0f };
+static const float vca_preset_values_3[5] = { 0.003f, 0.0f, 1.0f, 0.01f, 1.0f };
 
 static const vca_preset_t vca_presets[4] = {
     { "Open", vca_preset_values_0 },
@@ -51,7 +52,7 @@ static void vca_apply_preset(vca_core_t *s, int index) {
     index = vca_clamp_preset_index(index);
     const float *values = vca_presets[index].values;
     if (!values) return;
-    for (int i = 0; i < 4; i++) {
+    for (int i = 0; i < 5; i++) {
         vca_set_param(s, vca_param_id(vca_preset_param_keys[i]), values[i]);
     }
 }

@@ -19,6 +19,7 @@ typedef struct {
     float filter_sustain;
     float filter_release;
     float env_amount;
+    float hard_reset;
 
     /* The envelope runs here rather than in the DSP. Faust hoists a
      * slider-only frequency out of the sample loop; a frequency that moves

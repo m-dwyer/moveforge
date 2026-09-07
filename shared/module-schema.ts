@@ -77,6 +77,10 @@ export const paramSchema = z
     max: z.number({ error: "max is required and must be a number" }),
     min: z.number({ error: "min is required and must be a number" }),
     name: z.string().optional(),
+    /* An enum's choice names, which the stored value indexes. Musical rather
+     * than host-shaped, so it belongs here: any target that draws a selector
+     * wants them, and one that does not ignores them. */
+    options: z.array(z.string().min(1)).min(2).optional(),
     step: z.number().optional(),
     type: z.enum(PARAM_TYPES, {
       error: (issue) =>
@@ -115,6 +119,15 @@ export const paramSchema = z
     error: (issue) => {
       const p = issue.input as { step: number };
       return `step ${p.step} makes this a discrete control, so type must be "int" or "enum"`;
+    }
+  })
+  .refine((p) => !(p.options && p.type !== "enum"), {
+    error: "options belongs to an enum; another type's value does not index a list"
+  })
+  .refine((p) => !(p.options && p.options.length !== p.max - p.min + 1), {
+    error: (issue) => {
+      const p = issue.input as { max: number; min: number; options: string[] };
+      return `${p.options.length} options do not cover [${p.min}, ${p.max}]`;
     }
   });
 
