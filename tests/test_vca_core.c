@@ -193,6 +193,71 @@ int main(void) {
         }
     }
 
+    {
+        /* Hard Reset "Retrig" restarts a re-struck note from silence, so a fast
+         * repeat articulates instead of gliding out of the tail of the last
+         * note's release. */
+        vca_core_t fx;
+        static float in_l[128], in_r[128], out_l[128], out_r[128];
+        int i, b;
+        float min_out = 1.0f;
+        vca_init(&fx);
+        vca_set_param(&fx, vca_param_id("attack"), 0.0f);
+        vca_set_param(&fx, vca_param_id("decay"), 0.0f);
+        vca_set_param(&fx, vca_param_id("sustain"), 1.0f);
+        vca_set_param(&fx, vca_param_id("release"), 6.0f);
+        vca_set_param(&fx, vca_param_id("hard_reset"), 1.0f);
+        for (i = 0; i < 128; i++) { in_l[i] = 1.0f; in_r[i] = 1.0f; }
+
+        note_on(&fx, 60);
+        for (b = 0; b < 4; b++) {
+            vca_process_float(&fx, in_l, in_r, out_l, out_r, 128);
+        }
+        note_off(&fx, 60);
+        vca_process_float(&fx, in_l, in_r, out_l, out_r, 128);
+
+        note_on(&fx, 60);
+        for (b = 0; b < 2; b++) {
+            vca_process_float(&fx, in_l, in_r, out_l, out_r, 128);
+            for (i = 0; i < 128; i++) {
+                if (out_l[i] < min_out) min_out = out_l[i];
+            }
+        }
+        require_true(min_out < 0.01f, "hard reset retrig dips to silence on a repeat");
+    }
+
+    {
+        /* Hard Reset "Off" lets a re-struck note glide out of the held gain
+         * rather than restarting the envelope. */
+        vca_core_t fx;
+        static float in_l[128], in_r[128], out_l[128], out_r[128];
+        int i, b;
+        float min_out = 1.0f;
+        vca_init(&fx);
+        vca_set_param(&fx, vca_param_id("attack"), 0.0f);
+        vca_set_param(&fx, vca_param_id("decay"), 0.0f);
+        vca_set_param(&fx, vca_param_id("sustain"), 1.0f);
+        vca_set_param(&fx, vca_param_id("release"), 6.0f);
+        vca_set_param(&fx, vca_param_id("hard_reset"), 0.0f);
+        for (i = 0; i < 128; i++) { in_l[i] = 1.0f; in_r[i] = 1.0f; }
+
+        note_on(&fx, 60);
+        for (b = 0; b < 4; b++) {
+            vca_process_float(&fx, in_l, in_r, out_l, out_r, 128);
+        }
+        note_off(&fx, 60);
+        vca_process_float(&fx, in_l, in_r, out_l, out_r, 128);
+
+        note_on(&fx, 60);
+        for (b = 0; b < 2; b++) {
+            vca_process_float(&fx, in_l, in_r, out_l, out_r, 128);
+            for (i = 0; i < 128; i++) {
+                if (out_l[i] < min_out) min_out = out_l[i];
+            }
+        }
+        require_true(min_out > 0.5f, "hard reset off does not dip on a repeat");
+    }
+
     printf("vca core tests passed\n");
     return 0;
 }

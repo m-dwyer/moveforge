@@ -47,14 +47,16 @@ const PARAMS = [
     { key: "attack", name: "Attack", min: 0, max: 2, step: 0.02, dec: 2, def: 0 },
     { key: "decay", name: "Decay", min: 0, max: 4, step: 0.04, dec: 2, def: 0 },
     { key: "sustain", name: "Sustain", min: 0, max: 1, step: 0.01, dec: 2, def: 1 },
-    { key: "release", name: "Release", min: 0, max: 6, step: 0.06, dec: 2, def: 6 }
+    { key: "release", name: "Release", min: 0, max: 6, step: 0.06, dec: 2, def: 6 },
+    { key: "hard_reset", name: "Hard Reset", min: 0, max: 2, step: 1, dec: 0, def: 1 }
 ];
 
 const KNOB_PARAM_INDEXES = [
     0,
     1,
     2,
-    3
+    3,
+    4
 ];
 
 let selectedIndex = 0;

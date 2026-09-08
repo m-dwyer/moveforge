@@ -27,6 +27,7 @@ int filter_param_id(const char *key) {
     if (strcmp(key, "filter_decay") == 0) return FILTER_PARAM_FILTER_DECAY;
     if (strcmp(key, "filter_sustain") == 0) return FILTER_PARAM_FILTER_SUSTAIN;
     if (strcmp(key, "filter_release") == 0) return FILTER_PARAM_FILTER_RELEASE;
+    if (strcmp(key, "hard_reset") == 0) return FILTER_PARAM_HARD_RESET;
     return -1;
 }
 
@@ -41,6 +42,7 @@ void filter_set_param(filter_core_t *s, int param_id, float value) {
         case FILTER_PARAM_FILTER_DECAY: s->filter_decay = filter_params_clampf_(value, 0.0f, 4.0f); break;
         case FILTER_PARAM_FILTER_SUSTAIN: s->filter_sustain = filter_params_clampf_(value, 0.0f, 1.0f); break;
         case FILTER_PARAM_FILTER_RELEASE: s->filter_release = filter_params_clampf_(value, 0.0f, 6.0f); break;
+        case FILTER_PARAM_HARD_RESET: s->hard_reset = filter_params_clampf_(value, 0.0f, 2.0f); break;
         default: break;
     }
 }
@@ -56,6 +58,7 @@ float filter_get_param(const filter_core_t *s, int param_id) {
         case FILTER_PARAM_FILTER_DECAY: return s->filter_decay;
         case FILTER_PARAM_FILTER_SUSTAIN: return s->filter_sustain;
         case FILTER_PARAM_FILTER_RELEASE: return s->filter_release;
+        case FILTER_PARAM_HARD_RESET: return s->hard_reset;
         default: return 0.0f;
     }
 }
@@ -70,6 +73,7 @@ void filter_apply_defaults(filter_core_t *s) {
     s->filter_decay = 0.2f;
     s->filter_sustain = 0.0f;
     s->filter_release = 0.2f;
+    s->hard_reset = 0.0f;
 }
 
 #endif

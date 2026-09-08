@@ -11,7 +11,7 @@ typedef struct {
     const float *values;
 } dustline_preset_t;
 
-static const char *dustline_preset_param_keys[9] = {
+static const char *dustline_preset_param_keys[10] = {
     "volume",
     "wave",
     "noise",
@@ -20,15 +20,16 @@ static const char *dustline_preset_param_keys[9] = {
     "attack",
     "release",
     "drive",
-    "bend_range"
+    "bend_range",
+    "hard_reset"
 };
 
-static const float dustline_preset_values_0[9] = { 0.7f, 0.28f, 0.08f, 0.48f, 0.16f, 0.006f, 0.42f, 0.12f, 2.0f };
-static const float dustline_preset_values_1[9] = { 0.88f, 0.92f, 0.03f, 0.24f, 0.08f, 0.003f, 0.18f, 0.74f, 2.0f };
-static const float dustline_preset_values_2[9] = { 0.56f, 0.12f, 0.82f, 0.7f, 0.56f, 0.22f, 3.2f, 0.12f, 2.0f };
-static const float dustline_preset_values_3[9] = { 0.72f, 0.58f, 0.01f, 0.86f, 0.3f, 0.002f, 0.14f, 0.32f, 7.0f };
-static const float dustline_preset_values_4[9] = { 0.66f, 0.42f, 0.04f, 0.62f, 0.64f, 0.012f, 0.72f, 0.08f, 2.0f };
-static const float dustline_preset_values_5[9] = { 0.62f, 0.72f, 0.24f, 0.36f, 0.86f, 0.32f, 2.4f, 0.42f, 2.0f };
+static const float dustline_preset_values_0[10] = { 0.7f, 0.28f, 0.08f, 0.48f, 0.16f, 0.006f, 0.42f, 0.12f, 2.0f, 1.0f };
+static const float dustline_preset_values_1[10] = { 0.88f, 0.92f, 0.03f, 0.24f, 0.08f, 0.003f, 0.18f, 0.74f, 2.0f, 1.0f };
+static const float dustline_preset_values_2[10] = { 0.56f, 0.12f, 0.82f, 0.7f, 0.56f, 0.22f, 3.2f, 0.12f, 2.0f, 1.0f };
+static const float dustline_preset_values_3[10] = { 0.72f, 0.58f, 0.01f, 0.86f, 0.3f, 0.002f, 0.14f, 0.32f, 7.0f, 1.0f };
+static const float dustline_preset_values_4[10] = { 0.66f, 0.42f, 0.04f, 0.62f, 0.64f, 0.012f, 0.72f, 0.08f, 2.0f, 1.0f };
+static const float dustline_preset_values_5[10] = { 0.62f, 0.72f, 0.24f, 0.36f, 0.86f, 0.32f, 2.4f, 0.42f, 2.0f, 1.0f };
 
 static const dustline_preset_t dustline_presets[6] = {
     { "Init", dustline_preset_values_0 },
@@ -60,7 +61,7 @@ static void dustline_apply_preset(dustline_core_t *s, int index) {
     index = dustline_clamp_preset_index(index);
     const float *values = dustline_presets[index].values;
     if (!values) return;
-    for (int i = 0; i < 9; i++) {
+    for (int i = 0; i < 10; i++) {
         dustline_set_param(s, dustline_param_id(dustline_preset_param_keys[i]), values[i]);
     }
 }

@@ -237,6 +237,102 @@ static void test_held_note_falls_back(void) {
     require_true(v.gate < 0.5f, "a stale note-off after all-notes-off does not revive it");
 }
 
+/* Per-Step repeats leave only a handful of milliseconds between notes, so a
+ * sustaining envelope cannot articulate a repeat: a note arriving while it
+ * sits near 1.0 attacks from near 1.0 and finishes on the first sample.
+ * hard_reset forces a short fall first. A single sample near zero cannot
+ * prove this — the oscillator's own zero crossings would trip it — so this
+ * measures short-window peaks instead. */
+static void test_hard_reset_articulates_a_repeat(void) {
+    dustline_core_t s;
+    float l[128], r[128];
+    enum { WINDOW = 64 };
+    float window_peak[4];
+
+    dustline_init(&s);
+    /* The forced fall is ~2ms, so an instant attack refills the level before a
+     * window can measure it; a slow attack leaves a whole window in the quiet
+     * part of the climb. The threshold is a ratio rather than a level because
+     * the signal is an oscillator: a window's peak depends on where its crest
+     * falls, so the same envelope measures differently window to window. What
+     * separates the two modes is an order of magnitude, not a fixed floor. */
+    dustline_set_param(&s, dustline_param_id("attack"), 0.05f);
+    dustline_set_param(&s, dustline_param_id("release"), 0.55f);
+    dustline_set_param(&s, dustline_param_id("hard_reset"), 1.0f);
+
+    dustline_note_on(&s, 60, 1.0f);
+    for (int block = 0; block < 32; block++)
+        dustline_process_float(&s, NULL, NULL, l, r, 128);
+
+    dustline_note_off(&s, 60);
+    dustline_process_float(&s, NULL, NULL, l, r, 128);
+
+    dustline_note_on(&s, 60, 1.0f);
+    for (int block = 0; block < 2; block++) {
+        dustline_process_float(&s, NULL, NULL, l, r, 128);
+        for (int w = 0; w < 2; w++) {
+            float peak = 0.0f;
+            for (int i = 0; i < WINDOW; i++) {
+                float a = absf_local(l[w * WINDOW + i]);
+                if (a > peak) peak = a;
+            }
+            window_peak[block * 2 + w] = peak;
+        }
+    }
+
+    float loudest = 0.0f;
+    float quietest = window_peak[0];
+    for (int i = 0; i < 4; i++) {
+        if (window_peak[i] > loudest) loudest = window_peak[i];
+        if (window_peak[i] < quietest) quietest = window_peak[i];
+    }
+
+    require_true(quietest < loudest * 0.2f,
+                 "hard_reset falls to near-silence before the repeat's attack");
+}
+
+static void test_hard_reset_off_does_not_dip_on_repeat(void) {
+    dustline_core_t s;
+    float l[128], r[128];
+    enum { WINDOW = 64 };
+    float window_peak[4];
+
+    dustline_init(&s);
+    dustline_set_param(&s, dustline_param_id("attack"), 0.05f);
+    dustline_set_param(&s, dustline_param_id("release"), 0.55f);
+    dustline_set_param(&s, dustline_param_id("hard_reset"), 0.0f);
+
+    dustline_note_on(&s, 60, 1.0f);
+    for (int block = 0; block < 32; block++)
+        dustline_process_float(&s, NULL, NULL, l, r, 128);
+
+    dustline_note_off(&s, 60);
+    dustline_process_float(&s, NULL, NULL, l, r, 128);
+
+    dustline_note_on(&s, 60, 1.0f);
+    for (int block = 0; block < 2; block++) {
+        dustline_process_float(&s, NULL, NULL, l, r, 128);
+        for (int w = 0; w < 2; w++) {
+            float peak = 0.0f;
+            for (int i = 0; i < WINDOW; i++) {
+                float a = absf_local(l[w * WINDOW + i]);
+                if (a > peak) peak = a;
+            }
+            window_peak[block * 2 + w] = peak;
+        }
+    }
+
+    float loudest = 0.0f;
+    float quietest = window_peak[0];
+    for (int i = 0; i < 4; i++) {
+        if (window_peak[i] > loudest) loudest = window_peak[i];
+        if (window_peak[i] < quietest) quietest = window_peak[i];
+    }
+
+    require_true(quietest > loudest * 0.4f,
+                 "hard_reset off leaves the repeat's level undipped");
+}
+
 int main(void) {
     dustline_core_t synth;
     float left[FRAMES];
@@ -303,6 +399,8 @@ int main(void) {
 
     test_held_note_falls_back();
 
+    test_hard_reset_articulates_a_repeat();
+    test_hard_reset_off_does_not_dip_on_repeat();
 
     printf("dustline core tests passed\n");
     return 0;

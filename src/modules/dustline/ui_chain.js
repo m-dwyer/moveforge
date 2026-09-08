@@ -52,7 +52,8 @@ const PARAMS = [
     { key: "attack", name: "Attack", min: 0.001, max: 2, step: 0.01999, dec: 2, def: 0.008 },
     { key: "release", name: "Release", min: 0.02, max: 6, step: 0.0598, dec: 2, def: 0.55 },
     { key: "drive", name: "Drive", min: 0, max: 1, step: 0.01, dec: 2, def: 0.22 },
-    { key: "bend_range", name: "Bend", min: 0, max: 12, step: 0.12, dec: 1, def: 2 }
+    { key: "bend_range", name: "Bend", min: 0, max: 12, step: 0.12, dec: 1, def: 2 },
+    { key: "hard_reset", name: "Hard Reset", min: 0, max: 2, step: 1, dec: 0, def: 1 }
 ];
 
 const KNOB_PARAM_INDEXES = [

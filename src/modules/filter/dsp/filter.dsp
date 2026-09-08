@@ -5,7 +5,7 @@
 //
 // The envelope is computed in filter_adapter.c and reaches this DSP only as
 // the swept cutoff, so its params have no slider of their own here.
-// moveforge-adapter-params: filter_attack, filter_decay, filter_sustain, filter_release, env_amount
+// moveforge-adapter-params: filter_attack, filter_decay, filter_sustain, filter_release, env_amount, hard_reset
 
 import("stdfaust.lib");
 

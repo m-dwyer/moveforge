@@ -87,6 +87,7 @@ void filter_process_float(filter_core_t *s,
     push_params_to_faust(s);
     mf_adsr_set_times(&s->env, s->filter_attack, s->filter_decay,
                       s->filter_release);
+    mf_adsr_set_retrig_mode(&s->env, (int)(s->hard_reset + 0.5f));
 
     FAUSTFLOAT *cutoff_zone = (FAUSTFLOAT*)s->zones[FILTER_PARAM_CUTOFF];
 

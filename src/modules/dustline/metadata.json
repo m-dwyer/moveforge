@@ -8,7 +8,8 @@
     "attack": "Sets how quickly the amplitude envelope rises after note-on. Low values are immediate; higher values fade the voice in.",
     "release": "Sets how long the amplitude envelope falls after note-off. Higher values create longer tails and smoother note transitions.",
     "drive": "Adds saturation after filtering. Use it for louder, denser bass and lead tones, but watch output headroom at high values.",
-    "bend_range": "Sets pitch-bend depth in semitones for incoming MIDI pitch bend."
+    "bend_range": "Sets pitch-bend depth in semitones for incoming MIDI pitch bend.",
+    "hard_reset": "Whether a new note restarts the envelope from silence. Retrig restarts a re-struck note but lets a note played into a held note glide. Always restarts every note."
   },
   "randomize": {
     "volume": { "min": 0.45, "max": 0.85, "mode": "bounded" },
@@ -19,6 +20,7 @@
     "attack": { "min": 0.001, "max": 0.35, "mode": "around_default" },
     "release": { "min": 0.08, "max": 2.8, "mode": "around_default" },
     "drive": { "min": 0, "max": 0.72, "mode": "bounded" },
-    "bend_range": { "min": 0, "max": 7, "mode": "around_default" }
+    "bend_range": { "min": 0, "max": 7, "mode": "around_default" },
+    "hard_reset": { "mode": "around_default" }
   }
 }

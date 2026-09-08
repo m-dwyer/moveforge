@@ -23,6 +23,7 @@ int dustline_param_id(const char *key) {
     if (strcmp(key, "release") == 0) return DUSTLINE_PARAM_RELEASE;
     if (strcmp(key, "drive") == 0) return DUSTLINE_PARAM_DRIVE;
     if (strcmp(key, "bend_range") == 0) return DUSTLINE_PARAM_BEND_RANGE;
+    if (strcmp(key, "hard_reset") == 0) return DUSTLINE_PARAM_HARD_RESET;
     return -1;
 }
 
@@ -38,6 +39,7 @@ void dustline_set_param(dustline_core_t *s, int param_id, float value) {
         case DUSTLINE_PARAM_RELEASE: s->release = dustline_params_clampf_(value, 0.02f, 6.0f); break;
         case DUSTLINE_PARAM_DRIVE: s->drive = dustline_params_clampf_(value, 0.0f, 1.0f); break;
         case DUSTLINE_PARAM_BEND_RANGE: s->bend_range = dustline_params_clampf_(value, 0.0f, 12.0f); break;
+        case DUSTLINE_PARAM_HARD_RESET: s->hard_reset = dustline_params_clampf_(value, 0.0f, 2.0f); break;
         default: break;
     }
 }
@@ -54,6 +56,7 @@ float dustline_get_param(const dustline_core_t *s, int param_id) {
         case DUSTLINE_PARAM_RELEASE: return s->release;
         case DUSTLINE_PARAM_DRIVE: return s->drive;
         case DUSTLINE_PARAM_BEND_RANGE: return s->bend_range;
+        case DUSTLINE_PARAM_HARD_RESET: return s->hard_reset;
         default: return 0.0f;
     }
 }
@@ -69,6 +72,7 @@ void dustline_apply_defaults(dustline_core_t *s) {
     s->release = 0.55f;
     s->drive = 0.22f;
     s->bend_range = 2.0f;
+    s->hard_reset = 1.0f;
 }
 
 #endif

@@ -51,7 +51,8 @@ const PARAMS = [
     { key: "filter_attack", name: "Filter Attack", min: 0, max: 2, step: 0.02, dec: 2, def: 0 },
     { key: "filter_decay", name: "Filter Decay", min: 0, max: 4, step: 0.04, dec: 2, def: 0.2 },
     { key: "filter_sustain", name: "Filter Sustain", min: 0, max: 1, step: 0.01, dec: 2, def: 0 },
-    { key: "filter_release", name: "Filter Release", min: 0, max: 6, step: 0.06, dec: 2, def: 0.2 }
+    { key: "filter_release", name: "Filter Release", min: 0, max: 6, step: 0.06, dec: 2, def: 0.2 },
+    { key: "hard_reset", name: "Hard Reset", min: 0, max: 2, step: 1, dec: 0, def: 0 }
 ];
 
 const KNOB_PARAM_INDEXES = [

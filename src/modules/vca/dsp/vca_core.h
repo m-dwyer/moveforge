@@ -11,6 +11,7 @@ typedef struct {
     float decay;
     float sustain;
     float release;
+    float hard_reset;
 
     /* The shape, the stage machine and which notes are down. */
     mf_adsr_t env;

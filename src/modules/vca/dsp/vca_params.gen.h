@@ -10,13 +10,14 @@
 #ifndef VCA_PARAMS_GEN_H
 #define VCA_PARAMS_GEN_H
 
-#define VCA_PARAM_COUNT 4
+#define VCA_PARAM_COUNT 5
 
 enum {
     VCA_PARAM_ATTACK = 0,
     VCA_PARAM_DECAY = 1,
     VCA_PARAM_SUSTAIN = 2,
-    VCA_PARAM_RELEASE = 3
+    VCA_PARAM_RELEASE = 3,
+    VCA_PARAM_HARD_RESET = 4
 };
 
 #endif

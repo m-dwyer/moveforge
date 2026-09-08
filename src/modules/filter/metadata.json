@@ -7,7 +7,8 @@
     "filter_decay": "How long the envelope takes to fall from the peak to the sustain level.",
     "filter_sustain": "How much of the sweep the envelope holds while a note is down.",
     "filter_release": "How long the envelope takes to fall back to the cutoff after the last note ends.",
-    "env_amount": "How far the envelope sweeps the cutoff, in octaves. Negative sweeps down instead of up."
+    "env_amount": "How far the envelope sweeps the cutoff, in octaves. Negative sweeps down instead of up.",
+    "hard_reset": "Whether a new note restarts the sweep from the bottom. Retrig restarts a re-struck note but lets a note played into a held note glide. Always restarts every note."
   },
   "randomize": {
     "cutoff": { "min": 78.0, "max": 6488.4, "mode": "bounded" },
@@ -17,6 +18,7 @@
     "filter_decay": { "min": 0.05, "max": 1.5, "mode": "bounded" },
     "filter_sustain": { "min": 0, "max": 0.8, "mode": "bounded" },
     "filter_release": { "min": 0.05, "max": 2, "mode": "bounded" },
-    "env_amount": { "min": -4, "max": 6, "mode": "bounded" }
+    "env_amount": { "min": -4, "max": 6, "mode": "bounded" },
+    "hard_reset": { "mode": "around_default" }
   }
 }

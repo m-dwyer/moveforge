@@ -29,6 +29,7 @@ int westfold_param_id(const char *key) {
     if (strcmp(key, "decay") == 0) return WESTFOLD_PARAM_DECAY;
     if (strcmp(key, "release") == 0) return WESTFOLD_PARAM_RELEASE;
     if (strcmp(key, "bend_range") == 0) return WESTFOLD_PARAM_BEND_RANGE;
+    if (strcmp(key, "hard_reset") == 0) return WESTFOLD_PARAM_HARD_RESET;
     return -1;
 }
 
@@ -50,6 +51,7 @@ void westfold_set_param(westfold_core_t *s, int param_id, float value) {
         case WESTFOLD_PARAM_DECAY: s->decay = westfold_params_clampf_(value, 0.02f, 2.5f); break;
         case WESTFOLD_PARAM_RELEASE: s->release = westfold_params_clampf_(value, 0.02f, 4.0f); break;
         case WESTFOLD_PARAM_BEND_RANGE: s->bend_range = westfold_params_clampf_(value, 0.0f, 12.0f); break;
+        case WESTFOLD_PARAM_HARD_RESET: s->hard_reset = westfold_params_clampf_(value, 0.0f, 2.0f); break;
         default: break;
     }
 }
@@ -72,6 +74,7 @@ float westfold_get_param(const westfold_core_t *s, int param_id) {
         case WESTFOLD_PARAM_DECAY: return s->decay;
         case WESTFOLD_PARAM_RELEASE: return s->release;
         case WESTFOLD_PARAM_BEND_RANGE: return s->bend_range;
+        case WESTFOLD_PARAM_HARD_RESET: return s->hard_reset;
         default: return 0.0f;
     }
 }
@@ -93,6 +96,7 @@ void westfold_apply_defaults(westfold_core_t *s) {
     s->decay = 0.45f;
     s->release = 0.8f;
     s->bend_range = 2.0f;
+    s->hard_reset = 1.0f;
 }
 
 #endif

@@ -18,6 +18,7 @@ int vca_param_id(const char *key) {
     if (strcmp(key, "decay") == 0) return VCA_PARAM_DECAY;
     if (strcmp(key, "sustain") == 0) return VCA_PARAM_SUSTAIN;
     if (strcmp(key, "release") == 0) return VCA_PARAM_RELEASE;
+    if (strcmp(key, "hard_reset") == 0) return VCA_PARAM_HARD_RESET;
     return -1;
 }
 
@@ -28,6 +29,7 @@ void vca_set_param(vca_core_t *s, int param_id, float value) {
         case VCA_PARAM_DECAY: s->decay = vca_params_clampf_(value, 0.0f, 4.0f); break;
         case VCA_PARAM_SUSTAIN: s->sustain = vca_params_clampf_(value, 0.0f, 1.0f); break;
         case VCA_PARAM_RELEASE: s->release = vca_params_clampf_(value, 0.0f, 6.0f); break;
+        case VCA_PARAM_HARD_RESET: s->hard_reset = vca_params_clampf_(value, 0.0f, 2.0f); break;
         default: break;
     }
 }
@@ -39,6 +41,7 @@ float vca_get_param(const vca_core_t *s, int param_id) {
         case VCA_PARAM_DECAY: return s->decay;
         case VCA_PARAM_SUSTAIN: return s->sustain;
         case VCA_PARAM_RELEASE: return s->release;
+        case VCA_PARAM_HARD_RESET: return s->hard_reset;
         default: return 0.0f;
     }
 }
@@ -49,6 +52,7 @@ void vca_apply_defaults(vca_core_t *s) {
     s->decay = 0.0f;
     s->sustain = 1.0f;
     s->release = 6.0f;
+    s->hard_reset = 1.0f;
 }
 
 #endif
