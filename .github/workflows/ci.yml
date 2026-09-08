@@ -36,7 +36,11 @@ jobs:
       # `mise run ...` tasks. CI used to call `make` directly and never touch
       # mise at all, which meant the entry points it exercised were not the ones
       # anybody actually ran locally.
+      # Pinned: an unpinned action downloads the version mise.jdx.dev
+      # advertises, which 404s if its artifacts are not published yet.
       - uses: jdx/mise-action@v2
+        with:
+          version: 2026.9.2
 
       - uses: pnpm/action-setup@v4
         with:
@@ -90,6 +94,8 @@ jobs:
       - uses: actions/checkout@v4
 
       - uses: jdx/mise-action@v2
+        with:
+          version: 2026.9.2
 
       - uses: pnpm/action-setup@v4
         with:
@@ -127,6 +133,8 @@ jobs:
       - uses: actions/checkout@v4
 
       - uses: jdx/mise-action@v2
+        with:
+          version: 2026.9.2
 
       # move-build cross-compiles inside its own Docker image, so the aarch64
       # binutils are not on the host — but the symbol check below runs on the
@@ -197,6 +205,8 @@ jobs:
           ldd --version | head -1
 
       - uses: jdx/mise-action@v2
+        with:
+          version: 2026.9.2
 
       # Needed by scripts/gen-ninja.ts, which resolves the module graph through
       # the zod schemas in shared/ — see the note on device-build above.
