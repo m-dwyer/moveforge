@@ -758,6 +758,26 @@ static void test_adsr_retrigger_falls_before_reattack(void) {
     require_true(min_v < 0.01f, "retrigger forces a fall to near zero before reattacking");
 }
 
+static void test_adsr_retrigger_keeps_a_different_note_after_release(void) {
+    mf_adsr_t e;
+    mf_adsr_init(&e);
+    mf_adsr_set_times(&e, 0.001f, 0.05f, 0.5f);
+    mf_adsr_set_retrig_mode(&e, MF_RETRIG_RETRIG);
+
+    mf_adsr_note_on(&e, 60);
+    for (int i = 0; i < 4410; i++) mf_adsr_tick(&e, 0.8f);
+    mf_adsr_note_off(&e, 60);
+    for (int i = 0; i < 220; i++) mf_adsr_tick(&e, 0.8f);
+
+    mf_adsr_note_on(&e, 64);
+    float min_v = 1.0f;
+    for (int i = 0; i < 200; i++) {
+        float v = mf_adsr_tick(&e, 0.8f);
+        if (v < min_v) min_v = v;
+    }
+    require_true(min_v > 0.5f, "a different note after a release is the next note of a phrase, not a repeat");
+}
+
 static void test_adsr_retrigger_keeps_legato(void) {
     mf_adsr_t e;
     mf_adsr_init(&e);
@@ -1386,6 +1406,7 @@ int main(void) {
     test_decay_ends_are_exact();
     test_decay_taper_evens_out_the_control();
     test_adsr_retrigger_falls_before_reattack();
+    test_adsr_retrigger_keeps_a_different_note_after_release();
     test_adsr_retrigger_keeps_legato();
     test_adsr_retrigger_off_never_falls();
     test_adsr_retrigger_always_falls_on_legato();

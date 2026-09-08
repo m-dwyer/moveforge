@@ -42,11 +42,9 @@ void dustline_note_on(dustline_core_t *s, int note, float velocity) {
     if (!s) return;
     int next_note = 0;
     float next_velocity = 0.0f;
-    /* Asked here rather than in dustline_start_note: that is shared with the
-     * fallback when a higher note is released, which is legato by definition
-     * and must not dip. */
-    mf_retrig_note_on(&s->retrig, s->env <= MF_RETRIG_FLOOR,
-                      mf_voice_held_besides(&s->voice, note));
+    /* Asked before start_note, which is shared with the note-off fallback to a
+     * lower held note. That fallback is legato and must not fall. */
+    mf_retrig_note_on(&s->retrig, s->env <= MF_RETRIG_FLOOR, note);
     if (mf_voice_note_on(&s->voice, note, velocity, &next_note, &next_velocity) == MF_VOICE_START) {
         dustline_start_note(s, next_note, next_velocity);
     }
@@ -114,9 +112,7 @@ void dustline_process_float(dustline_core_t *s,
     for (int i = 0; i < frames; i++) {
         s->freq += (target_freq_bent - s->freq) * 0.002f;
 
-        /* The fall owns the envelope while it runs, so a repeat is heard: this
-         * envelope only follows the gate, and a note arriving while it sits at
-         * 1.0 would otherwise attack from 1.0 and be inaudible. */
+        /* The fall owns the envelope while it runs, so a repeat is heard. */
         if (!mf_retrig_tick(&s->retrig, &s->env))
             s->env += ((s->gate > 0.5f ? 1.0f : 0.0f) - s->env) * (s->gate > 0.5f ? attack_coeff : release_coeff);
 

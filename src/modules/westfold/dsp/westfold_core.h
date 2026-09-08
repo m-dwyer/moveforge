@@ -23,9 +23,7 @@ typedef struct {
     float note_rand;
     mf_voice_t voice;
     mf_retrig_t retrig;
-    /* A fall is making room for a strike that has not landed yet. westfold has
-     * no attack, so the snap back to full happens when the fall ends rather
-     * than at note-on. */
+    /* A fall is making room for a strike that has not landed yet. */
     int retrig_strike;
     int active_note;
     float pitch_bend;
